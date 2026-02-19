@@ -1,0 +1,18 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "AVRECHTAR"    :   Gosub AVRECHTAR
+Endcase
+Return
+
+##############################################
+$AVRECHTAR
+# En el módulo de ventas, para los componentes de estructura comercial, cojo los precios de las tarifas que son de tipo Normal
+# para evitar tener que crear una tarifa de componentes de estructura comercial. Esto no aplica KITS, que van a precio 0 y lo cogen de la tarifa
+# T79
+If MODULE = 5 & 0 ##XVT24-11-2023
+If GUSER = "NUN06" Then Infbox " YTRTPRICE 14 PLITYP=" + num$(PLITYP) : Endif
+#componentes de ESTRUCTURA COMERCIAL - FALTA REMATAR ESTO BUSCANCO PLITYP DE LA LÍNA ACTUAL (SI ES QUE VA POR EL AVRECHTAR)
+  If PLITYP = 7 or PLITYP = 8 or PLITYP = 9 : If GUSER = "NUN06" Then Infbox " YTRTPRICE 16 PLITYP=" + num$(PLITYP) : Endif : PLITYP = 1 : Endif
+Endif
+Return

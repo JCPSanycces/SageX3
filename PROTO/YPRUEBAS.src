@@ -1,0 +1,65 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#
+#
+#    Local Integer I_OK
+#    Local Integer I_TRON
+#    Local Integer I_NBPAR_MAX
+#    Local Char S_CRITERE(250),S_TIPOENV(15),S_MAIL(30),TBPAR(20)(1..200),TBVAL(50)(1..200)
+#
+#    If !clalev([F:YSIH])    : Local File SINVOICE   [F:YSIH]   : Endif # Cabecera de facturas de venta
+#    If !clalev([F:YSIV])    : Local File SINVOICEV  [F:YSIV]   : Endif # Valorización de facturas de venta
+#    If !clalev([F:YBPC])    : Local File BPCUSTOMER [F:YBPC]   : Endif # Clientes
+#    If !clalev([F:YBPA])    : Local File BPADDRESS  [F:YBPA]   : Endif # Direcciones
+#
+##    Link [F:YSIH] With [F:YSIV]SIV0 ~= [F:YSIH]NUM As [YSINV] Where [F:YSIH]YENVIADA<>2 and [F:YSIV]INVDAT>=(date$)
+#
+#    For [F:YSIV] Where [F:YSIV]NUM = 'FAC11241100036'
+#        [L]I_OK = 0
+#
+#        Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+#        If !fstat
+#            [L]S_TIPOENV = mess([F:YBPC]YTIPENV,6100,1)
+#            If [L]S_TIPOENV <> "Impresora"
+#                Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;'001'
+#                If !fstat and [F:YBPA]WEB(0) <> ''
+#                    [L]I_OK      = 1
+#                    Infbox "CLIENTE FACTURADO: "-[F:YBPA]BPANUM- " EMAIL: " - [F:YBPA]WEB(0)
+#                Else
+#                  Read [F:YBPC]BPC0 = [F:YSIV]BPCORD
+#                  If !fstat
+#                    [L]S_TIPOENV = mess([F:YBPC]YTIPENV,6100,1)
+#                      If [L]S_TIPOENV <> "Impresora"
+#                          Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;[F:YSIV]BPAADD
+#                          If !fstat
+#                              [L]I_OK      = 1
+#                              Infbox "CLIENTE PEDIDO: "-[F:YBPA]BPANUM- " EMAIL: " - [F:YBPA]WEB(1)
+#                          Endif
+#                      Else
+#                          [L]I_OK      = 1
+#                      Endif
+#                  Endif
+#                Endif
+#            Endif
+#        Endif
+##            Else
+##                [L]I_OK      = 1
+##            Endif
+##        Endif
+##
+###        If ![L]I_OK
+##            Read [F:YBPC]BPC0 = [F:YSIV]BPCORD
+##            If !fstat
+##                [L]S_TIPOENV = mess([F:YBPC]YTIPENV,6100,1)
+##                If [L]S_TIPOENV <> "Impresora"
+##                    Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;[F:YSIV]BPAADD
+##                    If !fstat
+##                        [L]I_OK      = 1
+##                        Infbox "CLIENTE PEDIDO: "-[F:YBPA]BPANUM- " EMAIL: " - [F:YBPA]WEB(1)
+##                    Endif
+##                Else
+##                    [L]I_OK      = 1
+##                Endif
+##            Endif
+#
+##        Endif
+#    Next

@@ -1,0 +1,16 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+####################################################################################
+#
+# Proceso encargado de resetear los datos de la tabla YI3PREPA para cuando borran alguna asignacion desde Sage.
+#
+####################################################################################
+
+Local Char PS_SOHNUM (30)
+Local Char PS_LIN
+Local Integer YLENGTH
+Local Integer YSTAT
+
+Call SAICAR([L]PS_SOHNUM,"Liberar un pedido de venta ","¿Que pedido quieres liberar?","DES",1,[L]YLENGTH,"", YSTAT) From GESECRAN
+Call SAICAR([L]PS_LIN,"Liberar un pedido de venta ","¿Número de línea?","DES",1,[L]YLENGTH,"", YSTAT) From GESECRAN
+
+#Gosub CONTROL From YI3DELETE2

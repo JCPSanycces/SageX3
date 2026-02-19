@@ -1,0 +1,513 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#
+#  Local Char PCOD_PLANTA : PCOD_PLANTA = '11'
+#  Local Char PDESDE_FECHA : PDESDE_FECHA = '01/01/2024'
+#  Local Char PHASTA_FECHA : PHASTA_FECHA = '22/03/2024'
+#  Local Char PCOD_CLIENTE : Raz PCOD_CLIENTE
+#  Local Char PCOD_TRANSPORTISTA : Raz PCOD_TRANSPORTISTA
+#  Local Char PCAMPO_FAMILIA : PCAMPO_FAMILIA = 'TSICOD_0'
+#  Local Char PCOD_FAMILIA : Raz PCOD_FAMILIA
+#  Local Char PCAMPO_SUBFAMILIA : PCAMPO_SUBFAMILIA = 'TSICOD_1'
+#  Local Char PCOD_SUBFAMILIA : Raz PCOD_SUBFAMILIA
+#  Local Char PCOD_PEDIDO : PCOD_PEDIDO = ""
+#  Local Char PCOD_ARTICULO : PCOD_ARTICULO = ""
+#  Local Integer PCOMPLETADOS : PCOMPLETADOS = 1
+#  # Salida
+#  Local Char COD_ARTICULO(50)(9999)
+#  Local Char DESCRIPCION_ARTICULO(250)(9999)
+#
+#  Call GETARTICULOSPREPICKING(PCOD_PLANTA, PDESDE_FECHA, PHASTA_FECHA, PCOD_CLIENTE, PCOD_TRANSPORTISTA, PCAMPO_FAMILIA, PCOD_FAMILIA,
+#& PCAMPO_SUBFAMILIA, PCOD_SUBFAMILIA, PCOD_PEDIDO, PCOD_ARTICULO, PCOMPLETADOS, COD_ARTICULO, DESCRIPCION_ARTICULO) From YX3MOBPREPICKING
+#
+#  Local Char PCOD_PLANTA : PCOD_PLANTA = '11'
+#  Local Char PDESDE_FECHA : PDESDE_FECHA = '01/01/2024'
+#  Local Char PHASTA_FECHA : PHASTA_FECHA = '22/09/2024'
+#  Local Char PCOD_CLIENTE : Raz PCOD_CLIENTE
+#  Local Char PCOD_TRANSPORTISTA : Raz PCOD_TRANSPORTISTA
+#  Local Char PCAMPO_FAMILIA : PCAMPO_FAMILIA = 'TSICOD_0'
+#  Local Char PCOD_FAMILIA : Raz PCOD_FAMILIA
+#  Local Char PCAMPO_SUBFAMILIA : PCAMPO_SUBFAMILIA = 'TSICOD_1'
+#  Local Char PCOD_SUBFAMILIA : Raz PCOD_SUBFAMILIA
+#  Local Char PCOD_PEDIDO : PCOD_PEDIDO = ""
+#  Local Char PCOD_ARTICULO : PCOD_ARTICULO = ""
+#  Local Integer PCOMPLETADOS : PCOMPLETADOS = 2
+#  # Salida
+#  Local Char COD_PEDIDO(50)(9999)
+#  Local Char COD_CLIENTE(10)(9999)
+#  Local Char NOMBRE_CLIENTE(250)(9999)
+#  Local Char FECHA_EXPEDICION_MIN(10)(9999)
+#  Local Integer ESTADO_ORDEN(9999)
+#  Local Char COD_TRANSPORTISTA(15)(9999)
+#  Local Char TRANSPORTISTA(250)(9999)
+#  Local Char FECHA_EXPEDICION(10)(9999)
+#  Local Integer BLOQUEADO(9999)
+#  Local Integer COMPLETADO(9999)
+#
+#  Call GETLISTAPEDIDOSPREPICKING(PCOD_PLANTA, PDESDE_FECHA, PHASTA_FECHA, PCOD_CLIENTE, PCOD_TRANSPORTISTA, PCAMPO_FAMILIA, PCOD_FAMILIA,
+#& PCAMPO_SUBFAMILIA, PCOD_SUBFAMILIA, PCOD_PEDIDO, PCOD_ARTICULO, PCOMPLETADOS, COD_PEDIDO, COD_CLIENTE,  NOMBRE_CLIENTE,  FECHA_EXPEDICION_MIN, ESTADO_ORDEN,  COD_TRANSPORTISTA,
+#& TRANSPORTISTA, FECHA_EXPEDICION, BLOQUEADO, COMPLETADO) From YX3MOBPREPICKING
+#
+#  # Entrada
+#  Local Char PDVLDATDESDE : PDVLDATDESDE = "01/01/2021"
+#  Local Char PDVLDATHASTA : PDVLDATHASTA = "01/01/2025"
+#  Local Char QUERY : Raz QUERY
+#  # Salida
+#  Local Char PBPCORD(50)(9999)
+#  Local Char PBPCNAM(250)(9999)
+#
+#  Call GETLISTCLIENTEPREP(PDVLDATDESDE, PDVLDATHASTA, QUERY, PBPCORD, PBPCNAM) From YX3MOBPREPARACION
+
+  # Entrada
+#  Local Char PCOD_PLANTA : PCOD_PLANTA = '11'
+#  Local Char PDVLDATDESDE : PDVLDATDESDE = '01/01/2021'
+#  Local Char PDVLDATHASTA : PDLVDATHASTA = '31/12/2025'
+#  Local Char PBPCORDDESDE : Raz PBPCORDDESDE
+#  Local Char PBTNUMDESDE : Raz PBTNUMDESDE
+#  # Salida
+#  Local Char PPRHNUM(50)(9999)
+#  Local Char PPREUSR(50)(9999)
+#  Local Char PPRLNUM(50)(9999)
+#  Local Char PBPCORD(15)(9999)
+#  Local Char PBPCNAM(250)(9999)
+#  Local Char PBPTNUM(15)(8888)
+#  Local Char PBPTDES(250)(9999)
+#  Local Char PDLVDAT(25)(9999)
+#
+#Call GETDOCUMENTOSPREPARACION(PCOD_PLANTA, PDVLDATDESDE, PDVLDATHASTA, PBPCORDDESDE, PBTNUMDESDE, PPRHNUM , PPREUSR, PPRLNUM,  PBPCORD, PBPCNAM,  PBPTNUM, PBPTDES, PDLVDAT) From YX3MOBPREPARACION
+#
+#Local Char COD_PEDIDO : COD_PEDIDO = "PDV112400420"
+#Local Integer ESTADO
+#Local Char USUARIOWIP
+#
+#Call PPCONTROLWIPPEDIDO(COD_PEDIDO, ESTADO, USUARIOWIP) From YX3MOBPREPICKING
+#
+#  Local Char PPRHNUM : PPRHNUM = 'DPR112400000466'
+#  Local Char PUSR : PUSR = "NUN21"
+#  Local Integer PCAMION : PCAMION = 10
+#  # Salida
+#  Local Char PRES
+#  Local Char PMESS(255)
+#
+#  Call TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS) From YX3MOBPREPARACION
+#  Infbox PRES
+
+#  # Entrada
+#  Local Char PCOD_PREPARACION : PCOD_PREPARACION = "DPR112400000224"
+#  Local Char PCOD_BULTO : PCOD_BULTO = "PL24000203"
+#  # Salida
+#  Local Integer PRES
+#  Local Char PMESS
+#
+#Call COMPROBARKIT(PCOD_PREPARACION, PCOD_BULTO, PRES, PMESS) From YX3MOBPREPARACION
+#Infbox(PMESS)
+
+
+#Local Char PPRHNUM(50) : PPRHNUM = 'DPR112400000229'
+#Local  Integer PPRELIN : PPRELIN = 2
+#Local Integer PQTYPCU : PQTYPCU = 1
+#Local Char PPACNUM(50)
+#Local Char PSERNUM(50) : PSERNUM = '2400253001'
+#Local Char PLOT(50)
+#Local Char PLPNNUM(50)
+#Local Char PUSUARIO(10) : PUSUARIO = 'NUN21'
+#
+#Call PUTYSPACKDET(PPRHNUM, PPRELIN ,PQTYPCU, PPACNUM, PSERNUM, PLOT, PLPNNUM, PUSUARIO) From YX3MOBPREPARACION
+
+#Local Char PPRHNUM(50) : PPRHNUM = "DPR112400000229"
+#Local Char PCODIGOBARRAS(50) : PCODIGOBARRAS = "2400253001"
+#Local Char PUSUARIO(5) : PUSUARIO = "NUN21"
+#
+#Local Char PPACNUM(50)
+#Local Char PRES(5)
+#Local Char PMESS(255)
+#
+#Call NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PPACNUM, PRES, PMESS) From YX3MOBPREPARACION
+
+
+
+#Local Char PCOD_PREPARACION : PCOD_PREPARACION = 'DPR112400000232'
+#Local Char PCOD_BULTO : PCOD_BULTO = "PL24000234"
+#
+#Local Integer PRES
+#Local Char PMESS(255)
+#
+#Call COMPROBARKIT(PCOD_PREPARACION, PCOD_BULTO, PRES, PMESS) From YX3MOBPREPARACION
+#Infbox(PMESS)
+#
+
+#Local Char PCOD_PREPARACION : PCOD_PREPARACION = 'DPR112400000232'
+#
+#Call ADDCOMPUESTOKITBULTO(PCOD_PREPARACION) From YX3MOBPREPARACION
+
+#
+#  Local Char VSDH : VSDH = "ENV112400314"
+#  Local Char VINF : VINF = "YBONLIV"
+#  Local Integer RES : Raz RES
+#
+#  Call PRINT_SDH(VSDH,VINF,2,RES) From YX3MOBPREPARACION
+
+#Local Char PCOD_CAJA : PCOD_CAJA = "PP24001972"
+#Local Integer PRES
+#
+#Call GETESTADOCAJA(PCOD_CAJA, PRES) From YX3MOBPREPICKING
+#
+#Infbox(num$(PRES))
+
+
+
+#  # Entrada
+#  Local Char VSDH : VSDH = 'ENV112400217'   # Número de la entrega
+#  Local Char VINF : VINF = 'YBONLIV'   # Código informe
+#  # Salida
+#  Local Integer RES
+#
+#  Call PRINT_SDH(VSDH, VINF, RES) From YX3MOBPREPARACION
+#  Infbox(num$(RES))
+
+#  Local Char LNUM_ENTREGA(25) : LNUM_ENTREGA = "ENV112400307"
+#
+#  Global Char GYRECIPIENT(150),GYOBJETC(100),GYMAILTEXT(255)
+#  GYRECIPIENT = "josemaria.fos@nunsys.com"
+#  GYOBJETC    = "Envío entrega " + LNUM_ENTREGA
+#  GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
+#  Infbox(GFILPATH)
+#  Call WORKFLOW(1,"YMA","",GUSER) From AWRK
+#  Kill    GYRECIPIENT
+#  Kill    GYOBJETC
+#  Kill    GYMAILTEXT
+
+#  # Entrada
+#  Local Char PETAT(30) : PETAT = "Y_SAN_LPN"
+#  Local Char PNUM_CAJA(15) : PNUM_CAJA = "PP24002278"
+#  Local Char PUSR(10) : PUSR = "NUN21"
+#  # Salida
+#  Local Integer PRES
+#
+#  Call PRINT_CAJA(PETAT, PNUM_CAJA, PUSR, PRES) From YX3MOBPREPICKING
+
+#  Local Char PLPNNUM(30) : PLPNNUM = "PP24002273"
+#  Local Char PUSR(10) : PUSR = "NUN21"
+#  Local Char PRES(10)
+#  Local Char PMESS(150)
+#
+#  Call FINALIZARCAJA(PLPNNUM, PUSR, PRES, PMESS) From YX3MOBPREPICKING
+
+  # Entrada
+#  Local Char PCOD_PREPARACION : PCOD_PREPARACION = 'DPR112400000445'
+#  Local Char PCOD_BULTO : PCOD_BULTO = 'PL24000556'
+#  # Salida
+#  Local Integer PRES
+#  Local Char PMESS(250)
+#
+#  Call COMPROBARKIT(PCOD_PREPARACION, PCOD_BULTO, PRES, PMESS) From YX3MOBPREPARACION
+#  Infbox(PMESS)
+
+  # Entrada
+#  Local Char PPRHNUM(25) : PPRHNUM = "DPR112400000453"
+#  Local Char PCOD_EAN(25) : PCOD_EAN = "8435315541085"
+#  # Salida
+#  Local Char COD_KIT(25)(2)
+#  Local Char DESC_KIT(250)(2)
+#  Local Integer LINEA_KIT(2)
+#
+#  Call GETKITSPENDIENTES(PPRHNUM, PCOD_EAN, COD_KIT, DESC_KIT, LINEA_KIT) From YX3MOBPREPARACION
+
+#  Local Char PPRHNUM : PPRHNUM = "DPR112401179"
+#  Local Char PUSR : PUSR = "NUN21"
+#  Local Integer PCAMION : PCAMION = 4
+#
+#  Local Char PRES
+#  Local Char PMESS(255)
+#
+#  Call TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS) From YX3MOBPREPARACION
+
+#  Local Char PPRHNUM(25) : PPRHNUM = "DPR112400754"
+#  Local Char LNUM_ENTREGA
+#
+#  Call MAKE_SDH(PPRHNUM, LNUM_ENTREGA) From YX3MOBPREPARACION
+
+# Entrada
+#  Local Char PCOD_PREPARACION : PCOD_PREPARACION = "DPR112400000474"
+#  Local Char PCOD_BULTO : PCOD_BULTO = "PL24000592"
+#
+#  Call ADDCOMPUESTOKITBULTO(PCOD_PREPARACION, PCOD_BULTO) From YX3MOBPREPARACION
+
+  # Entrada
+#  Local Char PCOD_PLANTA : PCOD_PLANTA = "11"
+#  Local Char PCOD_PROVEEDOR : PCOD_PROVEEDOR = "EX000015"
+#  Local Char PCOD_ARTICULO : PCOD_ARTICULO = "BNBB001CR"
+#  # Salida
+#  Local Char ESTADO
+#  Local Char UBICACION
+#
+#  Call GETESTADOUBICACIONCOMPRA(PCOD_PLANTA, PCOD_PROVEEDOR, PCOD_ARTICULO, ESTADO, UBICACION) From YX3MLOG
+
+#  Infbox(GSSCCCOU)
+
+  # Entrada
+#  Local Char PCOD_PLANTA : PCOD_PLANTA = "11"
+#  Local Char PCOD_PEDIDO : PCOD_PEDIDO = "PDV112403088"
+#  Local Char PCOD_ARTICULO : PCOD_ARTICULO = "DUL01RGK1"
+#  Local Decimal PUNIDADES : PUNIDADES = 3
+#  # Salida
+#  Local Integer PRES
+#  Local Char PMESS(255)
+#  Local Char PNUM_SERIE(25)(9999)
+#
+#  Call CONTROL_CONTRAMARCA_PRODUCCION(PCOD_PLANTA, PCOD_PEDIDO, PCOD_ARTICULO, PUNIDADES, PRES, PMESS, PNUM_SERIE) From YX3MOBPREPICKING
+#  Infbox(PMESS)
+
+#  Local Char PS_PEDIDO : PS_PEDIDO = "PDV112403088"
+#  Local Integer PI_LINEA : PI_LINEA = 1000
+#  Local Integer PI_LINSEQ : PI_LINSEQ = 1000
+#  Local Integer I : I = 0
+#
+#  I = func YX3MOBPREPICKING.CALCULA_CANTIDADES(PS_PEDIDO, PI_LINEA, PI_LINSEQ)
+#  Infbox("CANTIDAD: " + num$(I))
+
+#Local Char PSOHNUM : PSOHNUM = "PDV112403088"
+#Local Char PSHIDAT : PSHIDAT = "09/10/2024"
+#Local Char PTSICOD0
+#Local Char PTSICOD1
+#Local Integer  PSOPLIN(9999)
+#Local Char  PITMREF(25)(9999)
+#Local Char   PITMDES(255)(9999)
+#Local Char   PLPNNUM(30)(9999)
+#Local Char   PPRTFLG(5)(9999)
+#Local Decimal PQTY(9999)
+#Local Decimal  PQTYLPN(9999)
+#Local Char   PLPNNUM_USADO
+#Local Char   PRES
+#Local Char   PMESS(255)
+#
+#Call GETDETALLEPEDIDOPREPICKING(PSOHNUM, PSHIDAT, PTSICOD0, PTSICOD1, PSOPLIN, PITMREF, PITMDES, PLPNNUM, PPRTFLG ,PQTY, PQTYLPN, PLPNNUM_USADO,PRES, PMESS) From YX3MOBPREPICKING
+
+##########################################
+## GESTIÓN ENVÍO EMAIL
+##########################################
+##Borramos primero el fichero
+#Local Char LNUM_ENTREGA : LNUM_ENTREGA = "ENV112400415"
+#Local Char INFORME : INFORME = "YBONLIV"
+#Local Char PUSR : PUSR = "SN024"
+#Local Integer LRES_IMPR : Raz LRES_IMPR
+#
+#Local Char YNOMFIC(255) : YNOMFIC = filpath("FILES/SDH","entrega_sanycces_" + GUSER, "pdf")
+#Local Integer DEL_STA
+#DEL_STA = Delfile(YNOMFIC)
+#If DEL_STA = 0 or DEL_STA = -20 Then
+#  # Generamos PDF
+#  Call PRINT_SDH(LNUM_ENTREGA, INFORME, 2, PUSR, LRES_IMPR) From YX3MOBPREPARACION
+#  # Esperamos a que se cree el fichero
+#  Local Integer I, J
+#  For I = 0 To 30
+#    Sleep 1
+#    J = filinfo(YNOMFIC, 7)
+#    If J > 0 Then
+#      Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255), GYRECIPIENT4(255), GYRECIPIENT5(255), GYOBJETC(100),GYMAILTEXT(255), GYFILE(255)
+#
+#      Read [YBPA]BPA0 = 1;"NA000012";"001"
+#      If !fstat Then
+#        GYRECIPIENT1 = "cargas@sanycces.es"
+#
+#        If [YBPA]WEB(0) <> "" Then
+#          GYRECIPIENT2 = [YBPA]WEB(0)
+#        Endif
+#        If [YBPA]WEB(1) <> "" Then
+#          GYRECIPIENT3 = [YBPA]WEB(1)
+#        Endif
+#        If [YBPA]WEB(2) <> "" Then
+#          GYRECIPIENT4 = [YBPA]WEB(2)
+#        Endif
+#        If [YBPA]WEB(3) <> "" Then
+#          GYRECIPIENT5 = [YBPA]WEB(3)
+#        Endif
+#
+#        GYOBJETC    = "SANYCCES - Envío entrega " + LNUM_ENTREGA
+#        GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
+#        GYFILE = YNOMFIC
+#
+#        #Call WORKFLOW(1,"YMA","",GUSER) From AWRK
+#      Endif
+#
+#      Kill GYRECIPIENT1
+#      Kill GYRECIPIENT2
+#      Kill GYRECIPIENT3
+#      Kill GYRECIPIENT4
+#      Kill GYRECIPIENT5
+#      Kill GYOBJETC
+#      Kill GYMAILTEXT
+#      Kill GYFILE
+#
+#      Break
+#    Endif
+#  Next I
+#Endif
+#
+#
+#  # Entrada
+#  Local Char PCOD_PREPARACION : PCOD_PREPARACION = "DPR112401022"
+#  Local Char PCOD_BULTO : PCOD_BULTO = "PL24000778"
+#
+#  Subprog ADDCOMPUESTOKITBULTO(PCOD_PREPARACION, PCOD_BULTO)
+#
+#  # Entrada
+#  Local Char PPACNUM : PPACNUM = "PL24000779"
+#  Local Char PPCK
+#  Local Char PLBLFMT
+#  Local Decimal PNETWEI
+#  Local Decimal  PBRWEI
+#  Local Decimal PPCKWEI
+#  Local Decimal PVOL
+#  Local Decimal  PPCKLEN
+#  Local Decimal PPCKWID
+#  Local Decimal PPCKHEI
+#  Local Char PCAMION
+#  Local Char PUSR
+#  # Salida
+#  Local Char PRES
+#  Local Char PMESS
+#
+#  Call FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR,  PRES, PMESS) From YX3MOBPREPARACION
+#  Infbox(PMESS)
+
+#Local Char LNUM_ENTREGA : LNUM_ENTREGA = "ENV112400522"
+#Local Char INFORME : INFORME = "YBONLIV"
+#Local Char PUSR : PUSR = "SN026"
+#Local Integer LRES_IMPR : Raz LRES_IMPR
+#
+#Call PRINT_SDH(LNUM_ENTREGA, INFORME, 2, PUSR, LRES_IMPR) From YX3MOBPREPARACION
+
+#  # ENTRADA
+#Local Char PPRHNUM : PPRHNUM = "DPR112401050"
+#Local Char PCODIGOBARRAS : PCODIGOBARRAS = "2401571002"
+#  Local Char PUSUARIO : PUSUARIO = "NUN21"
+#  Local Integer PLINEA_KIT : PLINEA_KIT = 0
+#  Local Char PCOD_KIT : PCOD_KIT = ""
+#  # SALIDA
+#  Local Char PPACNUM
+#  Local Char PRES
+#  Local Char PMESS
+#
+#Call NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT, PPACNUM, PRES, PMESS) From YX3MOBPREPARACION
+
+#Infbox(num$(func YX3MOBPREPARACION.NUM_SERIE(PPRHNUM, PCODIGOBARRAS)))
+
+#  # ENTRADA
+#  Local Char PPRHNUM(50) : PPRHNUM = "DPR112401093"
+#  Local Char PCODIGOBARRAS : PCODIGOBARRAS = "PP24003636"
+#  Local Char PUSUARIO : PUSUARIO = "NUN21"
+#  Local Integer PLINEA_KIT
+#  Local Char PCOD_KIT
+#  # SALIDA
+#  Local Char PPACNUM
+#  Local Char PRES
+#  Local Char PMESS
+#
+#  Call NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT, PPACNUM, PRES, PMESS) From YX3MOBPREPARACION
+#  Infbox(PMESS)
+
+# Entrada
+#Local Char PUSUARIO : PUSUARIO = "NUN21"
+#Local Char PPANTALLA : PPANTALLA = "PANTALLA"
+#Local Char PFUNCION : PFUNCION = "PFUNCION"
+#Local Clbfile PREQUEST : PREQUEST = '<SOAPENV:ENVELOPE XMLNS:XSI="http://www.w3.org/2001/XMLSchema-instance" XMLNS:XSD="http://www.w3.org/2001/XMLSchema"
+# XMLNS:SOAPENV="http://schemas.xmlsoap.org/soa'
+#&  + 'p/envelope/" XMLNS:WSS="http://www.adonix.com/WSS"><soapenv:Header/><soapenv:Body><wss:run soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><callContext
+# xsi:type="wss:CAdxCallContext'
+#&  + '"><codeLang xsi:type="xsd:string">SPA</codeLang><poolAlias xsi:type="xsd:string">POOLPROTO</poolAlias><poolId xsi:type="xsd:string">AA</poolId><requestConfig
+# xsi:type="xsd:string">adxwss.trace.on=off'
+#&  + '&amp;adxwss.beautify=true&amp;adxwss.optreturn=JSON</requestConfig></callContext><publicName xsi:type="xsd:string">YLINPREP</publicName><inputXml xsi:type="xsd:string"><![CDATA[<?xml
+# version="1.0" en'
+#&  + 'coding="UTF-8"?><PARAM><GRP ID="GRP1"><FLD NAME="PPRHNUM">DPR112400000316</FLD></GRP></PARAM>></inputXml></wss:run></soapenv:Body></soapenv:Envelope>'
+#Local Clbfile PRESPONSE : PRESPONSE = 'HTTP/1.1 200 OK content-type: text/xml; charset=utf-8 access-control-allow-origin: * access-control-allow-methods: GET, POST, DELETE, PUT
+# access-control-allow-h'
+#&  + 'eaders: Origin, Content-Type, Accept, Authorization, X-Request-With, soapaction, x-requested-with, Charset access-control-allow-credentials: true transfer-encoding: chunked x-frame-options:
+# DENY x-co'
+#&  + 'ntent-type-options: nosniff x-xss-protection: 1; mode=block content-security-policy: frame-ancestors "self";cache-control: max-age=0, s-maxage=0, no-cache, must-revalidate, private,
+# proxy-revalidate,'
+#&  + 'no-store pragma: no-cacheDate: Mon, 11 Nov 2024 08:25:51 GMTConnection: keep-aliveKeep-Alive: timeout=5<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope
+# xmlns:soapenv="http://schemas.xmlsoap.or'
+#&  + 'g/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+# xmlns:wss="http://www.ad'
+#&  + 'onix.com/WSS"><soapenv:Body><wss:runResponse soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><runReturn xsi:type="wss:CAdxResultXml"><messages xsi:type="soapenc:Array"
+# soapenv:encod'
+#&  + 'ingStyle="http://schemas.xmlsoap.org/soap/encoding/" soapenc:arrayType="wss:CAdxMessage[0]"></messages><resultXml xsi:type="xsd:string"><![CDATA[{  "GRP1": {    "PPRHNUM": "DPR112400000316"  },
+#  "GRP'
+#&  + '2": [],  "GRP3": {    "PPACNUM": "",    "PRES": "800",    "PMESS": "No hay artículos"  }}]]></resultXml><status xsi:type="xsd:int">1</status><technicalInfos
+# xsi:type="wss:CAdxTechnicalInfos"><busy xs'
+#&  + 'i:type="xsd:boolean">false</busy><changeLanguage xsi:type="xsd:boolean">false</changeLanguage><changeUserId xsi:type="xsd:boolean">false</changeUserId><flushAdx
+# xsi:type="xsd:boolean">false</flushAdx'
+#&  + '><loadWebsDuration xsi:type="xsd:double">17</loadWebsDuration><nbDistributionCycle xsi:type="xsd:int">-1</nbDistributionCycle><poolDistribDuration
+# xsi:type="xsd:double">1</poolDistribDuration><poolEn'
+#&  + 'tryIdx xsi:type="xsd:int">18404</poolEntryIdx><poolExecDuration xsi:type="xsd:double">241</poolExecDuration><poolRequestDuration xsi:type="xsd:double">-1</poolRequestDuration><poolWaitDuration
+# xsi:ty'
+#&  + 'pe="xsd:double">0</poolWaitDuration><processReport xsi:type="xsd:string" xsi:nil="true"/><processReportSize xsi:type="xsd:int">-1</processReportSize><reloadWebs
+# xsi:type="xsd:boolean">false</reloadWe'
+#&  + 'bs><resumitAfterDBOpen xsi:type="xsd:boolean">false</resumitAfterDBOpen><rowInDistribStack xsi:type="xsd:int" xsi:nil="true"/><totalDuration
+# xsi:type="xsd:double">260</totalDuration><traceRequest xsi'
+#&  + ':type="xsd:string"/><traceRequestSize xsi:type="xsd:int">0</traceRequestSize></technicalInfos></runReturn></wss:runResponse></soapenv:Body></soapenv:Envelope>'
+## Salida
+#Local Integer LRET
+#
+#Call GRABARLOG(PUSUARIO, PPANTALLA, PFUNCION, PREQUEST, PRESPONSE, LRET) From YX3MOBPREPARACION
+#Infbox(num$(LRET))
+
+  # Entrada
+#  Local Char PPACNUM : PPACNUM = "PL24000949"
+#  Local Char PPCK : PPCK = "00"
+#  Local Char PLBLFMT
+#  Local Decimal PNETWEI
+#  Local Decimal PPCKWEI
+#  Local Decimal  PBRWEI
+#  Local Decimal PVOL
+#  Local Decimal  PPCKLEN
+#  Local Decimal PPCKWID
+#  Local Decimal PPCKHEI
+#  Local Char PCAMION : PCAMION = "1"
+#  Local Char PUSR : PUSR = "SN035"
+#  # Salida
+#  Local Char PRES
+#  Local Char PMESS
+#
+#  Call FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR,  PRES, PMESS) From YX3MOBPREPARACION
+
+  # Entrada
+#  Local Char PCOD_PREPARACION : PCOD_PREPARACION = "DPR112401227"
+#  Local Char PCOD_BULTO : PCOD_BULTO = "PL24000954"
+#  # Salida
+#  Local Integer LRET
+#
+#  Call ADDCOMPUESTOKITBULTO(PCOD_PREPARACION, PCOD_BULTO, LRET) From YX3MOBPREPARACION
+
+  # Entrada
+#  Local Char PNUM_VALE : PNUM_VALE = "DPR112401293"
+#  # Salida
+#  Local Char BLOQUEOS(25)(10)
+#
+#  Call GETBLOQUEOSPEDIDOS(PNUM_VALE, BLOQUEOS) From YX3MOBPREPARACION
+#  Infbox(BLOQUEOS(0))
+
+#  Local Char PPLANTA : PPLANTA = "11"
+#  Local Char PITMREF : PITMREF = "MNO001RG"
+#  Local Decimal PSTOCOU : PSTOCOU = 0.0
+#  Local Decimal PSEQ : PSEQ = 99999998
+#  Local Integer LRET1
+#
+#  Call SUPALL(PPLANTA, PITMREF, PSTOCOU, PSEQ , LRET1) From STKALL
+#  Infbox(num$(LRET1))
+  # Actualizo la línea del pedido
+#  Local Char PEDIDO : PEDIDO = "PDV112500457"
+#  Local Integer LRET3
+#
+#  Call MAJALLORD(PEDIDO, 1000, 1000, 1, 1, 0, 0, LRET3) From TRTVENALL
+#  Infbox(num$(LRET3))
+#  # A continuación hacemos la asignación detallada
+
+  Local Char PEDIDO : PEDIDO = "PDV112500485"
+  Local Char CONTENEDOR : [L]CONTENEDOR = "PP25003668"
+  Local Integer LRET
+  Local Char LMESS
+
+  Call ASIGNACION_DETALLADA(PEDIDO,CONTENEDOR, LRET, LMESS) From YX3MOBPREPICKING
+  Infbox(LMESS)
+End

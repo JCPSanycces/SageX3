@@ -1,0 +1,995 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#####################################################################################
+# Src: SPEZCIT
+#-------------------------------------------------------------------------------------
+# (Citas de transporte)
+#-------------------------------------------------------------------------------------
+# Proyecto: Sanycces
+#-------------------------------------------------------------------------------------
+# Version: v12 R1 (12.0.33)
+#-------------------------------------------------------------------------------------
+# Fecha:
+#-------------------------------------------------------------------------------------
+# Desarrollador:
+# Codigo Actividad:
+#######################################################################################
+#@01@: NUN22  11-01-2024 (Y058) Creación de un nuevo botón que realiza el envío de DESADV a Seres cogiendo la información de las entregas
+#@02@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+#@03@: JLP    22-07-2024 (Y119) Cambios para EDI . DESADV para cliente BCM
+#@04@: NUN14  31-07-2024 (Y119) Cambios para EDI . Nuevo fichero excel BCM
+#@05@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
+#@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+
+CURSOR
+$ACTION
+  Case ACTION
+    When "OUVRE"        : Gosub OUVRE
+    When "FILTRE"       : Gosub FILTRE
+    When "LIENS"        : Gosub LIENS
+    When "RAZCRE"       : Gosub RAZCRE
+    When "VERIF_CRE"    : Gosub VERIF_CRE
+    When "VERIF_MOD"    : Gosub VERIF_CRE
+    When "INICRE"       : Gosub INICRE
+    When "CREATION"     : Gosub CREATION
+    When "APRES_CRE"    : Gosub APRES_CRE
+    When "MODIF"        : Gosub MODIF
+    When "APRES_MOD"    : Gosub APRES_MOD
+    When "VERF_ANU"     : Gosub VERF_ANU
+    When "AV_VERF_ANU"  : Gosub AV_VERF_ANU
+    When "ANNULE"       : Gosub ANNULE
+    When "DEFLIG"       : Gosub DEFLIG
+    When "INICRE_LIG"   : Gosub INI_LIG
+    When "INIMOD_LIG"   : Gosub INI_LIG
+    When "EXEBOUT"      : Gosub EXEBOUT
+    When "OUVRE_BOITE"  : Gosub OUVRE_BOITE
+    When "FILGAUCHE"    : Gosub FILGAUCHE
+    When "PICKE"        : Gosub PICKE
+    When "DEPICK"       : Gosub DEPICK
+    When "SEL_TABLE"  : Gosub SEL_TABLE
+    When Default
+  Endcase
+Return
+
+#-----------------------------------------------------------------  objeto
+######################################################
+$OUVRE
+  #--
+  Local Integer STAT, NOL, WDLTLIN
+  #--
+  If !clalev([F:ZCITH])  : Local File ZCITASTH     [ZCITH]  : Endif
+  If !clalev([F:ZCITL])  : Local File ZCITASTL     [ZCITL]  : Endif
+  If !clalev([F:ZITM])   : Local File ITMMASTER    [ZITM]   : Endif
+  If !clalev([F:YSPH])   : Local File YSPACK       [YSPH]   : Endif
+  If !clalev([F:YPRH])   : Local File STOPREH      [F:YPRH] : Endif
+  If !clalev([F:YPRD])   : Local File STOPRED      [F:YPRD] : Endif
+  If !clalev([F:YTPA])   : Local File TABPACKAGE   [F:YTPA] : Endif
+
+
+  If !clalev([F:YZCITL])  : Local File ZCITASTL     [F:YZCITL]  : Endif
+  #--
+  Gosub DECLARE From TABLEAUX
+Return
+
+
+######################################################
+$FILTRE
+  #--
+  Default File [ZCITH]
+Return
+
+
+######################################################
+$LIENS
+# Recargo el bloque de líneas
+nolign = 1
+[M:ZCIT1]NBLIG = 0
+Filter [ZCITL] Where [ZCITL]ZCITANUM = [M:ZCIT0]ZCITANUM
+  For [ZCITL]
+    [M:ZCIT1] = [ZCITL]
+    Filter [YSPH] Where [YSPH]VCRTYP=3 and [YSPH]VCRNUM = [M:ZCIT1]PRHNUM(nolign-1) and [YSPH]PACNUM = [M:ZCIT1]PACNUM(nolign-1)
+    Read [YSPH] First
+    If fstat = 0
+      [M:ZCIT1]YCARGADO(nolign-1) = [YSPH]YCARGADO
+    Endif
+    Filter [YSPH]
+    nolign+=1
+    [M:ZCIT1]NBLIG+=1
+  Next
+Filter [ZCITL]
+Affzo [M:ZCIT1]
+Return
+
+
+######################################################
+$RAZCRE
+# Bloqueo código de la cita de transporte
+Raz   [M:ZCIT0]ZCITANUM
+Affzo [M:ZCIT0]ZCITANUM
+Grizo [M:ZCIT0]ZCITANUM
+Return
+
+
+######################################################
+$VERIF_CRE
+  #--
+  If [M:ZCIT1]NBLIG = 0
+    GERR=1 : GMESSAGE = mess(61,199,1) : OK=0 : Return
+  Endif
+Return
+
+
+######################################################
+$INICRE
+# Generamos contador
+Local Char    LNUM
+Local Integer LSTAT
+
+Call NUMERO("YCTR", "", date$, "", LNUM, LSTAT)  From SUBANM
+If GOK=0 | LSTAT<>0
+    GOK=0 : GERR=1 : GMESSAGE=GCODNUM-mess(60,199,1)
+Endif
+
+If GOK = 0 or LSTAT <> 0 Then
+    Return
+Elsif LNUM = "" Then
+    GOK = 0: GERR = 1
+    Return
+Endif
+
+#Actualizamos el campo.
+[M:ZCIT0]ZCITANUM = LNUM
+[F:ZCITH]ZCITANUM = LNUM
+
+
+#Desbloqueamos y refrescamos.
+Actzo [M:ZCIT0]ZCITANUM
+Affzo [M:ZCIT0]ZCITANUM
+
+Return
+
+
+######################################################
+$CREATION
+  #--
+  Gosub CREATION From TABLEAUX
+  If GOK < 1 : Return : Endif
+  #--
+  Gosub REWSPH
+Return
+
+
+######################################################
+$APRES_CRE
+  #--
+#  Local Char CITNUM(20)
+#  Local Integer STAT
+  Gosub LIENS From TABLEAUX
+#  Call NUMERO("YCIT","11",date$,"",CITNUM,STAT) From SUBANM
+#  Infbox(CITNUM)
+#  [M:ZCIT0]ZCITANUM=CITNUM
+#  Affzo [M:ZCIT0]ZCITANUM
+
+Return
+
+
+######################################################
+$MODIF
+  #--
+For [ZCITL] Where [ZCITL]ZCITANUM = [M:ZCIT0]ZCITANUM
+    Delete [ZCITL] Curr
+Next
+For G=0 To [M:ZCIT1]NBLIG-1
+    Raz [ZCITL]
+    [ZCITL]ZCITANUM= [M:ZCIT0]ZCITANUM
+    [ZCITL]ZCITALIN= G+1
+    [ZCITL]PRHNUM  = [M:ZCIT1]PRHNUM(G)
+    [ZCITL]VCRNUM  = [M:ZCIT1]VCRNUM(G)
+    [ZCITL]VCRTYP  = [M:ZCIT1]VCRTYP(G)
+    [ZCITL]PACNUM  = [M:ZCIT1]PACNUM(G)
+    [ZCITL]PACSEQ  = [M:ZCIT1]PACSEQ(G)
+    [ZCITL]NETWEI  = [M:ZCIT1]NETWEI(G)
+    [ZCITL]YBRWEI  = [M:ZCIT1]YBRWEI(G)
+    [ZCITL]YPCKLEN = [M:ZCIT1]YPCKLEN(G)
+    [ZCITL]YPCKWID = [M:ZCIT1]YPCKWID(G)
+    [ZCITL]YPCKHEI = [M:ZCIT1]YPCKHEI(G)
+    [ZCITL]ZNBUL   = [M:ZCIT1]ZNBUL(G)
+    [ZCITL]ZNPAL   = [M:ZCIT1]ZNPAL(G)
+    [ZCITL]ZIMPORTE= [M:ZCIT1]ZIMPORTE(G)
+    Write [ZCITL]
+Next
+
+  #--
+  Gosub REWSPH
+Return
+
+
+######################################################
+$APRES_MOD
+  #--
+  Gosub AV_VERF_ANU
+  Trbegin [F:YSPH]
+  Gosub REWSPH
+  If !fstat : Commit : Else : Rollback : Endif
+  #--
+  Gosub LIENS
+  [M:ZCIT0]ZCITANUM = [F:ZCITH]ZCITANUM
+  Gosub RELIT From GOBJSUB
+Return
+
+
+######################################################
+$VERF_ANU
+  #--
+Return
+
+
+######################################################
+$AV_VERF_ANU
+  #--
+  Trbegin [F:YSPH]
+  Filter [F:YSPH] Where ZCITANUM = [M:ZCIT0]ZCITANUM
+  For [F:YSPH]
+    Raz [F:YSPH]ZCITANUM : Raz [F:YSPH]ZCITALIN
+    Rewrite [F:YSPH]
+    If fstat : Call FSTA("SPH") From GLOCK : Return : Endif
+  Next
+  Filter [F:YSPH]
+  Commit
+Return
+
+
+######################################################
+$ANNULE
+  #--
+# Libero el documento de preparación
+For [F:YPRH] Where [F:YPRH]ZCITANUM = [M:ZCIT0]ZCITANUM
+  [F:YPRH]ZCITANUM = ""
+  Rewrite [F:YPRH]
+Next
+
+  Gosub ANNULE From TABLEAUX
+  If GOK < 1 : Return : Endif
+  Delete [F:ZCITL] Where [F:ZCITL]ZCITANUM = [M:ZCIT0]ZCITANUM
+
+Return
+
+
+######################################################
+$DEFLIG
+  #--
+  Default Mask [ZCIT1]
+  Default File [ZCITL]
+  CRIT = '[F:ZCITL]ZCITANUM ="'+[M:ZCIT0]ZCITANUM+'"'
+  FICLIG = "ZCITASL" : ABLIG = "ZCITL"
+  ZONLIG = "ZCITALIN"
+Return
+
+
+######################################################
+$INI_LIG
+  #--
+  [F:ZCITL]ZCITANUM = [F:ZCITH]ZCITANUM
+Return
+
+
+######################################################
+$EXEBOUT
+  #--
+  Case BOUT
+    When "1"
+     If GUSER ='NUN28' or GUSER ='NUN26'
+       Call FICHERO1([F:ZCITH]ZCITANUM) From ZCITASEXCEL_TEST : Gosub RELIT From GOBJSUB
+       Call FICHERO2([F:ZCITH]ZCITANUM) From ZCITASEXCEL_TEST : Gosub RELIT From GOBJSUB
+       Infbox "Ficheros de Leroy Merlin generados"
+     Else
+       Call FICHERO1([F:ZCITH]ZCITANUM) From ZCITASEXCEL : Gosub RELIT From GOBJSUB
+       Call FICHERO2([F:ZCITH]ZCITANUM) From ZCITASEXCEL : Gosub RELIT From GOBJSUB
+       Infbox "Ficheros de Leroy Merlin generados"
+     Endif
+    When '2'      :  Gosub ENVIO_SERES                      #@01@ NUN22 : Se captura el btón con código 8 y se redirige el proceso al evento ENVIO_SERES
+
+    When '3'
+      Call FICHERO_BCM([F:ZCITH]ZCITANUM) From YBCMFICHERO #@04@: NUN14  31-07-2024 (Y119) Cambios para EDI . Nuevo fichero excel BCM
+  Endcase
+Return
+
+#----------------------------------------------------------------- picking
+######################################################
+$OUVRE_BOITE
+  #--
+  If dim(OBJLIS)>0
+    Global Char GBOXZSPA(10)
+    GBOXZSPA="GAU_CHE"+num$(find("ZSPA",OBJLIS(1..9)))
+  Endif
+Return
+
+
+######################################################
+$FILGAUCHE
+  #--
+  Raz FILGAUSUP
+  Case currbox
+    When "GAU_CHE1" # Selección de documentos de preparación
+      FILGAUSUP  ='[F:PRH]STOFCY=[M:ZCIT0]STOFCY'           # Planta indicada en la cinta
+      FILGAUSUP +=' & ([F:PRH]DLVFLG=2 or [F:PRH]DLVFLG=3)' # Estado = entregable
+      FILGAUSUP += '&[F:PRH]BPTNUM=[M:ZCIT0]ZCITATRA'       # Transportista indicada en la cinta
+      FILGAUSUP += '&[F:PRH]ZCITANUM=""'                    # Vales de preparación huérfanas (que no están en otras cintas)
+      FILGAUSUP += '&[F:PRH]YCAMION=[M:ZCIT0]ZCITACAM'      # Camión
+    When Default
+  Endcase
+
+Return
+
+
+######################################################
+$PICKE
+  #--
+  If REP=""
+    If !CLECUR | !VERROU | !ACTMOD | GCONSULT OK=0 : Return : Endif
+  Endif
+  #--
+  Case currbox
+    When "GAU_CHE1"  : Gosub SEL      # Selección de documentos de preparación
+    When Default
+  Endcase
+
+# Actualizo campos de cabecera
+Gosub MAJ_TETE
+Return
+
+
+######################################################
+$SEL
+
+#--
+Gosub TRT_LIGPACK
+Return
+
+
+
+######################################################
+$TRT_LIGPACK
+# Controlo que el doc de preparación no esté en otra cita de transporte
+If [F:PRH]ZCITANUM <> ""
+  Errbox "Este documento de transporte no se puede seleccionar, ya que está asociado a la cita " + [F:PRH]ZCITANUM
+Else
+  # Controlo que el vale no esté ya en la cita
+  Local Integer REPETIDO
+  For LIN=0 To [M:ZCIT1]NBLIG-1
+    If [M:ZCIT1]PRHNUM = [F:PRH]PRHNUM
+      [L]REPETIDO = 2
+      Break
+    Endif
+  Next
+
+  If [L]REPETIDO = 2
+    Errbox "El vale de preparación " + [F:PRH]PRHNUM + " ya ha sido seleccionado en esta cita de transporte"
+  Else
+    #--
+    NOL = [M:ZCIT1]NBLIG
+    #--
+
+    If !clalev([F:YSPH]) Then: Local File YSPACK  [F:YSPH] : Endif
+    If !clalev([F:Z001]) Then: Local File STOPRED [Z001] : Endif
+    If !clalev([F:Z002]) Then: Local File SORDER  [Z002] : Endif
+
+    Local Decimal IMPORTE_SOH
+    Filter [F:YSPH] Where VCRNUM = [F:PRH]PRHNUM
+    For [F:YSPH]
+      [M:ZCIT1]PRHNUM(NOL)    = [F:YSPH]VCRNUM
+      [M:ZCIT1]VCRTYP(NOL)    = [F:YSPH]VCRTYP
+      [M:ZCIT1]PACNUM(NOL)    = [F:YSPH]PACNUM
+      [M:ZCIT1]PACSEQ(NOL)    = [F:YSPH]PACSEQ
+      [M:ZCIT1]NETWEI(NOL)    = [F:YSPH]NETWEI
+      [M:ZCIT1]YBRWEI(NOL)    = [F:YSPH]YBRWEI
+      [M:ZCIT1]YPCKLEN(NOL)   = [F:YSPH]YPCKLEN
+      [M:ZCIT1]YPCKWID(NOL)   = [F:YSPH]YPCKWID
+      [M:ZCIT1]YPCKHEI(NOL)   = [F:YSPH]YPCKHEI
+      [M:ZCIT1]YCARGADO(NOL)  = [F:YSPH]YCARGADO
+      [M:ZCIT1]ZCITALIN(NOL)  = NOL+1
+      # Saco el importe de las líneas como la suma de los importes de los pedidos que componen cada doc de preparación
+      Filter [Z001] Where [Z001]PRHNUM = [F:PRH]PRHNUM
+        For [Z001]
+          Read [Z002]SOH0 = [Z001]ORINUM
+          If fstat = 0
+            [L]IMPORTE_SOH += [Z002]ORDNOT
+          Endif
+        Next
+      Filter [Z001]
+      [M:ZCIT1]ZIMPORTE(NOL)  = [L]IMPORTE_SOH
+      Gosub $EMBALAJE #suma a la cabecera los bultos y pallets
+      NOL +=1
+    Next
+    Filter [F:YSPH]
+
+
+    #--
+    [M:ZCIT1]NBLIG  = NOL
+    Affzo [M:ZCIT1]
+
+    Close Local File [Z001]
+    Close Local File [Z002]
+  Endif
+Endif
+Return
+
+
+######################################################
+$EMBALAJE
+  Read [F:YTPA]TPA0=[F:YSPH]PCK
+  If !fstat
+    If [F:YTPA]YTIPO=1 Then
+      [M:ZCIT1]ZNPAL(NOL)=1
+      [M:ZCIT0]ZNPALL   += 1
+    Else
+      [M:ZCIT1]ZNBUL(NOL)=1
+      [M:ZCIT0]ZNBUL   += 1
+    Endif
+  Endif
+Return
+
+
+######################################################
+$DEPICK
+  #--
+  Case currbox
+    When "GAU_CHE1" : Gosub DESEL
+    When Default
+  Endcase
+
+# Actualizo campos de cabecera
+Gosub MAJ_TETE
+Return
+
+
+######################################################
+$DESEL
+If currbox = "GAU_CHE1"
+  Local Integer J,K,I
+  Raz J
+  While J<[M:ZCIT1]NBLIG
+    K=find([F:PRH]PRHNUM,[M:ZCIT1]PRHNUM(J..[M:ZCIT1]NBLIG-1))
+    I=J+(K-1)
+    If K=0
+      J=[M:ZCIT1]NBLIG
+    Elsif [F:PRH]PRHNUM=[M:ZCIT1]PRHNUM(J+K-1)
+      nolign=I+1 : status=65
+      Dela I,1,[M:ZCIT1]NBLIG-1 [M:ZCIT1]NBLIG : [M:ZCIT1]NBLIG-=1
+#      J+=K : K=0 : status=0
+    Else
+#      J+=K : K=0
+    Endif
+  Wend
+  Affzo [M:ZCIT1]
+Endif
+Return
+
+
+######################################################
+$MAJ_TETE
+# Actualización de los campos totales de cabecera
+Local Integer T_BULTOS
+Local Integer T_PALETS
+Local Decimal T_PESO
+Local Decimal T_IMPORTE
+
+For LIN=0 To [M:ZCIT1]NBLIG-1
+  T_BULTOS  += [M:ZCIT1]ZNBUL(LIN)
+  T_PALETS  += [M:ZCIT1]ZNPAL(LIN)
+  T_PESO    += [M:ZCIT1]NETWEI(LIN)
+  T_IMPORTE += [M:ZCIT1]ZIMPORTE(LIN)
+Next
+
+[M:ZCIT0]ZNBUL    = T_BULTOS
+[M:ZCIT0]ZNPALL   = T_PALETS
+[M:ZCIT0]ZPESO    = T_PESO
+[M:ZCIT0]ZCITAIMP = T_IMPORTE
+Affzo [M:ZCIT0]ZNBUL
+Affzo [M:ZCIT0]ZNPALL
+Affzo [M:ZCIT0]ZPESO
+Affzo [M:ZCIT0]ZCITAIMP
+Return
+
+#############################################################################
+
+$ENVIO_SERES
+  Local Tinyint LREP
+  Local Tinyint CHECK #@02@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  Local Integer I_NUMREG
+  Local Char S_SQLDADV(250)
+  Local Char GRP(20) : GRP = func GRUPO_TERCERO()
+
+  [L]S_SQLDADV = "SELECT count(s.ZCITALIN_0) FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE s.DLVFLG_0 <> 3 and z.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+"'"
+  For (Integer I_NUMREG) From "S" Sql [L]S_SQLDADV As [ZSDADV]
+      I_NUMREG = [ZSDADV]I_NUMREG
+      Break
+  Next
+
+  If [L]I_NUMREG > 0
+      Errbox "No se puede crear el fichero, hay entregas sin generarse."
+  Else
+        Qstbox "¿Desea generar el fichero DESADV para SERES?" - nomap Using [L]LREP
+        Case [L]LREP
+           When 1
+              If !GSERVEUR
+                 Call OUVRE_TRACE("Creacion de albaranes --> SERES") From LECFIC
+              Endif
+
+#@02@: NUN14  11-03-2024 (Y119) - INI
+          If !clalev([F:YBPC]) Then: Local File BPCUSTOMER [F:YBPC] : Endif
+            Read [F:YBPC]BPC0 = GRP
+                If [F:YBPC]YENVDESADV = 2
+                   Gosub ENVIO_SERES_LM
+                Elsif [F:YBPC]YENVDESADV = 3
+                   Gosub ENVIO_SERES_BCM
+                Else
+                  Errbox "No gestiona EDI."
+                  Return
+                Endif
+
+#             Gosub ENVIO_SERES_LM
+#             Gosub ENVIO_SERES_BCM
+
+#@02@: NUN14  11-03-2024 (Y119) - FIN
+
+              If !GSERVEUR
+                Call ECR_TRACE("Fichero generado para la cita: " - [M:ZCIT0]ZCITANUM,0) From GESECRAN
+                Call LEC_TRACE From LECFIC
+                Call FERME_TRACE From LECFIC
+              Endif
+
+        Endcase
+  Endif
+
+
+Return
+
+#-----------------------------------------------------------------  campos
+######################################################
+
+
+
+$ENVIO_SERES_LM
+
+  Local Integer FICHERO_ABIERTO : [L]FICHERO_ABIERTO = 0
+
+  [L]S_SQLDADV =
+& "SELECT SDHNUM_0,PRHNUM_0 FROM SDELIVERYD  WHERE PRHNUM_0 IN (SELECT s.PRHNUM_0 FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE z.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+
+&                            "' group by s.PRHNUM_0) group by SDHNUM_0,PRHNUM_0  "
+
+#  [L]S_SQLDADV =
+#& "select zc.ZCITANUM_0 ,sdd.PRHNUM_0,ypd.PACNUM_0 from SDELIVERYD sdd " +
+#& "INNER JOIN YPACKD ypd ON sdd.PRHNUM_0 = ypd.VCRNUM_0 and sdd.PRELIN_0 = ypd.VCRLIN_0 " +
+#& "INNER JOIN ZCITASTL zc ON ypd.VCRNUM_0 = zc.PRHNUM_0  and ypd.PACNUM_0 = zc.PACNUM_0  " +
+#& "Where zc.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+"' "+
+#& " GROUP By zc.ZCITANUM_0,sdd.PRHNUM_0,ypd.PACNUM_0 "
+
+
+  Local Integer I : I = 0
+  Local Integer J : J = 0
+  Local Integer P : P = 0 # @05@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
+  Local Integer B : B = 0 # @05@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
+  Local Integer CHECK_ENVIADA : CHECK_ENVIADA = 1
+  For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+
+    If !clalev([F:YSDH]) Then: Local File SDELIVERY  [F:YSDH] : Endif
+    Read [F:YSDH]SDH0 = [ZPRSD]S_SDH
+    If  !fstat
+      If [F:YSDH]YENVIOEDI = 2
+        CHECK_ENVIADA = 2
+      Endif
+    Endif
+  Next
+  Case [L]CHECK_ENVIADA
+    When 1
+      For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+#        Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],0, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES  #@01@: NUN14  11-03-2024 (Y119)
+        Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],0, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES  #@05@: JLP 12-09-2024 (Y119) Ajuste incidencia EN
+# LINEA DE TOTALES
+        Call ECR_TRACE("Fichero generado",0) From GESECRAN
+
+      Next
+    When 2
+      Qstbox "Cita ("+[M:ZCIT0]ZCITANUM+") ya enviada, ¿desea enviarla de nuevo?" Using [L]CHECK
+      Case [L]CHECK
+        When 1
+          If (GUSER = 'NUN28' or GUSER ='NUN26') #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+             Call ZCREINVSERES_TEST([M:ZCIT0]ZCITANUM,'','', '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES_TEST # NUEVO
+          Else #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+          For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+
+#            Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES  #@01@: NUN14  11-03-2024 (Y119)
+            Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES  #@05@: JLP 12-09-2024 (Y119) Ajuste incidencia
+           Next
+           Endif #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+        When 2
+          Return
+        Endcase
+  Endcase
+
+Return
+
+######################################################
+
+
+
+$ENVIO_SERES_BCM
+
+  Local Integer FICHERO_ABIERTO : [L]FICHERO_ABIERTO = 0
+
+  [L]S_SQLDADV =
+& "SELECT SDHNUM_0,PRHNUM_0 FROM SDELIVERYD  WHERE PRHNUM_0 IN (SELECT s.PRHNUM_0  FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE z.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+
+&                            "' group by s.PRHNUM_0) group by SDHNUM_0,PRHNUM_0 "
+  Local Integer I : I = 0
+  Local Integer J : J = 0
+  Local Integer CHECK_ENVIADA : CHECK_ENVIADA = 1
+  For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+
+    If !clalev([F:YSDH]) Then: Local File SDELIVERY  [F:YSDH] : Endif
+    Read [F:YSDH]SDH0 = [ZPRSD]S_SDH
+    If  !fstat
+      If [F:YSDH]YENVIOEDI = 2
+        CHECK_ENVIADA = 2
+      Endif
+    Endif
+  Next
+  Case [L]CHECK_ENVIADA
+    When 1
+      For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+#        Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],0, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES  #@01@: NUN14  11-03-2024 (Y119)
+        Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES_BCM  #@03@: JLP  22-07-2024 (Y119)
+        Call ECR_TRACE("Fichero generado",0) From GESECRAN
+      Next
+    When 2
+      Qstbox "Cita ("+[M:ZCIT0]ZCITANUM+") ya enviada, ¿desea enviarla de nuevo?" Using [L]CHECK
+      Case [L]CHECK
+        When 1
+          For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+#            Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES  #@01@: NUN14  11-03-2024 (Y119)
+#            If [ZPRSD]S_SDH = 'ENV112400275'
+              Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES_BCM  #@03@: JLP  22-07-2024 (Y119)
+#            Endif
+          Next
+        When 2
+          Return
+        Endcase
+  Endcase
+
+Return
+
+#############################################################################
+
+Subprog C_NBLIG
+# Control en el borrado de un vale de preparación de la cita
+If status = 65 #- supresion
+  # Controlo que al menos haya más de un vale de preparación, para no dejar la cita sin líneas
+  Local Integer SIGO
+  Local Char VALE
+  If [M:ZCIT1]NBLIG > 1
+    For LINE = 1 To [M:ZCIT1]NBLIG-1
+      If [M:ZCIT1]PRHNUM(LINE) <> [M:ZCIT1]PRHNUM(0)
+        [L]SIGO = 2
+        [L]VALE = [M:ZCIT1]PRHNUM(nolign-1)
+        Break
+      Endif
+    Next
+  Endif
+
+  If [L]SIGO  = 2
+    Local Integer OK9
+    Call OUINON("¿Desea borrar el vale " + [L]VALE + " de la cita de transporte?",OK9) From GESECRAN
+    If OK9 = 2
+    Infbox "primero " + num$([M:ZCIT1]NBLIG)
+      For L = 0 To [M:ZCIT1]NBLIG-1
+        If [M:ZCIT1]PRHNUM(L) = [L]VALE
+          Dela L,1 [M:ZCIT1]NBLIG
+          [M:ZCIT1]NBLIG -= 1
+          Infbox "segundo " + num$([M:ZCIT1]NBLIG)
+        Endif
+      Next
+      Affzo [M:ZCIT1]
+    Else
+      mkstat = 2
+    Endif
+  Else
+    Errbox "Borrado de línea imposible; solamente hay un vale de preparación"
+    mkstat=2
+  Endif
+
+Endif
+Infbox "tercero " + num$([M:ZCIT1]NBLIG)
+End
+
+
+######################################################
+Subprog AVANT_LIGNE(NOL)
+End
+  #--
+  Value Integer NOL
+
+  [M:ZCIT0]ZPESO    -= [M:ZCIT1]NETWEI(NOL)
+  [M:ZCIT0]ZNBUL    -= [M:ZCIT1]ZNBUL(NOL)
+  [M:ZCIT0]ZNPALL   -= [M:ZCIT1]ZNPAL(NOL)
+  [M:ZCIT0]ZCITAIMP -= [M:ZCIT1]ZIMPORTE(NOL)
+End
+
+#-----------------------------------------------------------------  procesos
+######################################################
+$REWSPH
+   #--
+  For I = 0 To [M:ZCIT1]NBLIG-1
+    #Rellenamos el valor en los bultos
+    If [M:ZCIT1]PACNUM(I)<>""
+      Readlock [F:YSPH]SPH0=[M:ZCIT1]VCRTYP(I);[M:ZCIT1]PRHNUM(I);[M:ZCIT1]PACNUM(I);[M:ZCIT1]PACSEQ(I)
+      If fstat = 1 : GOK = -1 : GLOCK = "$SPACK"-[F:YSPH]PACNUM : Return : Endif
+      If fstat     : Call RSTA("YSPH",[F:YSPH]PACNUM) From GLOCK   : Return : Endif
+      [F:YSPH]ZCITANUM = [M:ZCIT0]ZCITANUM
+      [F:YSPH]ZCITALIN = [M:ZCIT1]ZCITALIN(I)
+      Rewrite [F:YSPH]
+      If fstat : Call FSTA("SPH") From GLOCK : Return : Endif
+    Endif
+    # Rellenamos el valor de los documento de preparación, se repite por línea,
+    If [M:ZCIT1]PRHNUM(I)<>""
+      Readlock [F:YPRH]PRH0=[M:ZCIT1]PRHNUM(I)
+      If fstat = 1 : GOK = -1 : GLOCK = "$SPACK"-[F:YPRH]PRHNUM : Return : Endif
+      If fstat     : Call RSTA("PRH",[F:YPRH]PRHNUM) From GLOCK   : Return : Endif
+      [F:YPRH]ZCITANUM = [M:ZCIT0]ZCITANUM
+      [F:YPRH]ZCITALIN = [M:ZCIT1]ZCITALIN(I)
+      Rewrite [F:YPRH]
+
+      If fstat : Call FSTA("SPH") From GLOCK : Return : Endif
+    Endif
+    #importe cabecera
+  Next
+
+Return
+
+#Calcula el importe entregado
+######################################################
+$IMPORTEENTREGADO
+   Local Char LREQSQL(250)(14)
+   Raz LREQSQL
+   LREQSQL(0)="SELECT sum(A.DLVNOT_0) As IMPORTE From SDELIVERY A "
+   LREQSQL(1)=" Where A.SDHNUM_0 IN "
+   LREQSQL(2)=" (SELECT D.SDHNUM_0 From SDELIVERYD D INNER JOIN ZCITASTL C ON D.PRHNUM_0=C.PRHNUM_0  Where C.ZCITANUM_0='"+[M:ZCIT0]ZCITANUM+"')"
+
+   For (Decimal IMPORTE) From '5' Sql LREQSQL(0..14) As [YAPP]
+     # [M:ZCIT0]ZIMPORTE=[YAPP]IMPORTE
+     #[F:ZCITH]ZIMPORTE=[YAPP]IMPORTE
+     #Rewrite [F:ZCITH]
+     #Affzo [M:ZCIT0]ZIMPORTE
+   Next
+Return
+
+#**
+#* Acción de selección
+#*!
+######################################################
+$SEL_TABLE
+  Case COUZON
+    When "PRH": Gosub SEL_PRH
+  Endcase
+Return
+
+
+######################################################
+$SEL_PRH
+
+  If !clalev([F:YPRH]) Then: Local File STOPREH [F:YPRH] : Endif
+  CRITERE="1=1"
+  #Filter [F:YSOH] Where [F:YSOH]BPCORD =[M:OPP0]OPPCMP Order By [F:YSOH]SOHNUM Asc
+  Default File [F:YPRH]
+  GSELFAC=1
+  #OBJET="SOH"
+  OBJET="PRH"
+  ORDRE = "PRHNUM"
+  START = "PRHNUM"
+  SENS  = 1
+  Filter [F:YPRH]
+  CRITERE="BPTNUM ='" + [M:ZCIT0]ZCITATRA + "' AND ZCITANUM='' "
+Return
+
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZCIT1) 02/08/2023 14:42:11 (NUN01)
+######################################################################################
+Subprog AM_PRHNUM(VALEUR)
+Variable Char    VALEUR()
+Variable Integer I
+  #Buscamos los paquetes YSAPCK y añadiros
+    If !clalev([F:YSPH]) Then: Local File YSPACK [F:YSPH] : Endif
+    Filter [F:YSPH] Where VCRNUM = VALEUR
+    I= nolign-1
+    For [F:YSPH]
+#      Infbox("PACK"-[F:YSPH]PACNUM-num$([F:YSPH]PACSEQ)-num$([F:YSPH]VCRTYP)-num$(I))
+      Gosub TRT_LIGPACK
+#      Call LINNUM("ZCITALIN") From TABLEAUX
+#      [M:ZCIT1]VCRTYP(I)=[F:YSPH]VCRTYP
+#      [M:ZCIT1]PACNUM(I) =[F:YSPH]PACNUM
+#      [M:ZCIT1]PACSEQ(I) =[F:YSPH]PACSEQ
+    Next
+
+
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZCIT1) 28/12/2023 09:06:26 (NUN04)
+######################################################################################
+Subprog B1_NBLIG
+  # Controlo que al menos haya más de un vale de preparación, para no dejar la cita sin líneas
+  Local Integer SIGO
+  Local Char VALE
+  If [M:ZCIT1]NBLIG > 1
+    For LINE = 1 To [M:ZCIT1]NBLIG-1
+      If [M:ZCIT1]PRHNUM(LINE) <> [M:ZCIT1]PRHNUM(0)
+        [L]SIGO = 2
+        [L]VALE = [M:ZCIT1]PRHNUM(nolign-1)
+        Break
+      Endif
+    Next
+  Endif
+
+  If [L]SIGO  = 2
+    Local Integer OK9
+    Call OUINON("¿Desea borrar el vale " + [L]VALE + " de la cita de transporte?",OK9) From GESECRAN
+    If OK9 = 2
+      If !clalev([J2]) Then: Local File STOPREH  [J2] : Endif
+      If !clalev([J3]) Then: Local File ZCITASTL [J3] : Endif
+      If !clalev([J4]) Then: Local File ZCITASTH [J4] : Endif
+
+      For L = 0 To [M:ZCIT1]NBLIG-1
+        If [M:ZCIT1]PRHNUM(L) = [L]VALE
+          # Primero desligo la cita en el empaquetamiento
+          Read [F:YSPH]SPH0=[M:ZCIT1]VCRTYP(L);[M:ZCIT1]VCRNUM(L);[M:ZCIT1]PACNUM(L);[M:ZCIT1]PACSEQ(L)
+          If !fstat
+            Raz [F:YSPH]ZCITANUM
+            Raz [F:YSPH]ZCITALIN
+            Rewrite [F:YSPH]
+            If fstat : Call FSTA("SPH") From GLOCK : Return : Endif
+          Endif
+
+          # Desligo la cita del vale de preparación
+          Read [J2]PRH0 = [M:ZCIT1]PRHNUM(L)
+          If fstat = 0
+            [J2]ZCITANUM = ""
+            [J2]ZCITALIN = 0
+            Rewrite [J2]
+          Endif
+
+          # Borro tabla líneas de cita
+          Read [J3]ZCITL0 = [M:ZCIT0]ZCITANUM;[M:ZCIT1]ZCITALIN(L)
+          If fstat = 0
+            # Ajusto valores de cabecera
+            Read [J4]ZCITH = [M:ZCIT0]ZCITANUM
+            If fstat = 0
+              [J4]ZNBUL    -= [J3]ZNBUL
+              [J4]ZNPALL   -= [J3]ZNPAL
+              [J4]ZPESO    -= [J3]NETWEI
+              [J4]ZCITAIMP -= [J3]ZIMPORTE
+              Rewrite [J4]
+              [M:ZCIT0]ZNBUL    -= [J3]ZNBUL
+              [M:ZCIT0]ZNPALL   -= [J3]ZNPAL
+              [M:ZCIT0]ZPESO    -= [J3]NETWEI
+              [M:ZCIT0]ZCITAIMP -= [J3]ZIMPORTE
+              Affzo [M:ZCIT0]ZNBUL
+              Affzo [M:ZCIT0]ZNPALL
+              Affzo [M:ZCIT0]ZPESO
+              Affzo [M:ZCIT0]ZCITAIMP
+            Endif
+              Delete [J3] Curr
+          Endif
+        Endif
+      Next
+      Gosub LIMPIO_LINEAS
+      Gosub LIENS
+
+      Close Local File [J2],[J3],[J4]
+
+    Else
+      mkstat = 2
+    Endif
+  Else
+    Errbox "Borrado de línea imposible; solamente hay un vale de preparación"
+    mkstat=2
+  Endif
+End
+
+######################################################################################
+$LIMPIO_LINEAS
+For G=0 To [M:ZCIT1]NBLIG-1
+  [M:ZCIT1]ZCITALIN(G)= 0
+  [M:ZCIT1]PRHNUM(G)  = ""
+  [M:ZCIT1]VCRNUM(G)  = ""
+  [M:ZCIT1]VCRTYP(G)  = 0
+  [M:ZCIT1]PACNUM(G)  = ""
+  [M:ZCIT1]PACSEQ(G)  = 0
+  [M:ZCIT1]CREFLG(G)  = 0
+  [M:ZCIT1]NETWEI(G)  = 0
+  [M:ZCIT1]YBRWEI(G)  = 0
+  [M:ZCIT1]YPCKLEN(G) = 0
+  [M:ZCIT1]YPCKWID(G) = 0
+  [M:ZCIT1]YPCKHEI(G) = 0
+  [M:ZCIT1]UPDFLG(G)  = 0
+  [M:ZCIT1]ZNBUL(G)   = 0
+  [M:ZCIT1]ZNPAL(G)   = 0
+  [M:ZCIT1]ZIMPORTE(G)= 0
+Next
+[M:ZCIT1]NBLIG = 0
+Affzo [M:ZCIT1]
+Return
+
+######################################################################################
+Subprog IB_NBLIG
+# Pongo nombre al menú contextual de la línea
+If [M:ZCIT1]PRHNUM(nolign-1) <> ""
+  GBOUT1 = "Borrado del vale de preparación " + [M:ZCIT1]PRHNUM(nolign-1)
+Else
+  GBOOUT1 = ""
+Endif
+End
+
+
+######################################################################################
+Subprog AM_TRANSCODIGO(VALEUR)
+Variable Char    VALEUR()
+# Traigo la razón social y el NIF del transitario
+If !clalev([T1])  : Local File BPARTNER [T1]  : Endif
+
+Read [T1]BPR0 = VALEUR
+If fstat = 0
+  [M:ZCIT0]TRANSDES = [T1]BPRNAM(0) + [T1]BPRNAM(1)
+  [M:ZCIT0]TRANSNIF = [T1]CRN
+Else
+  [M:ZCIT0]TRANSDES = ""
+  [M:ZCIT0]TRANSNIF = ""
+Endif
+Affzo [M:ZCIT0]TRANSDES
+Affzo [M:ZCIT0]TRANSNIF
+
+Close Local File [T1]
+End
+
+
+######################################################################################
+# @03@ - JLP - 22/07/2024 -INI- Devuelve el grupo del tercero de la entrega
+Funprog GRUPO_TERCERO()
+Local Char S_SQLDADV(250)
+Local Char S_SQL(250)
+Local Char LINEA(10) : LINEA = '1000'
+Local Char LINEA2(10) : LINEA2 = '1'
+Local Integer LIN : LIN = 1
+Local Char I_GRUPO(20)
+
+  [L]S_SQLDADV =
+&  "SELECT b.BPCGRU_0 FROM ZCITASTL z "+
+&                "INNER JOIN STOPREH s ON z.PRHNUM_0 = s.PRHNUM_0 "+
+&                "INNER JOIN SDELIVERY d ON s.SDHNUM_0 = d.SDHNUM_0 " +
+&                "INNER JOIN BPCUSTOMER b ON d.BPCINV_0 = b.BPCNUM_0 "+
+&                "WHERE (z.ZCITALIN_0 ='"+LINEA+"') "+
+&                "AND z.ZCITANUM_0 ='"+[M:ZCIT0]ZCITANUM+"'"
+
+     For (Char I_GRUPO) From "S" Sql [L]S_SQLDADV As [ZSDADV]
+        If [ZSDADV]I_GRUPO <> ''
+          I_GRUPO = [ZSDADV]I_GRUPO
+        Endif
+     Next
+
+  [L]S_SQL =
+&  "SELECT b.BPCGRU_0 FROM ZCITASTL z "+
+&                "INNER JOIN STOPREH s ON z.PRHNUM_0 = s.PRHNUM_0 "+
+&                "INNER JOIN SDELIVERY d ON s.SDHNUM_0 = d.SDHNUM_0 " +
+&                "INNER JOIN BPCUSTOMER b ON d.BPCINV_0 = b.BPCNUM_0 "+
+&                "WHERE (z.ZCITALIN_0 ='"+LINEA2+"') "+
+&                "AND z.ZCITANUM_0 ='"+[M:ZCIT0]ZCITANUM+"'"
+
+     For (Char I_GRUPO) From "S" Sql [L]S_SQL As [ZSD]
+        If [ZSD]I_GRUPO <> ''
+          I_GRUPO = [ZSD]I_GRUPO
+        Endif
+     Next
+
+End I_GRUPO
+# @03@ - JLP - 22/07/2024 -FIN- Devuelve el grupo del tercero de la entrega

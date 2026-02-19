@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+  #--
+If GUSER ='NUN11':  Infbox ACTION Endif
+#  Case ACTION
+#    When "FILSTO"        : Gosub FILSTO
+
+#Endcase
+
+Return
+
+$FILSTO
+
+#If GFONCTION = 'FUNPREP2' and GUSER ='NUN11'
+#
+#[M:ALP]FILSTO = '[F:STO1]LPNNUM <>"" '
+#
+#Infbox [M:ALP]FILSTO
+#
+#Endif
+
+
+Return

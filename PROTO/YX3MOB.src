@@ -1,0 +1,838 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+######  MAESTROS ##########
+
+#**
+#* Subprograma que devuelve el listado de artículos
+#*!
+Subprog GETITMLIST(SOLO_ACTIVOS, CAMPO_FAMILIA, FAMILIA, CAMPO_SUBFAMILIA, SUBFAMILIA, IDIOMA, QUERY, COD_ARTICULO, DESCRIPCION, UNIDAD_MEDIDA, GESTION_SERIE)
+  # ENTRADA
+  Value Integer SOLO_ACTIVOS
+  Value Char CAMPO_FAMILIA
+  Value Char FAMILIA
+  Value Char CAMPO_SUBFAMILIA
+  Value Char SUBFAMILIA
+  Value Char IDIOMA
+  Value Char QUERY
+  # SALIDA
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION()()
+  Variable Char UNIDAD_MEDIDA()()
+  Variable Integer GESTION_SERIE()
+
+  Local Char LREQ(250)(0..3) : Raz LREQ
+  Local Integer I
+
+  LREQ(0) = "SELECT ITMREF_0, ISNULL(TEXTE_0, ITMDES1_0) AS ITMDES1_0, STU_0, SERMGTCOD_0 FROM " + nomap + ".ITMMASTER "
+  LREQ(1) = "LEFT JOIN " + nomap + ".ATEXTRA ON CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = ITMREF_0 "
+  LREQ(2) = "WHERE STOMGTCOD_0 <> 1 "
+  If SOLO_ACTIVOS = 2
+    LREQ(2) += "AND ITMSTA_0 = 1 "
+  Endif
+  If FAMILIA <> ""
+    LREQ(2) += "AND " + CAMPO_FAMILIA + " = '" + FAMILIA + "' "
+  Endif
+  If SUBFAMILIA <> ""
+    LREQ(2) += "AND " + CAMPO_SUBFAMILIA + " = '" + SUBFAMILIA + "' "
+  Endif
+  If QUERY <> ""
+    LREQ(3) = "AND (UPPER(ISNULL(TEXTE_0, ITMDES1_0)) LIKE '%" + toupper(QUERY) + "%' OR UPPER(ITMREF_0) LIKE '%" + toupper(QUERY) + "%') "
+  Endif
+  LREQ(3) += "ORDER BY ITMREF_0"
+
+  I = 0
+  For(Char ITMREF, Char ITMDES(250), Char STU, Integer SERMGTCOD) From "5" Sql LREQ As [YITM]
+    COD_ARTICULO(I) = [YITM]ITMREF
+    DESCRIPCION(I) = [YITM]ITMDES
+    UNIDAD_MEDIDA(I) = [YITM]STU
+    GESTION_SERIE(I) = [YITM]SERMGTCOD
+
+    I += 1
+  Next
+End
+
+Subprog GETIMAGENARTICULO(COD_ARTICULO, IMAGEN)
+  # Entrada
+  Value Char COD_ARTICULO
+  # Salida
+  Variable Blbfile IMAGEN : Raz IMAGEN
+
+  If !clalev([YCBL]) : Local File CBLOB [YCBL] : Endif
+
+  Read [YCBL]CBB0 = "ITM";COD_ARTICULO;""
+  If fstat = 0
+    IMAGEN = [YCBL]BLOB
+  Endif
+
+  Close Local File [YCBL]
+End
+
+Subprog BUSCARARTICULOS(SOLO_ACTIVOS, QUERY, IDIOMA, COD_ARTICULO, DESCRIPCION, UNIDAD_MEDIDA, GESTION_SERIE)
+  # ENTRADA
+  Value Integer SOLO_ACTIVOS
+  Value Char QUERY
+  Value Char IDIOMA
+  # SALIDA
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION()()
+  Variable Char UNIDAD_MEDIDA()()
+  Variable Integer GESTION_SERIE()
+
+
+  Local Char LREQ(250)(0..5)
+  Local Integer I : I = 0
+
+  If !clalev([YATE]) : Local File ATEXTRA [YATE] : Endif
+
+  LREQ(0) = "SELECT ITMREF_0, ISNULL(TEXTE_0, ITMDES1_0) AS ITMDES1_0, STU_0, SERMGTCOD_0 FROM " + nomap + ".ITMMASTER "
+  LREQ(1) = "LEFT JOIN " + nomap + ".ATEXTRA ON CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = ITMREF_0 "
+  LREQ(2) = "WHERE STOMGTCOD_0 <> 1 "
+  If SOLO_ACTIVOS = 2
+    LREQ(3) = "AND ITMSTA_0 = 1 "
+  Endif
+  LREQ(4) = "AND (UPPER(ITMREF_0) LIKE '%" + toupper(QUERY) + "%' OR UPPER(ISNULL(TEXTE_0, ITMDES1_0)) LIKE '%" + toupper(QUERY) + "%') "
+  LREQ(5) = "ORDER BY ITMREF_0"
+
+  For (Char ITMREF, Char ITMDES, Char STU, Integer SERMGTCOD) From "5" Sql LREQ(0..5) As [YITM]
+    COD_ARTICULO(I) = [YITM]ITMREF
+    DESCRIPCION(I)  = [YITM]ITMDES
+    UNIDAD_MEDIDA(I) = [YITM]STU
+    GESTION_SERIE(I) = [YITM]SERMGTCOD
+
+    I += 1
+  Next
+
+  Close Local File [YATE]
+End
+
+Subprog BUSCARCLIENTES(SOLO_ACTIVOS, QUERY, COD_CLIENTE, NOMBRE_CLIENTE)
+  # Entrada
+  Value Integer SOLO_ACTIVOS
+  Value Char QUERY
+  # Salida
+  Variable Char COD_CLIENTE()()
+  Variable Char NOMBRE_CLIENTE()()
+
+  Local Char LREQ(250)(0..1) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT BPCNUM_0, BPCNAM_0 FROM " + nomap + ".BPCUSTOMER WHERE (UPPER(BPCNUM_0) LIKE '%" + toupper(QUERY) + "%' OR UPPER(BPCNAM_0) LIKE '%" + toupper(QUERY) + "%') "
+  If SOLO_ACTIVOS = 2
+    LREQ(1) = "AND BPCSTA_0 = 2 "
+  Endif
+  LREQ(1) += "ORDER BY BPCNAM_0"
+
+  For (Char BPCNUM, Char BPCNAM) From "5" Sql LREQ(0..1) As [YBPC]
+    COD_CLIENTE(I) = [YBPC]BPCNUM
+    NOMBRE_CLIENTE(I) = [YBPC]BPCNAM
+
+    I += 1
+  Next
+End
+
+Subprog BUSCARPROVEEDORES(SOLO_ACTIVOS, QUERY, COD_PROVEEDOR, NOMBRE_PROVEEDOR)
+  # Entrada
+  Value Integer SOLO_ACTIVOS
+  Value Char QUERY
+  # Salida
+  Variable Char COD_PROVEEDOR()()
+  Variable Char NOMBRE_PROVEEDOR()()
+
+  Local Char LREQ(250)(0..1) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT BPSNUM_0, BPSNAM_0 FROM " + nomap + ".BPSUPPLIER WHERE (UPPER(BPSNUM_0) LIKE '%" + toupper(QUERY) + "%' OR UPPER(BPSNAM_0) LIKE '%" + toupper(QUERY) + "%') "
+  If SOLO_ACTIVOS = 2
+    LREQ(1) = "AND ENAFLG_0 = 2 "
+  Endif
+  LREQ(1) += "ORDER BY BPSNAM_0"
+
+  For (Char BPSNUM, Char BPSNAM) From "5" Sql LREQ(0..1) As [YBPS]
+    COD_PROVEEDOR(I) = [YBPS]BPSNUM
+    NOMBRE_PROVEEDOR(I) = [YBPS]BPSNAM
+
+    I += 1
+  Next
+End
+
+Subprog GETFAMILIASCATALOGO(CAMPO_FAMILIA, TABLA_FAMILIA, TEXTO_BUSQUEDA, IDIOMA, COD_FAMILIA, NOMBRE_FAMILIA, NUMERO_ITEMS)
+  # Entrada
+  Value Char CAMPO_FAMILIA
+  Value Integer TABLA_FAMILIA
+  Value Char TEXTO_BUSQUEDA
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_FAMILIA()()
+  Variable Char NOMBRE_FAMILIA()()
+  Variable Integer NUMERO_ITEMS()
+
+  Local Char LREQ(250)(0..7) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT CODE_0, Case FAMILIA_0 When '' Then 'N/A' Else FAMILIA_0 End As FAMILIA_0, NUMEROITEMS_0 From "
+  LREQ(1) = "(SELECT CODE_0, ISNULL((SELECT TEXTE_0 From " + nomap + ".ATEXTRA Where CODFIC_0 = 'ATABDIV' and ZONE_0 = 'LNGDES' and LANGUE_0 = '" + IDIOMA + "' and IDENT1_0 = '" + num$(TABLA_FAMILIA)
+& +
+& "' and IDENT2_0 = CODE_0), 'N/A') As FAMILIA_0, "
+  LREQ(2) = "(SELECT COUNT(*) From " + nomap + ".ITMMASTER INNER JOIN " + nomap + ".ATEXTRA ON CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = ITMREF_0 "
+  LREQ(3) = "Where STOMGTCOD_0 <> 1 and ITMSTA_0 = 1 and " + CAMPO_FAMILIA + " = CODE_0 and (UPPER(ISNULL(TEXTE_0, ITMDES1_0)) LIKE '%" + toupper(TEXTO_BUSQUEDA) + "%' OR UPPER(ITMREF_0) LIKE '%" +
+& toupper(TEXTO_BUSQUEDA) + "%')) As NUMEROITEMS_0 "
+  LREQ(4) = "From " + nomap + ".ATABDIV Where NUMTAB_0 = " + num$(TABLA_FAMILIA) + " and CODE_0 IN "
+  LREQ(5) = "(SELECT DISTINCT " + CAMPO_FAMILIA + " From " + nomap + ".ITMMASTER LEFT OUTER JOIN " + nomap + ".ATEXTRA E ON E.CODFIC_0 = 'ITMMASTER' "
+  LREQ(6) = "and ZONE_0 = 'DES1AXX' and LANGUE_0 = '" + IDIOMA + "' and IDENT1_0 = ITMREF_0 "
+  LREQ(7) = "Where STOMGTCOD_0 <> 1 and ITMSTA_0 = 1 and (ISNULL(UPPER(TEXTE_0), UPPER(ITMDES1_0)) LIKE '%" + toupper(TEXTO_BUSQUEDA) + "%' OR UPPER(ITMREF_0) LIKE '%" + toupper(TEXTO_BUSQUEDA) +
+& "%'))) As V Order By FAMILIA_0"
+
+  For (Char CODE, Char FAMILIA, Integer NUMEROITEMS) From "5" Sql LREQ As [YFAM]
+    COD_FAMILIA(I) = [YFAM]CODE
+    NOMBRE_FAMILIA(I) = [YFAM]FAMILIA
+    NUMERO_ITEMS(I) = [YFAM]NUMEROITEMS
+
+    I += 1
+  Next
+End
+
+Subprog BUSCARPLANTAS(FABRICACION, STOCK, VENTAS, COMPRAS, FINANCIERA, QUERY, COD_PLANTA, PLANTA)
+  # Entrada
+  Value Integer FABRICACION
+  Value Integer STOCK
+  Value Integer VENTAS
+  Value Integer COMPRAS
+  Value Integer FINANCIERA
+  Value Char QUERY
+  # Salida
+  Variable Char COD_PLANTA()()
+  Variable Char PLANTA()()
+
+  Local Char LREQ(250)(0..1) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT FCY_0, FCYNAM_0 FROM " + nomap + ".FACILITY WHERE 1 = 1 AND ("
+  If FABRICACION = 2
+    LREQ(0) += "MFGFLG_0 = 2 OR "
+  Endif
+  If STOCK = 2
+    LREQ(0) += "WRHFLG_0 = 2 OR "
+  Endif
+  If VENTAS = 2
+    LREQ(0) += "SALFLG_0 = 2 OR "
+  Endif
+  If COMPRAS = 2
+    LREQ(0) += "PURFLG_0 = 2 OR "
+  Endif
+  If FINANCIERA = 2
+    LREQ(0) += "FINFLG_0 = 2 OR "
+  Endif
+  LREQ(1) += "1 = 2) AND (UPPER(FCY_0) LIKE '%" + toupper(QUERY) + "%' OR UPPER(FCYNAM_0) LIKE '%" + toupper(QUERY) + "%')"
+
+  For(Char FCY, Char FCYNAM) From "5" Sql LREQ As [YFAC]
+    COD_PLANTA(I) = [YFAC]FCY
+    PLANTA(I) = [YFAC]FCYNAM
+
+    I += 1
+  Next
+End
+
+Subprog BUSCARUBICACIONES(COD_PLANTA, QUERY, UBICACION, TIPO_UBICACION)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char QUERY
+  # Salida
+  Variable Char UBICACION()()
+  Variable Char TIPO_UBICACION()()
+
+  Local Char LREQ(250) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT LOC_0, LOCTYP_0 FROM " + nomap + ".STOLOC WHERE UPPER(STOFCY_0) = '" + toupper(COD_PLANTA) + "' AND (UPPER(LOC_0) LIKE '%" + toupper(QUERY) + "%' OR UPPER(LOCTYP_0) LIKE '%" +
+& toupper(QUERY) + "%') ORDER BY LOC_0"
+
+  For(Char LOC, Char LOCTYP) From "5" Sql LREQ As [YLOC]
+    UBICACION(I) = [YLOC]LOC
+    TIPO_UBICACION(I) = [YLOC]LOCTYP
+
+    I += 1
+  Next
+End
+
+Subprog GETNOMBREPLANTA(COD_PLANTA, PLANTA)
+  # Entrada
+  Value Char COD_PLANTA
+  # Salida
+  Variable Char PLANTA
+
+  If !clalev([YFCY]) : Local File FACILITY [YFCY] : Endif
+
+  Read [YFCY]FCY0 = COD_PLANTA
+  PLANTA = [YFCY]FCYNAM
+  Filter [YFCY]
+
+  Close Local File [YFCY]
+End
+
+####### STOCKS ##########
+#########################
+
+Subprog GETPLANTASARTICULO(COD_ARTICULO, COD_PLANTA, PLANTA)
+  # Entrada
+  Value Char COD_ARTICULO
+  # Salida
+  Variable Char COD_PLANTA()()
+  Variable Char PLANTA()()
+
+  Local Char LREQ(250) : Raz LREQ
+  Local Integer I : I = 0
+
+  If !clalev([YFAC]) : Local File FACILITY [YFAC] : Endif
+
+  LREQ = "SELECT DISTINCT STOFCY_0 FROM " + nomap + ".STOCK WHERE ITMREF_0 = '" + COD_ARTICULO + "' ORDER BY STOFCY_0"
+
+  For (Char PPLANTA) From "5" Sql LREQ As [YPLA]
+    COD_PLANTA(I) = [YPLA]PPLANTA
+    Read [YFAC]FCY0 = [YPLA]PPLANTA
+    If fstat = 0
+      PLANTA(I) = [YFAC]FCYNAM
+    Endif
+    I += 1
+  Next
+  Filter [YFAC]
+
+  Close Local File [YFAC]
+End
+
+
+Subprog GETSTOCKPLANTA(COD_ARTICULO, PLANTA, STOCK_INTERNO_A, STOCK_INTERNO_Q, STOCK_INTERNO_R, STOCK_ASIGNADO_GLOBAL, STOCK_ASIGNADO_DETALLE, STOCK_RUPTURA)
+  # Entrada
+  Value Char COD_ARTICULO
+  Value Char PLANTA
+  # Salida
+  Variable Decimal STOCK_INTERNO_A
+  Variable Decimal STOCK_INTERNO_Q
+  Variable Decimal STOCK_INTERNO_R
+  Variable Decimal STOCK_ASIGNADO_GLOBAL
+  Variable Decimal STOCK_ASIGNADO_DETALLE
+  Variable Decimal STOCK_RUPTURA
+
+  If !clalev([YSTO]) : Local File STOCK [YSTO] : Endif
+  If !clalev([YSTA]) : Local File STOALL [YSTA] : Endif
+
+  Raz STOCK_INTERNO_A, STOCK_INTERNO_Q, STOCK_INTERNO_R, STOCK_ASIGNADO_GLOBAL, STOCK_ASIGNADO_DETALLE, STOCK_RUPTURA
+
+  # Calculamos los stocks internos
+  Filter [YSTO] Where STOFCY = PLANTA and ITMREF = COD_ARTICULO
+  For [YSTO]
+    Case [YSTO]STA
+      When "A" : STOCK_INTERNO_A += [YSTO]QTYSTUACT
+      When "Q" : STOCK_INTERNO_Q += [YSTO]QTYSTUACT
+      When "R" : STOCK_INTERNO_R += [YSTO]QTYSTUACT
+    Endcase
+  Next
+  Filter [YSTO]
+
+  # Vamos a buscar ahora el stock asignado global, el detallado y las rupturas de el artículo y la planta
+  Filter [YSTA] Where ITMREF = COD_ARTICULO and STOFCY = PLANTA
+  For [YSTA]
+    Case [YSTA]ALLTYP
+      When 1   : STOCK_ASIGNADO_GLOBAL += [YSTA]QTYSTUACT
+      When 2   : STOCK_ASIGNADO_DETALLE += [YSTA]QTYSTUACT
+      When 4,5 : STOCK_RUPTURA += [YSTA]QTYSTUACT
+    Endcase
+  Next
+  Filter [YSTA]
+
+  Close Local File [YSTO]
+  Close Local File [YSTA]
+End
+
+Subprog GETSTOCKDETALLADO(COD_ARTICULO, COD_PLANTA, COD_UBICACION, PCOD_CONTENEDOR, COD_CONTENEDOR, LOTE, UBICACION, ESTADO, CANTIDAD)
+  # Entrada
+  Value Char COD_ARTICULO
+  Value Char COD_PLANTA
+  Value Char COD_UBICACION
+  Value Char PCOD_CONTENEDOR
+  # Salida
+  Variable Char COD_CONTENEDOR()()
+  Variable Char LOTE()()
+  Variable Char UBICACION()()
+  Variable Char ESTADO()()
+  Variable Decimal CANTIDAD()
+
+  Local Char LREQ(250)(0..1) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT LPNNUM_0, LOT_0, LOC_0, STA_0, SUM(QTYSTU_0) FROM " + nomap + ".STOCK "
+  LREQ(1) = "WHERE ITMREF_0 = '" + COD_ARTICULO + "' AND STOFCY_0 = '" + COD_PLANTA + "' "
+  If COD_UBICACION <> '' Then
+    LREQ(1) += "AND LOC_0 = '" + COD_UBICACION + "' "
+  Endif
+  If PCOD_CONTENEDOR <> '' Then
+    LREQ(1) += "AND LPNNUM_0 = '" + PCOD_CONTENEDOR + "' "
+  Endif
+  LREQ(1) += "GROUP BY LPNNUM_0, LOT_0, LOC_0, STA_0"
+
+  For (Char LPNNUM, Char LOT, Char LOC, Char STA, Decimal QTY) From "5" Sql LREQ(0..1) As [YSTO]
+    COD_CONTENEDOR(I) = [YSTO]LPNNUM
+    LOTE(I) = [YSTO]LOT
+    UBICACION(I) = [YSTO]LOC
+    ESTADO(I) = [YSTO]STA
+    CANTIDAD(I) = [YSTO]QTY
+
+    I += 1
+  Next
+End
+
+####### VENTAS ##########
+#########################
+
+Subprog GETPEDIDOS(PCOD_CLIENTE, DESDE_FECHA, HASTA_FECHA, NUM_PEDIDO, COD_CLIENTE, NOMBRE_CLIENTE, REFERENCIA, FECHA_PEDIDO, FECHA_ENTREGA, IMPORTE, ESTADO)
+  # Entrada
+  Value Char PCOD_CLIENTE
+  Value Char DESDE_FECHA
+  Value Char HASTA_FECHA
+  # Salida
+  Variable Char NUM_PEDIDO()()
+  Variable Char COD_CLIENTE()()
+  Variable Char NOMBRE_CLIENTE()()
+  Variable Char REFERENCIA()()
+  Variable Char FECHA_PEDIDO()()
+  Variable Char FECHA_ENTREGA()()
+  Variable Decimal IMPORTE()
+  Variable Char ESTADO()()
+
+  Local Char LREQ(250)(0..2) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT SOHNUM_0, S.BPCORD_0, C.BPCNAM_0, S.CUSORDREF_0, S.ORDDAT_0, S.DEMDLVDAT_0, S.ORDINVNOT_0, CASE S.ORDSTA_0 WHEN 1 THEN 'Pendiente' ELSE 'Saldado' END AS ORDSTA_0 FROM " + nomap +
+& ".SORDER S "
+  LREQ(1) = "INNER JOIN " + nomap + ".BPCUSTOMER C ON S.BPCORD_0 = C.BPCNUM_0 WHERE S.ORDDAT_0 BETWEEN '" + DESDE_FECHA + "' AND '" + HASTA_FECHA + "' "
+  If PCOD_CLIENTE <> ""
+    LREQ(2) = "AND S.BPCORD_0 = '" + PCOD_CLIENTE + "' "
+  Endif
+  LREQ(2) += "ORDER BY S.ORDDAT_0"
+
+  For(Char SOHNUM, Char BPCORD, Char BPCNAM, Char CUSORDREF, Date ORDDAT, Date DEMDLVDAT, Decimal ORDINVNOT, Char ORDSTA) From "5" Sql LREQ(0..2) As [YSOH]
+    NUM_PEDIDO(I) = [YSOH]SOHNUM
+    COD_CLIENTE(I) = [YSOH]BPCORD
+    NOMBRE_CLIENTE(I) = [YSOH]BPCNAM
+    REFERENCIA(I) = [YSOH]CUSORDREF
+    FECHA_PEDIDO(I) = num$([YSOH]ORDDAT)
+    FECHA_ENTREGA(I) = num$([YSOH]DEMDLVDAT)
+    IMPORTE(I) = [YSOH]ORDINVNOT
+    ESTADO(I) = [YSOH]ORDSTA
+
+    I += 1
+  Next
+End
+
+Subprog GETDETALLEPEDIDO(NUM_PEDIDO, IDIOMA, COD_ARTICULO, DESCRIPCION, UD_PEDIDAS, UD_SERVIDAS, IMPORTE, ESTADO)
+  # Entrada
+  Value Char NUM_PEDIDO
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION()()
+  Variable Decimal UD_PEDIDAS()
+  Variable Decimal UD_SERVIDAS()
+  Variable Decimal IMPORTE()
+  Variable Char ESTADO()()
+
+  Local Char LREQ(250)(0..4) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT L.ITMREF_0, ISNULL(TEXTE_0, I.ITMDES1_0) AS ITMDES1_0, L.QTYSTU_0, L.DLVQTYSTU_0, P.NETPRINOT_0 * L.QTYSTU_0 AS IMPORTE_0, "
+  LREQ(1) = "CASE L.SOQSTA_0 WHEN 3 THEN 'Saldada' ELSE 'Pendiente' END AS SOQSTA_0 FROM " + nomap + ".SORDERQ L INNER JOIN " + nomap + ".ITMMASTER I "
+  LREQ(2) = "ON L.ITMREF_0 = I.ITMREF_0 INNER JOIN " + nomap + ".SORDERP P ON L.SOHNUM_0 = P.SOHNUM_0 AND L.SOPLIN_0 = P.SOPLIN_0 AND L.SOQSEQ_0 = P.SOPSEQ_0 "
+  LREQ(3) = "LEFT JOIN " + nomap + ".ATEXTRA ON CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = L.ITMREF_0 "
+  LREQ(4) = "WHERE L.SOHNUM_0 = '" + NUM_PEDIDO + "' ORDER BY L.SOPLIN_0"
+
+  For (Char ITMREF, Char ITMDES, Decimal QTYSTU, Decimal DLVQTYSTU, Decimal IMPORTE, Char SOQSTA) From "5" Sql LREQ(0..4) As [YSOQ]
+    COD_ARTICULO(I) = [YSOQ]ITMREF
+    DESCRIPCION(I) = [YSOQ]ITMDES
+    UD_PEDIDAS(I) = [YSOQ]QTYSTU
+    UD_SERVIDAS(I) = [YSOQ]DLVQTYSTU
+    IMPORTE(I) = [YSOQ]IMPORTE
+    ESTADO(I) = [YSOQ]SOQSTA
+
+    I += 1
+  Next
+End
+
+Subprog VENTASARTICULO(COD_ARTICULO, DESDE_FECHA, HASTA_FECHA, PCAMPO, LINEA, EJERCICIO, MES, VALOR)
+  # Entrada
+  Value Char COD_ARTICULO
+  Value Char DESDE_FECHA
+  Value Char HASTA_FECHA
+  Value Char PCAMPO
+  # Salida
+  Variable Integer LINEA()
+  Variable Integer EJERCICIO()
+  Variable Integer MES()
+  Variable Decimal VALOR()
+
+  Local Char LREQ(250)(0..3) : Raz LREQ
+  Local Integer I : I = 0
+  Local Char CAMPO(30)
+
+  If PCAMPO = "U" Then
+    CAMPO = "QTYSTU_0"
+  Else
+    CAMPO = "AMTNOTLIN_0"
+  Endif
+
+  LREQ(0) = "SELECT CAST(ROW_NUMBER() OVER(ORDER BY EJERCICIO, MES) AS int) AS LINEA, EJERCICIO, MES, VALOR FROM "
+  LREQ(1) = "(SELECT YEAR(INVDAT_0) AS EJERCICIO, MONTH(INVDAT_0) AS MES, SUM(" + CAMPO + ") AS VALOR FROM " + nomap + ".SINVOICED "
+  LREQ(2) = "WHERE ITMREF_0 = '" + COD_ARTICULO + "' AND INVDAT_0 BETWEEN '" + DESDE_FECHA + "' AND '" + HASTA_FECHA + "' "
+  LREQ(3) = "GROUP BY YEAR(INVDAT_0), MONTH(INVDAT_0)) AS V"
+
+  For (Integer LINEA, Integer EJERCICIO, Integer MES, Decimal VALOR) From "5" Sql LREQ(0..3) As [YVEA]
+    LINEA(I) = [YVEA]LINEA
+    EJERCICIO(I) = [YVEA]EJERCICIO
+    MES(I) = [YVEA]MES
+    VALOR(I) = [YVEA]VALOR
+
+    I += 1
+  Next
+End
+
+Subprog GETPRECIOVENTA(COD_PLANTA, COD_CLIENTE, COD_ARTICULO, CANTIDAD, COD_MONEDA, PRECIO_BRUTO, DTO1, DTO2, DTO3)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char COD_CLIENTE
+  Value Char COD_ARTICULO
+  Value Decimal CANTIDAD
+  Value Char COD_MONEDA
+  # Salida
+  Variable Decimal PRECIO_BRUTO
+  Variable Decimal DTO1
+  Variable Decimal DTO2
+  Variable Decimal DTO3
+
+  Local Integer NOL
+  Global Char GPNTITMREF
+
+  # Apertura de tablas
+  If clalev ([F:ITM])=0   : Local File ITMMASTER  [ITM]   : Endif
+  If clalev ([F:ITS])=0   : Local File ITMSALES   [ITS]   : Endif
+  If clalev ([F:BPR])=0   : Local File BPARTNER   [BPR]   : Endif
+  If clalev ([F:BPC])=0   : Local File BPCUSTOMER [BPC]   : Endif
+  If clalev ([F:BPD])=0   : Local File BPDLVCUST  [BPD]   : Endif
+  If clalev ([F:ITF])=0   : Local File ITMFACILIT [ITF]   : Endif
+  If clalev ([F:SPK])=0   : Local File SPRICLINK  [SPK]   : Endif
+
+  # Apertura de pantallas
+  If clalev([M:SOH0]) = 0 : Local Mask SOH0 [SOH0] : Endif
+  If clalev([M:SOH1]) = 0 : Local Mask SOH1 [SOH1] : Endif
+  If clalev([M:SOH2]) = 0 : Local Mask SOH2 [SOH2] : Endif
+  If clalev([M:SOH3]) = 0 : Local Mask SOH3 [SOH3] : Endif
+  If clalev([M:SOH4]) = 0 : Local Mask SOH4 [SOH4] : Endif
+  If clalev([M:SOHA]) = 0 : Local Mask SOHA [SOHA] : Endif
+
+  Default Mask [M:SOH0]
+  Default Mask [M:SOH1]
+  Default Mask [M:SOH2]
+  Default Mask [M:SOHA]
+  Default Mask [M:SOH4]
+
+  Read [BPC]BPC0 = COD_CLIENTE
+  Read [ITM]ITM0 = COD_ARTICULO
+
+  Call TARIFCHGT(5) From TRTPRICE
+
+  [M:SOH4]NBLIG = 0
+  nolign = 1
+  [M:SOH4]ITMREF(0)    = COD_ARTICULO
+  [M:SOH4]DSTOFCY(0)   = COD_PLANTA
+  [M:SOH4]SAUSTUCOE(0) = [F:ITM]SAUSTUCOE
+  [M:SOH4]SAU    (0)   = [F:ITM]SAU
+  [M:SOH4]QTY(0)       = CANTIDAD
+  [M]CUR               = COD_MONEDA
+  [M]BPCORD            = COD_CLIENTE
+  [M:SOH0]BPCORD       = COD_CLIENTE
+  [M]ORDDAT            = date$
+  [M]DBPAADD(0)        = [F:BPC]BPAADD
+  [M]STOFCY            = COD_PLANTA
+  [M:SOH1]PRITYP       = 1
+
+  GFONCTION  = 'GESSOH'
+  Call RECH_TARIF(1,[M:SOH4]ITMREF(0),NOL,[M:SOH4]QTY(0) ,"SOH",[M:SOH4]GROPRI(0)) From TRTVENTAR
+  Call CLCNETPRI([M:SOH4]QTY(0),[M:SOH0]CUR,0) From TRTVENPRI
+
+  PRECIO_BRUTO = arr([M:SOH4]GROPRI (nolign - 1) / [M:SOH4]SAUSTUCOE(nolign -1), 0.00001)
+  DTO1 = [M:SOH4]DISCRGVAL1
+  DTO2 = [M:SOH4]DISCRGVAL2
+  DTO3 = [M:SOH4]DISCRGVAL3
+
+  Close Local File  [ITM]
+  Close Local File  [ITS]
+  Close Local File  [BPR]
+  Close Local File  [BPC]
+  Close Local File  [BPD]
+  Close Local File  [ITF]
+  Close Local File  [SPK]
+End
+
+####### COMPRAS ##########
+##########################
+
+Subprog COMPRASPROVEEDOR(COD_PROVEEDOR, DESDE_FECHA, HASTA_FECHA, PCAMPO, LINEA, EJERCICIO, MES, VALOR)
+  # Entrada
+  Value Char COD_PROVEEDOR
+  Value Char DESDE_FECHA
+  Value Char HASTA_FECHA
+  Value Char PCAMPO
+  # Salida
+  Variable Integer LINEA()
+  Variable Integer EJERCICIO()
+  Variable Integer MES()
+  Variable Decimal VALOR()
+
+  Local Char LREQ(250)(0..3) : Raz LREQ
+  Local Integer I : I = 0
+  Local Char CAMPO(30)
+
+  If PCAMPO = "U" Then
+    CAMPO = "QTYSTU_0"
+  Else
+    CAMPO = "AMTNOTLIN_0"
+  Endif
+
+  LREQ(0) = "SELECT CAST(ROW_NUMBER() OVER(ORDER BY EJERCICIO, MES) AS int) AS LINEA, EJERCICIO, MES, VALOR FROM "
+  LREQ(1) = "(SELECT YEAR(ACCDAT_0) AS EJERCICIO, MONTH(ACCDAT_0) AS MES, SUM(" + CAMPO + ") AS VALOR FROM " + nomap + ".PINVOICED "
+  LREQ(2) = "WHERE BPR_0 = '" + COD_PROVEEDOR + "' AND ACCDAT_0 BETWEEN '" + DESDE_FECHA + "' AND '" + HASTA_FECHA + "' "
+  LREQ(3) = "GROUP BY YEAR(ACCDAT_0), MONTH(ACCDAT_0)) AS V"
+
+  For (Integer LINEA, Integer EJERCICIO, Integer MES, Decimal VALOR) From "5" Sql LREQ(0..3) As [YCOP]
+    LINEA(I) = [YCOP]LINEA
+    EJERCICIO(I) = [YCOP]EJERCICIO
+    MES(I) = [YCOP]MES
+    VALOR(I) = [YCOP]VALOR
+
+    I += 1
+  Next
+End
+
+Subprog GETPEDIDOSCOMPRA(PCOD_PROVEEDOR, DESDE_FECHA, HASTA_FECHA, NUM_PEDIDO, COD_PROVEEDOR, NOMBRE_PROVEEDOR, FECHA_PEDIDO, IMPORTE)
+  # Entrada
+  Value Char PCOD_PROVEEDOR
+  Value Char DESDE_FECHA
+  Value Char HASTA_FECHA
+  # Salida
+  Variable Char NUM_PEDIDO()()
+  Variable Char COD_PROVEEDOR()()
+  Variable Char NOMBRE_PROVEEDOR()()
+  Variable Char FECHA_PEDIDO()()
+  Variable Decimal IMPORTE()
+
+  Local Char LREQ(250)(0..2) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT POHNUM_0, P.BPSNUM_0, PR.BPSNAM_0, P.ORDDAT_0, P.TOTLINAMT_0 FROM " + nomap + ".PORDER P "
+  LREQ(1) = "INNER JOIN " + nomap + ".BPSUPPLIER PR ON P.BPSNUM_0 = PR.BPSNUM_0 WHERE P.ORDDAT_0 BETWEEN '" + DESDE_FECHA + "' AND '" + HASTA_FECHA + "' "
+  If PCOD_PROVEEDOR <> ""
+    LREQ(2) = "AND P.BPSNUM_0 = '" + PCOD_PROVEEDOR + "' "
+  Endif
+  LREQ(2) += "ORDER BY P.ORDDAT_0"
+
+  For(Char POHNUM, Char BPSNUM, Char BPSNAM, Date ORDDAT, Decimal TOTLINAMT) From "5" Sql LREQ(0..2) As [YPOH]
+    NUM_PEDIDO(I) = [YPOH]POHNUM
+    COD_PROVEEDOR(I) = [YPOH]BPSNUM
+    NOMBRE_PROVEEDOR(I) = [YPOH]BPSNAM
+    FECHA_PEDIDO(I) = num$([YPOH]ORDDAT)
+    IMPORTE(I) = [YPOH]TOTLINAMT
+
+    I += 1
+  Next
+End
+
+Subprog GETDETALLEPEDIDOCOMPRA(NUM_PEDIDO, IDIOMA, COD_ARTICULO, DESCRIPCION, FECHA_RECEPCION, UD_PEDIDAS, UD_RECIBIDAS, IMPORTE, ESTADO)
+  # Entrada
+  Value Char NUM_PEDIDO
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION()()
+  Variable Char FECHA_RECEPCION()()
+  Variable Decimal UD_PEDIDAS()
+  Variable Decimal UD_RECIBIDAS()
+  Variable Decimal IMPORTE()
+  Variable Char ESTADO()()
+
+  Local Char LREQ(250)(0..4) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT L.ITMREF_0, ISNULL(TEXTE_0, I.ITMDES1_0) AS ITMDES1_0, L.EXTRCPDAT_0, L.QTYSTU_0, L.RCPQTYSTU_0, P.NETPRI_0 * L.QTYSTU_0 AS IMPORTE_0, "
+  LREQ(1) = "CASE L.LINSTA_0 WHEN 3 THEN 'Saldada' ELSE 'Pendiente' END AS LINSTA_0 FROM " + nomap + ".PORDERQ L INNER JOIN " + nomap + ".ITMMASTER I "
+  LREQ(2) = "ON L.ITMREF_0 = I.ITMREF_0 INNER JOIN " + nomap + ".PORDERP P ON L.POHNUM_0 = P.POHNUM_0 AND L.POPLIN_0 = P.POPLIN_0 AND L.POQSEQ_0 = P.POPSEQ_0 "
+  LREQ(3) = "LEFT JOIN " + nomap + ".ATEXTRA ON CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = L.ITMREF_0 "
+  LREQ(4) = "WHERE L.POHNUM_0 = '" + NUM_PEDIDO + "' ORDER BY L.POPLIN_0"
+
+  For (Char ITMREF, Char ITMDES, Date EXTRCPDAT, Decimal QTYSTU, Decimal RCPQTYSTU, Decimal IMPORTE, Char LINSTA) From "5" Sql LREQ(0..4) As [YPOQ]
+    COD_ARTICULO(I) = [YPOQ]ITMREF
+    DESCRIPCION(I) = [YPOQ]ITMDES
+    FECHA_RECEPCION(I) = num$([YPOQ]EXTRCPDAT)
+    UD_PEDIDAS(I) = [YPOQ]QTYSTU
+    UD_RECIBIDAS(I) = [YPOQ]RCPQTYSTU
+    IMPORTE(I) = [YPOQ]IMPORTE
+    ESTADO(I) = [YPOQ]LINSTA
+
+    I += 1
+  Next
+End
+
+####### PRODUCCION ##########
+#############################
+
+Subprog GETCENTROSTRABAJO(COD_PLANTA, IDIOMA, COD_CENTRO, CENTRO)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_CENTRO()()
+  Variable Char CENTRO()()
+
+  Local Char LREQ(250)(0..1) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT WST_0, ISNULL((SELECT TEXTE_0 FROM SEED.ATEXTRA WHERE CODFIC_0 = 'WORKSTATIO' AND ZONE_0 = 'WSTDESAXX' AND LANGUE_0 = '" + IDIOMA +
+& "' AND IDENT1_0 = WST_0 AND IDENT2_0 = WCRFCY_0), 'N/A') AS WSTDES "
+  LREQ(1) = "From SEED.WORKSTATIO WHERE WSTTYP_0 = 1 AND WCRFCY_0 = '" + COD_PLANTA + "' ORDER BY WST_0"
+
+  For(Char WST, Char WSTDES) From "5" Sql LREQ As [YCEN]
+    COD_CENTRO(I) = [YCEN]WST
+    CENTRO(I) = [YCEN]WSTDES
+
+    I += 1
+  Next
+End
+
+Subprog GETCABECERAOF(COD_PLANTA, COD_CENTRO, SEMANA, EJERCICIO, IDIOMA, COD_ORDEN, FECHA_INICIO, COD_ARTICULO, ARTICULO, CANTIDAD, CANTIDAD_FABRICADA)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char COD_CENTRO
+  Value Integer SEMANA
+  Value Integer EJERCICIO
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_ORDEN()()
+  Variable Char FECHA_INICIO()()
+  Variable Char COD_ARTICULO()()
+  Variable Char ARTICULO()()
+  Variable Decimal CANTIDAD()
+  Variable Decimal CANTIDAD_FABRICADA()
+
+  Local Char LREQ(250)(0..3) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT O.MFGNUM_0, O.OPESTR_0, MI.ITMREF_0, ISNULL((SELECT TEXTE_0 FROM " + nomap + ".ATEXTRA WHERE CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA +
+& "' AND IDENT1_0 = MI.ITMREF_0), I.ITMDES1_0) AS ITMDES, "
+  LREQ(1) = "MI.EXTQTY_0, MI.CPLQTY_0 FROM " + nomap + ".MFGOPE O INNER JOIN " + nomap + ".MFGITM MI ON O.MFGNUM_0 = MI.MFGNUM_0 INNER JOIN " + nomap + ".ITMMASTER I ON MI.ITMREF_0 = I.ITMREF_0 "
+  LREQ(2) = "Where O.EXTWST_0 = '" + COD_CENTRO + "' and O.MFGFCY_0 = '" + COD_PLANTA + "'  AND DATEPART(WEEK, OPESTR_0) = " + num$(SEMANA + 1) +  " AND DATEPART(YEAR, OPESTR_0) = " + num$(EJERCICIO)
+& +
+& " "
+  LREQ(3) = "ORDER BY OPESTR_0 DESC"
+
+  For(Char MFGNUM, Date OPESTR, Char ITMREF, Char ITMDES, Decimal EXTQTY, Decimal CPLQTY) From "5" Sql LREQ As [YOFS]
+    COD_ORDEN(I) = [YOFS]MFGNUM
+    FECHA_INICIO(I) = num$([YOFS]OPESTR)
+    COD_ARTICULO(I) = [YOFS]ITMREF
+    ARTICULO(I) = [YOFS]ITMDES
+    CANTIDAD(I) = [YOFS]EXTQTY
+    CANTIDAD_FABRICADA(I) = [YOFS]CPLQTY
+
+    I +=1
+  Next
+End
+
+Subprog GETCOMPONENTESOF(COD_ORDEN, IDIOMA, COD_ARTICULO, ARTICULO, CANTIDAD, CANTIDAD_CONSUMIDA)
+  # Entrada
+  Value Char COD_ORDEN
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_ARTICULO()()
+  Variable Char ARTICULO()()
+  Variable Decimal CANTIDAD()
+  Variable Decimal CANTIDAD_CONSUMIDA()
+
+  Local Char LREQ(250)(0..1) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT M.ITMREF_0, ISNULL((SELECT TEXTE_0 FROM " + nomap + ".ATEXTRA WHERE CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA +
+& "' AND IDENT1_0 = M.ITMREF_0), I.ITMDES1_0), M.RETQTY_0, M.USEQTY_0 "
+  LREQ(1) = "FROM " + nomap + ".MFGMAT M INNER JOIN " + nomap + ".ITMMASTER I ON M.ITMREF_0 = I.ITMREF_0 WHERE M.MFGNUM_0 = '" + COD_ORDEN + "' ORDER BY M.MFGLIN_0"
+
+  For (Char ITMREF, Char ITMDES, Decimal RETQTY, Decimal USEQTY) From "5" Sql LREQ As [YBOM]
+    COD_ARTICULO(I) = [YBOM]ITMREF
+    ARTICULO(I) = [YBOM]ITMDES
+    CANTIDAD(I) = [YBOM]RETQTY
+    CANTIDAD_CONSUMIDA(I) = [YBOM]USEQTY
+
+    I += 1
+  Next
+
+End
+
+Subprog GETOPERACIONESOF(COD_ORDEN, COD_PLANTA, IDIOMA, COD_CENTRO, CENTRO, DESCRIPCION, TIEMPO)
+  # Entrada
+  Value Char COD_ORDEN
+  Value Char COD_PLANTA
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_CENTRO()()
+  Variable Char CENTRO()()
+  Variable Char DESCRIPCION()()
+  Variable Char TIEMPO()()
+
+  Local Char LREQ(250)(0..2) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT EXTWST_0, ISNULL((SELECT TEXTE_0 FROM " + nomap + ".ATEXTRA WHERE CODFIC_0 = 'WORKSTATIO' AND ZONE_0 = 'WSTDESAXX' AND LANGUE_0 = '" + IDIOMA +
+& "' AND IDENT1_0 = EXTWST_0 AND IDENT2_0 = '" + COD_PLANTA + "'), 'N/A') AS WSTDES, "
+  LREQ(1) = "ROODES_0, CAST(CAST(EXTOPETIM_0 AS NUMERIC(18,2)) AS VARCHAR) + ' ' + CASE TIMUOMCOD_0 WHEN 1 THEN 'Horas' ELSE 'Minutos' END  AS EXTQTY "
+  LREQ(2) = "FROM " + nomap + ".MFGOPE WHERE MFGNUM_0 = '" + COD_ORDEN + "' ORDER BY OPENUM_0"
+
+  For (Char EXTWST, Char WSTDES, Char ROODES, Char EXTQTY) From "5" Sql LREQ As [YOPE]
+    COD_CENTRO(I) = [YOPE]EXTWST
+    CENTRO(I) = [YOPE]WSTDES
+    DESCRIPCION(I) = [YOPE]ROODES
+    TIEMPO(I) = [YOPE]EXTQTY
+
+    I += 1
+  Next
+End
+
+Subprog GETDIRECCIONES(PCOD_CLIENTE, COD_DIRECCION, DESC_DIRECCION, DIRECCION, COD_POSTAL, MUNICIPIO, PROVINCIA, TELEFONO, EMAIL, DEFECTO)
+  # Entrada
+  Value Char PCOD_CLIENTE
+  # Salida
+  Variable Char DESC_DIRECCION()()
+  Variable Char COD_DIRECCION()()
+  Variable Char DIRECCION()()
+  Variable Char COD_POSTAL()()
+  Variable Char MUNICIPIO()()
+  Variable Char PROVINCIA()()
+  Variable Char TELEFONO()()
+  Variable Char EMAIL()()
+  Variable Integer DEFECTO()
+
+  Local Integer I : I = 0
+
+  If !clalev([YADD]) : Local File BPADDRESS [YADD] : Endif
+
+  Filter [YADD] Where BPATYP = 1 and BPANUM = PCOD_CLIENTE
+  If !fstat
+    For [YADD]
+      DESC_DIRECCION(I) = [YADD]BPADES
+      COD_DIRECCION(I) = [YADD]BPAADD
+      DIRECCION(I) = [YADD]BPAADDLIG(0) + " " + [YADD]BPAADDLIG(1) + " " + [YADD]BPAADDLIG(2)
+      COD_POSTAL(I) = [YADD]POSCOD
+      MUNICIPIO(I) = [YADD]CTY
+      PROVINCIA(I) = [YADD]SAT
+      TELEFONO(I) = [YADD]TEL(0)
+      EMAIL(I) = [YADD]WEB(0)
+      DEFECTO(I) = [YADD]BPAADDFLG
+
+      I += 1
+    Next
+  Endif
+  Filter [YADD]
+
+  Close Local File [YADD]
+End

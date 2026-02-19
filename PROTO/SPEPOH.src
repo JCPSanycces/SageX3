@@ -1,0 +1,69 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara POH1 (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla POH1) 08/11/2023 14:45:18 (NUN14)
+######################################################################################
+$ACTION
+Case ACTION
+  When "OUVRE"        : Gosub OUVRE
+  When "STYLE"        : Gosub STYLE
+  When Default
+Endcase
+Return
+
+
+#################################################
+$STYLE
+
+# Si vengo de contramarca, para mostrar campo RAL (dato del pedido de venta) a nivel de línea
+# Empleo este subprograma porque se ejecuta después del liens_lig
+
+For LINE = 0 To [M:POH2]NBLIG-1
+  If [M:POH2]SOHNUM(LINE) <> ""
+    If !clalev([YQ1]) Then : Local File SORDERQ [YQ1] : Endif
+    Read [YQ1]SOQ0 = [M:POH2]SOHNUM(LINE);[M:POH2]SOPLIN(LINE);[M:POH2]SOQSEQ(LINE)
+    If fstat = 0
+      [M:POH2]YRAL(LINE) = [YQ1]YRAL
+      Affzo [M:POH2]YRAL(LINE)
+    Endif
+  Endif
+Next
+Return
+
+
+
+#------------------------------------------------------------------------------------#
+
+$OUVRE
+
+  If clalev([F:YCTD]) <=0 :  Local File CONTAINERD       [F:YCTD]  : Endif
+
+Return
+
+
+#------------------------------------------------------------------------------------#
+Subprog AM_YFECREC(VALEUR)
+  Variable Date    VALEUR
+
+  For I = 0 To [M]NBLIG-1
+    Filter [F:YCTD] Where [F:YCTD]POHNUM = [M]POHNUM and [F:YCTD]POPLIN = [M]POPLIN(I) and [F:YCTD]ITMREF = [M]ITMREF(I)
+    Read [F:YCTD] First
+      If !fstat
+        If [F:YCTD]QTYSTU < [M]QTYUOM(I)
+          [M:POH2]EXTRCPDAT(I) = VALEUR
+          [M:POH2]UPDFLG(I) = 1
+          Affzo [M:POH2]EXTRCPDAT(I)
+        Endif
+      Else
+        [M:POH2]EXTRCPDAT(I) = VALEUR
+        [M:POH2]UPDFLG(I) = 1
+        Affzo [M:POH2]EXTRCPDAT(I)
+      Endif
+
+    Filter [F:YCTD]
+  Next
+End
+
+
+######################################################################################

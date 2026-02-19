@@ -1,0 +1,17 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+  When "CTMFILTRE1"   :   Gosub CTMFILTRE1
+Endcase
+Return
+
+########################################################
+$CTMFILTRE1
+# Si el pedido tiene el estado de crédito en Anticipo No Abonado, bloqueo la creación de la contramarca
+If [F:SOH]CDTSTA = 4
+  Local Char TEXT(100)
+  TEXT = "El pedido " + [F:SOH]SOHNUM + " tiene el estado de crédito en Anticipo No abonado. Contramarca bloqueada"
+  Call ECR_TRACE(TEXT,1) From GESECRAN
+  WCDTSTA = 1
+Endif
+Return

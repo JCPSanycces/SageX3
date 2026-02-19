@@ -1,0 +1,365 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#@01@ VEG (04/28/2023) - Modificación del código para indicar el tipo de factura y la función del mensaje en el fichero EDI generado para SERES
+
+Subprog ZCREINVSERES
+  #--
+  Gosub OUVRE
+
+
+  For [F:ZOCCABF] Where ENVIADOEDI <> 2
+    Call ECR_TRACE("Factura encontrada:"-[F:ZOCCABF]NUMFAC,0) From GESECRAN
+    Gosub DEFINE_FIC
+    Gosub ECR_RECTL         #-- identificacion del mensaje
+    Gosub ECR_SINCC         #-- cabecera
+    For WCAL = 1 To 4
+      Gosub ECR_SINCP         #-- informacion sobre las partes de la factura
+    Next
+    Gosub ECR_SINCP_SU
+    Gosub ECR_SINCV
+    #-- lineas
+    For [F:ZOCLINF] Where NUMFAC = [F:ZOCCABF]NUMFAC
+      Gosub ECR_SINCL
+      Gosub ECR_SINCE         #-- descuentos o cargos a nivel de linea
+    Next
+
+    Gosub ECR_SINCI
+    Openo Using[ZCRE]
+    Call ECR_TRACE("Fichero generado para la factura"-C_NOMFIC,0) From GESECRAN
+    Read [F:XOCCABF]ZOCCABF0 = [F:ZOCCABF]NUMFAC
+    If !fstat : [F:XOCCABF]ENVIADOEDI = 2
+      Call DEBTRANS() From GLOCK
+      Trbegin [F:XOCCABF]
+      Rewrite [F:XOCCABF]
+      If !fstat
+        Commit
+      Else
+        GOK = 0 : Call FSTA("XOCCABF") From GLOCK
+        Rollback
+      Endif
+    Endif
+  Next
+  #--
+  If !GSERVEUR
+    Call LEC_TRACE From LECFIC
+    Call FERME_TRACE From LECFIC
+  Endif
+End
+
+#------------------------------------------------------------------------------------
+$OUVRE
+  #--
+  Local Char C_NOMFIC(30), C_FICHERO(GDIMFIC), C_MODELO(10), C_CARPETA(250)
+  Local Integer WCAL
+  #--
+  If !clalev([F:ZOCCABF]) : Local File ZOCCABF [F:ZOCCABF]   : Endif
+  If !clalev([F:XOCCABF]) : Local File ZOCCABF [F:XOCCABF]   : Endif
+  If !clalev([F:ZOCLINF]) : Local File ZOCLINF [F:ZOCLINF]   : Endif
+  If !clalev([F:ZDUD])    : Local File GACCDUDATE [F:ZDUD]   : Endif
+  If !clalev([F:YEBP])    : Local File EDIBPRPAR  [F:YEBP]   : Endif # Edi por tercero
+  If !clalev([F:YECP])    : Local File EDICPYPAR  [F:YECP]   : Endif # Edi por tercero
+  If !clalev([F:YSIH])    : Local File SINVOICE  [F:YSIH]    : Endif # Edi por tercero
+  If !clalev([F:YSID])    : Local File SINVOICED [F:YSID]    : Endif # Edi por tercero
+  If !clalev([F:YTVAT])   : Local File TABVAT [F:YTVAT]      : Endif # tipos de impuestos
+
+  #--
+  If !GSERVEUR
+    Call OUVRE_TRACE("Creacion factura de venta desde EDICOM --> SERES") From LECFIC
+  Endif
+ Return
+
+#------------------------------------------------------------------------------------
+$DEFINE_FIC
+    #-- variables de fichero, inicializacion
+    adxifs = ""                      #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+
+    #--
+    # C_CARPETA = "BQT"
+    C_CARPETA = "EDI\ISSUEEDICOM"
+    #--
+    C_NOMFIC  = [F:ZOCCABF]NUMFAC
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+    Openo C_FICHERO,0 Using[ZCRE]
+Return
+
+#-- Generación del fichero de pedidos
+  #-- identificacion
+$ECR_RECTL
+  #--
+  Wrseq format$("K:6X","RECTL");                          Using [ZCRE] #--
+  Wrseq format$("K:6X","INVOIC");                         Using [ZCRE] #--
+  Read [F:YSIH]SIH0=[F:ZOCCABF]NUMFAC
+
+  Read [F:YECP]ECP0=[F:YSIH]CPY
+  # Wrseq format$("K:35X",[F:ZOCCABF]EMISOR);               Using [ZCRE] #--
+  Wrseq format$("K:35X",[F:YECP]EXCEDICOD);               Using [ZCRE] #--
+
+  Wrseq format$("K:35X",[F:ZOCCABF]RECEPTOR);             Using [ZCRE] #--
+  Wrseq format$("K:40X",[F:ZOCCABF]NUMFAC);               Using [ZCRE] #--
+  Wrseq format$("K:12X",[F:ZOCCABF]FECHA);                Using [ZCRE] #--
+  Wrseq format$("K:4X","0000");                           Using [ZCRE] #--
+Return
+
+#-- cabecera
+$ECR_SINCC
+  #--
+  Wrseq format$("K:6X","SINCC");                          Using [ZCRE] #--        1
+  # Wrseq format$("K:6X",[F:ZOCCABF]NODO);                  Using [ZCRE] #--
+  #@01@ VEG - INI
+  If [F:ZOCCABF]TOTAL >= 0
+      Wrseq format$("K:6X","380");                            Using [ZCRE] #--        2 380 factura comercial
+  Else
+      Wrseq format$("K:6X","381");                            Using [ZCRE] #--        2 381 abono
+  Endif
+  #@01@ VEG - FIN
+  Wrseq format$("K:17X",[F:ZOCCABF]NUMFAC);               Using [ZCRE] #--        3
+  # Wrseq format$("K:6X",[F:ZOCCABF]FUNCION);               Using [ZCRE] #--
+  Wrseq format$("K:6X","9");                              Using [ZCRE] #--        4
+  Wrseq format$("K:8X",[F:ZOCCABF]FECHA);                 Using [ZCRE] #--        5
+  Wrseq format$("K:16X","");                              Using [ZCRE] #--        6 fecha albaran
+  Wrseq format$("K:6X",[F:ZOCCABF]FPAGO);                 Using [ZCRE] #--        7
+  Wrseq format$("K:3X",[F:ZOCCABF]RAZON);                 Using [ZCRE] #--        8
+  Wrseq format$("K:3X","");                               Using [ZCRE] #--        9
+
+  Read [F:YSID]SID0=[F:ZOCCABF]NUMFAC
+
+  Wrseq format$("K:17X",[F:ZOCCABF]PEDIDO);               Using [ZCRE] #--        10 - número pedido del cliente
+  # Wrseq format$("K:17X",[F:YSID]SOHNUM);               Using [ZCRE] #--
+  #Wrseq format$("K:17X",[F:ZOCCABF]ALBARAN);              Using [ZCRE] #--
+  Wrseq format$("K:17X",[F:YSID]SDHNUM);               Using [ZCRE] #--           11
+  Wrseq format$("K:3X","");                               Using [ZCRE] #--        12
+  Wrseq format$("K:17X","");                              Using [ZCRE] #--        13
+  Wrseq format$("K:17X","");                              Using [ZCRE] #--        14
+  Wrseq format$("K:17X","");                              Using [ZCRE] #--        15
+  Wrseq format$("K:6X",[F:ZOCCABF]DIVISA);                Using [ZCRE] #--        16
+  Wrseq format$("K:8X",[F:ZOCCABF]VTO(0));                Using [ZCRE] #--        17
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]SUMNETOS),",",".");        Using [ZCRE] #--   18
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]BASEIMP),",",".");         Using [ZCRE] #--   19
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]SUMBRUTO),",",".");        Using [ZCRE] #--   20
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]TOTIMP),",",".");          Using [ZCRE] #--   21
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]TOTAL),",",".");           Using [ZCRE] #--   22
+  Wrseq format$("N0:14.3","0");                             Using [ZCRE] #--        23
+  Wrseq format$("N0:14.3","0");                             Using [ZCRE] #--        24
+  Wrseq format$("N0:14.3","0");                             Using [ZCRE] #--        25
+  Wrseq format$("K:16X","");                                Using [ZCRE] #--          26
+  Wrseq format$("K:8X",[F:ZOCCABF]FECHA);                   Using [ZCRE] #--          27 -- fecha pedido
+  Wrseq format$("K:12X","");                                Using [ZCRE] #--          28
+  Wrseq format$("K:17X","");                                Using [ZCRE] #--          29
+  Wrseq format$("K:35X","");                                Using [ZCRE] #--          30
+  Wrseq format$("N0:14.3","0");                             Using [ZCRE] #--          31
+  Wrseq format$("K:3","");                                  Using [ZCRE] #--          32
+  Wrseq format$("N0:8","");                                 Using [ZCRE] #--          33
+  Wrseq format$("N0:8","")                                  Using [ZCRE] #--          34
+
+Return
+
+
+
+$ECR_SINCP
+  #--
+  Wrseq format$("K:6X","SINCP");                          Using [ZCRE] #-- 1
+  Case WCAL
+    When 1 : Wrseq format$("K:3X","BY");                  Using [ZCRE] #-- 2
+    When 2 : Wrseq format$("K:3X","DP");                  Using [ZCRE] #-- 2
+    When 3 : Wrseq format$("K:3X","IV");                  Using [ZCRE] #-- 2
+    When 4 : Wrseq format$("K:3X","PR");                  Using [ZCRE] #-- 2
+    When Default
+  Endcase
+  Wrseq format$("K:17X",[F:ZOCCABF]COMPRADOR);            Using [ZCRE] #-- 3
+  Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4
+  Wrseq format$("K:35X",[F:ZOCCABF]RSOCIAL);              Using [ZCRE] #-- 5
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+  Wrseq format$("K:35X",[F:ZOCCABF]CALLE);                Using [ZCRE] #-- 10
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+  Wrseq format$("K:35X",[F:ZOCCABF]CIUDAD);               Using [ZCRE] #-- 14
+  Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15
+  Wrseq format$("K:9X",[F:ZOCCABF]CP);                    Using [ZCRE] #-- 16
+  Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17
+  Wrseq format$("K:35X",[F:ZOCCABF]NIF);                  Using [ZCRE] #-- 18
+  Wrseq format$("K:339X","")                               Using [ZCRE] #--
+Return
+
+$ECR_SINCP_SU
+  #--
+  Wrseq format$("K:6X","SINCP");                          Using [ZCRE] #--
+  Wrseq format$("K:3X","SU");                             Using [ZCRE] #--
+  Wrseq format$("K:17X",[F:ZOCCABF]VENDEDOR);             Using [ZCRE] #--
+  Wrseq format$("K:3X","");                               Using [ZCRE] #--
+  Wrseq format$("K:35X",[F:ZOCCABF]ERSOCIAL);             Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X",[F:ZOCCABF]ECALLE);               Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X","");                              Using [ZCRE] #--
+  Wrseq format$("K:35X",[F:ZOCCABF]EPOBLAC);              Using [ZCRE] #--
+  Wrseq format$("K:9X","");                               Using [ZCRE] #--
+  Wrseq format$("K:9X",[F:ZOCCABF]ECP);                   Using [ZCRE] #--
+  Wrseq format$("K:3X","");                               Using [ZCRE] #--
+  Wrseq format$("K:35X",[F:ZOCCABF]ENIF)                  Using [ZCRE] #--
+Return
+
+$ECR_SINCV
+  #--
+  #Filter [F:ZDUD] Where NUM = [F:ZOCCABF]NUMFAC
+  #For[F:ZDUD]
+    For I = 0 To 2
+      If [F:ZOCCABF]VTO(I) <> ""
+        Wrseq format$("K:6X","SINCV");                      Using [ZCRE] #--
+        #Wrseq format$("K:6X",num$(I+1));                    Using [ZCRE] #--
+        Wrseq format$("N0:6",num$(I+1));                    Using [ZCRE] #--
+        Wrseq format$("K:8X",[F:ZOCCABF]VTO(I));            Using [ZCRE] #--
+        Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]IMPVTO(I)),",",".")    Using [ZCRE] #--
+        Gosub ECR_SINCD
+      Endif
+    Next
+  #Next
+  #Filter [F:ZDUD]
+Return
+
+$ECR_SINCD
+  #--
+  For I = 0 To 4
+    If [F:ZOCCABF]CALIF(I) <> ""
+      Wrseq format$("K:6X","SINCD");                         Using [ZCRE] #--
+      Wrseq format$("K:2X",num$(I+1));                       Using [ZCRE] #--
+      Wrseq format$("K:1X",[F:ZOCCABF]CALIF(I));             Using [ZCRE] #--
+      Wrseq format$("K:3X",[F:ZOCCABF]SECUEN(I));            Using [ZCRE] #--
+      Wrseq ctrans(format$("N0:4.4",[F:ZOCCABF]PORCEN(I)),",",".");       Using [ZCRE] #--
+      Wrseq ctrans(format$("N0:14.3",[F:ZOCCABF]IMPDES(I)),",",".");      Using [ZCRE] #--
+      Wrseq ctrans(format$("N0:14.3",0),",",".");            Using [ZCRE] #--
+      Wrseq ctrans(format$("N0:12.3",0),",",".") ;           Using [ZCRE] #--
+      Wrseq format$("K:6X",[F:ZOCCABF]TIPO(I))               Using [ZCRE] #--
+    Endif
+  Next
+Return
+
+  #-- lineas
+$ECR_SINCL
+  #--
+  Wrseq format$("K:6X","SINCL");                                 Using [ZCRE] #--
+  Wrseq format$("N:6",num$([F:ZOCLINF]NUMLIN));                  Using [ZCRE] #--
+  Wrseq format$("K:15X",[F:ZOCLINF]REFEAN);                      Using [ZCRE] #--
+  # Wrseq format$("K:35X",[F:ZOCLINF]DESCR);                     Using [ZCRE] #--
+  Read [F:YSID]SID0=[F:ZOCCABF]NUMFAC;[F:ZOCLINF]NUMLIN*1000
+  Wrseq format$("K:35X",[F:YSID]ITMDES);                         Using [ZCRE] #--
+
+  Wrseq format$("K:1X",[F:ZOCLINF]TIPART);                       Using [ZCRE] #--
+  Wrseq format$("K:15X",[F:ZOCLINF]REFPRO);                      Using [ZCRE] #--
+  Wrseq format$("K:15X",[F:ZOCLINF]REFCLI);                      Using [ZCRE] #--
+  Wrseq format$("K:15X",[F:ZOCLINF]VP);                          Using [ZCRE] #--
+  Wrseq format$("K:15X","");                                     Using [ZCRE] #--
+  Wrseq format$("K:15X",[F:ZOCLINF]LOTE);                        Using [ZCRE] #--
+  Wrseq ctrans(format$("N0:12.3",[F:ZOCLINF]CFAC),",",".");      Using [ZCRE] #--
+  Wrseq ctrans(format$("N0:12.3",0),",",".");                    Using [ZCRE] #--
+  Wrseq format$("K:6X",[F:ZOCLINF]UMEDIDA);                      Using [ZCRE] #--
+  Wrseq ctrans(format$("N0:12.3",[F:ZOCLINF]CENT),",",".");      Using [ZCRE] #-- Unidades Entregadas
+  Wrseq ctrans(format$("N0:12.3",0),",",".");                    Using [ZCRE]  #-- Número Unidades de Consumo en U. Expedición
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCLINF]NETO),",",".");      Using [ZCRE] #--
+  # Wrseq ctrans(format$("N0:11.4",[F:ZOCLINF]BRUTO),",",".");   Using [ZCRE] #--   17
+  Wrseq ctrans(format$("N0:11.4",[F:YSID]GROPRI),",",".");       Using [ZCRE] #--   17 -- PRECIO BRUTO UNITARIO
+  Wrseq ctrans(format$("N0:11.4",[F:ZOCLINF]NETO),",",".");      Using [ZCRE] #--   18
+  Wrseq format$("K:6X",[F:ZOCLINF]UMEDIDA);                      Using [ZCRE] #--   19
+  # Wrseq format$("K:6X",[F:ZOCLINF]TIPOIMP(0));                 Using [ZCRE] #--   20
+  If [F:YSID]VACITM(0) = 'NOR' Then
+    Wrseq format$("K:6X","VAT");                                 Using [ZCRE] #--  20
+  Elsif [F:YSID]VACITM(0) = "CAN" Then
+    Wrseq format$("K:6X","IGI");                                 Using [ZCRE] #--  20
+  Endif
+
+  Wrseq ctrans(format$("N0:3.2",[F :ZOCLINF]TASA(0)),",",".");   Using [ZCRE] # - 21
+  Wrseq ctrans(format$("N0:14.3",[F:ZOCLINF]IMPTASA(0)),",",".");Using [ZCRE] # - 22
+  Wrseq ctrans(format$("N0:3.2",0),",",".");                     Using [ZCRE] #-- % recergo equivalencia - 23
+  Wrseq ctrans(format$("N0:14.3",0),",",".");                    Using [ZCRE] # -- 24
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #-- 25
+  Wrseq ctrans(format$("N0:3.2",0),",",".");                     Using [ZCRE] #-- 26
+  Wrseq ctrans(format$("N0:14.3",0),",",".");                    Using [ZCRE] #-- 27
+  # Wrseq format$("K:17X",[F:ZOCLINF]ALBARAN);                   Using [ZCRE] #-- 28 -- debe estar en blanco dado que no hacemos facturas “recapitulativas”
+  Wrseq format$("K:17X","");                                     Using [ZCRE] #-- 28 --
+  Wrseq format$("K:17X","");                                     Using [ZCRE] #-- 29 - número de embalajes
+  Wrseq ctrans(format$("N0:8",0),",",".");                       Using [ZCRE] #-- 30
+  Wrseq format$("K:7X",[F:ZOCLINF]TIPOEMBALAJE);                 Using [ZCRE] #-- 31 tipo de embalaje
+  # Wrseq ctrans(format$("N0:14.3",[F:ZOCLINF]BRUTO),",",".");   Using [ZCRE] #-- 32 import
+  Wrseq ctrans(format$("N0:14.3",[F:YSID]BASTAXLIN),",",".");    Using [ZCRE] #-- 32 import
+  Wrseq ctrans(format$("N0:6",[F:ZOCLINF]NUMLINPED),",",".");    Using [ZCRE] #-- 33 numero de linea superior
+  Wrseq ctrans(format$("N0:6",[F:ZOCLINF]NUMLINPED),",",".");    Using [ZCRE] #-- 34 numero de linea del pedido
+  Wrseq ctrans(format$("N0:6.3",[F:ZOCLINF]UBASEPN),",",".");    Using [ZCRE] #-- 35 unidad base precio
+  Wrseq format$("K:15X","");                                     Using [ZCRE] #-- 36
+  Wrseq format$("K:15X",[F:ZOCLINF]CATEGORIA);                   Using [ZCRE] #-- 37 categoria
+  Wrseq format$("K:35X",[F:ZOCLINF]REFEAN);                      Using [ZCRE] #-- 38 articulo fabricante
+  Wrseq format$("K:17X","");                                     Using [ZCRE] #-- 39 numero de confirmacion de entrega
+  Wrseq ctrans(format$("N0:6",0),",",".");                       Using [ZCRE] #-- 40
+  Wrseq format$("K:8X","");                                      Using [ZCRE] #-- 41
+  Wrseq format$("K:8X","");                                      Using [ZCRE] #-- 42
+  Wrseq ctrans(format$("N0:14.3",0),",",".");                    Using [ZCRE] #-- 43
+  Wrseq ctrans(format$("N0:14.3",0),",",".");                    Using [ZCRE] #-- 44
+  Wrseq format$("K:140X","")                                     Using [ZCRE] #-- 45
+  Wrseq format$("K:18X","")                                      Using [ZCRE] #-- 47
+  Wrseq format$("K:3X","")                                       Using [ZCRE] #-- 48
+Return
+#############################################################################
+$ECR_SINCI
+  #--
+  Local File SVCRVAT [F:YSVAT]
+  Local Integer H : H = 0
+
+  Filter [F:YSVAT] Where VCRNUM = [F:ZOCCABF]NUMFAC
+  For [F:YSVAT]
+
+  # For I = 0 To 4
+  #  If [F:ZOCLINF]TIPOIMP(I) <> ""
+      Wrseq format$("K:6X","SINCI");                                 Using [ZCRE] #--
+      Wrseq format$("N0:2",num$(H+1));                               Using [ZCRE] #--
+      # Wrseq ctrans(format$("K:6X",[F:ZOCLINF]TIPOIMP(I)),",",".");   Using [ZCRE]
+      Read [F:YTVAT]TVT1=[F:YSVAT]VAT
+      If [F:YTVAT]VATVAC = 'CAN' or [F:YTVAT]VATVAC = 'CAI' Then
+         Wrseq ctrans(format$("K:6X","IGI"),",",".");   Using [ZCRE]
+      Elsif [F:YTVAT]VATVAC = '' Then
+        Wrseq ctrans(format$("K:6X","VAT"),",",".");   Using [ZCRE]
+      Endif
+
+      Wrseq ctrans(format$("N0:3.2",[F:YSVAT]VATRAT),",",".");    Using [ZCRE]
+      Wrseq ctrans(format$("N0:14.3",[F:YSVAT]AMTTAX),",",".");Using [ZCRE]
+      Wrseq ctrans(format$("N0:14.3",[F:YSVAT]BASTAX),",",".")    Using [ZCRE]
+  #  Endif
+
+  Next
+
+  Close Local File [YSVAT]
+
+Return
+
+######################################################################################
+$ECR_SINCE
+  Local Decimal LAMTDTO, LBASE
+  LBASE = [F:YSID]QTYSTU*[F:YSID]GROPRI
+
+  For WCAL = 1 To 4
+    If evalue("[F:YSID]DISCRGVAL"+num$(WCAL)) <> 0 Then
+      Wrseq format$("K:6X","SINCE");                                  Using [ZCRE] #-- #1 TIPO DE REGISTRO “SINCE”  C 6 1 M
+      Wrseq format$("K:2",num$(WCAL));                                Using [ZCRE] #2 NÚMERO DE DESCUENTO/CARGO N 2 7 M
+      Wrseq format$("K:1X","A");                                      Using [ZCRE] #3 INDICADOR DE DESCUENTO/CARGO  C 1 9 M
+      Wrseq format$("K:3X","1");                                      Using [ZCRE] #4 INDICADOR SECUENCIA DE CALCULO  C 3 10  M
+      Wrseq ctrans(format$("N0:4.4",evalue("[F:YSID]DISCRGVAL"+num$(WCAL))),",",".");       Using [ZCRE] #5 PORCENTAJE DESCUENTO/CARGO  N(4,4)  9 13  O
+      LAMTDTO = LBASE - (LBASE * evalue("[F:YSID]DISCRGVAL"+num$(WCAL))/100)
+      Wrseq ctrans(format$("N0:14.3",LBASE - LAMTDTO),",",".");       Using [ZCRE] #6 IMPORTE DESCUENTO/CARGO N(14,3) 18  22  O
+      Wrseq ctrans(format$("N0:14.3",ar2(LAMTDTO)),",",".")        Using [ZCRE] #7 IMPORTE TOTAL SUJETO A APLICACIÓN N(14,3) 18  40  O
+      LBASE = LAMTDTO
+  #    Wrseq format$("K:6X","SINCE");                                 Using [ZCRE] #8 CANTIDAD DE UNIDADES QUE SE DESCUENTAN POR LÍNEA  N(12,3) 16  58  O
+  #    Wrseq format$("K:6X","SINCE");                                 Using [ZCRE] #9 TIPO DESCUENTO  C 6 74  O
+  #    Wrseq format$("K:6X","SINCE");                                 Using [ZCRE] #10  DESCUENTOS MONETARIOS POR UNIDAD  N(15,3) 19  80  O
+  #    Wrseq format$("K:6X","SINCE");                                 Using [ZCRE] #11  UNIDAD DE MEDIDA  C 6 99  O
+  #    Wrseq format$("K:6X","SINCE");                                 Using [ZCRE] #12  DESCRIPCIÓN DESCUENTO/CARGO C 35  105 O
+
+    Endif
+  Next
+
+Return

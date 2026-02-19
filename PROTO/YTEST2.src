@@ -1,0 +1,67 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+#Local Char ARTICULO : ARTICULO = 'T_BN11814070'
+#
+#Infbox "El articulo: "- ARTICULO - " tiene el EAN siguiente: "- func EAN_ARTICULO_T_(ARTICULO)
+#
+#End
+#
+#
+#Funprog EAN_ARTICULO_T_(YARTICULO)
+#Value Char YARTICULO
+#Local Char EAN_T_(50)
+#
+#If !clalev([F:YITM])    : Local File ITMMASTER  [F:YITM]   : Endif
+#If !clalev([F:YITM1])    : Local File ITMMASTER  [F:YITM1]   : Endif
+#
+#  Read [F:YITM]ITM0 = YARTICULO
+#    If !fstat
+#      Read [F:YITM1]ITM0 = [F:YITM]SEAKEY
+#        If !fstat
+#          EAN_T_ = [F:YITM1]EANCOD
+#        Endif
+#    Endif
+#
+#End EAN_T_
+
+# YBIMP = 177,65
+# YIMPUES = 37,31
+# SUM_SVCRFOOT = 22,45
+# GET_TOTAL_IMPUESTOS = 4,71
+
+# YTOT 21 = 42,02
+
+
+Local Char PS_NUM(20) : PS_NUM = 'FAV11240800104'
+
+Infbox num$(func GET_CALCULOS(PS_NUM,18)) - num$(func GET_CALCULOS(PS_NUM,19)) - num$(func GET_CALCULOS(PS_NUM,21)) - num$(func GET_CALCULOS(PS_NUM,22))
+
+End
+
+
+Funprog GET_CALCULOS(PS_NUM, OPC)
+  Value Char PS_NUM
+  Value Integer OPC # CAMPO DEL FICHERO
+  Local Decimal YBIMP : YBIMP = 0
+  Local Decimal YIMPUES : YIMPUES = 0
+  Local Decimal YTOT : YTOT = 0
+  Local Decimal C22_1,C22_2
+
+  If !clalev([F:YSIHD]): Local File SINVOICED [YSIHD]  : Endif
+
+      For [F:YSIHD] Where [F:YSIHD]NUM = PS_NUM
+        YBIMP += [F:YSIHD]BASTAXLIN
+        YIMPUES +=  [F:YSIHD]AMTTAXLIN
+      Next
+
+    C22_1= YBIMP - (-1*func YFACTSERES.SUM_SVCRFOOT(PS_NUM))
+    C22_2= YIMPUES - (-1*func YFACTSERES.GET_TOTAL_IMPUESTOS(PS_NUM))
+
+  Case OPC
+    When 18 : YTOT = YBIMP                                            # CAMPO 18
+    When 19 : YTOT = YBIMP - (-1*func YFACTSERES.SUM_SVCRFOOT(PS_NUM))           # CAMPO 19
+    When 21 : YTOT = YIMPUES - (-1*func YFACTSERES.GET_TOTAL_IMPUESTOS(PS_NUM))  # CAMPO 21
+    When 22 : YTOT = C22_1+C22_2                                      # CAMPO 22
+  Endcase
+
+End YTOT

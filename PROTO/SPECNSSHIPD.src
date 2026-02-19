@@ -1,0 +1,21 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "LECTURE"  :  Gosub LECTURE
+Endcase
+Return
+
+#####################################
+$LECTURE
+# Muestro info de nuevos campos: ID expedición
+Gosub LECTURE From CNSSHIPDSTD
+
+For P=0 To NOL
+  Read [F:SHH]SHH0 = [M:SHD2]SHIPNUM(P)
+  If fstat = 0
+    [M:SHD2]SHIPUID(P) = [F:SHH]SHIPUID
+  Endif
+Next
+
+GPE=1
+Return

@@ -1,0 +1,152 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "INIT"   :   Gosub INIT
+  When "OK"     :   Gosub OK
+Endcase
+Return
+
+#############################################################################################
+$INIT
+
+
+Return
+#############################################################################################
+$OK
+
+If GUSER = 'NUN14'
+  Infbox [M:YEA0]SDHDEB - [M:YEA0]SDHDEB
+  Infbox [M:YEA0]BPCDEB - [M:YEA0]BPCFIN
+  Infbox num$([M:YEA0]DATDEB) - num$([M:YEA0]DATFIN)
+  Infbox num$([M:YEA0]DUPLICADO) - num$([M:YEA0]DUPLICADO)
+Endif
+
+  Call ZCREINVSERES('', [M:YEA0]SDHDEB,[M:YEA0]SDHDEB,[M:YEA0]BPCDEB,[M:YEA0]BPCFIN,[M:YEA0]DATDEB,[M:YEA0]DATFIN,[M:YEA0]DUPLICADO) From YCRESDHSERES
+
+Return
+
+
+
+###############################################################################
+#**
+#* CREAR_JOB(ZMODIMP,ZNOMIMP,ZVOLFIL,ZRUTAJOB)
+#*
+#* @param ZMODIMP modelo de importación utilizado
+#* @param ZNOMIMP fichero a importar (ruta incluida)
+#* @param ZVOLFIL fichero a importar (ruta espacio almacenamiento incluida)
+#* @param ZRUTAJOB fichero job (ruta incluida)
+#* LLAMADA A CREAR JOB
+#* LFECHA = vireblc(num$(date$),4) : LFECHA = mid$(LFECHA,1,2)+mid$(LFECHA,4,2)+mid$(LFECHA,7,4)
+#LHORA = vireblc(num$(time$),4) : LHORA = mid$(LHORA,1,2)+mid$(LHORA,4,2)+mid$(LHORA,7,2)
+##ruta del fichero..
+#LFILE = LDIRIMPORT + "FI_SID_"+LFECHA+"_"+LHORA+".txt"
+#ZMODIMP = "ZSIHINTX2"
+#ZNOMIMP = LFILE
+#ZVOLFIL = "[IMPORT]/IMP/" + "FI_SID_"+LFECHA+"_"+LHORA+"+" .txt"
+#ZRUTAJOB= "E:\sage\NUNSYSEM\folders\ACRILATOS\IMP\BATCH\JOB" + "FI_SID_"+LFECHA+"_"+LHORA+"+".job"
+#Call CREAR_JOB(ZMODIMP,ZNOMIMP,ZVOLFIL,ZRUTAJOB) From ZSISLIB0
+#*
+#*!
+Funprog CREAR_JOB(PITMREF,PTAREA,ZVOLFIL,ZRUTAJOB)
+Value Char PITMREF
+Value Char PTAREA
+Value Char ZVOLFIL
+Value Char ZRUTAJOB
+
+Openo ZRUTAJOB
+Wrseq 'DOSSIER='+[S]nomap(0)
+Wrseq 'UTIL=ADMIN'
+Wrseq 'PASSE=BAABAA'
+Wrseq 'GRP='
+Wrseq 'TACHE='+PTAREA # CALCSTSTD
+Wrseq 'DATE=20180101'
+Wrseq 'HEURE=0001'
+Wrseq 'ABTBL(1)=ITS'
+Wrseq 'ABTBL(3)=AX3'
+Wrseq 'ABTBL(4)=AX4'
+Wrseq 'BOMALTTYP=2'
+Wrseq 'CLCQTY=1'
+Wrseq 'CSTTYP=1'
+Wrseq 'CSTTYPA=STD'
+Wrseq 'DESCEND=1'
+Wrseq 'FIYNUM=1'
+Wrseq 'FXDCSTDSP=1'
+Wrseq 'ITCDAT=20210805'
+Wrseq 'ITCENDDAT=20211231'
+Wrseq 'ITCSTRDAT=20210805'
+Wrseq 'ITMREF='+PITMREF
+Wrseq 'MAJ=3'
+Wrseq 'NBTBL=4'
+Wrseq 'RPLPRVCST=1'
+Wrseq 'SLTMATCST=1'
+Wrseq 'SLTOVECOL=1'
+Wrseq 'STOFCY=11'
+Wrseq 'STU=UN'
+Wrseq 'STU2=UN'
+Wrseq 'TBTBL(1)=ITMSALES'
+Wrseq 'TBTBL(2)=ATEXTRA'
+Wrseq 'TBTBL(3)=ATEXTRA'
+Wrseq 'TBTBL(4)=ATEXTRA'
+Wrseq 'TOUS=1'
+Wrseq 'VLTCCERAT=1'
+Wrseq 'ZITMREF=AMORTIZACIÓN PLANTA POLIACR'
+Wrseq 'ZSTOFCY=ACRILATOS - ONDA'
+
+
+#DOSSIER=PROTO
+#LAN=
+#UTIL=NUN05
+#PASSE=9B8E36ADE34FAD4002A67E5C
+#GRP=
+#TACHE=EDIBAT
+#Date=20230321
+#HEURE=0847
+#ALLFLO=1
+#CATACT=1
+#CATCOD=SINVOICE
+#CATTYP=2
+#FLD(0)=INVSTA
+#FLD(1)=INVDAT
+#FLD(2)=NUM
+#FLD(3)=BPCORD
+#FLDNAM(0)=ESTADO
+#FLDNAM(1)=FECHA FACTURA
+#FLDNAM(2)=N.º FACTURA
+#FLDNAM(3)=CLIENTE PEDIDO
+#FLDTYPTYP(0)=1
+#FLDTYPTYP(1)=8
+#FLDTYPTYP(2)=7
+#FLDTYPTYP(3)=7
+#FLDVAL1(0)=1
+#FLDVAL1(2)=FAV112300040
+#FLDVAL2(0)=3
+#FLG(0)=1
+#FLG(1)=2
+#FLG(2)=1
+#FLG(3)=1
+#FLOCOD=SIHEDICOM
+#FLOREL=1
+#LASRUNDAT=2023-03-15T14:30:20Z
+#MANDATORY(0)=1
+#MANDATORY(1)=1
+#MANDATORY(2)=1
+#MANDATORY(3)=1
+#NBLIG=4
+#NUM=7
+#OPERATOR(0)=1
+#OPERATOR(1)=1
+#OPERATOR(2)=1
+#OPERATOR(3)=1
+#PARCOD=EDICOM
+#REPFLDVAL1(0)=1
+#REPFLDVAL1(2)=FAV112300040
+#REPFLDVAL2(0)=3
+#REPFLDVAL2(2)=FAV112300040
+#RUNDES=SALES INVOICE EDICOM (SERES)
+#TESTFLG=1
+#ZPARCOD=EDICOM CONNECTING BUSINESS
+
+
+Openo
+
+End

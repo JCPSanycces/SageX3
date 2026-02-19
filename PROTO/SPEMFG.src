@@ -1,0 +1,91 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @01@ - EQM - 04/09/2024 - Mostramos ZANCHO,ZALTO,ZLARGO del pedido de venta, DEMDLVDAT
+# @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+# @03@ - SCD -02/10/2024 - Control fecha inicio
+# @04@ - EQM - 03/10/2024 - SOLO EN REAL Nos piden que solo puedan borrar órdenes Diego y Joaquin // deshabilitamos botón
+
+$ACTION
+Case ACTION
+  When "OUVRE"        : Gosub OUVRE     # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+  When "SETBOUT"      : Gosub SETBOUT
+  When "LIENS_LIG"    : Gosub LIENS_LIG
+  When "FIN"          : Gosub FIN       # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+Endcase
+Return
+#############################################
+
+# @02@ - SCD - 27/09/2024 - INI
+
+$OUVRE
+  If !clalev([Q1])  : Local File SORDERQ    [Q1]  : Endif
+  If !clalev([PP6]) : Local File AOBJTXT    [PP6] : Endif
+Return
+
+$FIN
+  Close Local File [Q1]
+  Close Local File [PP6]
+Return
+
+# @02@ - SCD - 27/09/2024 - FIN
+
+#############################################
+$LIENS_LIG
+# Si vengo de contramarca, para mostrar campo RAL (dato del pedido de venta) a nivel de línea
+Gosub LIENS_LIG From SUBMFGA
+
+If [M:MFG1]VCRNUMORI(nolign-1) <> ""
+
+#  If !clalev([Q1])  : Local File SORDERQ    [Q1]  : Endif # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+#  If !clalev([PP6]) : Local File AOBJTXT    [PP6] : Endif # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+
+
+  Read [Q1]SOQ0 = [M:MFG1]VCRNUMORI(nolign-1);[M:MFG1]VCRLINORI(nolign-1);[M:MFG1]VCRSEQORI(nolign-1)
+  If fstat = 0
+    [M:MFG1]YRAL(nolign-1) = [Q1]YRAL
+    Affzo [M:MFG1]YRAL(nolign-1)
+    # @01@ - EQM - INI
+    [M:MFG1]ZANCHO(nolign-1) = [Q1]ZANCHO
+    [M:MFG1]ZALTO(nolign-1)  = [Q1]ZALTO
+    [M:MFG1]ZLARGO(nolign-1) = [Q1]ZLARGO
+    [M:MFG1]DEMDLVDAT(nolign-1) = [Q1]SHIDAT
+    Affzo[M:MFG1]ZANCHO(nolign-1)
+    Affzo[M:MFG1]ZALTO(nolign-1)
+    Affzo[M:MFG1]ZLARGO(nolign-1)
+    Affzo[M:MFG1]DEMDLVDAT(nolign-1)
+    # @01@ - EQM - FIN
+  Endif
+
+  Filter [PP6] Where [PP6]ABREV = 'SOH' and [PP6]IDENT1 = [M:MFG1]VCRNUMORI(nolign-1) and [PP6]MOTCLE(0) = 'PLANO' and [PP6]MOTCLE(1) = num$([M:MFG1]VCRLINORI(nolign-1))
+  For [PP6]
+    [M:MFG1]YPLANO(nolign-1)   = 2
+    Break
+  Next
+  Filter [PP6]
+
+Endif
+#  Close Local File [Q1] # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+#  Close Local File [PP6] # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
+GPE = 1
+Return
+
+
+
+#############################################
+$SETBOUT
+If clalev([F:AOX])=0 : Local File AOBJTXT [AOX]  : Endif
+Local Integer W_PLANO: W_PLANO=0
+Filter [F:AOX] Where ABREV="MFG" and (IDENT1=[M:MFG0]MFGNUM or IDENT1=[M:MFG1]VCRNUMORI(0)) and find("PLANO",MOTCLE())
+If rowcount([F:AOX])=0
+  Call VIREBOUT(CHAINE,"x") From GOBJET
+Endif
+Filter [AOX]
+Diszo [M:MFG1]ZLARGO,ZANCHO,ZALTO # @01@ - EQM
+# @04@ - EQM - INI - EN TEST DESACTIVADO
+#If GUSER<>'SN027' and GUSER<>'SN006'
+#    Call VIREBOUT(CHAINE,"A") From GOBJET
+#Endif
+# @04@ - EQM - FIN
+#  If GUSER <> 'SN006' and GUSER <> 'NUN14' # @03@ - SCD -02/10/2024 - Control fecha inicio
+#    Diszo [M:MFG1]STRDAT,ENDDAT            # @03@ - SCD -02/10/2024 - Control fecha inicio
+#  Endif                                    # @03@ - SCD -02/10/2024 - Control fecha inicio
+Return

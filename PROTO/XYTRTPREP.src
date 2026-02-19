@@ -1,0 +1,117 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+
+Case ACTION
+  When "SETBOUT"    :   Gosub SETBOUT
+  When "BOUTON"     :   Gosub BOUTON
+Endcase
+Return
+
+###########################################
+$BOUTON
+Case BOUT
+ When "I" : Gosub TODO_INC
+Endcase
+Return
+
+
+###########################################
+$TODO_INC
+
+If clalev([F:X2])  = 0 : Local File SORDERQ  [X2]  : Endif
+If clalev([F:X22]) = 0 : Local File SORDERQ  [X22] : Endif
+
+For I=0 To [M:PREP]NBLIG-1
+   If [M:PREP]COCHAGE(I)<>2 [M:PREP]UPDFLG(I)=1 Endif
+      If [M:PREP]ITMREF(I) <> ""                                  # hcb 93069 deb puis 110986
+         Raz GERR
+
+        Read [X2]SOQ0 = [M:PREP]ORINUM(I);[M:PREP]ORILIN(I);[M:PREP]ORISEQ(I)
+        If fstat = 0
+          If [X2]FMI>1 & [X2]ALLQTY=0
+            GERR = 2
+          Endif
+        Endif
+
+        # Si es asociado compruebo que la línea origen esté marcada, ya que sino tampoco la marco
+        If GERR = 0
+          If [M:PREP]ZASOCIADO(I) = 2
+            Read [X2]SOQ0 = [M:PREP]ORINUM(I);[M:PREP]ORILIN(I);[M:PREP]ORISEQ(I)
+            If fstat = 0
+              Filter [X22] Where [X22]SOHNUM = [X2]SOHNUM and [X22]SOPLIN = [X2]ZLINASOC
+              Read [X22] First
+              If fstat = 0
+                For J=0 To [M:PREP]NBLIG-1
+                  If [M:PREP]ORINUM(J) = [X22]SOHNUM and [M:PREP]ORILIN(J) = [X22]SOPLIN and [M:PREP]ORISEQ(J) = [X22]SOQSEQ and [M:PREP]ZASOCIADO(J) <> 2
+                    If [M:PREP]COCHAGE(J) <> 2
+                      GERR = 2
+                      Break
+                    Endif
+                  Endif
+                Next
+              Endif
+              Filter [X22]
+            Endif
+          Endif
+        Endif
+
+
+         If GERR=0
+            [M:PREP]COCHAGE(I)=2
+         Endif
+      Endif                                                       # hcb 93069 fin
+Next I
+If [M:PREP]PRLNUM<>"" GREP="M" Endif
+
+Close Local File [X2]
+Close Local File [X22]
+
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+# Bloqueo el STD
+GPE = 1
+
+Return
+
+
+###########################################
+$SETBOUT
+# Cargo campos SPE en las líneas y coloreo líneas con asociados en el caso que haya introducido
+# una lista de preparación, ya que el proceso es distinto por STD
+
+If [M:PREP]PRLNUM <> "" and [M:PREP]NBLIG > 0
+
+  # Alimento los campos específicos en el resultado de la búsqueda (bloque stock a preparar)
+  If clalev([F:X1]) = 0 : Local File SORDER   [X1] : Endif
+  If clalev([F:X2]) = 0 : Local File SORDERQ  [X2] : Endif
+
+  For LINE = 0 To [M:PREP]NBLIG-1
+
+    Read [X1]SOH0 = [M:PREP]ORINUM(LINE)
+    If fstat = 0
+      [M:PREP]YCOMCARGA(LINE)   = [X1]YCOMCARGA
+      [M:PREP]YCOMPREPARA(LINE) = [X1]YCOMPREPARA
+    Endif
+
+    Read [X2]SOQ0 = [M:PREP]ORINUM(LINE);[M:PREP]ORILIN(LINE);[M:PREP]ORISEQ(LINE)
+    If fstat = 0
+      [M:PREP]ZASOCIADO(LINE) = [X2]ZASOCIADO
+    Endif
+
+    If [M:PREP]ZASOCIADO(LINE) = 2
+      Chgstl NBLIG(LINE) With "MTC3"  # en azul
+    Else
+      Chgstl NBLIG(LINE) With ""
+    Endif
+
+  Next
+
+  Close Local File [X1]
+  Close Local File [X2]
+
+  Affzo [M:PREP]40
+
+Endif
+
+Return

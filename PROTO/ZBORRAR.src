@@ -1,0 +1,19 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+    Local Char C_FICHERO(250), C_FICHERO_M(250)
+    Local Integer STAT : STAT = 1
+    #--
+    C_NOMFIC  = 'PRUEBA.txt'
+    C_FICHERO = filpath("EDI","","")+"\ISSUEEDICOM\"+C_NOMFIC
+
+#    C_NOMFIC_M = 'CTR2400033.txt'
+#    C_FICHERO_M = filpath("EDI","","")+"\ISSUEEDICOM\TEST\"+C_NOMFIC_M
+
+      If filinfo(C_FICHERO, 7) > 0 Then
+        System "ae_rm " + C_FICHERO
+      Endif
+
+      Sleep 3
+
+     Openo C_FICHERO,-1 Using [ZCRE]
+     Wrseq format$("K:15X","TEST FICHERO");                       Using [ZCRE] #-- POSICIÓN 1
+     Openo Using [ZCRE]

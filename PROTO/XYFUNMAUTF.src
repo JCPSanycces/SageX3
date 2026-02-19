@@ -1,0 +1,863 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @01@ - EQM - 17/09/2024 - Modificamos cant enlace artículos fantasmas
+# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
+
+$ACTION
+Case ACTION
+   When "EXEC": Gosub EXEC
+Endcase
+Return
+
+
+#########################################
+$EXEC
+
+# Añado como componentes no creados a las OFs de contramarca, los artículos asociados añadidos en las líneas del pedido de venta
+# Esta función se lanza tanto desde el pedido de venta como desde la contramarca en los procesos automáticos de producción
+
+# Lanzo la acción STD
+Gosub EXEC From FUNMAUTF
+
+#  [F:MFG]STRDAT = date$+7# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
+#  [F:MFG]ENDDAT = date$+7# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
+#  Rewrite [F:MFG]# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
+
+
+# Cierro la tabla con esta abreviatura, ya que en el SUBMFGA la abre de forma forzada
+If clalev([F:ORD])>0 : Close Local File [ORD] : Endif
+
+# Apertura de tablas
+If !clalev([F:YORD])    : Local File ORDERS     [YORD]    : Endif
+If !clalev([F:SOQ])     : Local File SORDERQ    [F:SOQ]   : Endif
+If !clalev([F:ZSOQ])    : Local File SORDERQ    [F:ZSOQ]  : Endif
+If !clalev([F:ROT])     : Local File ROUOPESTD  [F:ROT]   : Endif
+If !clalev([F:ZITM])    : Local File ITMMASTER  [F:ZITM]  : Endif
+If !clalev([F:YITM])    : Local File ITMMASTER  [F:YITM]  : Endif
+If !clalev([F:ZMFO])    : Local File MFGOPE     [F:ZMFO]  : Endif
+If !clalev([F:ZMFI])    : Local File MFGITM     [F:ZMFI]  : Endif
+If !clalev([F:MFG])     : Local File MFGHEAD    [F:MFG]   : Endif
+If !clalev([F:MWS])     : Local File WORKSTATIO [F:MWS]   : Endif
+If !clalev([F:ROO])     : Local File ROUOPE     [F:ROO]   : Endif
+If !clalev([F:ZROO])    : Local File ROUOPE     [F:ZROO]  : Endif
+If !clalev([F:ZROH])    : Local File ROUTING    [F:ZROH]  : Endif
+If !clalev([F:MTK])     : Local File MFGHEADTRK [F:MTK]   : Endif
+If !clalev([F:ZBOH])    : Local File BOM        [F:ZBOH]  : Endif
+If !clalev([F:ITM])     : Local File ITMMASTER  [F:ITM]   : Endif
+If !clalev([F:CAL])     : Local File CPTANALIN  [F:CAL]   : Endif
+If !clalev([F:ZORD2])   : Local File ORDERS     [F:ZORD2]  : Endif
+If !clalev([F:YSCT])    : Local File YSOHCONT   [F:YSCT]  : Endif
+
+# Definición de variables
+Local Integer     OK, X
+Local Decimal     KHM, VOPESTUCOE, WCOEFF
+Local Decimal     WMFGEXTQTY
+Local Integer     L
+Local Mask MFO0
+Local Mask MFO1
+Local Mask MFO2
+Local Mask MFO3
+
+ If  dim(GID) > 0 Then
+   Link [ZORD2] With [YSCT]YSCT1~=VCRNUM;[ZORD2]VCRLIN;[ZORD2]VCRSEQ As [ZORD] #  Where [YSCT]ID = GID and [YSCT]USER = GUSER
+   Local Char CUSFLT : CUSFLT = "1=1"
+Else
+
+  If !clalev([F:ZORD])    : Local File ORDERS     [F:ZORD]  : Endif
+  If dim(CUSFLT) < 0 Then : Local Char CUSFLT : Endif
+  If CUSFLT = "" Then : CUSFLT = "1=1" : Endif
+  If CRITERE2 <> ""
+    Filter [ZORD] Where evalue(CRITERE1) & evalue(CRITERE2)  & evalue(CUSFLT) Order By Key ORD0
+  Else
+    If CRITERE1 = "" Then : Return : Endif
+    Filter [ZORD] Where evalue(CRITERE1) & evalue(CUSFLT) Order By Key ORD0
+  Endif
+Endif
+
+For  [F:ZORD]                                             # 0 - Recorro la tabla ORDERS en busca del PV asociados a la OF creada
+    WVCRNUM = [F:ZORD]VCRNUM
+    WVCRLIN = [F:ZORD]VCRLIN
+    WVCRSEQ = [F:ZORD]VCRSEQ
+    Read [SOQ]SOQ0=WVCRNUM;WVCRLIN;WVCRSEQ
+    If !fstat
+      If [F:SOQ]FMINUM<>""                                                        # 1 - Voy a las líneas del pedido vinculado a la OF
+        Local Integer W_NUMOPE(50), NUMASOC
+        XX=0: Raz W_NUMOPE: NUMASOC=0
+        Filter [F:ZSOQ] Where [F:ZSOQ]SOHNUM=[F:SOQ]SOHNUM and [F:ZSOQ]ZASOCIADO=2  & [F:ZSOQ]ZLINASOC=[F:SOQ]SOPLIN
+        Local Mask MFG0
+        Local Mask MFG3
+        Local Mask MFG2
+        Local Mask MFG1
+        Local Mask MFG4
+        Local Mask OPSK
+        For [F:ZSOQ]                                                              # 2 - Solamente tengo en cuenta las líneas asociadas al artículo lanzado en la OF por contramarca
+          XX=0
+
+          #################################                                       # 3 - Apertura del objeto MFG
+          Read [F:MFG]MFG0=[F:SOQ]FMINUM
+          [M:MFG0]=[F:MFG]
+          [M:MFG1]=[F:MFG]
+          Global Char     GMTSNUM(GLONTRS)
+          Call GETCPY(GFCY,"MTS",1,GMTSNUM) From TRTX3CPT
+          Global Char GTRACKOPEWO(30)
+          Call PARAM(GFCY,"TRACKOPEWO", GTRACKOPEWO) From ADOVAL
+          Global Integer  GTRACKMATWO : GTRACKMATWO = 1
+          Local Char WTRACKMATWO(3)
+          Call PARAML (GFCY , "TRACKMATWO", WTRACKMATWO) From ADOVAL
+          GTRACKMATWO = val(WTRACKMATWO)
+          Global Integer  GMFGROPE      : GMFGROPE = 0
+          Global Integer  GMODSTAT    : GMODSTAT    = 0
+          Global Integer  GLOADFLG    : GLOADFLG    = 0
+          Gosub DEFLIG From SUBMFGA
+          #################################                                         # 3 - Fin
+
+
+
+          #################################                                         # 4 - Voy al maestro del artículo, y busco a su vez el fantasma que tiene asociado
+          Read [F:ZITM]ITM0=[F:ZSOQ]ITMREF
+          If fstat = 0 and [F:ZITM]ZARTASOC <> ""
+            Read [F:YITM]ITM0=[F:ZITM]ZARTASOC                                      # 5 - Voy al maestro del artículo asociado, para saber si es o no fantasma
+            If fstat = 0
+              If [F:YITM]PHAFLG=2                                                   # 6 - En caso que el artículo asociado es fantasma...
+               #****************************#
+               Filter [F:ZROO] Where FCY=[F:MFG]MFGFCY and ITMREF=[F:ZITM]ZARTASOC  # 7 - Como es fantasma -> añado las operaciones de su ruta asociada en la OF
+                For [F:ZROO]
+                  Read [ZROH]ROH0=[F:ZROO]ITMREF;[F:ZROO]ROUALT;[F:ZROO]FCY
+                  WLIG=[M:MFG3]NBLIG
+                  WNEW=1
+                  Local Integer WSTAT
+                  Gosub DEB_MFOFICH From MFGWINLIB
+                  Raz [MFO0] : Raz [MFO1] : Raz [MFO2] : Raz [MFO3]
+
+                  [M:MFO0]OPESTA    = 1
+                  [M:MFO1]JOUR1     = 1
+                  [M:MFO0]MFGFCY    = [F:MFG]MFGFCY
+                  Filter [ZMFI] Where MFGNUM=[F:MFG]MFGNUM
+                  Read [F:ZMFI]MFI0 First
+                  [M:MFO1]OPEUOM    = [F:ZMFI]STU
+                  [M:MFO1]EXTQTY    = [F:ZMFI]EXTQTY
+                  [M:MFO1]OPESTUCOE = 1
+                  [M:MFO2]SCOCOD    = 1
+                  [M:MFO1]TIMUOMCOD  = [F:ROH]TIMUOMCOD
+                  [M:MFO0]TIMUOMCOD  = [F:ROH]TIMUOMCOD
+                  [M:MFO1]XTIMUOMCOD = [F:ROH]TIMUOMCOD
+                  [M:MFO1]OPESTR    = [F:ZMFI]STRDAT
+                  [M:MFO1]OPEEND    = [F:ZMFI]ENDDAT
+                  Filter [F:ZMFO] Where MFGNUM=[F:MFG]MFGNUM
+                  Read [F:ZMFO]MFO0 Last
+                  XX+=1
+                  [M:MFO0]OPENUM=[F:ZMFO]OPENUM+XX
+                  If W_NUMOPE(NUMASOC)=0: W_NUMOPE(NUMASOC)=[M:MFO0]OPENUM: Endif
+                  [M:MFO0]XOPESTA = mess([M:MFO0]OPESTA,308,1)
+                  Case [M:MFO0]TIMUOMCOD
+                    When 1: [M:MFO1]TIMUOM1 = mess(30,197,1)
+                            [M:MFO1]TIMUOM2 = mess(30,197,1)
+                            [M:MFO1]TIMUOM3 = mess(30,197,1)
+                            [M:MFO1]TIMUOM8 = mess(30,197,1)
+                    When 2: [M:MFO1]TIMUOM1 = mess(32,197,1)
+                            [M:MFO1]TIMUOM2 = mess(32,197,1)
+                            [M:MFO1]TIMUOM3 = mess(32,197,1)
+                            [M:MFO1]TIMUOM8 = mess(32,197,1)
+                   Endcase
+                   [M:MFO1]TIMUOM4 = mess(30,197,1)
+                   [M:MFO1]TIMUOM5 = mess(30,197,1)
+                   [M:MFO1]TIMUOM6 = mess(30,197,1)
+                   [M:MFO1]XJOUR1  = mess([M:MFO1]JOUR1,291,1)
+                   If [M:MFO2]SCOCOD = 1 : Grizo [M:MFO2]30 : Else : Actzo [M:MFO2]30 : Endif
+
+                   Affzo [M:MFO0]1-99
+                   Affzo [M:MFO1]1-99
+                   Affzo [M:MFO2]1-99
+                   Affzo [M:MFO3]1-99
+
+                  Gosub CONVERSION From SUBMFG3
+                  [M:MFO0]            = [F:ZROO]
+                  [M:MFO1]            = [F:ZROO]
+                  [M:MFO2]            = [F:ZROO]
+                  [M:MFO0]MFOTEX      = [F:ZROO]ROOTEX
+                  If dim([M:MFG3]OPENUMLEV(I)) > 0 : [M:MFO3] = [F:ZROO] : Endif
+                  [M:MFO1]TIMUOMCOD   = [M:MFO1]XTIMUOMCOD
+                  [M:MFO0]TIMUOMCOD   = [M:MFO1]XTIMUOMCOD
+                  [M:MFO1]ROUOPENUM   = 0
+                  [M:MFO0]ROODES      = [F:ZROO]ROODES
+                  [M:MFO0]OPENUM      = [F:ZMFO]OPENUM+XX
+                  [M:MFO1]EXTWST      = [F:ZROO]WST
+                  [M:MFO1]SETTIMTMP = [F:ZROO]SETTIM
+                  [M:MFO1]OPETIMTMP = [F:ZROO]OPETIM
+                  [M:MFO1]PRPTIMTMP = [F:ZROO]PRPTIM
+                  [M:MFO1]WAITIMTMP = [F:ZROO]WAITIM
+                  [M:MFO1]PSPTIMTMP = [F:ZROO]PSPTIM
+                  # lecture poste pour centre de charge et type
+                  Read [MWS]WST0=[F:ZROO]WST;[F:ZROO]FCY
+                  If ! fstat
+                    [M:MFO1]WCR             = [F:MWS]WCR
+                    [M:MFO1]WSTTYP          = [F:MWS]WSTTYP
+                    [M:MFO1]XWSTTYP         = format$("K:2X",mess([F:MWS]WSTTYP,313,1))
+                    [M:MFO1]WSTEFF          = [F:MWS]EFF
+                    Call LECTEXTRA ([M:MFO1]WSTDES,"WORKSTATIO","WSTDESAXX",[F:MWS]WST,[F:MWS]WCRFCY)From ATEXTRA
+                  Endif
+                  # lecture poste pour centre de charge et type
+                  If [F:ZROO]LABWST <> ""
+                    Read [MWS]WST0=[F:ZROO]LABWST;[F:ZROO]FCY
+                    If ! fstat
+                       [M:MFO1]LABWCR          = [F:MWS]WCR
+                       [M:MFO1]LABWSTTYP       = [F:MWS]WSTTYP
+                       [M:MFO1]XLABWSTTYP      = format$("K:2X",mess([F:MWS]WSTTYP,313,1))
+                       Call LECTEXTRA ([M:MFO1]LABWSTDES ,"WORKSTATIO","WSTDESAXX",[F:MWS]WST,[F:MWS]WCRFCY)From ATEXTRA
+                    Endif
+                  Endif
+                  [M:MFO1]EXTLAB      = [F:ZROO]LABWST
+                  [M:MFO1]EXTSETTIM   = [F:ZROO]SETTIM
+                  [M:MFO1]EXTOPETIM   = [F:ROO]OPETIM
+                  [M:MFO1]EXTWSTNBR   = [F:ROO]WSTNBR
+                  [M:MFO1]EXTLABNBR   = [F:ROO]LABNBR
+                  # si sous-traitance, lecture poste correspondant
+                  If [F:ZROO]SCOCOD <> 1
+                    Read [MWS]WST0=[F:ZROO]OSCOWST;[F:ZROO]FCY
+                    If !fstat
+                      [M:MFO2]SCOWCR          = [F:MWS]WCR
+                      [M:MFO2]SCOWSTTYP       = [F:MWS]WSTTYP
+                      [M:MFO2]XSCOWSTTYP      = format$("K:2X",mess([F:MWS]WSTTYP,313,1))
+                      Call LECTEXTRA ([M:MFO2]SCOWSTDES,"WORKSTATIO","WSTDESAXX",[F:MWS]WST,[F:MWS]WCRFCY)From ATEXTRA
+                    Endif
+                  Endif
+                  [M:MFO1]OPESTUCOE = VOPESTUCOE
+                  [M:MFO2]SCOITMREF = [F:ZROO]SCOITMREF
+                  Call COMPLETE_OPEUOM([F:MFG]ROUNUM,[M:MFO2]SCOITMREF,[M:MFO2]BPRNUM,[M:MFO1]SCOLTI
+&             ,[M:MFO1]OPEUOM,[M:MFO2]OPESTRCOE,[M:MFO1]SCOPUU) From MFGLIBO
+
+                    WMFGEXTQTY    = [F:ZMFI]EXTQTY
+                    # point d'entrée pour intervenir sur les données récupérées
+                    GPOINT = "STD_OPE_MOD"
+                    Gosub  ENTREE From EXEFNC
+                    [M:MFO1]CTIMCOE = 1 : [M:MFO1]HCTIMCOE = 1
+                    OMODIF = 1
+
+                   #   Close File [F:ORD]
+                   #   Gosub OUVRE From SUBMFGA
+                   Gosub OK_MFOFICH From MFGWINLIB # NUN05.13032023.OLD
+
+
+                  Next
+                Filter [F:ZROO]                                                     # 7 - Fin
+
+
+                #****************************#                                      # 8 - Como es fantasma -> añado el fantasma como componente de la OF
+                Local Mask MFMF
+                # Raz [MFMF]
+                Local Integer     WNBLIGORI: WNBLIGORI = [M:MFG2]NBLIG
+                Local Integer     WNBLIG   : WNBLIG   = [M:MFG2]NBLIG
+                Local Decimal     WQTY
+                Local Integer     WGHOST   : WGHOST = 9
+                Local Integer     WRET
+                Local Integer     WLIG     : WLIG     = [M:MFG2]NBLIG+1
+                Filter [F:ZBOH] Where ITMREF=[F:ZITM]ZARTASOC
+                Read [F:ZBOH]BOH0 First
+                If fstat=0
+                  Gosub DEB_MFMFAN From MFGWINLIB
+                  [M:MFMF]GHOST=[F:ZITM]ZARTASOC
+                  [M:MFMF]GHOSTALT=[F:ZBOH]BOMALT
+                  [M:MFMF]LIKQTYCODG=1
+                  [M:MFMF]CPNTYP=1
+
+                  #  @01@ - EQM - INI
+                  If !clalev([F:YSOQ]): Local File SORDERQ   [YSOQ] : Endif
+                  If !clalev([F:YI01]): Local File ITMMASTER [YI01] : Endif
+                  Local Decimal WCANT : WCANT=0
+                  Local Char WITM(GLONITM) : WITM=''
+                  Filter[YI01] Where [YI01]ZARTASOC=[F:ZITM]ZARTASOC
+                  Read[YI01]First
+                  If !fstat
+                      WITM=[YI01]ITMREF
+                  Endif
+                  Filter[YI01]
+
+
+                  Filter [YSOQ]Where [YSOQ]SOHNUM=[SOQ]SOHNUM and [YSOQ]ZLINASOC= [SOQ]SOPLIN and [YSOQ]ITMREF=WITM
+                  Read[YSOQ]First
+                  If !fstat and [SOQ]QTYSTU>0
+
+                      WCANT=[YSOQ]QTYSTU/[SOQ]QTYSTU
+                  Else
+                      WCANT=1
+                  Endif
+                  Filter [YSOQ]
+                  Close Local File [YSOQ]
+                  Close Local File [YI01]
+
+                  [M:MFMF]EXTQTY  = [F:ZORD]EXTQTY
+                  [M:MFMF]LIKQTYG = WCANT
+
+#                 [M:MFMF]EXTQTY  = [F:ZORD]EXTQTY       # 11/09/24. Doy valor a este campo para que luego multiplique por cantida enlace (antes no estaba)
+#                 [M:MFMF]LIKQTYG = [SOQ]QTYSTU          # 11/09/24. La cantidad de vínculo es la cantidad del pedido (antes estaba forzado a 1)
+
+                  #  @01@ - EQM - FIN
+                  Call AM_LIKQTYG([M:MFMF]LIKQTYG) From SUBMFG2
+                  Gosub OK_MFMFAN From MFGWINLIB
+                  If [M:MFG2]NBLIG>WNBLIGORI #and W_NUMOPE(NUMASOC)<>0
+                    For X=WNBLIGORI To [M:MFG2]NBLIG-1
+                      [M:MFG2]BOMOPE(X)= W_NUMOPE(NUMASOC)
+                      [M:MFG2]ZBPCORD(X)= [F:ZORD]BPRNUM
+                      [M:MFG2]MFGLIN(X) = 1000    #[F:ZSOQ]SOPLIN / 10
+                      [M:MFG2]BOMSEQ(X) = ([F:ZSOQ]SOPLIN / 10) + X
+                    Next
+                  Endif
+                Endif
+                Filter [F:ZBOH]
+
+                [F:MFG]=[M:MFG0]
+                [F:MFG]=[M:MFG1]
+
+                #Gosub OUVRE  From SUBMFGA
+                #Gosub INIMOD From SUBMFGA
+                #Gosub MODIF  From SUBMFG3
+                Global Integer GMFGLINVCH(dim([M:MFG1]NOLIG))
+                # Gosub MODIF From SUBMFG2
+                Gosub MODIF From XYFUNMAUTF # NUN05.NEW
+                NUMASOC+=1
+                # 15032023.NEW.NUN05
+                 Raz [MFO0], [MFO1], [MFO2] , [MFO3]
+                 Raz [MFG0], [MFG1], [MFG2]
+                # 15032023.NEW.NUN05
+
+                #****************************#                                      # 8 - Fin
+              Else                                                                  # 6.5 - En el caso que el artículo asociado NO tenga un fantasma asociado..
+                #****************************#                                      # 9 - Como no es fantasma -> añado el artículo como componente de la OF
+                Local Mask MFMW
+                Raz [MFMW]
+                Local Integer     WLIG     : WLIG     = [M:MFG2]NBLIG
+                Local Integer     WNEW     : WNEW   = 1
+                Gosub DEB_MFMFICH From MFGWINLIB
+                [M:MFMW]ITMREF=[F:ZSOQ]ITMREF
+                [M:MFMW]CPNTYP=1
+                Call C_ITMREF([M:MFMW]ITMREF) From SUBMFG2
+#                [M:MFMW]RETQTY=[F:ZORD]EXTQTY # NUN05.NEW   # 11/09/24. La cantidad de componente la tomo directamente del pedido
+                [M:MFMW]RETQTY=[F:ZSOQ]QTYSTU               # 11/09/24. La cantidad de componente la tomo directamente del pedido
+                nolign=WLIG+1
+
+                Read [F:ITM]ITM0=[M:MFMW]ITMREF
+                Call AM_ITMREF([M:MFMW]ITMREF) From ZMFGWINLIB
+
+#                [M:MFMW]RETQTY= [F:ZORD]EXTQTY
+
+                [M:MFMW]MFGLIN= 1000      #[F:ZORD]VCRLIN     # NUN05.05052023 --> POSIBLEMENTE EL CAMBIO SE AQUI -- HABRÍA QUE ASIGNARLE ESTE VALOR [F:ZSOQ]SOPLIN
+                Call AM_RETQTY([M:MFMW]RETQTY) From SUBMFG2
+
+                Gosub OK_MFMFICH From ZMFGWINLIB
+
+                [M:MFG2]ZBPCORD([M:MFG2]NBLIG-1)   = [F:ZORD]BPRNUM
+                [M:MFG2]MFGLIN([M:MFG2]NBLIG-1)    = 1000   # [F:ZORD]VCRLIN # [F:ZSOQ]FMILIN # # NUN05.05052023 -- [F:ZSOQ]SOPLIN # PONGO LA LÍNEA DEL PEDIDO PARA DIFERENCIARLAS #  NUN05.NEW.15032023
+                [M:MFG2]ZASOCIADO([M:MFG2]NBLIG-1) = 2      # Marco el componente como asociado
+                Affzo [M:MFG2]
+
+                [F:MFG]=[M:MFG0]
+                [F:MFG]=[M:MFG1]
+
+                # Gosub MODIF From SUBMFG3
+                Global Integer GMFGLINVCH(dim([M:MFG1]NOLIG))
+
+                # Gosub MODIF From SUBMFG2
+                Gosub MODIF From XYFUNMAUTF # NUN05.NEW
+                #****************************#                                      # 9 - Fin
+
+               Endif                                                                 # 6 - Fin
+             Endif                                                                   # 5 - Fin
+
+          Else
+
+            #****************************#                                      # 4 - Como no tiene fantasma asociado -> añado el artículo como componente de la OF
+            Local Mask MFMW
+            Raz [MFMW]
+            Local Integer     WLIG     : WLIG     = [M:MFG2]NBLIG
+            Local Integer     WNEW     : WNEW   = 1
+            Gosub DEB_MFMFICH From MFGWINLIB
+
+
+            [M:MFMW]ITMREF=[F:ZSOQ]ITMREF
+            Call C_ITMREF([M:MFMW]ITMREF) From SUBMFG2
+            #[M:MFMW]RETQTY=[F:ZORD]EXTQTY # NUN05.NEW    # 11/09/24. La cantidad de componente la tomo directamente del pedido
+            [M:MFMW]RETQTY=[F:ZSOQ]QTYSTU                 # 11/09/24. La cantidad de componente la tomo directamente del pedido
+            nolign=WLIG+1
+
+            Read [F:ITM]ITM0=[M:MFMW]ITMREF
+            Call AM_ITMREF([M:MFMW]ITMREF) From ZMFGWINLIB
+#            [M:MFMW]RETQTY=[F:ZORD]EXTQTY  # 11/09/24. La cantidad de componente la tomo directamente del pedido
+#            [M:MFMW]BASQTY=[F:ZORD]EXTQTY  # 11/09/24. La cantidad de componente la tomo directamente del pedido
+#            [M:MFMW]BOMQTY=[F:ZORD]EXTQTY  # 11/09/24. La cantidad de componente la tomo directamente del pedido
+            [M:MFMW]RETQTY=[F:ZSOQ]QTYSTU   # 11/09/24. La cantidad de componente la tomo directamente del pedido
+            [M:MFMW]BASQTY=[F:ZSOQ]QTYSTU   # 11/09/24. La cantidad de componente la tomo directamente del pedido
+            [M:MFMW]BOMQTY=[F:ZSOQ]QTYSTU   # 11/09/24. La cantidad de componente la tomo directamente del pedido
+            [M:MFMW]CPNTYP=1
+            [M:MFMW]MFGLIN=1000    #[F:ZORD]VCRLIN   # NUN05.05052023 --> POSIBLEMENTE EL CAMBIO SE AQUI -- HABRÍA QUE ASIGNARLE ESTE VALOR [F:ZSOQ]SOPLIN
+
+            # NUN05.ENEW
+            Call AM_RETQTY([M:MFMW]RETQTY) From SUBMFG2
+
+            Gosub OK_MFMFICH From ZMFGWINLIB
+
+            [M:MFG2]ZBPCORD([M:MFG2]NBLIG-1)= [F:ZORD]BPRNUM
+            [M:MFG2]ZASOCIADO([M:MFG2]NBLIG-1) = 2      # Marco el componente como asociado
+
+            [M:MFG2]MFGLIN([M:MFG2]NBLIG-1) = 1000 # [F:ZORD]VCRLIN # [F:ZSOQ]FMILIN # # NUN05.05052023 -- [F:ZSOQ]SOPLIN # PONGO LA LÍNEA DEL PEDIDO PARA DIFERENCIARLAS #  NUN05.NEW.15032023
+            Affzo [M:MFG2]
+
+            [F:MFG]=[M:MFG0]
+            [F:MFG]=[M:MFG1]
+            Endif
+            #****************************#                                      # 4 - Fin
+            #*!
+          #################################                                         # 4 - Fin
+
+        Next
+
+### 08032023.SNEW - GRABAMOS AL FINAL DEL BUCLE YA QUE LA PANTALLA MFG2 AUN NO ESTÁ COMPLETA DEL TODO SI LO HACEMOS ANTES
+        Global Integer GMFGLINVCH(dim([M:MFG1]NOLIG))
+#       Gosub MODIF From SUBMFG2                                                                        # NUN05.OLD
+        Gosub MODIF From XYFUNMAUTF # NUN05.NEW
+        Raz [MFO0], [MFO1], [MFO2] , [MFO3]
+        Raz [MFG0], [MFG1], [MFG2]
+        # CIERRO PANTALLAS SI EXISTEN -
+#        If clalev([MFMW]) Then : Kill MFMW : Endif
+#        If clalev([MFMF]) Then : Kill MFMF : Endif
+#        If clalev([MFG0]) Then : Kill MFG0 : Endif
+#        If clalev([MFG3]) Then : Kill MFG3 : Endif
+#        If clalev([MFG2]) Then : Kill MFG2 : Endif
+#        If clalev([MFG1]) Then : Kill MFG1 : Endif
+#        If clalev([MFG4]) Then : Kill MFG4 : Endif
+#        If clalev([OPSK]) Then : Kill OPSK : Endif
+
+
+
+### 08032023.ENEW
+      Endif                                                                         # 1 - Fin
+    Endif
+                                                                              # 1 - Fin
+  Next
+  # SI VENGO DE LA PANTALLA DE CONTRAMARCA-CONSULTAR ELIMINO REGISTROS
+  If  dim(GID) > 0 Then
+    Delete [F:YSCT] Where ID = GID and USER = GUSER
+    Kill GID
+    Close Local File [F:YSCT]
+  Endif
+                                                                       # 0 - Fin
+
+
+# Cancelo la asignación global de la OF y la vuelvo a lanzar
+# Bloqueo la acción del STD
+# GPE=1
+Return
+
+
+
+
+#########################################################################
+## Modification des lignes
+#########################################################################
+$MODIF
+
+Local Integer I
+Local Integer J : J=0
+Local Char    WIPMEM(GLONVCR)(GMFMMAX) # FQ 59777 GA 11/2009 avant (15)(GMFMMAX) # 7761 llc 01.01
+Local Integer WRETOUR, K
+Local Char    WNUMTEX (12)
+Local Integer L
+Local Integer KLIN, KSEQ
+Local Integer WEXISTE
+# Issue X3-25054 - 2017-07-07 by JUSYN : Field to set revision code
+Local Shortint WREVCOD : WREVCOD = 0
+# Issue X3-25054 - 2017-07-07 by JUSYN : END
+#
+Local Shortint WUPDWEI  # X3-84111 - JOBRO - 2018-05-09
+Local Decimal  WLIKQTY  # X3-113884 - GH - 2018-10-22
+
+Gosub DEFLIG From SUBMFG2
+If GUSER = 'NUN05' Then : Infbox "MODIF - numero de líneas:"  + num$([M:MFG2]NBLIG-1) : Endif
+If [M:MFG2]NBLIG <= 0 Then : Return : Endif # NUN05.15032023.NEW
+For I=0 To [M:MFG2]NBLIG-1
+    nolign = I + 1
+    Case [M:MFG2]MFGLINK(I)                     # (correction llc 09.00)
+        When 1:    KLIN = [M:MFG2]MEMLIN(I)     # (correction llc 09.00)
+        When 2:    KLIN = [M:MFG2]MFGLIN(I)     # (correction llc 09.00)
+    Endcase                                     # (correction llc 09.00)
+    KSEQ = [M:MFG2]MEMSEQ(I)
+    If GUSER = 'NUN05' Then
+      Infbox "MFGNUM:"  + [M:MFG0]MFGNUM +   "KLIN:" + num$(KLIN)  + "KSEQ:" + num$(KSEQ)  + "-ITMREF:" + [M:MFG2]ITMREF(I)
+    Endif
+    Readlock [MFM]MFM0=[M:MFG0]MFGNUM;KLIN;KSEQ;[M:MFG2]ITMREF(I)     # (correction llc 09.00)
+    If fstat=1 : GOK=-1 : GLOCK="$"+FICLIG-num$(I) : Break : Endif
+    WEXISTE = fstat
+    If GUSER = 'NUN05' Then : Infbox "MODIF -  WEXISTE-FSTAT:"  + num$( WEXISTE) : Endif
+    #----- Mise à jour statistiques matière -----#
+    If fstat = 0
+        Call VALSTA("MFM",-1) From SUBPS2
+        If GOK<1 Then
+          If GUSER = 'NUN05' Then : Infbox "MODIF -  BREAK" : Endif
+          Break # 15032023.NUN05.OLD
+          # Gosub $NEXT_RECORD
+        Endif
+    Endif
+ If GUSER = 'NUN05' Then : Infbox "MODIF PONGO WEXISTE A 5 -WEXISTE:"  + num$(WEXISTE) : Endif
+#
+# Issue X3-25054 - 2017-07-07 by JUSYN : Write component/material auditing record
+#   WEXISTE 0 = record already exists
+#   WEXISTE 5 = new record
+    # Issue X3-138234 - 2019-05-13 by JAMCC : Track WO components - Critical Changes for non-versioned products
+#
+      Case WEXISTE
+          When 0: WREVCOD = 2 # Modify
+          When 2: WREVCOD = 2 # Modify
+          When 5: WREVCOD = 1 # Add
+      Endcase
+
+      If WREVCOD = 2
+          If [M:MFG2]MATSTA(I) = 4 & [F:MFM]MATSTA < 3 :  WREVCOD = 3  : Endif   # 3 # Excluded (Cancelled)
+          If [M:MFG2]MATSTA(I) < 3 & [F:MFM]MATSTA = 4 :  WREVCOD = 4  : Endif   # 4 # Reinstate
+      Endif
+
+      # Issue X3-48941 - use new global parameter for audit
+      # Issue X3-138234 - 2019-05-13 by JAMCC : Track WO components - Critical Changes for non-versioned products
+
+      If find(WREVCOD,2,3,4) & [M:MFG2]REVCOD(I) > 0
+         # Issue X3-143440 - 2019-06-05 by STWIL : Check for non-versioned as well as versioned.
+         Local Integer ECCPROD
+         ECCPROD = func ECCLIB.CTRECCPROD(I)
+         If (GTRACKMATWO = 2 & ECCPROD = 0) or (ECCPROD = 1 & GMFGREV = 2) # X3-160509 check activity code first
+         # Issue X3-48941 - 2017-08-24 by JUSYN : Set automatic revision reason if BOM reload
+            If find([M:MFG2]MFGLIN(I),GMFGLINVCH) > 0
+               [M:MFG2]REVREASON(I) = mess(405,193,1)   # BOM has been reloaded
+            Endif
+            # Issue X3-138234 - 2019-05-13 by JAMCC : Track WO components - Critical Changes for non-versioned products
+            Call HISTO_REVMFG ("MMR", WREVCOD, I, "G") From TRTREVMFG
+         Endif
+      Endif
+# Issue X3-25054 - 2017-07-07 by JUSYN : End
+#
+   # llc 9728
+   If [M:MFG2]MATSTA(I) < 3 & [M:MFG2]ALLSTA(I) > 3
+      If [F:MFM]LOC <> [M:MFG2]LOC(I)
+           Call MESSAGE(mess(156,190,1)+"("+[F:MFM]ITMREF+")") From GESECRAN
+      Endif
+      # 06.06 demande 35052
+      If [F:MFM]RETDAT <> [M:MFG2]RETDAT(I)
+         If clalev([F:STA]) = 0 : Local File STOALL  [STA]  : Endif
+         Update [F:STA]  Where VCRTYP = 10 & VCRNUM = [F:MFM]MFGNUM &
+&                        VCRLIN = [F:MFM]MFGLIN & VCRSEQ = [F:MFM]BOMSEQ &
+&                        ITMREF = [F:MFM]ITMREF
+&                        With BESDAT = [M:MFG2]RETDAT(I)
+      Endif
+   Endif
+
+   #X3-84111.sn - JOBRO - may need to update weighing statuses
+   # Issue 111112 GH 21/11/2018 - performances : condition func AFNC.ACTIV("MWM") replaced by dim([M:MFG2]PKC)>0
+   If dim([M:MFG2]PKC)>0 & [M:MFG2]RETQTY(I)>[F:MFM]RETQTY & [M:MFG2]RETQTY(I)>[F:MFM]USEQTY &
+&     WEXISTE=0 & [F:MFM]PKC>1 & [F:MFM]WGGSTA>1
+      [F:MFM]WGGSTA = 1
+      If [F:MFM]WGGBOX=2 : [F:MFM]WGGBOX=1 : Endif
+      WUPDWEI=1
+   Endif
+   #X3-84111.en
+#    If GUSER = 'NUN05' Then : Infbox num$([M:MFG2]ITMREF(I) ) : Endif
+#    llc 03.01 8593
+   [F:MFM] = [M:MFG2]                        # llc 11.01 11146
+
+#   process 03.04 MM
+   If dim([M:MFG2]BOMUOM(I))<0    # UML inactif
+        [F:MFM]BOMUOM =[M:MFG2]STU(I)
+        [F:MFM]BOMSTUCOE=1
+        [F:MFM]BOMQTY=[M:MFG2]LIKQTY(I)
+   Endif
+
+   [F:MFM]MFGSTA        =[M:MFG0]MFGSTA
+   [F:MFM]MFGFCY        =[M:MFG0]MFGFCY
+   [F:MFM]MFGPIO        =[M:MFG1]MFGPIO
+
+   If [F:MFM]CPNTYP <> 5
+        # l article ne rentre pas en centrale de pesée si gestion serie   (hcb 06 11 01 )
+        Read [ITM]ITM0=[F:MFM]ITMREF
+        If fstat : Raz [F:ITM] : Endif
+        If [F:ITM]SERMGTCOD > 1 : [F:MFM]PKC  = 1 : Endif
+   Endif
+
+   # CCC (2009-10-27) Bug 56688 : Si la matière est soldée (matsta=3), mfmtrkflg doit être au moins égal à 5 (soldé)
+   If [F:MFM]MATSTA=3
+      [F:MFM]MFMTRKFLG =max(5,[M:MFG2]MFMTRKFLG(I))
+   Endif
+
+   #---------------------------------------------#
+   # nouvelle gestion des textes                 #
+   #---------------------------------------------#
+   If [M:MFG2]MFMTEX(I) <> ""
+      [F:MFM]MFMTEX  = [M:MFG2]MFMTEX(I)
+      If left$([F:MFM]MFMTEX,3)="MFM"
+          Call CRE_CLOB([F:MFM]MFMTEX,GOK) From TRTX3TEX
+      Elsif left$([F:MFM]MFMTEX,3) <> "BOD"
+          Call DUP_CLOB("MFM",[F:MFM]MFMTEX,GOK) From TRTX3TEX
+      Endif
+   Endif
+   If    WEXISTE=0
+        # (llc 05.00) si matières cumulées en modif, ligne à 0
+        # If [M:MFG2]MFGLINK(I) = 1 : [F:MFM]MFGLIN = 0 : Endif # useless because [M:MFG2]MFGLIN(I)=0 in this case
+        # Issue 111112 GH 10/10/2018 - transfer allocation when [MFM]VCRLIN or [MFM]VCRSEQ is changed
+        If (KLIN<>[F:MFM]MFGLIN | KSEQ<>[F:MFM]BOMSEQ) & [F:MFM]ALLSTA<>1
+           Call CHGALL(10,[F:MFM]MFGNUM,KLIN         ,KSEQ
+&                     ,10,[F:MFM]MFGNUM,[F:MFM]MFGLIN,[F:MFM]BOMSEQ
+&                     ,0,[F:MFM]ALLQTY+[F:MFM]SHTQTY,[F:MFM]ALLQTY,[F:MFM]SHTQTY,WRETOUR) From STKALL
+        Endif
+        If dim(GMEMSTA) < 0 Then : Global Integer GMEMSTA : Endif # añado esta línea porque hay veces que no llega a declarar esta variable
+        If [F:MTS]MODALL > 1 & [M:MFG0]MFGSTA = 1 & GMEMSTA = 2
+            Case [F:MTS]MODALL
+                When 2: Call UPDATE_MFX("U", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 2) From MFGLIBM # llc 10.00 bug 6553
+                When 3: Call UPDATE_MFX("U", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 3) From MFGLIBM # llc 10.00 bug 6553
+            Endcase
+        Else
+            Call UPDATE_MFX("U", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 1) From MFGLIBM             # llc 10.00 bug 6553
+        Endif
+
+        [F:MFM]UPDDAT = date$
+        [F:MFM]UPDUSR = GUSER
+        [F:MFM]EXPNUM = [C]EXPORT
+        # Issue 91336 GA 09/2014 Rewrite [MFM]
+        Gosub REWRITE_MFM From MFGAUTLIB
+  #      If GUSER = 'NUN05' Then : Infbox "modif wxiste = 0 - registro grabado" + [F:MFM]ITMREF  : Endif
+        WIPMEM(J) = [F:MFM]WIPNUM
+        J+=1
+   Elsif WEXISTE = 5
+        [F:MFM]MFGNUM        =[M:MFG0]MFGNUM
+        [F:MFM]PLNFCY        =[M:MFG0]PLNFCY
+        # sr 07.02 Tenir compte du statut de l'OF pour allouer demande 15034
+        If [M:MFG0]MFGSTA <> 1 | [F:MTS]MODALL=1
+           Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 0) From MFGLIBM
+        Else
+           Case [F:MTS]MODALL
+             When 2: Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 2) From MFGLIBM
+             When 3: Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 3) From MFGLIBM
+           Endcase
+        Endif
+
+        GOK = 1        # 10.08
+        [F:MFM]CREDAT = date$
+        [F:MFM]CREUSR = GUSER
+        [F:MFM]EXPNUM = [C]EXPORT
+        If dim([F:MFM]WGGSTA) > 0
+           [F:MFM]WGGSTA = 1
+           [F:MFM]WGGBOX = 1  # mm 12.10
+        Endif
+
+        # Issue 91336 GA 09/2014 Write [MFM]
+        Gosub WRITE_MFM From MFGAUTLIB
+        #If GUSER = 'NUN04' Then : Infbox "modif wxiste = 5 - registro grabado" + [F:MFM]ITMREF  : Endif
+        WIPMEM(J) = [F:MFM]WIPNUM
+        J+=1
+        # Issue X3-25054 - 2017-07-07 by JUSYN : Auditing: insert new record.
+        # Issue X3-48941 - use new global parameter for audit
+        # Issue X3-138234 - 2019-05-13 by JAMCC : Track WO components - Critical Changes for non-versioned products
+        # Issue X3-143440 - 2019-06-05 by STWIL : Set for non-versioned as well versioned products.
+        If [M:MFG2]REVCOD(I) > 0 & find(WREVCOD,1)
+          Local Integer ECCPROD
+          ECCPROD = func ECCLIB.CTRECCPROD(I)
+          If (ECCPROD = 1 & GMFGREV = 2) or (GTRACKMATWO = 2 & ECCPROD = 0) # X3-160509 check activity code first
+            # Issue X3-144496 - 2019-07-11 by JUSYN : Message for BOM reload missing if line is new
+            [M:MFG2]REVREASON(I) = mess(405,193,1)   # BOM has been reloaded
+            Call HISTO_REVMFG ("MMR", WREVCOD, I, "G") From TRTREVMFG
+          Endif
+        Endif # Issue X3-55832
+   Endif
+
+   # Issue 113884 GH 22/10/2018 - When a material order is created, set its assignment qty
+   If [F:MFM]CPNTYP=1 & [F:MFM]WIPNUM<>"" & [M:MFG2]WIPNUM(I)=""
+      Call GET_FRCQTY([F:MFM]MFGFCY, [F:MFM]ITMREF, -10, [F:MFM]MFGNUM, [F:MFM]MFGLIN, [F:MFM]BOMSEQ, 6, WLIKQTY) From MTOLINKLIB
+      If WLIKQTY<>0
+         Update [YORD] Where WIPTYP=6 & WIPNUM=[F:MFM]WIPNUM & ITMREF=[F:MFM]ITMREF
+&                      With MTOQTY=WLIKQTY
+      Endif
+   Endif
+
+   #----- Ecriture des sections de la ligne matière -----#
+   If [F:MFM]CPNTYP <> 5
+      If WEXISTE = 0 & (KLIN <> [F:MFM]MFGLIN |  KSEQ <> [F:MFM]BOMSEQ)
+        K = [F:MFM]MFGLIN : [F:MFM]MFGLIN = KLIN
+        L = [F:MFM]BOMSEQ : [F:MFM]BOMSEQ = KSEQ
+        Call MAJMFM_CPTANALIN(-1) From SUBMFG2
+        [F:MFM]MFGLIN = K
+        [F:MFM]BOMSEQ = L
+        Call MAJMFM_CPTANALIN(1) From SUBMFG2
+      Else
+        Call MAJMFM_CPTANALIN(WEXISTE) From SUBMFG2
+      Endif
+   Endif
+
+   #----- Mise à jour statistiques matière -----#
+   Call VALSTA("MFM",1) From SUBPS2
+   If GOK<1
+     Break # 5032023.NUN05.OLD
+     # Gosub NEXT_RECORD
+   Endif
+Next I
+
+
+If GUSER = 'NUN05' Then : Infbox "MODIF - 9" : Endif
+# Purge des matières non prévues et exclues ou remplacées
+For [MFM]MFM0 Where MFGNUM=[M:MFG0]MFGNUM  & CPNTYP <> 5 With Lock
+  If 1=2 Then
+    If !find([F:MFM]WIPNUM,[M:MFG2]WIPNUM(0..[M:MFG2]NBLIG-1)) &
+&      !find([F:MFM]WIPNUM,WIPMEM(0..J-1))
+#&     !find([F:MFM]WIPNUM,WIPMEM(0..dim(WIPMEM)-1)) # GH 13/12/2013 bug 91148
+
+        # Issue 118057 - 2016-12-14 by STLIG : Update/delete corresponding allocations [F:MFM]ALLSTA>1
+        #                                      before deletion of old material.
+        #Call UPDATE_MFX("A", "", "", [F:MFM]ALLSTA>1) From MFGLIBM
+        # Issue 120704 GH 04/01/2017 - crashed with type incompatibility
+        Call UPDATE_MFX("A", "", 0, [F:MFM]ALLSTA>1) From MFGLIBM
+
+        If [F:MFM]MFMTEX <> "" & left$([F:MFM]MFMTEX,3) = "MFM"
+           Call SUP_CLOB([F:MFM]MFMTEX,WRET) From TRTX3TEX
+        Endif
+        # Issue X3-25054 - 2017-07-14 by JUSYN : write critical changes into auditing table
+        # Issue X3-48941 - use new global parameter for audit
+        # Issue X3-138234 - 2019-05-13 by JAMCC : Track WO components - Critical Changes for non-versioned products
+        # Issue X3-160509 - check activity code first
+        If (dim([M:MFG2]ECCVALMAJ)>0 & GMFGREV=2) or GTRACKMATWO = 2
+           I = find([F:MFM]MFGLIN,[M:MFG1]MFGLIN)
+           Call HISTO_REVMFG ("MMR",3 , 0, "E") From TRTREVMFG
+        Endif
+        ##
+        # Issue X3-25054 - 2017-07-14 by JUSYN : END
+ #       If GUSER = 'NUN05' Then : Infbox "BORRADO MATERIAL NO PREVISTO" + [F:MFM]ITMREF  : Endif
+        Delete [MFM]
+
+        #----- Suppression des sections de la ligne matière -----#
+        Call MAJMFM_CPTANALIN(-1) From SUBMFG2 : If GOK<1 : Break : Endif
+
+        #----- Mise à jour statistiques matière -----#
+        Call VALSTA("MFM",-1) From SUBPS2 : If GOK<1 : Break : Endif
+    Endif
+  Endif
+
+Next
+
+
+# llc 01.03 17227
+For [YORD]ORD3 Where STOFCY=[M:MFG0]MFGFCY & VCRTYP = 10 & VCRNUM = [M:MFG0]MFGNUM & WIPTYP = 6
+    If !find([F:YORD]WIPNUM,[M:MFG2]WIPNUM(0..[M:MFG2]NBLIG-1)) &
+&      !find([F:YORD]WIPNUM,WIPMEM(0..J-1))
+#&     !find([F:ORD]WIPNUM,WIPMEM(0..dim(WIPMEM)-1)) # GH 13/12/2013 bug 91148
+       # suppression encours
+       [M:ORDK]MAJCOD     = "A"
+       [M:ORDK]WIPTYP     = 6
+       [M:ORDK]WIPNUM     = [F:YORD]WIPNUM
+       [M:ORDK]ITMREF     = [F:YORD]ITMREF
+       Call WIP From TRTWIP
+    Endif
+Next
+
+# 06.09 55573
+Readlock [MFG]MFG0=[M:MFG0]MFGNUM
+If fstat : GOK=0 : Call FSTA("MFG") From GLOCK : Return : Endif
+
+GAVAMFG = 9999999999
+Call  MAJ_AVAMFGQTY("MFM") From MFGLIBM
+
+#X3-84111.sn - JOBRO - may need to update weighing statuses
+If WUPDWEI
+  If [F:MFG]WGGSTA>1 : [F:MFG]WGGSTA = 1 : Endif
+  If [F:MFG]WGGFLG>3 : [F:MFG]WGGFLG = 2 : Endif
+Endif
+#X3-84111.en
+#Trbegin [MFG] # NUN05
+
+Rewrite [MFG]
+#Commit        # NUN05
+If fstat : GOK=0 : Call FSTA("MFG") From GLOCK : Return : Endif
+If GUSER = 'NUN05' Then : Infbox "MODIF - 11" : Endif
+If GUSER = 'NUN05' Then : Infbox "DESPUES DE REWRITE MFG" : Endif
+
+# Issue number - 2017-08-17 by JUSYN : reset array of product line numbers for which a BOM load has been done
+Raz GMFGLINVCH
+
+
+# Verifico el estado de asignación de la OF (no puede estar la OF asignada global y tener una línea en ruptura)
+# Si encuentro error, borro asignación y la vuelvo a asignar
+If clalev([F:X01]) = 0 : Local File MFGHEAD    [X01] : Endif
+If clalev([F:X02]) = 0 : Local File MFGMAT     [X02] : Endif
+
+Local Integer HAY_ERROR
+Local Integer LRET1
+Local Integer LRET
+
+
+
+
+
+
+Read [X01]MFG0 = [F:MFG]MFGNUM
+If fstat = 0
+# Modificación 27/11. Fuerzo a recalcular el número de registros en cabecera de la OF
+[L]HAY_ERROR = 2
+#  If [X01]ALLSTA = 3
+#    Filter [X02] Where [X02]MFGNUM = [X01]MFGNUM #and [X02]ALLSTA <> 3
+#    If rowcount ([X02]) > 0 : [L]HAY_ERROR = 2 : Endif
+#    Filter [X02]
+#  Endif
+# Modificación FIN
+
+  If [L]HAY_ERROR = 2
+    [X01]MATLINNBR = 0
+    [X01]MATCLENBR = 0
+    [X01]OVRALLNBR = 0
+    [X01]DETALLNBR = 0
+    [X01]SHTMATNBR = 0
+
+    For [X02] Where [X02]MFGNUM=[F:MFG]MFGNUM & [X02]CPNTYP=1
+      If [X02]MATSTA <> 4 & [X02]RETQTY<>0
+         [X01]MATLINNBR+=1
+         If [X02]MATSTA = 3       : # Menu local 2223 : statut => "Soldé"
+          # on compte les matières soldées
+            [X01]MATCLENBR+=1
+         Endif
+         If find([X02]ALLSTA,2,3) : # Menu local 340
+         # Allocation globale
+           [X01]OVRALLNBR += 1
+         Endif
+         If find([X02]ALLSTA,4,5) : # Menu local 340
+         # Allocation détaillée
+           [X01]DETALLNBR += 1
+         Endif
+         If [X02]SHTQTY<>0
+         # Rupture
+           [X01]SHTMATNBR += 1
+         Endif
+      Endif
+    Next
+
+     Local Integer XTOT
+    # nouveau statut allocation (non alloué, partiel, complet)
+    XTOT = [X01]OVRALLNBR + [X01]DETALLNBR
+    If (XTOT = 0)
+        [X01]ALLSTA = 1
+        Rewrite [X01]
+    Else
+        If (XTOT < [X01]MATLINNBR - [X01]MATCLENBR)          # llc 04.02 14090
+            [X01]ALLSTA = 2
+            Rewrite [X01]
+        Else
+            # sr 07.02 demande 15130  tester >= au lieu de =
+            If (XTOT >= [X01]MATLINNBR - [X01]MATCLENBR)      # llc 04.02 14090
+                [X01]ALLSTA = 3
+                Rewrite [X01]
+            Endif
+        Endif
+    Endif
+
+    # si des ruptures existent, statut allocation + 2
+    If [X01]SHTMATNBR <> 0 : [X01]ALLSTA += 2 : Rewrite [X01] : Endif
+    # si toutes les matières sont soldées, on force le statut à "complet" ...
+    If [X01]MATCLENBR = [X01]MATLINNBR
+        [X01]ALLSTA = 3
+        Rewrite [X01]
+    Endif
+  Endif
+Endif
+
+Close Local File [X01]
+Close Local File [X02]
+Return
+####################################################################################

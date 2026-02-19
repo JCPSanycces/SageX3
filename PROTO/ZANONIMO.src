@@ -1,0 +1,10 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Aviso si el cliente está marcado como ANONIMO
+Local Char YNUMEXP(20)
+
+# Recuperamos el campo YNUMEXP del cliente
+YNUMEXP = funprog("GOBJBPC","YNUMEXP",[F:SOH]BPCUM)
+
+If YNUMEXP = "ANONIMO"
+    Call MESSAGE("Aviso: El cliente está marcado como ANONIMO")
+Endif

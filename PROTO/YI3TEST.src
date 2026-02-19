@@ -1,0 +1,123 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+ Local  Integer CANTIDAD
+Local Decimal PQTY
+PQTY = 4
+  If !clalev([YSOQ]) Then : Local File SORDERQ          [YSOQ] : Endif
+  If !clalev([YSOP]) Then : Local File SORDERP          [YSOP] : Endif
+  If !clalev([YITM]) Then : Local File ITMMASTER        [YITM] : Endif
+  If !clalev([YLPN]) Then : Local File LPN              [YLPN] : Endif
+  If !clalev([YI3PR])Then : Local File YI3PREPA         [YI3PR] : Endif # @01@ - SCD - 03/06/2024 - Ajustes para I3
+
+
+  PRES="100"
+  PMESS="No se encuentró la referencia"
+
+  # Comprobamos si el EAN existe en la base de datos
+  Local Char ITM_REF
+
+  Filter [YITM] Where EANCOD = '8435737762730'
+  Read [YITM] First
+  If fstat <> 0
+    PMESS = "El código EAN no se encuentra la base de datos de artículos."
+    Goto FIN_TEST
+  Else
+    [L]ITM_REF = [YITM]ITMREF
+  Endif
+
+  Filter [YITM]
+  If !GSERVEUR : Call OUVRE_TRACE("TEST I3") From LECFIC : Endif
+  Call ECR_TRACE ("Inicio",0) From GESECRAN
+
+  I=0
+  CANTIDAD=1
+  Local Date DDD
+#  DDD=gdat$(val(left$(PSHIDAT,2)), val(mid$(PSHIDAT,4,2)), val(right$(PSHIDAT,7)))
+  Filter [F:YSOQ] Where SOHNUM='PDV112403017' and SOQSTA <>3 and ALLQTYSTU > 0 and  ITMREF = ITM_REF
+  Local Decimal CANT_PEND, CANT_ASIG
+  CANT_PEND = PQTY
+  CANT_ASIG = 0
+  For [F:YSOQ]
+  Call ECR_TRACE ("FOR YSOQ" - num$([F:YSOQ]SOPLIN),0) From GESECRAN
+
+    Read [YITM]ITM0=[F:YSOQ]ITMREF
+    If !fstat Then
+       If "" = "" #or PTSICOD0=[F:YITM]TSICOD(0)
+         If "" = "" #or PTSICOD0=[F:YITM]TSICOD(1)
+          If [F:YITM]EANCOD='8435737762730' Then
+
+            Read [F:YSOP]SOP3=[F:YSOQ]SOHNUM;[F:YSOQ]SOPLIN
+            If !fstat Then
+             PPCU=[F:YSOP]SAU
+             PSTU=[F:YSOP]STU
+             PSTUCOE=[F:YSOP]SAUSTUCOE
+             PVCRDES=left$([F:YSOQ]SOHNUM + ' ' +[F:YSOP]ITMDES1,80)
+            Else
+              PRES="110"
+              PMESS="Problemas con el pedido"
+              Break
+            Endif
+            PITMREF=[F:YITM]ITMREF
+            Call ECR_TRACE ("PQTY: " - num$(PQTY),0) From GESECRAN
+            Call ECR_TRACE ("YX3MOBPREPICKING.GET_DISPONIBLE_TOTAL: " - num$(func YX3MOBPREPICKING.GET_DISPONIBLE_TOTAL([F:YSOQ]SOHNUM, [F:YSOQ]ITMREF)),0) From GESECRAN
+            Call ECR_TRACE ("",0) From GESECRAN
+
+            If PQTY > func YX3MOBPREPICKING.GET_DISPONIBLE_TOTAL([F:YSOQ]SOHNUM, [F:YSOQ]ITMREF)
+              PRES="100"
+              PMESS="No se puede poner más de lo que hay asignado."
+            Else
+              If ([L]CANT_PEND - [F:YSOQ]ALLQTYSTU) < 0
+                Call ECR_TRACE ("[L]CANT_PEND - [F:YSOQ]ALLQTYSTU",0) From GESECRAN
+                [L]CANT_ASIG = [L]CANT_PEND       #Asignamos la cantidad a asignar en esta iteracion
+                [L]CANT_PEND = 0                  #Neteamos lo pendiente
+                Call ECR_TRACE ("CANT_ASIG" - num$(CANT_ASIG),0) From GESECRAN
+                Call ECR_TRACE ("CANT_PEND" - num$(CANT_PEND),0) From GESECRAN
+
+              Else
+                Call ECR_TRACE ("Else",0) From GESECRAN
+
+                [L]CANT_ASIG = [F:YSOQ]ALLQTYSTU  #Asignamos la cantidad a asignar en esta iteracion
+                [L]CANT_PEND -= [F:YSOQ]ALLQTYSTU #Dejamos como pendiente el total menos la QTY de esta linea
+                Call ECR_TRACE ("CANT_ASIG" - num$(CANT_ASIG),0) From GESECRAN
+                Call ECR_TRACE ("CANT_PEND" - num$(CANT_PEND),0) From GESECRAN
+              Endif
+
+
+#                [YI3PR]LPNNUM=PLPNNUM
+#                [YI3PR]SOHNUM=[F:YSOQ]SOHNUM
+#                [YI3PR]SOPLIN=[F:YSOQ]SOPLIN
+#                [YI3PR]SOPSEQ=[F:YSOQ]SOQSEQ
+#                Read [YI3PR]YI3PR0 = PLPNNUM;[F:YSOQ]SOHNUM;[F:YSOQ]SOPLIN;[F:YSOQ]SOQSEQ
+#                If !fstat
+#                  [YI3PR]LPNQTY+=CANT_ASIG
+#                  Rewrite [YI3PR]
+#                Else
+#                  [YI3PR]LPNQTY=CANT_ASIG
+#                  Write [YI3PR]
+#                Endif
+#                If !fstat Then
+#                  PRES="200"
+#                  PMESS="Grabada correctamente"
+#                Else
+#                  PRES="120"
+#                  PMESS="No se puede grabar la caja"
+#                Endif
+              Endif
+#            Endif
+          Else
+            PMESS = "El código EAN leído no se encuentra pendiente en este pedido/fecha expedición"
+          Endif
+         Endif #TSICOD1
+       Endif  #TSICOD0
+    Endif      #EXISTE artículo
+  Next
+
+$FIN_TEST
+
+Close Local File [F:YITM]
+Close Local File [YSOP]
+Close Local File [YSOQ]
+Close Local File [YLPN]
+
+If !GSERVEUR : Call FERME_TRACE() From LECFIC : Endif
+Call LEC_TRACE From LECFIC

@@ -1,0 +1,355 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#####################################################################################
+# Src: SPECTRH
+#-------------------------------------------------------------------------------------
+# (Específico de contenedores de carga)
+#-------------------------------------------------------------------------------------
+# Proyecto: SANYCCES
+#-------------------------------------------------------------------------------------
+# Version: v12
+#-------------------------------------------------------------------------------------
+# Fecha:17-09-2024
+#-------------------------------------------------------------------------------------
+#######################################################################################
+#@01@ NUN22: 	17-09-2024	Encapsulamos en función la comprobación del estado del contenedor y registramos cambios en la tabla para poder filtrar en el browser
+#@02@ NUN12 (EQM) - 16/10/2024 - Mostramos YESTADO de la tabla
+#@03@ nun48 : YQUAFLG arrastar desde pedidos
+
+$ACTION
+Case ACTION
+  When "EXEBOUT"   :  Gosub EXEBOUT
+  When "CREATION"  :  Gosub CREATION #@nun48
+  When "MODIF"     :  Gosub MODIF #@nun48
+  When "APRES_CRE" :  Gosub APRES
+  When "APRES_MOD" :  Gosub APRES
+  When "VERIF_CRE" :  Gosub VERIF
+  When "VERIF_MOD" :  Gosub VERIF
+  When "LIENS"     :  Gosub LIENS
+  When "RAZCRE"    :  Gosub RAZCRE
+Endcase
+Return
+######################################
+$CREATION
+  Gosub REESCRIBIR_CC_LINEAS
+Return
+######################################
+$MODIF
+  Gosub REESCRIBIR_CC_LINEAS
+Return
+######################################
+$RAZCRE
+# Por defecto, el estado es Pendiente
+[M:CTRH]YESTADO = 1
+[F:CTRH]YESTADO = [M:CTRH]YESTADO
+Affzo [M:CTRH]YESTADO
+Return
+
+
+######################################
+$LIENS
+# Muestro los valores de importe en divisa proveedor y divisa proveedor
+Gosub LIENS From SUBCTRHA
+
+If clalev([F:Z1]) = 0 : Local File BPSUPPLIER [Z1] : Endif
+
+Local Char DIVISA_BPS
+Local Integer TIPO_CAMBIO
+Read [Z1]BPS0 = [M:CTRH2]BPSNUM
+If fstat = 0
+  [L]DIVISA_BPS  = [Z1]CUR
+  [L]TIPO_CAMBIO = [Z1]CHGTYP
+  [M:CTRH2]YDIVISABPS = [Z1]CUR
+
+Endif
+
+If [M:CTRH2]CUR = [M:CTRH2]YDIVISABPS
+  [M:CTRH2]YIMPORTEBPS = [M:CTRH2]TOTLINAMT
+Else
+  Local Integer STAT
+  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
+Endif
+
+Affzo [M:CTRH2]YDIVISABPS
+Affzo [M:CTRH2]YIMPORTEBPS
+
+#@01@ - Encapsulamiento de la función y almacenamiento en tabla
+## Saco el estado del contenedor
+## 1 = PENDIENTE: Cuando el contenedor NO esta en una expedición
+## 2 = EN EXPEDICIÓN: Cuando el contenedor SI esta en una expedición Y NO está recepcionado
+## 3 = RECEPCIONADO: Cuando se recepciona el contenedor.
+#If clalev([F:S1]) = 0 : Local File SHIPMENTD [S1] : Endif
+#If clalev([F:S2]) = 0 : Local File PRECEIPTD [S2] : Endif
+#
+#Filter [S1] Where [S1]CTRNUM = [M:CTRH]CTRNUM and [S1]SHIPNUM = [M:CTRH]SHIPNUM
+#Read [S1] First
+#If fstat = 0
+#  Filter [S2] Where [S2]SHIPNUM = [S1]SHIPNUM and [S2]SHIPLIN = [S1]SHIPLIN
+#  Read [S2] First
+#  If fstat = 0
+#    [M:CTRH]YESTADO = 3
+#  Else
+#    [M:CTRH]YESTADO = 2
+#  Endif
+#  Filter [S2]
+#Else
+#  [M:CTRH]YESTADO = 1
+#Endif
+#Filter [S1]
+#@02@ - EQM - INI - Comentamos
+[M:CTRH]YESTADO = func GET_ESTADO_CONTENEDOR([M:CTRH]CTRNUM, [M:CTRH]SHIPNUM)
+[F:CTRH]YESTADO = [M:CTRH]YESTADO
+#@02@- EQM - FIN
+#Rewrite [F:CTRH]
+Affzo [M:CTRH]YESTADO #@02@ - EQM  - Comentamos
+
+#Close Local File [S1]
+#Close Local File [S2]
+#@01@ - Fin
+
+GPE=1
+Return
+
+
+######################################
+$EXEBOUT
+# Calculo el valor del campo SPE de total unidades
+Local Integer TUNI
+If clalev([F:PP1]) = 0 : Local File CONTAINER    [PP1] : Endif
+
+For LIN = 0 To [M:CTRH1]NBLIG-1
+  [L]TUNI += [M:CTRH1]QTYUOM(LIN)
+Next
+
+Read [PP1]CTRH0 = [M:CTRH]CTRNUM
+If fstat = 0
+  [PP1]YTUNIDADES = [L]TUNI
+  Rewrite [PP1]
+Endif
+
+[M:CTRH2]YTUNIDADES = [L]TUNI
+Affzo [M:CTRH2]YTUNIDADES
+
+Close Local File [PP1]
+Return
+
+
+######################################
+$APRES
+#Gosub REESCRIBIR_CC_LINEAS
+Return
+######################################
+$VERIF
+# Calculo el valor del campo SPE de total unidades
+Local Integer TUNI
+
+For LIN = 0 To [M:CTRH1]NBLIG-1
+  [L]TUNI += [M:CTRH1]QTYUOM(LIN)
+Next
+
+[M:CTRH2]YTUNIDADES = [L]TUNI
+Affzo [M:CTRH2]YTUNIDADES
+
+Gosub REESCRIBIR_CC_LINEAS
+Call SET_CC_PEDIDO([M:CTRH]CTRNUM)
+Return
+#######################################
+$REESCRIBIR_CC_LINEAS
+
+  For I = 0 To [M:CTRH1]NBLIG-1
+    [M:CTRH1]YQUAFLG(I) = func CC_PEDIDO([M:CTRH1]POHNUM(I), [M:CTRH1]POPLIN(I),[M:CTRH1]POQSEQ(I))
+    Affzo [M:CTRH1]YQUAFLG(I)
+  Next
+
+  Affzo [M:CTRH1]YQUAFLG
+Return
+
+
+######################################################################################
+Subprog C_QTYUOM(VALEUR)
+Variable Decimal VALEUR
+# Controlo que la cantidad + cantidad en otros contenedores <= cantidad la pedida
+Local Integer LMEN
+Local Integer WOK
+Call CHECK_QTY([M:CTRH]CTRNUM,VALEUR,[M:CTRH1]POHNUM(nolign-1),[M:CTRH1]POQSEQ(nolign-1),[M:CTRH1]POPLIN(nolign-1),LMEN)
+If LMEN = 2
+  Call AVERTIR ("La cantidad introducida en este y otros contenedores,es superior a la cantidad del pedido. ¿Desea continuar?", WOK)From GESECRAN
+  If WOK=1 mkstat=2 : End : Endif
+Endif
+End
+
+
+######################################################################################
+Subprog CHECK_QTY(LCTR,LQTY,LPED,LSEQ,LLIN,LMEN)
+Value Char LCTR
+Value Decimal LQTY
+Value Char LPED
+Value Integer LSEQ
+Value Integer LLIN
+Variable Integer LMEN
+
+If clalev([F:J1]) = 0 : Local File PORDERQ     [J1] : Endif
+If clalev([F:J2]) = 0 : Local File CONTAINERD  [J2] : Endif
+
+Local Decimal QTY_OTROS  # Cantidad del pedido línea en otros contenedores
+Local Decimal QTY_POH    # Cantidad en pedido
+
+Read [J1]POQ0 = LPED;LLIN;LSEQ
+If fstat = 0
+  [L]QTY_POH = [J1]QTYUOM
+Endif
+
+Filter [J2] Where [J2]POHNUM = LPED and [J2]POPLIN = LLIN and [J2]POQSEQ = LSEQ and [J2]CTRNUM <> LCTR
+  For [J2]
+    [L]QTY_OTROS += [J2]QTYUOM
+  Next
+Filter [J2]
+
+If LQTY + [L]QTY_OTROS > [L]QTY_POH
+  [L]LMEN = 2
+Endif
+
+Close Local File [J1]
+Close Local File [J2]
+End
+
+#---------------------------------------------------------------------------------------------------#
+#**@01@
+#* Función que devuelve el estado de un contenedor en una determinada expedición
+#*
+#* @param PS_CTRNUM Número de contenedor
+#* @param PS_SHIPNUM Expedidción que se quiere comprobar
+#*!
+Funprog GET_ESTADO_CONTENEDOR(PS_CTRNUM,PS_SHIPNUM)
+Value Char PS_CTRNUM
+Value Char PS_SHIPNUM
+
+# Saco el estado del contenedor
+# 1 = PENDIENTE: Cuando el contenedor NO esta en una expedición
+# 2 = EN EXPEDICIÓN: Cuando el contenedor SI esta en una expedición Y NO está recepcionado
+# 3 = RECEPCIONADO: Cuando se recepciona el contenedor.
+If clalev([F:S1]) = 0 : Local File SHIPMENTD [S1] : Endif
+If clalev([F:S2]) = 0 : Local File PRECEIPTD [S2] : Endif
+Local Integer RI_ESTADO
+
+
+Filter [S1] Where [S1]CTRNUM = PS_CTRNUM and [S1]SHIPNUM = PS_SHIPNUM
+Read [S1] First
+If fstat = 0
+  Filter [S2] Where [S2]SHIPNUM = [S1]SHIPNUM and [S2]SHIPLIN = [S1]SHIPLIN
+  Read [S2] First
+  If fstat = 0
+    RI_ESTADO = 3
+  Else
+    RI_ESTADO = 2
+  Endif
+  Filter [S2]
+Else
+  RI_ESTADO = 1
+Endif
+Filter [S1]
+
+Close Local File [S1]
+Close Local File [S2]
+
+End RI_ESTADO
+
+
+
+
+##########################################################
+#**
+#* Saco la cantidad pendiente de cargar para el browser izquierdo (objeto PO6)
+#*
+Funprog CARGAR(PNUM,PLIN,PSEQ)
+Value Char PNUM
+Value Integer PLIN
+Value Integer PSEQ
+
+Local Decimal PDTECARGA
+Local Decimal EN_OTROS
+Local Decimal PEDIDA
+
+If !clalev([K0]) Then : Local File PORDERQ    [K0] : Endif
+If !clalev([K1]) Then : Local File CONTAINERD [K1] : Endif
+If !clalev([K2]) Then : Local File SHIPMENTD  [K2] : Endif
+If !clalev([K3]) Then : Local File PRECEIPTD  [K3] : Endif
+
+Read [K0]POQ0 = PNUM;PLIN;PSEQ
+If fstat = 0
+  [L]PEDIDA = [K0]QTYPUU - [K0]RCPQTYPUU
+Endif
+
+
+# Modif 17/04/24. La cantidad en otros contenedores no tiene en cuenta que los contenedores estén o no en una expedición
+# Importante: el contenedor NO tiene que estar en una recepción, porque sino restaré la cantidad dos veces
+Filter [K1] Where [K1]POHNUM = PNUM and [K1]POPLIN = PLIN and [K1]POQSEQ = PSEQ
+  For [K1]
+    Filter [K2] Where [K2]SHIPNUM = [K1]SHIPNUM and [K2]CTRNUM = [K1]CTRNUM and [K2]CTRLIN = [K1]CTRLIN
+    Read [K2] First
+    If fstat = 0
+      Filter [K3] Where [K3]SHIPNUM = [K2]SHIPNUM and [K3]SHIPLIN = [K2]SHIPLIN
+      Read [K3] First
+      If fstat <> 0
+        [L]EN_OTROS += [K1]QTYUOM  # con esto tengo en cuenta que si el contenedor está recepcionado, no tomo en cuenta la cantidad (ya está tenida en cuenta en [L]PEDIDA
+      Endif
+      Filter [K3]
+    Else
+      [L]EN_OTROS += [K1]QTYUOM  # con esto tomo en cuenta contenedores que no están en una expedición
+    Endif
+  Next
+Filter [K1]
+
+[L]PDTECARGA = [L]PEDIDA - [L]EN_OTROS
+
+If [L]PDTECARGA < 0 : [L]PDTECARGA = 0 : Endif
+
+Close Local File [K0]
+Close Local File [K1]
+Close Local File [K2]
+Close Local File [K3]
+End num$([L]PDTECARGA)
+
+#################################################
+Funprog CC_PEDIDO(POHNUM, POPLIN, POPSEQ)
+Value Char POHNUM
+Value Integer POPLIN,POPSEQ
+Local Integer CC_RES : CC_RES = 1
+
+  If !clalev([ZPOH]) Local File PORDERP [ZPOH] Endif
+  Read [ZPOH]POP0 = POHNUM;POPLIN;POPSEQ
+  If !fstat
+    CC_RES = [ZPOH]QUAFLG
+  Endif
+
+End CC_RES
+##################################################
+################################################################
+Subprog SET_CC_PEDIDO(C_CONTAINER)
+Value Char C_CONTAINER
+Local Integer I_RES : I_RES=0
+
+Local Integer O_TRS : O_TRS = adxlog
+Local Integer FSTAT_COMMIT
+
+If !clalev([ZCLIN]) Local File  CONTAINERD [ZCLIN] Endif
+
+If !O_TRS
+ Trbegin [ZCLIN]
+Endif
+
+For [ZCLIN] Where [ZCLIN]CTRNUM = C_CONTAINER
+
+    [ZCLIN]YQUAFLG = func CC_PEDIDO([ZCLIN]POHNUM, [ZCLIN]POPLIN, [ZCLIN]POQSEQ)
+    Rewrite [ZCLIN]
+Next
+
+
+If !O_TRS
+  If !FSTAT_COMMIT
+    Commit
+  Else
+    Rollback
+  Endif
+Endif
+
+End

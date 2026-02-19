@@ -1,0 +1,90 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+
+Call REESCRITURA_SOHNUM
+
+End
+
+#nun48 -- rectificación de los numeros de pedido repetidos para la importación masiva#
+Subprog REESCRITURA_SOHNUM()
+Local Char CA_CUSORDREF(240)
+Local Integer I_ADXLOG : [L]I_ADXLOG = adxlog
+#Recorro toda la tabla ZOCRECTL
+
+If !clalev([ZACTL]) Local File ZOCRECTL [ZACTL] Endif
+
+If ![L]I_ADXLOG : Trbegin [ZACTL] : Endif
+
+For [ZACTL]
+#Where [ZACTL]CONTADOR = 'EDI-2500000157'
+  CA_CUSORDREF = func GET_CUSORDREF([ZACTL]CONTADOR)
+  #Infbox "CA_CUSORDER " + [L]CA_CUSORDREF
+  If CA_CUSORDREF<>''
+    [ZACTL]SOHNUM = func GET_EDI_SOHNUM(CA_CUSORDREF)
+    Rewrite [ZACTL]
+  Else
+    [ZACTL]SOHNUM = ''
+    Rewrite [ZACTL]
+  Endif
+Next
+
+  If !fstat
+    If ![L]I_ADXLOG : Commit : Endif
+  Else
+    If ![L]I_ADXLOG : Rollback : Endif
+  Endif
+End
+######################################################################################
+Funprog GET_EDI_SOHNUM(ZCUSORDREF)
+Value Char ZCUSORDREF
+Local Char C_SOHNUM(250)
+Local Char CUSORDREF_SINE(240)
+
+[L]C_SOHNUM = ''
+
+If !clalev([ZASOH]) Local File SORDER [ZASOH] Endif
+Call ESCRIBIR_TRAZA("*"+ZCUSORDREF+"*", '')
+[L]CUSORDREF_SINE = vireblc(ZCUSORDREF,2)
+Call ESCRIBIR_TRAZA("*"+[L]CUSORDREF_SINE+"*", '')
+If !clalev([F:ZASOH]) Local File SORDER [F:ZASOH] Endif
+#Infbox "DEBTRO *" + ZCUSORDREF + "*"
+Filter [F:ZASOH] Where [F:ZASOH]CUSORDREF = [L]CUSORDREF_SINE
+For [F:ZASOH]
+  Call ESCRIBIR_TRAZA("PEDIDO:" +[ZASOH]SOHNUM , '')
+  C_SOHNUM = [F:ZASOH]SOHNUM
+  Break
+Next
+
+End C_SOHNUM
+######################################################################################
+Funprog GET_CUSORDREF (C_CONTADOR)
+Value Char C_CONTADOR
+Local Char C_CUSORDREF(240)
+
+C_CUSORDREF = ''
+
+If !clalev([ZAZC]) Local File ZOCSOH [ZAZC] Endif
+For [ZAZC] Where [ZAZC]CONTADOR = C_CONTADOR
+  If [ZAZC]CUSORDREF<> ''
+    C_CUSORDREF = [ZAZC]CUSORDREF
+  Endif
+Next
+
+End C_CUSORDREF
+######################################################################################
+Subprog ESCRIBIR_TRAZA (MENSAJE, MENSAJECLB)
+  Value Char MENSAJE
+  Value Clbfile MENSAJECLB
+
+  Openo filpath("YTRAZA","YZASZP_"+format$("D:DDMMYYYY",date$),"txt") Using [XLOG]
+
+  If MENSAJE <> ''
+    Wrseq date$-time$-MENSAJE   Using [XLOG]
+  Endif
+
+  If MENSAJECLB <> ''
+    Wrseq date$-time$-MENSAJECLB Using [XLOG]
+  Endif
+
+  Openo Using [XLOG]
+End

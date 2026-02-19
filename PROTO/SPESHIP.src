@@ -1,0 +1,368 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###########################################################################
+# @01@ - EQM - 15/10/2024 - Si la recepción es de un contenedor, modificamos estado del contenedor YESTADO
+###########################################################################
+$ACTION
+#Infbox ACTION
+Case ACTION
+  When "MODIF"        :   Gosub MODIF
+  When "VERIF_CRE"    :   Gosub VERIF_CRE
+  When "VERIF_MOD"    :   Gosub VERIF_MOD
+  When "LIENS"        :   Gosub LIENS
+  When "APRES_CRE"    :   Gosub APRES_CRE   # @01@ - EQM
+  When "APRES_MOD"    :   Gosub APRES_MOD   # @01@ - EQM
+  When "ANNULE"       :   Gosub ANNULE      # @01@ - EQM
+  When "APRES_MODIF"  :   Gosub APRES_MODIF # @01@ - EQM
+
+Endcase
+Return
+
+###########################################
+
+#$AV_ANNULE
+#
+#  Call SET_ID_EXPEDICION([M:SHIP0]SHIPUID)
+#
+#Return
+
+###########################################
+$LIENS
+# Cargo la partida arancelaria en las líneas (pedidos)
+Gosub LIENS From SUBSHIPA
+
+For K=0 To [M:SHIP1]NBLIG-1
+  Read [ITM]ITM0 = [M:SHIP1]ITMREF(K)
+  If fstat = 0
+    [M:SHIP1]YREFERENCIA(K) = [ITM]CUSREF
+    Affzo [M:SHIP1]YREFERENCIA(K)
+  Endif
+Next
+
+GPE = 1
+Return
+
+###########################################
+$MODIF
+# Guardo la fecha recepción prevista y el ID de la expedición por contenedor
+For I=0 To [M:SHIP3]NBCONT-1
+  Read [F:CTRH]CTRH0 = [M:SHIP3]CTRNUM(I)
+  If fstat = 0
+    [F:CTRH]YFECHAPREV = [M:SHIP3]YFECHAPREV(I)
+    [F:CTRH]SHIPUID    = [M:SHIP0]SHIPUID
+    Rewrite [F:CTRH]
+  Endif
+Next
+Return
+
+
+###########################################
+$VERIF_MOD
+# Si tengo fecha por contenedor, actualizo la fecha de la pestaña de detalle para este contenedor
+# Para ello, lanzo el STD, actualizo la fecha y bloqueo STD
+
+Gosub VERIF_CRE From SUBSHIPA
+
+For J=0 To [M:SHIP3]NBCONT-1
+  If [M:SHIP3]YFECHAPREV(J) <> "000000"
+    For I=0 To [M:SHIP1]NBLIG-1
+      If [M:SHIP1]CTRNUM(I) = [M:SHIP3]CTRNUM(J)
+        [M:SHIP1]EXTRCPDAT(I) = [M:SHIP3]YFECHAPREV(J)
+        [M:SHIP1]UPDFLG(I)=1
+        Affzo [M:SHIP1]EXTRCPDAT(I)
+      Endif
+    Next
+  Endif
+Next
+Gosub REESCRIBIR_CC
+Call SET_CC_PEDIDO([M:SHIP0]SHIPNUM)
+GPE=1
+Return
+#############################################################################
+$VERIF_CRE
+  Call SET_CC_PEDIDO([M:SHIP0]SHIPNUM)
+  Gosub REESCRIBIR_CC
+Return
+#############################################################################
+$REESCRIBIR_CC
+
+For I=0 To [M:SHIP1]NBLIG -1
+
+    [M:SHIP1]YQUAFLG(I) = func CC_PEDIDO([M:SHIP1]POHNUM(I), [M:SHIP1]POPLIN(I),[M:SHIP1]POQSEQ(I))
+    Affzo [M:SHIP1]YQUAFLG(I)
+
+Next
+    Affzo [M:SHIP1]YQUAFLG
+
+Return
+###########################################################################################
+Funprog CC_PEDIDO(POHNUM, POPLIN, POPSEQ)
+Value Char POHNUM
+Value Integer POPLIN,POPSEQ
+Local Integer CC_RES : CC_RES = 0
+
+  If !clalev([ZPOH]) Local File PORDERP [ZPOH] Endif
+  Read [ZPOH]POP0 = POHNUM;POPLIN;POPSEQ
+  If !fstat
+    CC_RES = [ZPOH]QUAFLG
+  Endif
+
+End CC_RES
+
+#############################################################################
+$APRES_CRE
+      Gosub ESTADO_CONTENEDORES # @01@ - EQM
+      Call SET_ID_EXPEDICION([M:SHIP0]SHIPUID,ACTION)
+Return
+#############################################################################
+$APRES_MOD
+    Gosub ESTADO_CONTENEDORES # @01@ - EQM
+    Call SET_ID_EXPEDICION([M:SHIP0]SHIPUID,ACTION)
+Return
+#############################################################################
+# @01@ - EQM
+$ESTADO_CONTENEDORES
+
+  If clalev([F:YCTRH]) = 0  : Local File CONTAINER [YCTRH] : Endif
+  If clalev([F:YPTD])  = 0  : Local File PRECEIPTD [YPTD]  : Endif
+
+  For Y=0 To [M:SHIP1]NBLIG-1
+    If [M:SHIP1]CTRNUM(Y)<>''
+        Filter [YPTD] Where  [YPTD]SHIPNUM = [M:SHIP0]SHIPNUM and  [YPTD]SHIPLIN = [M:SHIP1]SHIPLIN(Y)
+        Read[YPTD]First
+        If !fstat
+        Else
+            Read [F:YCTRH]CTRH0=[M:SHIP1]CTRNUM(Y)
+            If !fstat
+                [F:YCTRH]YESTADO=2
+                Rewrite[F:YCTRH]
+            Endif
+        Endif
+        Filter [YPTD]
+    Endif
+  Next
+
+  Close Local File [YCTRH]
+  Close Local File [YPTD]
+
+Return
+#############################################################################
+# @01@ - EQM
+$ANNULE
+
+  If clalev([F:YCTRH]) = 0  : Local File CONTAINER [YCTRH] : Endif
+  If clalev([F:YPTD])  = 0  : Local File PRECEIPTD [YPTD]  : Endif
+
+  For Y=0 To [M:SHIP1]NBLIG-1
+    If [M:SHIP1]CTRNUM(Y)<>''
+        Filter [YPTD] Where  [YPTD]SHIPNUM = [M:SHIP0]SHIPNUM and  [YPTD]SHIPLIN = [M:SHIP1]SHIPLIN(Y)
+        Read[YPTD]First
+        If !fstat
+        Else
+            Read [F:YCTRH]CTRH0=[M:SHIP1]CTRNUM(Y)
+            If !fstat
+                [F:YCTRH]YESTADO=1
+                Rewrite[F:YCTRH]
+            Endif
+        Endif
+        Filter [YPTD]
+    Endif
+  Next
+
+  Close Local File [YCTRH]
+  Close Local File [YPTD]
+
+  Call SET_ID_EXPEDICION([M:SHIP0]SHIPUID,ACTION)
+Return
+#############################################################################
+$APRES_MODIF
+
+#  For X=0 To [M:SHIP3]NBCONT-1
+#    Infbox "nolign:*" + num$(nolign) + "* nbcont:-*"+ num$([M:SHIP3]NBCONT) +"*"
+#    Infbox "contenedro:*" + [M:SHIP3]CTRNUM + "*"
+#  Next
+
+Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SHIP0) 18/09/2024 14:30:45 (NUN22)
+######################################################################################
+Subprog AS_BPRNUM(VALEUR)
+Variable Char    VALEUR()
+  If [M:SHIP0]BPSNUM <> ""
+    VALEUR = [M:SHIP0]BPSNUM
+    Affzo [M:SHIP0]BPSNUM
+  Endif
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SHIP2) 22/11/2024 12:02:03 (NUN48) #BORRAR
+######################################################################################
+#Subprog AM_TCTRNUM(VALEUR)
+#Variable Char    VALEUR()
+#
+##  Infbox "El valor es:*" + VALEUR + "*"
+##  Infbox "El valor por pantalla es :*" + [M:SHIP2]TCTRNUM + "*"
+##  Infbox "El valor por bbdd es:*" + [F:SHH]TCTRNUM+"*" #TENEMOS EL VALOR ANTERIOR
+##  If VALEUR = ''
+##    If !func RAZ_CONTAINER_SHIPUID([F:SHH]TCTRNUM)
+##      Infbox "El contenedor " + [F:SHH]TCTRNUM + " ha sido desligado  "
+##    Else
+##      Infbox "No ha sido posible desligar el contenedor " + [F:SHH]TCTRNUM + " de la expedición"
+##      VALEUR = [F:SHH]TCTRNUM
+##    Endif
+##  Endif
+#
+#
+#End
+
+
+######################################################################################
+Funprog RAZ_CONTAINER_SHIPUID(C_CTRNUM)
+Value Char C_CTRNUM
+Local Integer O_TRS : O_TRS = adxlog
+Local Integer FSTAT_COMMIT
+Local Integer I_RES
+
+If !clalev([ZCTR]) Local File CONTAINER[ZCTR] Endif
+If !O_TRS
+ Trbegin [ZCTR]
+Endif
+Read [ZCTR]CTRH0 = C_CTRNUM
+If !fstat
+  [ZCTR]SHIPUID = ''
+  [ZCTR]YESTADO = 1
+  Rewrite [ZCTR]
+  [L]FSTAT_COMMIT = fstat
+Endif
+
+If !O_TRS
+  If ![L]FSTAT_COMMIT
+   Commit
+  Else
+   Rollback
+  Endif
+Endif
+
+End [L]FSTAT_COMMIT
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SHIP3) 22/11/2024 12:33:00 (NUN48)
+######################################################################################
+Subprog AM_NBCONT
+#Infbox "SALTO"
+End
+
+
+######################################################################################
+#Funprog COMPROBAR_CONTENEDORES_EXPEDICION(C_ID_EXPEDICION)
+#Value Char C_ID_EXPEDICION
+#Local Integer I_RES
+
+#Recorro todos los contenedores que tengan como ID_EXPEDICIÓN, el de la expedición en curso.
+#Por cada uno de estos contenedores, recorro el grid de contenedores de la expedición
+#Si alguno de los contenedores no está en el grid, tengo que borrar su ID_EXPEDICIÓN e YSTADO = 2
+#
+#If !clalev([ZCONT]) Local File  CONTAINER [ZCONT] Endif
+#For [ZCONT] Where [ZCONT]SHIPUID = C_ID_EXPEDICION
+#
+#End I_RES
+######################################################################################
+#Funprog SET_ID_EXPEDICION_CTRH(C_CTRNUM,C_SHIPNUM, C_ID_EXPEDICION)
+#Value Char C_CTRNUM,C_SHIPNUM,C_ID_EXPEDICION
+#Local Integer I_RES : I_RES=0
+#
+#Local Integer O_TRS : O_TRS = adxlog
+#Local Integer FSTAT_COMMIT
+#
+#If !clalev([ZCONT]) Local File  CONTAINER [ZCONT] Endif
+#Read [ZCONT]CTRH0 = C_CTRNUM
+#If !fstat
+#
+##   Infbox "Tengo el ID del contenedor: " + [ZCONT]CTRNUM + " y también el numero expedición : " + C_SHIPNUM
+#
+#  If !O_TRS
+#    Trbegin [ZCONT]
+#  Endif
+#    If [ZCONT]SHIPNUM = ''
+#      [ZCONT]SHIPUID = ''
+#    Else
+#      [ZCONT]SHIPUID = C_ID_EXPEDICION
+#    Endif
+#    Rewrite [ZCONT]
+#    [L]FSTAT_COMMIT = fstat
+#    If ![L]FSTAT_COMMIT
+#      Commit
+#    Else
+#      Rollback
+#    Endif
+#Endif
+#
+#End I_RES
+
+######################################################################################
+Subprog SET_ID_EXPEDICION(C_ID_EXPEDICION,C_ACTION)
+Value Char C_ID_EXPEDICION, C_ACTION
+Local Integer I_RES : I_RES=0
+
+Local Integer O_TRS : O_TRS = adxlog
+Local Integer FSTAT_COMMIT
+
+If !clalev([ZCONT]) Local File  CONTAINER [ZCONT] Endif
+
+If !O_TRS
+ Trbegin [ZCONT]
+Endif
+
+For [ZCONT] Where [ZCONT]SHIPUID = C_ID_EXPEDICION
+
+  If [ZCONT]YESTADO <> 3
+    If C_ACTION = 'ANNULE' or [ZCONT]SHIPNUM = ''
+      Raz [ZCONT]SHIPUID
+      [ZCONT]YESTADO = 1
+      Rewrite [ZCONT]
+      [L]FSTAT_COMMIT +=fstat
+    Endif
+  Endif
+
+Next
+
+
+If !O_TRS
+  If !FSTAT_COMMIT
+    Commit
+  Else
+    Rollback
+  Endif
+Endif
+
+End
+################################################################
+Subprog SET_CC_PEDIDO(C_SHIPMENT)
+Value Char C_SHIPMENT
+Local Integer I_RES : I_RES=0
+
+Local Integer O_TRS : O_TRS = adxlog
+Local Integer FSTAT_COMMIT
+
+If !clalev([ZSHD]) Local File  SHIPMENTD [ZSHD] Endif
+
+If !O_TRS
+ Trbegin [ZSHD]
+Endif
+
+For [ZSHD] Where [ZSHD]SHIPNUM = C_SHIPMENT
+
+    [ZSHD]YQUAFLG = func CC_PEDIDO([ZSHD]POHNUM, [ZSHD]POPLIN, [ZSHD]POQSEQ)
+    Rewrite [ZSHD]
+Next
+
+
+If !O_TRS
+  If !FSTAT_COMMIT
+    Commit
+  Else
+    Rollback
+  Endif
+Endif
+
+End

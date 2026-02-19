@@ -1,0 +1,201 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog GETDATOSADJUNTOS(ABREV, CODIGO, NOMBRE_FICHERO, FICHERO_B64)
+  # Entrada
+  Value Char ABREV
+  Value Char CODIGO
+  # Salida
+  Variable Char NOMBRE_FICHERO()()
+  Variable Clbfile FICHERO_B64()()
+
+  Local Integer MAX_FICHEROS : MAX_FICHEROS = 20
+  Local Integer I : Raz I
+  Local Integer LENGTH : Raz LENGTH
+  Local Blbfile ADJUNTO(10) : Raz ADJUNTO
+  Local Clbfile ADJUNTO_B64(10) : Raz ADJUNTO_B64
+  Local Char PATH(250) : Raz PATH
+
+  If !clalev([YOBJ]) : Local File AOBJTXT [YOBJ] : Endif
+
+  Filter [YOBJ] Where [YOBJ]ABREV = ABREV and [YOBJ]IDENT1 = CODIGO and toupper([YOBJ]TYPDOC) = 'PDF'
+  For [YOBJ]
+    PATH = filpath("", "", "") + "\" + ctrans(ctrans([YOBJ]NAM, "[", ""), "]", "")
+
+    Openi PATH Using [PDF]
+    Getseq 10, ADJUNTO Using [PDF]
+    Openi Using [PDF]
+
+    LENGTH = b64Encode(ADJUNTO, ADJUNTO_B64)
+    If LENGTH > 0
+      NOMBRE_FICHERO(I) = [YOBJ]NAM
+      FICHERO_B64(I) = ADJUNTO_B64
+      Raz ADJUNTO
+      Raz ADJUNTO_B64
+
+      LENGTH = 0
+      I = I + 1
+
+      If I = MAX_FICHEROS
+        Break
+      Endif
+    Endif
+  Next
+  Filter [YOBJ]
+
+  Kill ADJUNTO
+  Kill ADJUNTO_B64
+  Close Local File [YOBJ]
+End
+
+Subprog GETDATOSLOGISTICOSARTICULO(COD_ARTICULO, IDIOMA, PESO, UM_PESO, VOLUMEN, UM_VOLUMEN, COD_UNIDAD_ENVASADO, UNIDAD_ENVASADO, COEFICIENTE_ENVASADO_STOCK)
+  # Entrada
+  Value Char COD_ARTICULO
+  Value Char IDIOMA
+  # Salida
+  Variable Decimal PESO
+  Variable Char UM_PESO
+  Variable Decimal VOLUMEN
+  Variable Char UM_VOLUMEN
+  Variable Char COD_UNIDAD_ENVASADO()()
+  Variable Char UNIDAD_ENVASADO()()
+  Variable Decimal COEFICIENTE_ENVASADO_STOCK()
+
+  Local Integer I : I = 0
+
+  If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
+
+  # Obtenemos peso y volumen
+  Read [YITM]ITM0 = COD_ARTICULO
+  If !fstat Then
+    PESO = [YITM]ITMWEI
+    UM_PESO = [YITM]WEU
+    VOLUMEN = [YITM]ITMVOU
+    UM_VOLUMEN = [YITM]VOU
+
+    If [YITM]PCU(0) <> ""
+      COD_UNIDAD_ENVASADO(I) = [YITM]PCU(0)
+      UNIDAD_ENVASADO(I) = func DESCRIPCION_UNIDAD_ENVASADO([YITM]PCU(0), IDIOMA)
+      COEFICIENTE_ENVASADO_STOCK(I) = [YITM]PCUSTUCOE(0)
+      I += 1
+      If [YITM]PCU(1) <> ""
+        COD_UNIDAD_ENVASADO(I) = [YITM]PCU(1)
+        UNIDAD_ENVASADO(I) = func DESCRIPCION_UNIDAD_ENVASADO([YITM]PCU(1), IDIOMA)
+        COEFICIENTE_ENVASADO_STOCK(I) = [YITM]PCUSTUCOE(1)
+        I += 1
+        If [YITM]PCU(2) <> ""
+          COD_UNIDAD_ENVASADO(I) = [YITM]PCU(2)
+          UNIDAD_ENVASADO(I) = func DESCRIPCION_UNIDAD_ENVASADO([YITM]PCU(2), IDIOMA)
+          COEFICIENTE_ENVASADO_STOCK(I) = [YITM]PCUSTUCOE(2)
+          I += 1
+          If [YITM]PCU(3) <> ""
+            COD_UNIDAD_ENVASADO(I) = [YITM]PCU(3)
+            UNIDAD_ENVASADO(I) = func DESCRIPCION_UNIDAD_ENVASADO([YITM]PCU(3), IDIOMA)
+            COEFICIENTE_ENVASADO_STOCK(I) = [YITM]PCUSTUCOE(3)
+            I += 1
+            If [YITM]PCU(4) <> ""
+              COD_UNIDAD_ENVASADO(I) = [YITM]PCU(4)
+              UNIDAD_ENVASADO(I) = func DESCRIPCION_UNIDAD_ENVASADO([YITM]PCU(4), IDIOMA)
+              COEFICIENTE_ENVASADO_STOCK(I) = [YITM]PCUSTUCOE(4)
+              I += 1
+              If [YITM]PCU(5) <> ""
+                COD_UNIDAD_ENVASADO(I) = [YITM]PCU(5)
+                UNIDAD_ENVASADO(I) = func DESCRIPCION_UNIDAD_ENVASADO([YITM]PCU(5), IDIOMA)
+                COEFICIENTE_ENVASADO_STOCK(I) = [YITM]PCUSTUCOE(5)
+              Endif
+            Endif
+          Endif
+        Endif
+      Endif
+    Endif
+  Endif
+
+  Close Local File [YITM]
+End
+
+Funprog DESCRIPCION_UNIDAD_ENVASADO(COD_UNIDAD, IDIOMA)
+  Value Char COD_UNIDAD
+  Value Char IDIOMA
+
+  Local Char LRET(250) : LRET = "N/A"
+
+  If !clalev([YATE]) : Local File ATEXTRA [YATE] : Endif
+
+  Read [YATE]AXX0 = "TABUNIT";"DES";IDIOMA;COD_UNIDAD;""
+  If !fstat
+    LRET = [YATE]TEXTE
+  Endif
+
+  Close Local File [YATE]
+
+End LRET
+
+Subprog IMPRIMIRPEDIDO(COD_PLANTA, NUM_PEDIDO, ETAT, IDIOMA, FILNAM, PDF64)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char NUM_PEDIDO
+  Value Char ETAT
+  Value Char IDIOMA
+  Value Char FILNAM
+  # Salida
+  Variable Clbfile PDF64
+
+  Local Char TBPAR(150)(0..21)
+  Local Char TBVAL(150)(0..21)
+
+  If !clalev([YSOH]) : Local File SORDER [YSOH] : Endif
+
+  Read [YSOH]SOH0 = NUM_PEDIDO
+  If !fstat
+    # Parámetros informe
+    TBPAR(0) = "sitedeb"
+    TBVAL(0) = COD_PLANTA
+    TBPAR(1) = "sitefin"
+    TBVAL(1) = COD_PLANTA
+    TBPAR(2) = "commandedeb"
+    TBVAL(2) = NUM_PEDIDO
+    TBPAR(3) = "commandefin"
+    TBVAL(3) = NUM_PEDIDO
+    TBPAR(4) = "avenantdeb"
+    TBVAL(4) = num$([YSOH]REVNUM)
+    TBPAR(5) = "avenantfin"
+    TBVAL(5) = num$([YSOH]REVNUM)
+    TBPAR(6) = "datedeb"
+    TBVAL(6) = [YSOH]ORDDAT
+    TBPAR(7) = "datefin"
+    TBVAL(7) = [YSOH]ORDDAT
+    TBPAR(8) = "categcomdeb"
+    TBVAL(8) = num$([YSOH]SOHCAT)
+    TBPAR(9) = "categcomfin"
+    TBVAL(9) = num$([YSOH]SOHCAT)
+    TBPAR(10) = "etatcomdeb"
+    TBVAL(10) = num$([YSOH]ORDSTA)
+    TBPAR(11) = "etatcomfin"
+    TBVAL(11) = num$([YSOH]ORDSTA)
+    TBPAR(12) = "etatfacdeb"
+    TBVAL(12) = num$([YSOH]INVSTA)
+    TBPAR(13) = "etatfacfin"
+    TBVAL(13) = num$([YSOH]INVSTA)
+    TBPAR(14) = "etatlivdeb"
+    TBVAL(14) = num$([YSOH]DLVSTA)
+    TBPAR(15) = "etatlivfin"
+    TBVAL(15) = num$([YSOH]DLVSTA)
+    TBPAR(16) = "datelivdeb"
+    TBVAL(16) = [YSOH]DEMDLVDAT
+    TBPAR(17) = "datelivfin"
+    TBVAL(17) = [YSOH]DEMDLVDAT
+    TBPAR(18) = "codimp"
+    TBVAL(18) = num$(2)
+    TBPAR(19) = "usr"
+    TBVAL(19) = GUSER
+    TBPAR(20) = "etat"
+    TBVAL(20) = ETAT
+    TBPAR(21) = "filnam"
+    TBVAL(21) = FILNAM
+
+    GSERVEUR = 1
+#    GSILENCE = 1
+
+    Call ETAT(ETAT, "APREVISU", "", 0, "", TBPAR, TBVAL) From AIMP3
+  Endif
+
+  Close Local File [YSOH]
+End

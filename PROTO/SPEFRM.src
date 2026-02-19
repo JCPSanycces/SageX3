@@ -1,0 +1,35 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# -------------------------------------------------------------------------------------------- #
+# @01@ - SCD - 07/11/2023  - (SAN030): Campo Fecha Firma en la entrada de remesas
+# -------------------------------------------------------------------------------------------- #
+
+# @01@ - SCD - 07/11/2023 - INI
+
+$ACTION
+#If GUSER = 'NUN14'
+#  Infbox ACTION
+#Endif
+  Case ACTION
+    When "INICRE":  Gosub INICRE
+    When "INIMOD":  Gosub INIMOD
+    When "LIENS"        : Gosub LIENS
+
+  Endcase
+Return
+
+
+$INICRE
+
+  [F:FRM]YFECFIR = [M:FRM0]YFECFIC
+
+Return
+
+$INIMOD
+  [F:FRM]YFECFIR = [M:FRM0]YFECFIC
+Return
+
+$LIENS
+  [M:FRM0]YFECFIC = [F:FRM]YFECFIR
+  Affzo [M:FRM0]
+Return
+# @01@ - SCD - 07/11/2023 - FIN

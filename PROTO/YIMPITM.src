@@ -1,0 +1,21 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+ $ACTION
+Case ACTION
+When "IMPORT" : Gosub IMPORT
+Endcase
+Return
+
+
+$IMPORT
+Case IMPFIC
+When "ITM" :
+  If [F:ITM]YCODANT <> ""
+    GIMP(1) = filpath("PIC","","")+"\" + [F:ITM]YCODANT + ".jpg"
+    If GIMP(1)<>""
+      Openi GIMP(1)
+      Getseq 1,[M:ITM1]IMG
+      Openi
+    Endif
+  Endif
+Endcase
+Return

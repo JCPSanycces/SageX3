@@ -1,0 +1,36 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara ZCIT0
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZCIT0) 14/11/2022 14:27:40 (NUN02)
+######################################################################################
+Subprog IB_BPCORD
+End
+
+Subprog AP_BPCORD(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog B6_BPCORD(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+######################################################################################
+
+######################################################################################
+## Etiqueta añadida por el supervisor (Objeto ZCIT) 14/11/2022 19:00:24 (NUN02)
+######################################################################################
+$ACTION
+Case ACTION
+ When default
+Endcase
+Return
+
+
+######################################################################################
+

@@ -1,0 +1,43 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#################################################################################
+#
+# @01@ - 20/01/2025 - Ajustes total triangulares
+#
+#################################################################################
+$ACTION
+Case ACTION
+  When "ALIMSKPOH"  :  Gosub ALIMSKPOH   # Creación contramarca de compra
+Endcase
+Return
+
+
+###########################################
+$ALIMSKPOH
+[M:POH1]ICTCTY2 = [F:SOH]ICTCTY
+[M:PCEV]ICTCTY =  [F:SOH]ICTCTY
+[M:POH1]EECICT2 = [F:SOH]EECICT
+[M:PCEV]EECICT  = [F:SOH]EECICT
+[M:POH1]ORDREF  = [F:SOH]ICTCTY
+[M:POH1]YREFINTERNA  = [F:SOH]SOHNUM
+
+# Si tengo una línea con contramarca, pongo valor al campo ARP
+Local Integer HAY_CON
+For F=0 To [M:POH2]NBLIG-1
+  If [M:POH2]SOHNUM(F)<> ""
+    [L]HAY_CON = 2
+    Break
+  Endif
+Next
+If [L]HAY_CON = 2
+  [M:POH3]OCNNUM  = "CONTRAMARCA"
+Endif
+
+# Bloqueo esta función cuando vengo del plan de compras
+If GFONCTION1 <> "GESPOI"
+  Raz [M:POH3]TOTLINAMT # @01@ - 20/01/2025 - Ajustes total triangulares
+  For I = 0 To [M:POH2]NBLIG-1
+    Call INI_TARIF(I,"GROPRI") From SUBPOHB
+    Call MAJ_CUMULS_LIG(I,+1) From SUBPOHC # @01@ - 20/01/2025 - Ajustes total triangulares
+  Next
+Endif
+Return

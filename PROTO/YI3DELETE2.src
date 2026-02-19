@@ -1,0 +1,33 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+$CONTROL
+  If PS_SOHNUM <> ''
+    If !clalev([F:YI3]): Local File YI3PREPA [YI3]  : Endif
+    #------------
+    If PS_LIN = ''
+      Local Integer YN : YN = 2
+      Call OUINON("¿Seguro que quieres limpiar el pedido completo?", YN) From GESECRAN
+      If YN <> 2
+        Gosub TERMINA
+      Else
+        Filter [YI3] Where [YI3]SOHNUM = [L]PS_SOHNUM
+      Endif
+    Else
+      Filter [YI3] Where [YI3]SOHNUM = [L]PS_SOHNUM and [YI3]SOPLIN=[L]PS_LIN
+    Endif
+    #------------
+
+    For [YI3]
+      If [YI3]SOHNUM = [YI3]SOHNUM+'_OLD'
+        Call ERREURT("Este pedido ya ha sido tratado con anterioridad, consulte con su administrador", 0) From GESECRAN
+        Break
+      Endif
+      [YI3]SOHNUM = [YI3]SOHNUM+'_OLD'
+      Rewrite [YI3]
+    Next
+
+    Filter [YI3]
+  Endif
+
+$TERMINA
+Return

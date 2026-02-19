@@ -1,0 +1,1209 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#Y058  EMPAQUETADO  18/11/2020  NUN16
+#################################################################################################################
+#
+# @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+# @02@ - EQM - 31/07/2024 - Ajuste para el campo YPALET
+#
+#################################################################################################################
+######################################################################################
+# Gestión de la máscara YSPK0 (Especifico)
+$ACTION
+Case ACTION
+  When "OUVRE"        : Gosub OUVRE
+  When "DEBUT"        : Gosub DEBUT
+  When "FIN"          : Gosub FIN
+  When "SETBOUT"    :   Gosub SETBOUT # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+
+Endcase
+Return
+
+
+########################################
+$OUVRE
+# Apertura de tablas
+If !clalev([F:SPHM]) : Local File YSPACK     [SPHM] : Endif
+If !clalev([F:SPH2]) : Local File YSPACK     [SPH2] : Endif
+If !clalev([F:YSDD]) : Local File SDELIVERYD [YSDD] : Endif
+If !clalev([F:PP1])  : Local File STOPREH    [PP1]  : Endif
+If !clalev([F:K1])   : Local File BPARTNER   [K1]   : Endif
+If !clalev([F:K2])   : Local File FACILITY   [K2]   : Endif
+If !clalev([F:K3])   : Local File TABPACKAGE [K3]   : Endif
+If !clalev([F:K4])   : Local File YSPACKD    [K4]   : Endif
+If !clalev([F:K5])   : Local File BPCARRIER  [K5]   : Endif
+If !clalev([F:V1])   : Local File YSSOH      [V1]   : Endif
+If !clalev([F:V2])   : Local File YSITM      [V2]   : Endif
+If !clalev([F:V3])   : Local File YSSER      [V3]   : Endif
+If !clalev([F:V4])   : Local File YSLOT      [V4]   : Endif
+If !clalev([F:V5])   : Local File YSCON      [V5]   : Endif
+If !clalev([F:YSPDM]): Local File YSPACKD    [YSPDM]: Endif
+If !clalev([F:PP2])  : Local File STOPRED    [PP2]  : Endif
+If !clalev([F:PP3])  : Local File SORDER     [PP3]  : Endif
+If !clalev([F:PP4])  : Local File CONTAINER  [PP4]  : Endif
+If !clalev([F:PP6])  : Local File CONTAINERD [PP6]  : Endif
+If !clalev([F:PP7])  : Local File SORDERQ    [PP7]  : Endif
+
+Return
+
+
+######################################
+$SETBOUT
+  # Ejecución de los botones
+  Case BOUT
+    When "Y"    :   Gosub FIN_PREPA # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+  Endcase
+Return
+
+########################################
+$FIN
+# Cierre de tablas
+Close Local File [SPHM]
+Close Local File [SPH2]
+Close Local File [YSDD]
+Close Local File [PP1]
+Close Local File [K1]
+Close Local File [K2]
+Close Local File [K3]
+Close Local File [K4]
+Close Local File [K5]
+Close Local File [V1]
+Close Local File [V2]
+Close Local File [V3]
+Close Local File [V4]
+Close Local File [V5]
+Close Local File [YSPDM]
+Close Local File [PP2]
+Close Local File [PP3]
+Close Local File [PP4]
+Close Local File [PP6]
+Close Local File [PP7]
+Return
+
+
+########################################
+$DEBUT
+# Cargo los datos de la cabecera (Información general) y del bloque de palets/bultos
+Raz [M:YSPK1], [M:YSPK2]
+[M:YSPK1]NBLIG=0
+[M:YSPK2]NBLIG2=0
+
+[M:YSPK]VCRNUM        = [M:PRH0]PRHNUM
+[M:YSPK]C_FECHAX      = [M:PRH0]SHIDAT
+[M:YSPK]C_FECHAT      = [M:PRH0]DLVDAT
+[M:YSPK]C_CLIENTEC    = [M:PRH0]BPCORD
+Read [K1]BPR0 = [M:YSPK]C_CLIENTEC
+If fstat = 0
+  If [K1]YRAZSOC <> ""
+    [M:YSPK]C_CLIENTED    = [K1]YRAZSOC
+  Else
+    [M:YSPK]C_CLIENTED    = [K1]BPRNAM
+  Endif
+Endif
+[M:YSPK]C_TRANSPORTE  = [M:PRH0]BPTNUM
+Read [K1]BPR0 = [M:YSPK]C_TRANSPORTE
+If fstat = 0
+  [M:YSPK]C_TRANSPORTD    = [K1]BPRNAM
+Endif
+[M:YSPK]C_CAMION      = [M:PRH0]YCAMION
+[M:YSPK]C_CITA        = [M:PRH0]ZCITANUM
+Affzo [M:YSPK]
+
+If [M:YSPK]VCRNUM <> '' and GFONCTION = 'GESPRH' Then
+  Gosub MUESTRA_EMPAQUETADO
+Endif
+
+Return
+
+######################################
+# @01@ - SCD - 25/06/2024 - INI
+$FIN_PREPA
+
+# 1 - Pido confirmación para seguir
+Local Integer OK9
+Call OUINON("¿Desea dar por finalizada la preparación?",OK9) From GESECRAN
+If OK9 = 2
+  If !clalev([YSTO1]) : Local File STOPREH [YSTO1] : Endif
+  Read [YSTO1]PRH0 = [M:PRH0]PRHNUM
+  If fstat = 0
+    [YSTO1]YESTADOPREP  = 3
+    Rewrite [YSTO1]
+    If fstat = 0
+      [M:PRH0]YESTADOPREP = 3
+      Affzo [M:PRH0]
+    Endif
+  Endif
+  Close Local File [YSTO1]
+Endif
+Return
+# @01@ - SCD - 25/06/2024 - FIN
+
+#############################################################################
+$MUESTRA_EMPAQUETADO
+# Muestro el bloque de cabecera
+# Limpio bloque
+Local Integer J
+For J=0 To [M:YSPK1]NBLIG-1
+  [M:YSPK1]YFECHA(J)   = "000000"
+  [M:YSPK1]YHORA(J)    = ""
+  [M:YSPK1]YFECHAP(J)  = "000000"
+  [M:YSPK1]YHORAP(J)   = ""
+  [M:YSPK1]ZCITANUM(J) = ""
+  [M:YSPK1]YCAMION(J)  = 0
+  [M:YSPK1]NPALET(J)   = 0
+  [M:YSPK1]PACNUM(J)   = ""
+  [M:YSPK1]YCARGADO(J) = 0
+  [M:YSPK1]PCK(J)      = ""
+  [M:YSPK1]PCKD(J)     = ""
+  [M:YSPK1]YBRWEI(J)   = 0
+  [M:YSPK1]NETWEI(J)   = 0
+  [M:YSPK1]YPCKLEN(J)  = 0
+  [M:YSPK1]YPCKWID(J)  = 0
+  [M:YSPK1]YPCKHEI(J)  = 0
+  [M:YSPK1]VOL(J)      = 0
+  [M:YSPK1]PREUSR(J)   = ""
+  [M:YSPK1]PACSEQ(J)   = 0
+  [M:YSPK1]YCTRNUM(J)  = ""
+  [M:YSPK1]YCTRUID(J)  = ""
+Next
+
+nolign = 1
+[M:YSPK1]NBLIG = 0
+Filter [SPHM] Where [SPHM]VCRNUM = [M:YSPK]VCRNUM Order By [SPHM]PACNUM Asc
+    For [SPHM]
+        [M:YSPK1] = [SPHM]
+#        [M:YSPK1]NPALET(nolign-1) = nolign  # @02@ - EQM - Comentamos
+        Read [PP1]PRH0 = [M:YSPK]VCRNUM
+        If fstat = 0
+          [M:YSPK1]YCAMION(nolign-1) = [PP1]YCAMION
+        Endif
+        # Muestro la descripción del embalaje en el caso que no se haya modificado y por tanto no esté en tabla (solo guardo modificaciones)
+        If [M:YSPK1]PCKD(nolign-1) = ""
+          Call LECTEXTRA ([M:YSPK1]PCKD(nolign-1),"TABPACKAGE","DESAXX",[M:YSPK1]PCK(nolign-1),"") From ATEXTRA
+        Endif
+
+        # Si la planta es 13, muestro la información de los contenedores. En este caso busco si hay un solo contenedor asociado al pedido de compra - pedido de venta
+        # para mostrarlo por defecto. Sino es el usuario quien lo seleccionará. Hago esta búsqueda aquí para cubrir el caso que el bulto se haya creado en app y no esté
+        # indicado por tanto la información del contenedor
+        If [M:PRH0]STOFCY = '13' and [M:YSPK1]YCTRNUM(nolign-1)  = ""
+          Local Char LCONT
+          Local Char LCID
+          Call CHECK_CONTENEDOR([M:YSPK]VCRNUM,LCONT,LCID)
+          If [L]LCONT <> ""
+            [M:YSPK1]YCTRNUM(nolign-1)  = [L]LCONT
+            [M:YSPK1]YCTRUID(nolign-1)  = [L]LCID
+            # Guardo modificación
+            Read [SPH2]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+            If fstat = 0
+              [SPH2]YCTRNUM = [L]LCONT
+              [SPH2]YCTRUID = [L]LCID
+              Trbegin [SPH2]
+                Rewrite [SPH2]
+              Commit
+            Endif
+          Endif
+        Endif
+        nolign+=1
+        [M:YSPK1]NBLIG+=1
+    Next
+Filter [SPHM]
+Affzo [M:YSPK1]
+Return
+
+
+
+######################################################################################
+Subprog AS_NBLIG
+# Texto del menú contextual
+If [M:YSPK1]PACNUM(nolign-1) <> ""
+  GBOUT1 = "Borrar bulto " + [M:YSPK1]PACNUM(nolign-1)
+Else
+  GBOUT1 = ""
+Endif
+
+If [M:YSPK1]PACNUM(nolign-1) <> ""
+  GBOUT2 = "Añadir contenido al bulto " + [M:YSPK1]PACNUM(nolign-1)
+Else
+  GBOUT2 = ""
+Endif
+
+
+# Limpio líneas
+Local Integer J
+For J=0 To [M:YSPK2]NBLIG2-1
+  [M:YSPK2]PEDIDO(J)     = ""
+  [M:YSPK2]REFERENCIA(J) = ""
+  [M:YSPK2]ITMREF(J)     = ""
+  [M:YSPK2]ITMDES1(J)    = ""
+  [M:YSPK2]NSERIE(J)     = ""
+  [M:YSPK2]NLOTE(J)      = ""
+  [M:YSPK2]CONTENEDOR(J) = ""
+  [M:YSPK2]QTY(J)        = 0
+Next
+
+# Muestro líneas
+Local Char N_PACNUM : [L]N_PACNUM = [M:YSPK1]PACNUM(nolign-1)
+nolign = 1
+[M:YSPK2]NBLIG2 = 0
+Filter [YSPDM] Where [YSPDM]VCRNUM = [M:YSPK]VCRNUM and  [YSPDM]PACNUM = [L]N_PACNUM Order By [YSPDM]PACIND Asc
+    For [YSPDM]
+        [M:YSPK2] = [YSPDM]
+        [M:YSPK2]NSERIE(nolign-1)    =[YSPDM]SERNUM
+        [M:YSPK2]QTY(nolign-1)       =[YSPDM]QTYPCU
+        [M:YSPK2]CONTENEDOR(nolign-1)=[F:YSPDM]YLPNNUM
+        [M:YSPK2]NLOTE(nolign-1)     =[F:YSPDM]LOT
+
+        Read [PP2]PRE0 = [F:YSPDM]VCRNUM;[F:YSPDM]VCRLIN
+        If fstat = 0
+          [M:YSPK2]PEDIDO(nolign-1)=[PP2]ORINUM
+        Endif
+
+        If [M:YSPK2]PEDIDO(nolign-1) <> ""
+          Read [PP3]SOH0 = [M:YSPK2]PEDIDO(nolign-1)
+          If fstat = 0
+            [M:YSPK2]REFERENCIA(nolign-1) = [PP3]CUSORDREF
+          Endif
+        Endif
+
+        nolign+=1
+        [M:YSPK2]NBLIG2+=1
+    Next
+Filter [YSPDM]
+
+Affzo [M:YSPK2]
+End
+
+
+######################################################################################
+Subprog B1_NBLIG
+# Borrado del bulto y de su contenido
+Local Integer OK9
+Call OUINON("¿Desea borrar el bulto y su contenido?",OK9) From GESECRAN
+If OK9=2
+  Filter [YSPDM] Where [YSPDM]VCRNUM = [M:YSPK]VCRNUM and [YSPDM]PACNUM = [M:YSPK1]PACNUM(nolign-1)
+    For [YSPDM]
+      Trbegin [SPHM]
+        Delete [SPHM] Curr
+      Commit
+    Next
+  Filter [YSPDM]
+
+  Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+  If fstat = 0
+    Trbegin [SPHM]
+      Delete [SPHM] Curr
+    Commit
+    Gosub MUESTRA_EMPAQUETADO
+  Endif
+Endif
+
+End
+
+
+######################################################################################
+Subprog B2_NBLIG
+# Selecciono líneas del vale de preparación
+Local Integer LINT
+Global Char GL1LLE(250)(10)
+
+GL1LLE(0) = [M:YSPK]VCRNUM
+GL1LLE(1) = [M:YSPK1]PACNUM(nolign-1)
+Call SAISIE_LIB(LINT,GL1LLE,"YSPK3","SPEYSPK3","OBJZON") From GSAISIE
+End
+
+
+######################################################################################
+Subprog AM_PACNUM(VALEUR)
+Variable Char    VALEUR()
+# Guardo modificación
+#TODO --- HAY QUE AUMENTA EL EL PACSEQ- NUN16
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+If GUSER="NUN16" : Infbox "YSPEPK0 320  "  : Endif
+  [SPHM]PACNUM = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]PACNUM(nolign-1) With "MTC2"
+  Endif
+Else
+  # Creación de un nuevo registro
+  If GUSER="NUN16" : Infbox "YSPEPK0 331 CREACION DE UN NUEVO REGISTRO "  : Endif
+  Local Integer NEW_SEQ
+  If [M:YSPK1]NBLIG = 0
+    [L]NEW_SEQ = 1
+  Else
+    [L]NEW_SEQ = max([M:YSPK1]PACSEQ(0..[M:YSPK1]NBLIG-1))
+  Endif
+  [M:YSPK1]NPALET(nolign-1) = nolign
+  Affzo [M:YSPK1]NPALET(nolign-1)
+  Raz [SPH2]
+  [SPH2]VCRTYP    =   3
+  [SPH2]VCRNUM    =   [M:YSPK]VCRNUM
+  [SPH2]PACNUM    =   VALEUR
+  [SPH2]PACSEQ    =   [M:YSPK1]PACSEQ(nolign-1)
+  [SPH2]STOFCY    =   [M:PRH0]STOFCY
+  [SPH2]YFECHA    =   [M:YSPK1]YFECHA(nolign-1)
+  [SPH2]YFECHAP   =   [M:YSPK1]YFECHAP(nolign-1)
+  [SPH2]YHORA     =   [M:YSPK1]YHORA(nolign-1)
+  [SPH2]YHORAP    =   [M:YSPK1]YHORAP(nolign-1)
+  [SPH2]NPALET    =   [M:YSPK1]NPALET(nolign-1) # @02@ - EQM - guardamos en YSPACK
+  Read [K2]FCY0 = [M:PRH0]STOFCY
+  If fstat = 0
+    [SPH2]CPY       =   [K2]LEGCPY
+  Endif
+  Trbegin [SPH2]
+    Write [SPH2]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]PACNUM(nolign-1)  With "MTC2"
+    Chgstl [M:YSPK1]YFECHA(nolign-1)  With "MTC2"
+    Chgstl [M:YSPK1]YHORA(nolign-1)   With "MTC2"
+    Chgstl [M:YSPK1]YFECHAP(nolign-1) With "MTC2"
+    Chgstl [M:YSPK1]YHORAP(nolign-1)  With "MTC2"
+    Chgstl [M:YSPK1]NPALET(nolign-1)  With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_PCKD(VALEUR)
+Variable Char    VALEUR()
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]PCKD = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]PCKD(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+
+######################################################################################
+Subprog AM_YCARGADO(VALEUR)
+Variable Integer VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YCARGADO = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YCARGADO(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+
+######################################################################################
+Subprog AM_YBRWEI(VALEUR)
+Variable Decimal VALEUR
+# Cálculo del peso neto
+Read [K3]TPA0 = [M:YSPK1]PCK(nolign-1)
+If fstat = 0
+  [M:YSPK1]NETWEI(nolign-1) = VALEUR - [K3]PCKWEI
+  Affzo [M:YSPK1]NETWEI(nolign-1)
+Endif
+
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YBRWEI = VALEUR
+  [SPHM]NETWEI = [M:YSPK1]NETWEI(nolign-1)
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YBRWEI(nolign-1) With "MTC2"
+    Chgstl [M:YSPK1]NETWEI(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_NETWEI(VALEUR)
+Variable Decimal VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]NETWEI = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]NETWEI(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YPCKHEI(VALEUR)
+Variable Decimal VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YPCKHEI = VALEUR
+  [M:YSPK1]VOL(nolign-1) = ([M:YSPK1]YPCKLEN(nolign-1) * [M:YSPK1]YPCKWID(nolign-1) * VALEUR) / 1000000
+  Affzo [M:YSPK1]VOL(nolign-1)
+  [SPHM]VOL = [M:YSPK1]VOL(nolign-1)
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YPCKHEI(nolign-1) With "MTC2"
+    Chgstl [M:YSPK1]VOL(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_VOL(VALEUR)
+Variable Decimal VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]VOL = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]VOL(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YFECHA(VALEUR)
+Variable Date    VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YFECHA = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YFECHA(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YHORA(VALEUR)
+Variable Char    VALEUR()
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YHORA = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YHORA(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YFECHAP(VALEUR)
+Variable Date    VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YFECHAP = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YFECHAP(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YHORAP(VALEUR)
+Variable Char    VALEUR()
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YHORAP = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YHORAP(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_PCK(VALEUR)
+Variable Char    VALEUR()
+# Traigo la descripción
+Call LECTEXTRA ([M:YSPK1]PCKD(nolign-1),"TABPACKAGE","DESAXX",VALEUR,"") From ATEXTRA
+Affzo [M:YSPK1]PCKD(nolign-1)
+
+# Traigo los datos del embalaje
+Read [K3]TPA0 = VALEUR
+If fstat = 0
+  [M:YSPK1]YPCKLEN(nolign-1)  = [K3]PCKLEN
+  [M:YSPK1]YPCKWID(nolign-1)  = [K3]PCKWID
+  [M:YSPK1]YPCKHEI(nolign-1)  = [K3]PCKHEI
+  [M:YSPK1]VOL(nolign-1)      = [M:YSPK1]YPCKLEN(nolign-1) * [M:YSPK1]YPCKWID(nolign-1) * [M:YSPK1]YPCKHEI(nolign-1)  / 1000000
+
+  Affzo [M:YSPK1]YPCKLEN(nolign-1)
+  Affzo [M:YSPK1]YPCKWID(nolign-1)
+  Affzo [M:YSPK1]YPCKHEI(nolign-1)
+  Affzo [M:YSPK1]VOL(nolign-1)
+
+  Chgstl [M:YSPK1]YPCKLEN(nolign-1)  With "MTC2"
+  Chgstl [M:YSPK1]YPCKWID(nolign-1)  With "MTC2"
+  Chgstl [M:YSPK1]YPCKHEI(nolign-1)  With "MTC2"
+  Chgstl [M:YSPK1]VOL(nolign-1)      With "MTC2"
+Endif
+
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]PCK     = VALEUR
+  [SPHM]PCKD    = [M:YSPK1]PCKD(nolign-1)
+  [SPHM]YPCKLEN = [M:YSPK1]YPCKLEN(nolign-1)
+  [SPHM]YPCKWID = [M:YSPK1]YPCKWID(nolign-1)
+  [SPHM]YPCKHEI = [M:YSPK1]YPCKHEI(nolign-1)
+  [SPHM]VOL     = [M:YSPK1]VOL(nolign-1)
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]PCK(nolign-1)  With "MTC2"
+    Chgstl [M:YSPK1]PCKD(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YPCKLEN(VALEUR)
+Variable Decimal VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YPCKLEN = VALEUR
+  [M:YSPK1]VOL(nolign-1) = (VALEUR * [M:YSPK1]YPCKWID(nolign-1) * [M:YSPK1]YPCKHEI(nolign-1)) / 1000000
+  [SPHM]VOL = [M:YSPK1]VOL(nolign-1)
+  Affzo [M:YSPK1]VOL(nolign-1)
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YPCKLEN(nolign-1) With "MTC2"
+    Chgstl [M:YSPK1]VOL(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YPCKWID(VALEUR)
+Variable Decimal VALEUR
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YPCKWID = VALEUR
+  [M:YSPK1]VOL(nolign-1) = ([M:YSPK1]YPCKLEN(nolign-1) * VALEUR * [M:YSPK1]YPCKHEI(nolign-1)) / 1000000
+  [SPHM]VOL = [M:YSPK1]VOL(nolign-1)
+  Affzo [M:YSPK1]VOL(nolign-1)
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YPCKWID(nolign-1) With "MTC2"
+    Chgstl [M:YSPK1]VOL(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_PREUSR(VALEUR)
+Variable Char    VALEUR()
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]PREUSR = VALEUR
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]PREUSR(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AM_YCTRNUM(VALEUR)
+Variable Char    VALEUR()
+# Cargo el número del contenedor
+Read [PP4]CTRH0 = VALEUR
+If fstat = 0
+  [M:YSPK1]YCTRUID(nolign-1) = [PP4]CTRUID
+  Affzo [M:YSPK1]YCTRUID(nolign-1)
+Endif
+
+# Guardo modificación
+Read [SPHM]SPH0 = 3;[M:YSPK]VCRNUM;[M:YSPK1]PACNUM(nolign-1);[M:YSPK1]PACSEQ(nolign-1)
+If fstat = 0
+  [SPHM]YCTRNUM = VALEUR
+  [SPHM]YCTRUID = [M:YSPK1]YCTRUID(nolign-1)
+  Trbegin [SPHM]
+    Rewrite [SPHM]
+  Commit
+  If fstat = 0
+    # Si modifico, cambio el estilo del campo (color verde)
+    Chgstl [M:YSPK1]YCTRNUM(nolign-1) With "MTC2"
+    Chgstl [M:YSPK1]YCTRUID(nolign-1) With "MTC2"
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AS_YCTRNUM(VALEUR)
+Variable Char    VALEUR()
+# Si la planta es 11, no permito la entrada
+If [M:PRH0]STOFCY = '11'
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog C_YCTRNUM(VALEUR)
+Variable Char    VALEUR()
+# Controlo que el contenedor exista y esté asociado con los pedidos del vale de preparación
+Read [PP4]CTRH0 = VALEUR
+If fstat <> 0
+  Errbox "El contenedor introducido no existe"
+  mkstat = 2
+Else
+  Filter [PP6] Where [PP6]CTRNUM = VALEUR
+    For [PP6]
+      Filter [PP7] Where [PP7]FMINUM = [PP6]POHNUM and [PP7]FMILIN = [PP6]POPLIN and [PP7]FMISEQ = [PP6]POQSEQ
+      Read [PP7] First
+      If fstat = 0
+        Filter [PP2] Where [PP2]PRHNUM = [M:YSPK]VCRNUM and [PP2]ORINUM = [PP7]SOHNUM and [PP2]ORILIN = [PP7]SOPLIN and [PP2]ORISEQ = [PP7]SOQSEQ
+        Read [PP2] First
+        If fstat <> 0
+          Errbox "El contenedor introducido no está relacionado con los pedidos de este vale de preparación"
+          mkstat = 2
+        Endif
+        Filter [PP2]
+      Else
+        Errbox "El contenedor introducido no está relacionado con los pedidos de este vale de preparación"
+        mkstat = 2
+      Endif
+      Filter [PP7]
+    Next
+  Filter [PP6]
+Endif
+End
+
+
+######################################################################################
+Subprog S_YCTRNUM(VALEUR)
+Variable Char    VALEUR()
+# Selección de contenedores
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Char    C_CODE(20)(1..100)
+Local Integer NBFRM
+Local Integer T
+Local Integer REPE
+RESU = 5
+
+Filter [PP2] Where [PP2]PRHNUM = [M:YSPK]VCRNUM
+  For [PP2]
+    Read [PP7]SOQ0 = [PP2]ORINUM;[PP2]ORILIN;[PP2]ORISEQ
+    If fstat = 0
+      Filter [PP6] Where [PP6]POHNUM = [PP7]FMINUM and [PP6]POPLIN = [PP7]FMILIN and [PP6]POQSEQ = [PP7]FMISEQ
+        For [PP6]
+          Read [PP4]CTRH0 = [PP6]CTRNUM
+          If fstat = 0
+            REPE = 0
+            If [L]NBFRM >= 1
+              For T=1 To NBFRM
+                If [PP4]CTRNUM = C_CODE(T)
+                  REPE = 2
+                  Break
+                Endif
+              Next
+            Endif
+            If REPE <> 2
+              NBFRM +=1
+              TBFRM(NBFRM)  = [PP4]CTRNUM + " // " + [PP4]CTRUID
+              C_CODE(NBFRM) = [PP4]CTRNUM
+            Endif
+          Endif
+        Next
+      Filter [PP6]
+    Endif
+  Next
+Filter [PP2]
+
+Local Char TITULO(100)
+TITULO = "Selección de contenedores"
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = C_CODE(RESU)
+Endif
+End
+
+
+######################################################################################
+Subprog AS_NBLIG2
+# Etiquetas del menú contextual
+If [M:YSPK2]ITMREF(nolign-1) <> ""
+  GBOUT1 = "Borrar contenido del artículo " + [M:YSPK2]ITMREF(nolign-1)
+Else
+  GBOUT1 = ""
+Endif
+End
+
+
+######################################################################################
+Subprog B1_NBLIG2
+# Borro el contenido del palet = registro de la tabla YSPACKD
+Local Integer OK9
+Call OUINON("¿Desea borrar el contenido?",OK9) From GESECRAN
+If OK9=2
+  Read [YSPDM]SPD0=3;[M:YSPK]VCRNUM;[M:YSPK2]VCRLIN(nolign-1);[M:YSPK2]PACNUM(nolign-1);[M:YSPK2]PACIND(nolign-1);
+&                    [M:YSPK2]PACSEQ(nolign-1);[M:YSPK2]VCRSEQ(nolign-1)
+  If fstat = 0
+    Trbegin [YSPDM]
+      Delete [YSPDM] Curr
+    Commit
+      If fstat = 0
+        Dela (nolign-1),1,[M:YSPK2]NBLIG2-1 [M:YSPK2]NBLIG2
+        [M:YSPK2]NBLIG2 -= 1
+        Affzo [M:YSPK2]
+      Endif
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog C_PEDIDO(VALEUR)
+Variable Char    VALEUR()
+# Controlo que el pedido introducido esté dentro del doc de preparación
+Filter [V1] Where [V1]VALE = [M:YSPK]VCRNUM and [V1]PEDIDO = VALEUR
+Read [V1] First
+If fstat <> 0
+  Errbox "El pedido no existe o no está dentro de este documento de preparación"
+  mkstat = 2
+Endif
+Filter [V1]
+End
+
+
+######################################################################################
+Subprog AM_PEDIDO(VALEUR)
+Variable Char    VALEUR()
+# Gestiono el cambio
+If VALEUR <> "" and [M:YSPK2]VCRNUM(nolign-1) <> "" and [M:YSPK2]VCRLIN(nolign-1) <> 0 and [M:YSPK2]PACNUM(nolign-1) <> ""
+  Read [K4]SPD0 = [M:YSPK2]VCRTYP(nolign-1);[M:YSPK2]VCRNUM(nolign-1);[M:YSPK2]VCRLIN(nolign-1);[M:YSPK2]PACNUM(nolign-1);
+&                 [M:YSPK2]PACIND(nolign-1);[M:YSPK2]PACSEQ(nolign-1);[M:YSPK2]VCRSEQ(nolign-1)
+  If fstat = 0
+
+#    Filter [PP2] Where [PP2]PRHNUM = [M:YSPK]VCRNUM and [PP2]ORINUM = VALEUR
+#    Read [PP2] First
+#    If fstat = 0
+#      [M:YSPK2]VCRLIN(nolign-1)=[PP2]PRELIN
+#      [K4]VCRLIN = [PP2]PRELIN
+#      Trbegin [K4]
+#        Rewrite [K4]
+#      Commit
+#      If fstat = 0
+#        # Si modifico, cambio el estilo del campo (color verde)
+#        Chgstl [M:YSPK2]PEDIDO(nolign-1) With "MTC2"
+
+        # Traigo la referencia, por si he puesto el pedido a mano
+        Filter [V1] Where [V1]VALE = [M:YSPK]VCRNUM and [V1]PEDIDO = VALEUR
+        Read [V1] First
+        If fstat = 0
+          [M:YSPK2]REFERENCIA(nolign-1) = [V1]REFERENCIA
+          Affzo [M:YSPK2]REFERENCIA(nolign-1)
+          Chgstl [M:YSPK2]REFERENCIA(nolign-1) With "MTC2"
+        Endif
+        Filter [V1]
+      Endif
+    Endif
+    Filter [PP2]
+
+#  Endif
+#Endif
+
+End
+
+
+######################################################################################
+Subprog S_PEDIDO(VALEUR)
+Variable Char    VALEUR()
+# Selección de pedidos del vale
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Integer NBFRM
+RESU = 5
+Filter [V1] Where [V1]VALE = [M:YSPK]VCRNUM
+  For [V1]
+    NBFRM +=1
+    TBFRM(NBFRM) = [V1]PEDIDO
+  Next
+Filter [V1]
+
+Local Char TITULO(100)
+TITULO = [M:YSPK]VCRNUM + "-" + [M:YSPK2]PEDIDO(nolign-1)
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = TBFRM(RESU)
+Endif
+
+End
+
+
+######################################################################################
+Subprog C_ITMREF(VALEUR)
+Variable Char    VALEUR()
+# Controlo que el artículo introducido exista y esté asociado al vale y pedido correctamente
+Filter [V2] Where [V2]VALE = [M:YSPK]VCRNUM and [V2]PEDIDO = [M:YSPK2]PEDIDO(nolign-1) and [V2]ARTICULO = VALEUR
+Read [V2] First
+If fstat <> 0
+  Errbox "El artículo no existe o no está dentro de este documento de preparación / pedido"
+  mkstat = 2
+Endif
+Filter [V2]
+End
+
+
+######################################################################################
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+# Si modifico, cambio el estilo del campo (color verde)
+Chgstl [M:YSPK2]ITMREF(nolign-1) With "MTC2"
+Chgstl [M:YSPK2]ITMDES1(nolign-1) With "MTC2"
+
+    Filter [PP2] Where [PP2]PRHNUM = [M:YSPK]VCRNUM and [PP2]ITMREF = VALEUR
+    Read [PP2] First
+    If fstat = 0
+      [M:YSPK2]VCRLIN(nolign-1)=[PP2]PRELIN
+      [K4]VCRLIN = [PP2]PRELIN
+      Trbegin [K4]
+        Rewrite [K4]
+      Commit
+      If fstat = 0
+        # Si modifico, cambio el estilo del campo (color verde)
+        Chgstl [M:YSPK2]PEDIDO(nolign-1) With "MTC2"
+Endif
+Endif
+
+
+# Traigo la descripción del artículo
+Call LECTEXTRA ([M:YSPK2]ITMDES1(nolign-1),"ITMMASTER","DES1AXX",VALEUR,"") From ATEXTRA
+
+
+End
+
+
+######################################################################################
+Subprog S_ITMREF(VALEUR)
+Variable Char    VALEUR()
+# Selección de artículos del vale
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Integer NBFRM
+RESU = 5
+Filter [V2] Where [V2]VALE = [M:YSPK]VCRNUM and [V2]PEDIDO = [M:YSPK2]PEDIDO(nolign-1)
+  For [V2]
+    NBFRM +=1
+    TBFRM(NBFRM) = [V2]ARTICULO
+  Next
+Filter [V2]
+
+Local Char TITULO(100)
+TITULO = [M:YSPK]VCRNUM + "-" + [M:YSPK2]PEDIDO(nolign-1)
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = TBFRM(RESU)
+Endif
+End
+
+
+######################################################################################
+Subprog C_NSERIE(VALEUR)
+Variable Char    VALEUR()
+# Controlo que el nº de serie sea el correcto
+If VALEUR <> ''
+  Filter [V3] Where [V3]VALE = [M:YSPK]VCRNUM and [V3]ARTICULO = [M:YSPK2]ITMREF(nolign-1) and [V3]NSERIE = VALEUR
+  Read [V3] First
+  If fstat <> 0
+    Errbox "El número de serie no existe o no está asociado a este documento de preparación / artículo"
+    mkstat = 2
+  Endif
+  Filter [V3]
+Endif
+End
+
+
+######################################################################################
+Subprog AM_NSERIE(VALEUR)
+Variable Char    VALEUR()
+# Si modifico, cambio el estilo del campo (color verde)
+Chgstl [M:YSPK2]NSERIE(nolign-1) With "MTC2"
+End
+
+
+######################################################################################
+Subprog S_NSERIE(VALEUR)
+Variable Char    VALEUR()
+# Selección de números de serie del vale - artículo
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Integer NBFRM
+RESU = 5
+Filter [V3] Where [V3]VALE = [M:YSPK]VCRNUM and [V3]ARTICULO = [M:YSPK2]ITMREF(nolign-1)
+  For [V3]
+    NBFRM +=1
+    TBFRM(NBFRM) = [V3]NSERIE
+  Next
+Filter [V3]
+
+Local Char TITULO(100)
+TITULO = [M:YSPK]VCRNUM + "-" + [M:YSPK2]ITMREF(nolign-1)
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = TBFRM(RESU)
+Endif
+End
+
+
+######################################################################################
+Subprog C_NLOTE(VALEUR)
+Variable Char    VALEUR()
+# Controlo que el nº de serie sea el correcto
+If VALEUR <> ''
+  Filter [V4] Where [V4]VALE = [M:YSPK]VCRNUM and [V4]ARTICULO = [M:YSPK2]ITMREF(nolign-1) and [V4]LOTE = VALEUR
+  Read [V4] First
+  If fstat <> 0
+    Errbox "El lote no existe o no está asociado a este documento de preparación / artículo"
+    mkstat = 2
+  Endif
+  Filter [V4]
+Endif
+End
+
+
+######################################################################################
+Subprog AM_NLOTE(VALEUR)
+Variable Char    VALEUR()
+# Si modifico, cambio el estilo del campo (color verde)
+Chgstl [M:YSPK2]NLOTE(nolign-1) With "MTC2"
+End
+
+
+######################################################################################
+Subprog S_NLOTE(VALEUR)
+Variable Char    VALEUR()
+# Selección de lote del vale - artículo
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Integer NBFRM
+RESU = 5
+Filter [V4] Where [V4]VALE = [M:YSPK]VCRNUM and [V4]ARTICULO = [M:YSPK2]ITMREF(nolign-1)
+  For [V4]
+    NBFRM +=1
+    TBFRM(NBFRM) = [V4]LOTE
+  Next
+Filter [V4]
+
+Local Char TITULO(100)
+TITULO = [M:YSPK]VCRNUM + "-" + [M:YSPK2]ITMREF(nolign-1)
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = TBFRM(RESU)
+Endif
+
+End
+
+
+######################################################################################
+Subprog C_CONTENEDOR(VALEUR)
+Variable Char    VALEUR()
+# Controlo que el nº de serie sea el correcto
+If VALEUR <> ''
+  Filter [V5] Where [V5]VALE = [M:YSPK]VCRNUM and [V5]ARTICULO = [M:YSPK2]ITMREF(nolign-1) and [V5]CONTENEDOR = VALEUR
+  Read [V5] First
+  If fstat <> 0
+    Errbox "El contenedor no existe o no está asociado a este documento de preparación / artículo"
+    mkstat = 2
+  Endif
+  Filter [V5]
+Endif
+End
+
+
+######################################################################################
+Subprog AM_CONTENEDOR(VALEUR)
+Variable Char    VALEUR()
+# Si modifico, cambio el estilo del campo (color verde)
+Chgstl [M:YSPK2]CONTENEDOR(nolign-1) With "MTC2"
+End
+
+
+######################################################################################
+Subprog S_CONTENEDOR(VALEUR)
+Variable Char    VALEUR()
+# Selección del contenedor del vale - artículo
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Integer NBFRM
+RESU = 5
+Filter [V5] Where [V5]VALE = [M:YSPK]VCRNUM and [V5]ARTICULO = [M:YSPK2]ITMREF(nolign-1)
+  For [V5]
+    NBFRM +=1
+    TBFRM(NBFRM) = [V5]CONTENEDOR
+  Next
+Filter [V5]
+
+Local Char TITULO(100)
+TITULO = [M:YSPK]VCRNUM + "-" + [M:YSPK2]ITMREF(nolign-1)
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = TBFRM(RESU)
+Endif
+
+End
+
+
+######################################################################################
+Subprog C_QTY(VALEUR)
+Variable Decimal VALEUR
+End
+
+
+######################################################################################
+Subprog AM_QTY(VALEUR)
+Variable Decimal VALEUR
+# Gestiono el cambio
+If VALEUR <> 0 and [M:YSPK2]VCRNUM(nolign-1) <> "" and [M:YSPK2]VCRLIN(nolign-1) <> 0 and [M:YSPK2]PACNUM(nolign-1) <> ""
+  Read [K4]SPD0 = [M:YSPK2]VCRTYP(nolign-1);[M:YSPK2]VCRNUM(nolign-1);[M:YSPK2]VCRLIN(nolign-1);[M:YSPK2]PACNUM(nolign-1);
+&                 [M:YSPK2]PACIND(nolign-1);[M:YSPK2]PACSEQ(nolign-1);[M:YSPK2]VCRSEQ(nolign-1)
+  If fstat = 0
+    [K4]QTY    = VALEUR
+    [K4]QTYPCU = VALEUR
+    Trbegin [K4]
+      Rewrite [K4]
+    Commit
+    If fstat = 0
+      # Si modifico, cambio el estilo del campo (color verde)
+      Chgstl [M:YSPK2]QTY(nolign-1) With "MTC2"
+    Endif
+  Endif
+Endif
+End
+
+
+######################################################################################
+Funprog GET_PACNUM()
+# Función que devuelve el contador del palet (mismo contador que i3) y que empleo en la creación manual de palets de la pantalla de empaquetado
+Local Integer STAT
+Local Char CONTA_PAC
+Call NUMERO("YPAAP","11",date$,"",CONTA_PAC,STAT) From SUBANM
+
+End CONTA_PAC
+
+
+
+######################################################################################
+Funprog GET_CARGADO()
+# Función que devuelve si el palet está o no cargado y que empleo en la creación manual de palets de la pantalla de empaquetado
+Local Integer VAL_CARGADO
+
+Read [K5]BPT0 = [M:YSPK]C_TRANSPORTE
+If fstat = 0
+  If [K5]YMODENTREGA = 1
+    [L]VAL_CARGADO = 2
+  Else
+    [L]VAL_CARGADO = 1
+  Endif
+Endif
+
+End [L]VAL_CARGADO
+
+
+######################################################################################
+Subprog CHECK_CONTENEDOR(VVDP,VCON,VCID)
+Value Char VVDP
+Variable Char VCON
+Variable Char VCID
+
+Local Char CONT_CODE
+Filter [PP2] Where [PP2]PRHNUM = VVDP
+  For [PP2]
+    Read [PP7]SOQ0 = [PP2]ORINUM;[PP2]ORILIN;[PP2]ORISEQ
+    If fstat = 0
+      Read [PP6]CTRD1 = [PP7]FMINUM;[PP7]FMILIN;[PP7]FMISEQ
+      If fstat = 0
+        If [L]CONT_CODE = ""
+          [L]CONT_CODE = [PP6]CTRNUM
+        Else
+          If [L]CONT_CODE <> [PP6]CTRNUM
+            [L]CONT_CODE = ""
+            Break
+          Endif
+        Endif
+      Endif
+    Endif
+  Next
+Filter [PP2]
+
+If [L]CONT_CODE <> ""
+  Read [PP4]CTRH0 = [L]CONT_CODE
+  If fstat = 0
+    VCON = [PP4]CTRNUM
+    VCID = [PP4]CTRUID
+  Endif
+Endif
+End

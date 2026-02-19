@@ -1,0 +1,16 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Script específico YSOHCTRL
+# Aviso en pedidos de venta: YNUMEXP = ANONIMO
+
+$AVANT_VAL
+
+Local Char MSG(250)
+
+If [F:BPC]BPCNUM_0 <> "" Then
+    If [F:BPC]YNUMEXP = "ANONIMO" Then
+        MSG = "?? El cliente tiene YNUMEXP = ANONIMO. Revise el pedido."
+        Call MESSAGE(MSG,2)   # 2 = Aviso, permite continuar
+    Endif
+Endif
+
+Return

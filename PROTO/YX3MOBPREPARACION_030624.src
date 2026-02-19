@@ -1,0 +1,1548 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+####################################################################
+#**
+#* Sub que devuelve los clientes de la lista de preparción en curso
+#*
+#*!
+Subprog GETLISTCLIENTEPREP(PDVLDATDESDE, PDVLDATHASTA, QUERY, COD_CLIENTE, NOMBRE_CLIENTE)
+  # Entrada
+  Value Char PDVLDATDESDE()
+  Value Char PDVLDATHASTA()
+  Value Char QUERY()
+  # Salida
+  Variable Char COD_CLIENTE()()
+  Variable Char NOMBRE_CLIENTE()()
+
+  Local Char LREQSQL(250)(5)
+
+  Local Integer I : I = 0
+
+  If !clalev([YPBC]) Then : Local File BPCUSTOMER      [YPBC] : Endif
+  If !clalev([YPBR]) Then : Local File BPARTNER        [YPBR] : Endif
+
+  Raz LREQSQL
+
+  LREQSQL(0) = "Select BPCORD_0 "
+  LREQSQL(1) = " From "+nomap + ".STOPREH "
+  LREQSQL(2) = " Where DLVFLG_0 = 1  and  SHIDAT_0 >= '" + PDVLDATDESDE + "' and SHIDAT_0 <= '" + PDVLDATHASTA + "'"
+  LREQSQL(3) = " GROUP BY BPCORD_0"
+  LREQSQL(4) = " ORDER BY BPCORD_0 ASC"
+
+  For (Char BPCORD) From '5' Sql LREQSQL As [YAPP]
+    Read [YPBR]BPR0=[F:YAPP]BPCORD
+    If !fstat Then
+      If QUERY = '' Then
+        COD_CLIENTE(I)=[F:YAPP]BPCORD
+        NOMBRE_CLIENTE(I) = [YPBR]BPRNAM(0) + [YPBR]BPRNAM(1)
+
+        I+=1
+      Else
+        If instr(1, toupper([YPBR]BPRNAM(0) + [YPBR]BPRNAM(1)), toupper(QUERY)) > 0
+          COD_CLIENTE(I)=[F:YAPP]BPCORD
+          NOMBRE_CLIENTE(I) = [YPBR]BPRNAM(0) + [YPBR]BPRNAM(1)
+
+          I+=1
+        Endif
+      Endif
+    Endif
+  Next
+
+  Close Local File [YPBC]
+  Close Local File [YPBR]
+End
+
+####################################################################
+#**
+#* Sub que devuelve los trasportistas de la  lista de preparción en curso
+#*
+#*!
+Subprog GETLISTTRANSPREP(PDVLDATDESDE, PDVLDATHASTA, QUERY, COD_TRANSPORTISTA, TRANSPORTISTA)
+  # Entrada
+  Value Char PDVLDATDESDE()
+  Value Char PDVLDATHASTA()
+  Value Char QUERY()
+  # Salida
+  Variable Char COD_TRANSPORTISTA()()
+  Variable Char TRANSPORTISTA()()
+
+  Local Char LREQSQL(250)(5) : Raz LREQSQL
+  Local Integer I : I = 0
+
+  If !clalev([YBPT]) Then : Local File BPCARRIER [YBPT] : Endif
+
+  LREQSQL(0) = "Select BPTNUM_0 "
+  LREQSQL(1) = " From "+nomap + ".STOPREH "
+  LREQSQL(2) = " Where DLVFLG_0 = 1  and  SHIDAT_0 >= '" + PDVLDATDESDE + "' and SHIDAT_0 <= '" + PDVLDATHASTA + "' and BPTNUM_0<>''"
+  LREQSQL(3) = " GROUP BY BPTNUM_0"
+  LREQSQL(4) = " ORDER BY BPTNUM_0 ASC"
+
+  For (Char BPTNUM) From '5' Sql LREQSQL As [YAPP]
+    Read [F:YBPT]BPT0=[F:YAPP]BPTNUM
+    If !fstat Then
+      If QUERY = "" Then
+        COD_TRANSPORTISTA(I)=[F:YAPP]BPTNUM
+        TRANSPORTISTA(I) = [F:YBPT]BPTNAM
+
+        I+=1
+      Else
+        If instr(1, toupper([F:YBPT]BPTNAM), toupper(QUERY)) > 0 Then
+          COD_TRANSPORTISTA(I)=[F:YAPP]BPTNUM
+          TRANSPORTISTA(I) = [F:YBPT]BPTNAM
+
+          I+=1
+        Endif
+      Endif
+    Endif
+  Next
+
+  Close Local File [YBPT]
+End
+
+####################################################################
+#**
+#* Sub que devuelve las listas de preparación en curso
+#*
+#*!
+Subprog GETDOCUMENTOSPREPARACION(PCOD_PLANTA, PDVLDATDESDE, PDVLDATHASTA, PBPCORDDESDE, PBTNUMDESDE, PPRHNUM , PPREUSR, PPRLNUM,  PBPCORD, PBPCNAM,  PBPTNUM, PBPTDES, PDLVDAT, BLOQUEADO)
+  # Entrada
+  Value Char PCOD_PLANTA()
+  Value Char PDVLDATDESDE()
+  Value Char PDVLDATHASTA()
+  Value Char PBPCORDDESDE()
+  Value Char PBTNUMDESDE()
+  # Salida
+  Variable Char PPRHNUM()()
+  Variable Char PPREUSR()()
+  Variable Char PPRLNUM()()
+  Variable Char PBPCORD()()
+  Variable Char PBPCNAM()()
+  Variable Char PBPTNUM()()
+  Variable Char PBPTDES()()
+  Variable Char PDLVDAT()()
+  Variable Integer BLOQUEADO()
+
+  Local Char CRITERE(250)(4)
+  Local Integer ESTADO : Raz ESTADO
+  Local Integer I : I = 0
+
+  If !clalev([YPRH]) Then : Local File STOPREH     [YPRH] : Endif
+  If !clalev([YPBC]) Then : Local File BPCUSTOMER  [YPBC] : Endif
+  If !clalev([YBPT]) Then : Local File BPCARRIER   [YBPT] : Endif
+  If !clalev([YPBR]) Then : Local File BPARTNER    [YPBR] : Endif
+
+  Raz CRITERE
+
+  CRITERE(0)="[YPRH]DLVFLG = 1 & [YPRH]STOFCY = '" + PCOD_PLANTA + "'"
+
+  If PDVLDATDESDE <> "" Then
+    CRITERE(1) += " & [YPRH]SHIDAT>=[" + (PDVLDATDESDE) + "]"
+  Endif
+  If PDVLDATHASTA <> "" Then
+    CRITERE(1) += " & [YPRH]SHIDAT<=[" + (PDVLDATHASTA) + "]"
+  Endif
+  If PBPCORDDESDE <> "" Then
+    CRITERE(2) += " & [YPRH]BPCORD='" + PBPCORDDESDE + "'"
+  Endif
+  If PBTNUMDESDE <> "" Then
+    CRITERE(3) += " & [YPRH]BPTNUM='" + PBTNUMDESDE + "'"
+  Endif
+
+  Filter [F:YPRH] Where evalue(CRITERE)
+
+  For [F:YPRH]
+    ESTADO = func ESTADO_VALE([F:YPRH]PRHNUM)
+    If ESTADO <> 3
+      PPRHNUM(I)=[F:YPRH]PRHNUM
+      PPREUSR(I)=[F:YPRH]PREUSR
+      PPRLNUM(I)=[F:YPRH]PRLNUM
+      PBPCORD(I)=[F:YPRH]BPCORD
+      PBPTNUM(I)=[F:YPRH]BPTNUM
+      PDLVDAT(I)=num$([F:YPRH]SHIDAT)
+      Read [YPBR]BPR0=[F:YPRH]BPCORD
+      If !fstat Then
+        PBPCNAM(I) = [YPBR]BPRNAM(0) + [YPBR]BPRNAM(1)
+      Endif
+      If [F:YPRH]BPTNUM<>""
+        Read [YBPT]BPT0=[F:YPRH]BPTNUM
+        If !fstat Then
+          PBPTDES(I) = [YBPT]BPTNAM
+        Endif
+      Endif
+      BLOQUEADO(I) = [YPRH]YAPPWIP
+      I+=1
+    Endif
+
+    Next
+
+  Close Local File [YPRH], [YPBC], [YPBR]
+End
+
+##########################################################
+#**
+#*Estado de empaquetamiento del vale de preparación
+#*
+#* @param PPRHNUM
+#*!
+Funprog ESTADO_VALE(PPRHNUM)
+Value Char    PPRHNUM
+
+Local Integer ZEST
+Local Integer CONT_TOTAL
+Local Integer EN_CURSO
+
+If !clalev([YP01]) Then : Local File YSPACK   [YP01] : Endif
+If !clalev([YP02]) Then : Local File STOPRED  [YP02] : Endif
+
+For [YP01] Where [YP01]VCRNUM = PPRHNUM
+  [L]CONT_TOTAL += 1
+Next
+
+If [L]CONT_TOTAL = 0
+  ZEST = 1 # Estado = En Espera
+Else
+  Filter [YP02] Where [YP02]PRHNUM = PPRHNUM Order By [YP02]PRELIN Asc
+    For [YP02]
+      If [YP02]YQTYSTU < [YP02]QTYSTU
+        [L]EN_CURSO = 2
+        Break
+      Endif
+    Next
+  Filter [YP02]
+
+  If [L]EN_CURSO = 2
+    ZEST = 2 # Estado = En Curso
+  Else
+    ZEST = 3 # Estado = Preparado
+  Endif
+Endif
+
+
+Close Local File [YP01]
+Close Local File [YP02]
+End ZEST
+
+Subprog PREPCONTROLWIP(COD_PREPARACION, ESTADO, USUARIO)
+  # Entrada
+  Value Char COD_PREPARACION
+  # Salida
+  Variable Integer ESTADO
+  Variable Char USUARIO
+
+  ESTADO = -1
+
+  If !clalev([SPH]) : Local File STOPREH [SPH] : Endif
+
+  Read [SPH]PRH0 = COD_PREPARACION
+  If !fstat Then
+    ESTADO = [SPH]YAPPWIP
+    USUARIO = [SPH]YUSUARIOWIP
+  Endif
+
+  Close Local File [SPH]
+End
+
+Subprog PREPCAMBIOWIP(PCOD_PREPARACION, PWIP, PUSUARIO, PRES, PMESS)
+  # Entrada
+  Value Char PCOD_PREPARACION
+  Value Integer PWIP
+  Value Char PUSUARIO
+  # Salida
+  Variable Integer PRES
+  Variable Char PMESS
+
+  PRES = 100
+  PMESS = "Error al actualizar WIP"
+
+  If !clalev([SPH]) : Local File STOPREH [SPH] : Endif
+
+  Read [SPH]PRH0 = PCOD_PREPARACION
+  If !fstat Then
+    Trbegin [SPH]
+    If !fstat Then
+      [SPH]YAPPWIP = PWIP
+      [SPH]YUSUARIOWIP = PUSUARIO
+      Rewrite [SPH]
+      If !fstat Then
+        Commit
+        PRES = 200
+        PMESS = "Actualización WIP correcta"
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+
+  Close Local File [SPH]
+End
+
+####################################################################
+#**
+#* Sub que devuelve el detalle de la lista de preparación
+#* También devuelve si hay algún bulto no terminado de la lista de preparación
+#* Si no hay ninguno, lo crea
+#*
+#*!
+Subprog DETALLEPREPARACION(PPRHNUM , PPRELIN, PORINUM, PORILIN,  PITMREF, PITMDES1,  PQTYSTU, PYQTYSTU,  PALLQTY, PPENDIENTE,  PSERNUM, PLOT, PCONTENEDOR, PYCOMCARGA, PYCOMPREPARA, PPACNUM, PRES,
+& PMESS)
+  # Entrada
+  Value Char PPRHNUM()
+  # Salida 1
+  Variable Integer PPRELIN()
+  Variable Char PORINUM()()
+  Variable Integer PORILIN()
+  Variable Char PITMREF()()
+  Variable Char PITMDES1()()
+  Variable Decimal PQTYSTU()
+  Variable Decimal PYQTYSTU()
+  Variable Decimal PALLQTY()
+  Variable Decimal PPENDIENTE()
+  Variable Char PSERNUM()
+  Variable Char PLOT()
+  Variable Char PCONTENEDOR()
+  Variable Char PYCOMCARGA()
+  Variable Char PYCOMPREPARA()
+  # Salida 2
+  Variable Char PPACNUM()
+  Variable Char PRES
+  Variable Char PMESS
+
+  Local Char PACNUM(30)
+  Local Char PCK(10)
+  Local Char LREQSQL(250)(14)
+
+  PRES="800"
+  PMESS="No hay artículos"
+
+  If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
+  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
+  If !clalev([YSOH]) Then : Local File SORDER      [YSOH] : Endif
+
+
+  Local Integer I       : I = 0
+
+  Raz LREQSQL
+
+
+  LREQSQL(0) = "SELECT P.PRHNUM_0, P.PRELIN_0, P.ITMREF_0, P.ITMDES1_0, P.QTYSTU_0, P.YQTYSTU_0, P.ALLQTY_0, P.ORINUM_0, P.ORILIN_0,A.QTYSTU_0 as QTYSTUA, S.SERNUM_0, S.LOT_0, S.SLO_0, S.LPNNUM_0, SO"
+&  + ".YCOMCARGA_0, SO.YCOMPREPARA_0 "
+  LREQSQL(1) = " FROM " + nomap + ".STOPRED P INNER JOIN " + nomap + ".STOALL A ON P.PRHNUM_0=A.VCRNUM_0 AND P.PRELIN_0=A.VCRLIN_0 "
+  LREQSQL(2) = " LEFT JOIN " + nomap + ".STOCK S ON A.STOCOU_0=S.STOCOU_0 INNER JOIN " + nomap + ".SORDER SO ON P.ORINUM_0=SO.SOHNUM_0 "
+  LREQSQL(3) = " WHERE P.PRHNUM_0='" + PPRHNUM+"'"
+  LREQSQL(4) = " ORDER BY P.PRELIN_0 "
+
+For (Char PRHNUM,Integer PRELIN,Char ITMREF,Char ITMDES1(250),Decimal QTYSTU,Decimal YQTYSTU,Decimal ALLQTY,Char ORINUM,Integer ORILIN, Decimal QTYSTUA,Char SERNUM,Char LOT,Char SLO, Char LPNNUM, Char
+& YCOMCARGA, Char YCOMPREPARA) From '5' Sql LREQSQL As [YAPP]
+    Read [F:YSOH]SOH0=[F:YAPP]ORINUM
+    If !fstat Then
+      If [F:YSOH]CDTSTA=1 and [F:YSOH]HLDSTA=1 Then
+        If [F:YAPP]ALLQTY<>0
+          PPRELIN(I)    = [F:YAPP]PRELIN
+          PORINUM(I)    = [F:YAPP]ORINUM
+          PORILIN(I)    = [F:YAPP]ORILIN
+          PITMREF(I)    = [F:YAPP]ITMREF
+          PITMDES1(I)   = [F:YAPP]ITMDES1
+          PQTYSTU(I)    = [F:YAPP]QTYSTUA
+          PALLQTY(I)    = [F:YAPP]QTYSTUA
+          PSERNUM(I)    = [F:YAPP]SERNUM
+          PLOT(I)       = [F:YAPP]LOT
+          PCONTENEDOR(I)= [F:YAPP]LPNNUM
+          PYCOMCARGA(I) = [F:YAPP]YCOMCARGA
+          PYCOMPREPARA(I) = [F:YAPP]YCOMPREPARA
+          Raz LREQSQL
+           If [F:YAPP]SERNUM<>"" or [F:YAPP]LOT<>""
+             LREQSQL(0)="select sum(QTYPCU_0) AS QTY FROM " + nomap + ".YSPACKD "
+             LREQSQL(1)=" WHERE VCRNUM_0='"+PPRHNUM+"' AND VCRLIN_0="+num$([F:YAPP]PRELIN)
+             If [F:YAPP]SERNUM<>""
+                  LREQSQL(2)=" AND SERNUM_0='"+[F:YAPP]SERNUM+"'"
+             Elsif [F:YAPP]LOT<>""
+                LREQSQL(2)=" AND LOT_0='"+[F:YAPP]LOT+"'"
+             Endif
+             For (Decimal QTY) From '5' Sql LREQSQL(0..3) As [YAPP2]
+                PPENDIENTE(I) = PQTYSTU-[YAPP2]QTY
+                PYQTYSTU(I)   = [F:YAPP2]QTY
+             Next
+          Else
+            PPENDIENTE(I) = PQTYSTU-[F:YAPP]YQTYSTU
+            PYQTYSTU(I)   = [F:YAPP]YQTYSTU
+          Endif
+          I+=1
+          PRES="200"
+          PMESS="Lectura correcta"
+       Endif
+      Endif
+    Endif
+  Next
+
+  #BUSCAMOS SI ESTA LISTA DE PREPARACIÓN TIENE ALGÚN BULTO sin TERMINAR
+  PACNUM=""
+  Filter [F:YSPH] Where VCRNUM=PPRHNUM and YCERRADO<>2
+  For [F:YSPH]
+    PACNUM=[F:YSPH]PACNUM
+  Next
+  PPACNUM=PACNUM
+
+  Close Local File [YYPR2]
+  Close Local File [YSPH]
+  Close Local File [YSOH]
+End
+
+######################################################################################
+#**
+#* GETLSSPACK
+#* APP: devuelve   todos los bultos de una preparación, y sus líneas
+#*
+#*
+#* @param PPRHNUM, preparación
+#*
+#* @param CAMPO1: campo izquierdo: BULTO: No bulto, LINEA: ref. artículo
+#* @param CAMPO2: campo descripción: BULTO: peso, largo, ancho, alto, LINEA: descrip. artículo
+#* @param CAMPO3: campo de cola, numérico: BULTO: vacio, LINEA: unidadeas de producto
+#* @param TIPOCAMPO: "B" si es bulto. "L" si es la línea del producto.
+#* @param PPACNUM
+#* @param PPACIND
+#* @param PITMREF
+#* @param PITMDES1
+#* @param PSERNUM
+#* @param PQTYPCU
+#* @param PPESONETO
+#* @param PCAMION
+#* @param PRES
+#* @param PMESS
+#*
+#*!
+Subprog DETALLEEMPAQUETADOPREPARACION(PPRHNUM, PCAMPO1, PCAMPO2, PCAMPO3,  PTIPOCAMPO,  PPACNUM , PPRELIN, PPACIND, PITMREF, PITMDES1, PSERNUM, PLOT, PSLO,  PQTYPCU,  PCAMION)
+  # Entrada
+  Value Char PPRHNUM()
+  # Salida
+  Variable Char PCAMPO1()()
+  Variable Char PCAMPO2()()
+  Variable Char PCAMPO3()()
+  Variable Char PTIPOCAMPO()()
+  Variable Char PPACNUM()()
+  Variable Integer PPRELIN()
+  Variable Integer PPACIND()
+  Variable Char PITMREF()()
+  Variable Char PITMDES1()()
+  Variable Char PSERNUM()()
+  Variable Char PLOT()()
+  Variable Char PSLO()()
+  Variable Decimal PQTYPCU()
+  Variable Char PCAMION()()
+
+  Local Decimal  PESONETO
+
+
+  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
+  If !clalev([YSPD]) Then : Local File YSPACKD      [YSPD] : Endif
+
+
+  Local Integer I       : I = 0
+
+  #Filtramos todos los bultos de la preparacion
+  Filter [F:YSPH] Where VCRNUM=PPRHNUM
+    For [F:YSPH]
+      PCAMPO1(I)=[F:YSPH]PACNUM
+      PCAMPO2(I)="Peso: " + num$([F:YSPH]YBRWEI) + "kg" + " Largo: "+ num$([F:YSPH]YPCKLEN)+ "cm Ancho: "+ num$([F:YSPH]YPCKWID)+"cm Alto: "+ num$([F:YSPH]YPCKHEI) +"cm" - "Camión: "+[F:YSPH]YCAMION
+      PCAMPO3(I)=""
+      If [F:YSPH]YCERRADO=2 Then
+        PTIPOCAMPO(I)="C"
+      Else
+        PTIPOCAMPO(I)="B"
+      Endif
+      #Filtramos todos los componentes de los bultos
+      I+=1
+      Filter [YSPD] Where PACNUM=[F:YSPH]PACNUM  Order By PACIND
+      For [F:YSPD]
+        #Campos que se verán en la rejilla
+        PCAMPO1(I)=[F:YSPD]ITMREF
+        PCAMPO2(I)=[F:YSPD]ITMDES1
+        If [F:YSPD]SERNUM<>"" Then : PCAMPO2(I)+=" Serie: "+[F:YSPD]SERNUM: Endif
+        If [F:YSPD]LOT<>""    Then : PCAMPO2(I)+=" Lote: "+[F:YSPD]LOT: Endif
+        PCAMPO3(I)= num$([F:YSPD]QTYPCU)
+        PTIPOCAMPO(I)="D"
+        #Campos que no se ven, pero pueden ser interesantes
+        PPACNUM(I)=[F:YSPH]PACNUM
+        PPRELIN(I)=[F:YSPD]VCRLIN
+        PPACIND(I)=[F:YSPD]PACIND
+        PITMREF(I)=[F:YSPD]ITMREF
+        PITMDES1(I)=[F:YSPD]ITMDES1
+        PSERNUM(I)=[F:YSPD]SERNUM
+        PLOT(I)=[F:YSPD]LOT
+        PSLO(I)=[F:YSPD]SLO
+        PQTYPCU(I)=[F:YSPD]QTYPCU
+        PCAMION(I)=[F:YSPH]YCAMION
+        I+=1
+      Next # De la línea de bulto YPACKD
+  Next #Del bulto, YPACK
+PPESONETO=PESONETO
+
+  Close Local File [YSPD]
+  Close Local File [YSPH]
+End
+
+####################################################################
+#**
+#* RMSPACKDET
+#* APP: borra una línea del empaquetado
+#*
+#* @param PPACNUM
+#* @param PPACIND
+#* @param PRES
+#* @param PMESS
+#*!
+Subprog BORRARLINEAEMPAQUETADO(PPACNUM, PPACIND, PRES, PMESS)
+  # Entrada
+  Value Char PPACNUM()
+  Value  Integer PPACIND
+  # Salida
+  Variable Char PRES()
+  Variable Char PMESS()
+
+
+  If !clalev([YSPD]) Then : Local File YSPACKD      [YSPD] : Endif
+  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
+  If !clalev([YPRE]) Then : Local File STOPRED      [YPRE] : Endif
+
+  Read [F:YSPD]YSPD0= PPACNUM;PPACIND
+  If !fstat Then
+    Read  [F:YPRE]PRE0=[F:YSPD]VCRNUM;[F:YSPD]VCRLIN
+    If !fstat Then
+      [F:YPRE]YQTYSTU=[F:YPRE]YQTYSTU-[F:YSPD]QTYPCU
+      Rewrite [F:YPRE]
+      Delete [F:YSPD]
+      #Si no quedan lineas borramos el paquete
+      Filter [F:YSPD] Where PACNUM=PPACNUM
+      If rowcount([F:YSPD])=0 Then
+        Read [F:YSPH]YSPH0=PPACNUM
+        If !fstat Then
+          Delete [F:YSPH]
+        Endif
+      Endif
+      PRES="200"
+      PMESS="Borrado correcto"
+    Else
+      PRES="110"
+      PMESS="No existe el documento de prep.: " + [F:YSPD]VCRNUM + ", linea: "+ num$([F:YSPD]VCRLIN)
+    Endif
+  Else
+    PRES="100"
+    PMESS="No existe el bulto: " + PPACNUM + ", linea: "+ num$(PPACIND)
+  Endif
+  Close Local File [YSPD]
+  Close Local File [YSPH]
+End
+
+####################################################################
+#**
+#* Sub que comprueba el código de barras que se le pasa,
+#* Comprueba que es válido para la lista de preparación.
+#*
+#* 1º Número de serie
+#* 2º EAN
+#* 3º Contenedor, LPN, para el caso del prepiking
+#* Si es válido, rellena YQTYPCU
+#* Devuelve el nº de Bulto, si no existe, lo crea
+#*
+#* PRES: 200, OK
+#*
+#* PMES: Mensaje con lo que ha hecho
+#*!
+Subprog NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PPACNUM, PRES, PMESS)
+  # ENTRADA
+  Value Char PPRHNUM()
+  Value Char PCODIGOBARRAS()
+  Value Char PUSUARIO()
+  # SALIDA
+  Variable Char PPACNUM()
+  Variable Char PRES
+  Variable Char PMESS
+
+  Local  Integer CANTIDAD
+  Local Char INFNAM
+  Local Char DESTINO
+  Local Char PRELPN
+
+  If !clalev([YYPRE]) Then : Local File STOPRED      [YYPRE] : Endif
+  If !clalev([YITM]) Then : Local File ITMMASTER      [YITM] : Endif
+  If !clalev([YSTO]) Then : Local File STOCK      [YSTO] : Endif
+  If !clalev([YSTA]) Then : Local File STOALL      [YSTA] : Endif
+  If !clalev([YSPD]) Then : Local File YSPACKD      [YSPD] : Endif
+
+  # Comprobamos primero que sea un código válido (puede ser un contenedor, un ean, un lote o un número de serie)
+    Filter [YSTO] Where LPNNUM = PCODIGOBARRAS
+    # Comprobamos si existe algún contendor en stock con este código
+    If rowcount([YSTO]) = 0
+      Filter [YSTO]
+      # Comprobamos si extiste algún artículo con ese EAN
+      Filter [YITM] Where EANCOD = PCODIGOBARRAS
+      If rowcount([YITM]) = 0
+        # Comprobamos si existe algún lote en stock con ese código
+        Filter [YSTO] Where LOT = PCODIGOBARRAS
+        If rowcount([YSTO]) = 0
+          Filter [YSTO]
+          Filter [YSTO] Where SERNUM = PCODIGOBARRAS
+          If rowcount([YSTO]) = 0
+             PRES = "110"
+             PMESS = "El código leído no es válido"
+             Goto FIN
+          Endif
+        Endif
+      Endif
+    Endif
+
+    Filter [F:YSTO]
+    Filter [F:YITM]
+
+
+
+    Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
+
+    PRES="100"
+    PMESS="El producto leído no se encuentra en esta preparación"
+
+    CANTIDAD=1
+
+
+    #Testeamos si es un LPN, para ello debe empezar por "PP"
+    If left$(PCODIGOBARRAS,2)=PRELPN Then
+      PRES="160"
+      PMESS="El prepicking leído no está en esta preparación"
+      Filter [F:YYPRE] Where PRHNUM=PPRHNUM Order By PRELIN
+      For [F:YYPRE]
+        Filter [F:YSTO] Where  LPNNUM=PCODIGOBARRAS and ITMREF=[F:YYPRE]ITMREF
+        For [F:YSTO]
+            If [F:YYPRE]QTYSTU>[F:YYPRE]YQTYSTU Then
+              Trbegin [F:YYPRE]
+              If [F:YSTO]QTYSTU > [F:YYPRE]QTYSTU Then
+                CANTIDAD=[F:YYPRE]QTYSTU
+              Else
+                CANTIDAD=[F:YSTO]QTYSTU
+              Endif
+
+              [F:YYPRE]YQTYSTU=[F:YYPRE]YQTYSTU+CANTIDAD
+
+              Call PUTYSPACKDET(PPRHNUM, [F:YYPRE]PRELIN, CANTIDAD, PPACNUM,"", "", PCODIGOBARRAS, PUSUARIO) From YAPPLIB
+              Rewrite [F:YYPRE]
+              If !fstat Then
+                Commit
+              Else
+                Rollback
+              Endif
+              PRES="200"
+              PMESS="Correcto"
+            Else
+            Endif
+        Next
+      Next
+    Else
+      Filter [F:YYPRE] Where PRHNUM=PPRHNUM Order By PRELIN
+      For [F:YYPRE]
+        Read [YITM]ITM0=[F:YYPRE]ITMREF
+        If !fstat Then
+          #Comprobamos núm de serie
+          If [YITM]SERMGTCOD <> 1 Then
+            #Numero de serie
+            Read [F:YSTO]STO5=[F:YYPRE]ITMREF;PCODIGOBARRAS
+            If !fstat Then
+                #Si está en stock, buscamos que esté asignada a esta preparación STOALL
+                Filter [F:YSTA] Where VCRNUM=[F:YYPRE]PRHNUM and VCRLIN=[F:YYPRE]PRELIN and ITMREF= [F:YYPRE]ITMREF and STOCOU=[F:YSTO]STOCOU
+                If rowcount([F:YSTA])=0 Then
+                    PRES="120"
+                    PMESS="Número de serie no asignado a esta preparación"
+                Else
+                  For [F:YSTA]
+                    #Por último tenemos que ver si el número de serie está en un bulto YPACKD
+                    PRES="200"
+                    PMESS="Número de serie correcto"
+                    Filter [F:YSPD] Where VCRNUM=[F:YYPRE]PRHNUM and VCRLIN=[F:YYPRE]PRELIN and SERNUM=PCODIGOBARRAS
+                    #Si existe, incorrecto
+                    For [F:YSPD]
+                      PRES="101"
+                      PMESS="Ya está utilizado el número de serie: " + PCODIGOBARRAS
+                    Next
+                    If PRES="200" Then
+                      Trbegin [F:YYPRE]
+                      [F:YYPRE]YQTYSTU=[F:YYPRE]YQTYSTU+CANTIDAD
+                      Call PUTYSPACKDET(PPRHNUM, [F:YYPRE]PRELIN, CANTIDAD, PPACNUM, PCODIGOBARRAS,"","", PUSUARIO) From YAPPLIB
+                      Rewrite [F:YYPRE]
+                      If !fstat Then
+                        Commit
+                      Else
+                        Rollback
+                      Endif
+                      PRES="200"
+                      PMESS="Correcto"
+                      Break
+                    Endif
+                  Next
+              Endif #DEL rowcount
+            Endif
+          Else
+            #Número de lote
+            If [YITM]LOTMGTCOD <> 1  Then
+              #Lote
+              Infbox("lot: " -[F:YYPRE]ITMREF-PCODIGOBARRAS)
+              Read [F:YSTO]YSTO7=[F:YYPRE]ITMREF;PCODIGOBARRAS
+              If !fstat Then
+                  #Si está en stock, buscamos que esté asignada a esta preparación STOALL
+                  Filter [F:YSTA] Where VCRNUM=[F:YYPRE]PRHNUM and VCRLIN=[F:YYPRE]PRELIN and ITMREF= [F:YYPRE]ITMREF and STOCOU=[F:YSTO]STOCOU
+                  If rowcount([F:YSTA])=0 Then
+                      PRES="120"
+                      PMESS="Lote no asignado a esta preparación"
+                  Else
+                    For [F:YSTA]
+                      #Por último tenemos que ver si el número de serie está en un bulto YPACKD
+                      PRES="200"
+                      PMESS="Lote correcto"
+                      Filter [F:YSPD] Where VCRNUM=[F:YYPRE]PRHNUM and VCRLIN=[F:YYPRE]PRELIN and SERNUM=PCODIGOBARRAS
+                      #Si existe, incorrecto
+                      For [F:YSPD]
+                        Infbox("exite el bulto")
+                        PRES="101"
+                        PMESS="Ya está utilizado el lote: " + PCODIGOBARRAS
+                      Next
+                      If PRES="200" Then
+                        If [F:YYPRE]QTYSTU>[F:YYPRE]YQTYSTU Then
+                          Infbox("damos el alta: "-num$([F:YYPRE]YQTYSTU)-num$(CANTIDAD)-num$([F:YYPRE]QTYSTU) )
+                          Trbegin [F:YYPRE]
+                          [F:YYPRE]YQTYSTU=[F:YYPRE]YQTYSTU+CANTIDAD
+                          Call PUTYSPACKDET(PPRHNUM, [F:YYPRE]PRELIN, CANTIDAD, PPACNUM, "", PCODIGOBARRAS,"", PUSUARIO) From YAPPLIB
+                          Rewrite [F:YYPRE]
+                          If !fstat Then
+                            Commit
+                          Else
+                            Rollback
+                          Endif
+                          PRES="200"
+                          PMESS="Correcto"
+                          Break
+                        Else
+                          PRES="150"
+                          PMESS="Artículo " + [F:YYPRE]ITMREF - "Lote:-"- PCODIGOBARRAS -"totalmente recogido."
+                        Endif # De la cantidad ya recogida [F:YYPRE]QTYSTU>[F:YYPRE]YQTYSTU
+                      Endif
+                    Next
+                Endif #DEL rowcount
+              Endif
+              #Si no es correcto:
+            Else
+            #por código EAN
+            If [F:YITM]EANCOD=PCODIGOBARRAS
+
+              # JMF - 18.09.2023
+              # Comprobamos en asignaciones y stock si el artículo tiene número de contenedor asignado
+              Filter [F:YSTA] Where VCRNUM = [F:YYPRE]PRHNUM and VCRLIN=[F:YYPRE]PRELIN
+              Local Integer PSTOCOU
+              For [F:YSTA]
+                PSTOCOU = [F:YSTA]STOCOU
+              Next
+              Infbox("STOCOU: " + num$(PSTOCOU))
+
+              Local Char PLPNNUM
+              Filter [F:YSTO] Where STOCOU = PSTOCOU
+              For [F:YSTO]
+                PLPNNUM = [F:YSTO]LPNNUM
+              Next
+
+
+              If PLPNNUM <> "" Then
+                PRES = "155"
+                PMESS = "Artículo dentro de contenedor, no se puede utilizar el EAN."
+
+              Else
+                If [F:YYPRE]QTYSTU>[F:YYPRE]YQTYSTU Then
+                  Trbegin [F:YYPRE]
+                  [F:YYPRE]YQTYSTU=[F:YYPRE]YQTYSTU+CANTIDAD
+                  Call PUTYSPACKDET(PPRHNUM, [F:YYPRE]PRELIN, CANTIDAD, PPACNUM,"", "","",PUSUARIO) From YAPPLIB
+                  Rewrite [F:YYPRE]
+                  If !fstat Then
+                    Commit
+                  Else
+                    Rollback
+                  Endif
+                  PRES="200"
+                  PMESS="Correcto"
+                  Break
+                Else
+                 # Infbox("NO SUMA")
+                  PRES="150"
+                  PMESS="Artículo " + [F:YYPRE]ITMREF - "totalmente recogido."
+                  #Break, SEGUIMOS POR SI HAY OTRO ARTÍCULO
+                Endif
+            Endif
+          Endif #Si coincide el código de barras
+        Endif
+       Endif
+      Endif   #No exite artículo
+    Next
+  Endif #prepicking
+
+  $FIN
+
+  Close Local File [YYPRE]
+  Close Local File [YITM]
+  Close Local File [YSTO]
+  Close Local File [YSTA]
+  Close Local File [YSPD]
+
+End
+
+########################################################
+#**
+#* Funcion que devuelve el valor de los parámetros para el informe y para el destino
+#*!
+Subprog PARAM_YSPACKD(PINFNAM, PDESTINO, PPRELPN)
+Variable Char    PINFNAM
+Variable Char    PDESTINO
+Variable Char    PPRELPN
+
+If !clalev([YTAB]) Then : Local File ATABDIV [YTAB] : Endif
+
+ Filter [F:YTAB] Where NUMTAB = 6001
+  For [F:YTAB]
+    Case [F:YTAB]A1
+      When "ETIQUETABULTO"   :    PINFNAM=[F:YTAB]A2
+      When "DESTINOBULTO"  :   PDESTINO=[F:YTAB]A2
+      When "PRELPN"  :   PPRELPN=[F:YTAB]A2
+    Endcase
+  Next
+
+ Close Local File [YTAB]
+End
+
+####################################################################
+#**
+#* Sub que crea los registros en las tablas YPACKD
+#*
+#* Se le pasa el número del listado de preparación, linea, cantidad  y el número de bulto
+#* la cantidad normalmente será  1
+#*!
+
+Subprog PUTYSPACKDET(PPRHNUM, PPRELIN ,PQTYPCU, PPACNUM, PSERNUM, PLOT, PLPNNUM, PUSUARIO)
+  Value Char PPRHNUM()
+  Value  Integer PPRELIN
+  Value Integer PQTYPCU
+  Variable Char PPACNUM()
+  Value Char PSERNUM()
+  Value Char PLPNNUM()
+  Value Char PUSUARIO()
+
+  Local Integer I
+  Local Integer NUM_LINEA
+
+  Local Char PRES, PMESS
+
+  If !clalev([YSPD]) Then : Local File YSPACKD      [YSPD] : Endif
+  If !clalev([YPRE]) Then : Local File STOPRED      [YPRE] : Endif
+  If !clalev([YCONT]) Then : Local File YSPACKD      [YCONT] : Endif
+
+   Local Char PCK
+    PCK=""
+    If PPACNUM="" Then
+        Call PUTNEWYSPACK(  PPRHNUM, PCK, PUSUARIO, PPACNUM, PRES, PMESS)
+    Endif
+
+
+  #Filtramos por las cantidades pendientes de poner en un bulto
+  I=0
+  Filter [YCONT] Where VCRNUM=PPRHNUM
+    If !fstat Then
+      NUM_LINEA=rowcount([YCONT])+1
+    Else
+      NUM_LINEA=1
+    Endif
+  Filter [F:YPRE] Where PRHNUM=PPRHNUM and PRELIN =PPRELIN
+  For [F:YPRE]
+    I=I+1
+    [YSPD]VCRNUM=PPRHNUM
+    [YSPD]VCRLIN=PPRELIN
+    [YSPD]STOFCY="11"
+    [YSPD]CPY="1"
+    [YSPD]VCRTYP=3
+    [YSPD]PACSEQ=I
+    [YSPD]PACNUM=PPACNUM
+    [YSPD]PACIND=NUM_LINEA
+    [YSPD]PCK=""
+    [YSPD]ITMREF=[F:YPRE]ITMREF
+    [YSPD]ITMDES1=[F:YPRE]ITMDES1
+    [YSPD]QTYPCU=PQTYPCU
+    If PSERNUM<>"" Then
+      [YSPD]SERNUM=PSERNUM
+    Endif
+    If PLPNNUM<>"" Then
+      [YSPD]YLPNNUM=PLPNNUM
+    Endif
+    If PLOT<>"" Then
+      [YSPD]LOT=PLOT
+    Endif
+    Write [YSPD]
+    If !fstat Then
+    #  Commit
+    Else
+    #  Rollback
+    Endif
+  Next
+  Close Local File [YSPD]
+  Close Local File [YPRE]
+  Close Local File [YCONT]
+End
+
+Subprog PUTNEWYSPACK(  PPRHNUM, PPCK, PUSUARIO, PPACNUM, PRES, PMESS)
+  Variable Char PPRHNUM()
+  Variable Char PPCK()
+  Variable Char PUSUARIO()
+  Variable Char PPACNUM()
+  Variable Char PRES()
+  Variable Char PMESS()
+
+  If !clalev([YYSPH]) Then : Local File YSPACK      [YYSPH] : Endif
+  If !clalev([YYSPH2]) Then : Local File YSPACK      [YYSPH2] : Endif
+
+  Infbox(PUSUARIO)
+  #
+  # Buscamos el contador para el nuevo bulto
+  #
+  Local Integer STAT
+  Local Char LCONTADOR
+  Local Integer SECUENCIA : SECUENCIA = 1
+
+  Call NUMERO("YPAAP","11",date$,"",LCONTADOR,STAT) From SUBANM
+
+  # JMF - 30.11.2023
+  # Comprobamos si ya existe algún registro en la tabla YSPACK para actualizar el número de secuencia
+  Filter [YYSPH2] Where VCRNUM = PPRHNUM Order By PACSEQ Desc
+  If rowcount([YYSPH2]) > 0
+    Read [YYSPH2] First
+    SECUENCIA = [YYSPH2]PACSEQ + 1
+  Endif
+  Filter [YYSPH2]
+
+  [YYSPH]STOFCY="11"
+  [YYSPH]CPY="1"
+  [YYSPH]PACSEQ=SECUENCIA
+  [YYSPH]VCRTYP=3
+  [YYSPH]VCRNUM=PPRHNUM
+  [YYSPH]PACNUM=LCONTADOR
+  [YYSPH]PCK=PPCK
+  [YYSPH]PREUSR = PUSUARIO
+  [YYSPH]YCARGADO = 1
+  Write [YYSPH]
+  If !fstat Then
+    PRES="200"
+    PMESS="OK"
+  Else
+    PRES="100"
+    PMESS="Problema dando de alta el bulto"
+    End
+  Endif
+
+PPACNUM=LCONTADOR
+  Close Local File [YYSPH]
+  Close Local File [YYSPH2]
+End
+
+#**
+#* APP: Sub que devuelve el detalle del bulto que vamos a cerrar
+#*
+#*!
+Subprog DETALLEBULTO(PPACNUM , PPACIND, PITMREF, PITMDES1, PSERNUM,  PQTYPCU, PPESONETO, PRES, PMESS)
+  # Entrada
+  Value Char PPACNUM()
+  # Salida 1
+  Variable Integer PPACIND()
+  Variable Char PITMREF()()
+  Variable Char PITMDES1()()
+  Variable Char PSERNUM()()
+  Variable Decimal PQTYPCU()
+  # Salida 2
+  Variable Decimal PPESONETO
+  Variable Char PRES
+  Variable Char PMESS
+
+  Local Decimal  PESONETO
+
+  If !clalev([YSPD]) Then  : Local File YSPACKD      [YSPD]  : Endif
+  If !clalev([YITM]) Then  : Local File ITMMASTER    [YITM]  : Endif
+  If !clalev([YTPK]) Then  : Local File YTMPYPCKD    [YTPK]  : Endif
+  If !clalev([YTPK2]) Then : Local File YTMPYPCKD    [YTPK2] : Endif
+
+  Local Integer LISTMAX : LISTMAX = 199
+  Local Integer I       : I = 0
+    # Sin numero de serie
+    PRES = '100'
+    PMESS = 'Problemas'
+    PESONETO=0
+
+    Filter [F:YTPK] Where PACNUM=PPACNUM
+    For [F:YTPK]
+      Delete [F:YTPK]
+    Next
+
+    # Rellenamos la tabla temporal para que se agrupe en pantalla por
+    #   1- Si numero de serie->número de serie
+    #   2- Si viene de un LPN: LPN+ITMREF
+    #   3- Si viene del código ean, por artículo
+    #
+    Filter [YSPD] Where PACNUM=PPACNUM  Order By PACIND
+    For [F:YSPD]
+      Read [F:YTPK]YTPK0=PPACNUM;[F:YSPD]ITMREF;[F:YSPD]YLPNNUM;[F:YSPD]SERNUM
+      Trbegin [F:YTPK]
+      [F:YTPK]PACNUM=PPACNUM
+      [F:YTPK]ITMREF=[F:YSPD]ITMREF
+      [F:YTPK]SERNUM=[F:YSPD]SERNUM
+      [F:YTPK]LPNNUM=[F:YSPD]YLPNNUM
+      If !fstat Then
+        [F:YTPK]QTYPCU= [F:YTPK]QTYPCU+[F:YSPD]QTYPCU
+        Rewrite  [F:YTPK]
+      Else
+        [F:YTPK]ITMDES=[F:YSPD]ITMDES1
+        [F:YTPK]QTYPCU=[F:YSPD]QTYPCU
+        Write  [F:YTPK]
+      Endif
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+      Read [F:YITM]ITM0=[F:YSPD]ITMREF
+      If !fstat Then
+        PESONETO = PESONETO +([F:YITM]ITMWEI*[F:YSPD]QTYPCU)
+#        PESONETO = PESONETO + [F:YTIM]
+      Endif
+      I+=1
+    Next
+
+    I=0
+    Filter [F:YTPK2] Where PACNUM=PPACNUM
+    For [F:YTPK2]
+      PPACIND(I)=I
+      PITMREF(I)= [F:YTPK2]ITMREF
+      PITMDES1(I)=[F:YTPK2]ITMDES
+      If [F:YTPK2]SERNUM<>"" or [F:YTPK2]LPNNUM<>"" Then
+        If [F:YTPK2]SERNUM="" Then
+          PSERNUM(I)="Caja:" - [F:YTPK2]LPNNUM
+        Else
+          PSERNUM(I)="N.Ser.:" - [F:YTPK2]SERNUM
+        Endif
+      Endif
+      PQTYPCU(I)=[F:YTPK2]QTYPCU
+      PRES = '200'
+      PMESS = 'OK'
+      I+=1
+      If I>LISTMAX Then
+        Break
+      Endif
+
+    Next
+
+PPESONETO=PESONETO
+  Close Local File [YSPD]
+  Close Local File [YITM]
+  Close Local File [F:YTPK]
+  Close Local File [F:YTPK2]
+End
+
+Subprog COMPROBARKIT(PCOD_PREPARACION, PCOD_BULTO, PRES, PMESS)
+  # Entrada
+  Value Char PCOD_PREPARACION
+  Value Char PCOD_BULTO
+  # Salida
+  Variable Integer PRES
+  Variable Char PMESS
+
+  Local Integer LRET : LRET = 1
+  Local Char COD_ARTICULO_KIT(25) : Raz COD_ARTICULO_KIT
+
+  Local Decimal CANTIDAD_ANTERIOR : Raz CANTIDAD_ANTERIOR
+  Local Decimal PROPORCION        : Raz PROPORCION
+  Local Char LREQ(255)(0..1)
+
+  If !clalev([YPRHD])  : Local File STOPRED [YPRHD]  : Endif
+  If !clalev([YPRHD2]) : Local File STOPRED [YPRHD2] : Endif
+  If !clalev([YPRHD3]) : Local File STOPRED [YPRHD3] : Endif
+
+  PRES = 200
+  PMESS = "OK"
+
+  LREQ(0) = "SELECT ITMREF_0, VCRLIN_0, SUM(QTYPCU_0) AS QTYPCU_0 FROM " + nomap + ".YSPACKD WHERE VCRNUM_0 = '" + PCOD_PREPARACION + "' "
+  LREQ(1) = "AND PACNUM_0 = '" + PCOD_BULTO + "' GROUP BY ITMREF_0, VCRLIN_0 "
+
+  For (Char ITMREF, Integer VCRLIN, Decimal QTYPCU) From "5" Sql LREQ As [F:YSPAD]
+    Filter [YPRHD] Where PRHNUM = PCOD_PREPARACION and PRELIN = VCRLIN
+    Read [YPRHD] First
+    If !fstat
+      If [YPRHD]LINTYP = 3
+        # Ahora tenemos que buscar a qué artículo kit corresponde el componente (buscando hacia arriba por las líneas hasta encontrar un artículo con LINTYP_0 = 2)
+        Filter [YPRHD2] Where PRHNUM = PCOD_PREPARACION and PRELIN < [YPRHD]PRELIN and LINTYP = 2
+        Read [YPRHD2] Last
+
+        If !fstat
+          COD_ARTICULO_KIT = [YPRHD2]ITMREF
+
+          Filter [YPRHD3] Where PRHNUM = PCOD_PREPARACION and PRELIN > [YPRHD2]PRELIN
+          Local Integer I : I= 0
+          For [YPRHD3]
+            If [YPRHD3]LINTYP <> 3
+              Break
+            Endif
+
+            PROPORCION = func  GETPROPORCIONCOMPUESTOKIT(COD_ARTICULO_KIT, [YPRHD3]ITMREF)
+
+            If I = 0 Then
+              I += 1
+              CANTIDAD_ANTERIOR = func GETCANTIDADBULTO(PCOD_PREPARACION, PCOD_BULTO, [YPRHD3]ITMREF) / PROPORCION
+            Else
+              If CANTIDAD_ANTERIOR <> (func GETCANTIDADBULTO(PCOD_PREPARACION, PCOD_BULTO, [YPRHD3]ITMREF) / PROPORCION)
+                PRES = 100
+                PMESS = "Faltan componentes para el kit " + COD_ARTICULO_KIT + ". No se puede finalizar el bulto."
+              Endif
+            Endif
+          Next
+        Endif
+      Endif
+    Endif
+  Next
+  Filter [YPRHD]
+
+  Close Local File [YPRHD]
+  Close Local File [YPRHD2]
+  Close Local File [YPRHD3]
+End
+
+Funprog GETPROPORCIONCOMPUESTOKIT(COD_KIT, COD_COMPUESTO)
+  Value Char COD_KIT
+  Value Char COD_COMPUESTO
+
+  Local Decimal LRET : LRET = 1
+
+  Local Decimal CANTIDAD_BASE : Raz CANTIDAD_BASE
+
+  If !clalev([YBOM])  : Local File BOM [YBOM]   : Endif
+  If !clalev([YBOMD]) : Local File BOMD [YBOMD] : Endif
+
+  Filter [YBOM] Where ITMREF = COD_KIT and BOMALTTYP = 1 and (BOHSTRDAT <= date$ and BOHENDDAT>= date$)
+  Read [YBOM] First
+  If !fstat
+    CANTIDAD_BASE = [YBOM]BASQTY
+    Filter [YBOMD] Where ITMREF = COD_KIT and BOMALT = [YBOM]BOMALT and BOMALTTYP = 1 and (BOMSTRDAT <= date$ and BOMENDDAT>= date$)
+    For [YBOMD]
+      LRET = [YBOMD]LIKQTY / CANTIDAD_BASE
+    Next
+  Endif
+  Filter [YBOM]
+  Filter [YBOMD]
+
+  Close Local File [YBOM]
+  Close Local File [YBOMD]
+
+End LRET
+
+Funprog GETCANTIDADBULTO(PCOD_PREPARACION, PCOD_BULTO, PCOD_ARTICULO)
+  Value Char PCOD_PREPARACION
+  Value Char PCOD_BULTO
+  Value Char PCOD_ARTICULO
+
+  Local Decimal LRET : Raz LRET
+
+  If !clalev([YSPAD2]) : Local File YSPACKD [YSPAD2] : Endif
+
+  Filter [YSPAD2] Where VCRNUM = PCOD_PREPARACION and PACNUM = PCOD_BULTO and ITMREF = PCOD_ARTICULO
+  For [YSPAD2]
+    LRET += [YSPAD2]QTYPCU
+  Next
+
+  Close Local File [YSPAD2]
+End LRET
+
+#**
+#* Sub que devuelve los distintos tipos de embalajes
+#*
+#*!
+Subprog GETLISTCONTENEDORES(QUERY, PPCK, PLANDESSHO, PLBLFMT, PPCKWEI, PPCKLEN, PPCKWID,PPCKHEI)
+  # Entrada
+  Value Char QUERY
+  # Salida 1
+  Variable Char PPCK()()
+  Variable Char PLANDESSHO()()
+  Variable Char PLBLFMT()()
+  Variable Decimal   PPCKWEI()
+  Variable Decimal   PPCKLEN()
+  Variable Decimal   PPCKWID()
+  Variable Decimal   PPCKHEI()
+
+  Local Char TEMP(250)
+  Local Integer POS
+  Local Integer POS2
+  Local Integer I       : I = 0
+
+  If !clalev([YTPA]) Then : Local File TABPACKAGE      [YTPA] : Endif
+    Filter [F:YTPA] Order By PCK
+      For [F:YTPA]
+        POS=instr(1,[F:YTPA]LANDESSHO,"~")
+        POS2=instr(POS+1,[F:YTPA]LANDESSHO,"~")
+        TEMP=mid$([F:YTPA]LANDESSHO, POS+1,POS2-POS-1 )
+        If QUERY = "" or instr(1, toupper(TEMP), toupper(QUERY)) > 0 Then
+          PPCK(I)=[F:YTPA]PCK
+          PLANDESSHO(I)=TEMP
+          PLBLFMT(I)=[F:YTPA]LBLFMT
+          PPCKWID(I)=[F:YTPA]PCKWID
+          PPCKLEN(I)=[F:YTPA]PCKLEN
+          PPCKHEI(I)=[F:YTPA]PCKHEI
+          PPCKWEI(I)=[F:YTPA]PCKWEI
+
+          I+=1
+        Endif
+      Next
+    Filter [F:YTPA]
+  Close Local File [F:YTPA]
+End
+
+#**
+#* Sub rellena los datos del bulto que faltan
+#* lo da por terminado
+#* imprime la etiqueta
+#*
+#*!
+Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION ,  PRES, PMESS)
+  # Entrada
+  Value Char PPACNUM()
+  Value Char PPCK()
+  Value Char PLBLFMT()
+  Value Decimal PNETWEI
+  Value Decimal  PBRWEI
+  Value Decimal PPCKWEI
+  Value Decimal PVOL
+  Value Decimal  PPCKLEN
+  Value Decimal PPCKWID
+  Value Decimal PPCKHEI
+  Value Char PCAMION()
+  # Salida
+  Variable Char PRES
+  Variable Char PMESS
+
+  Local Char INFNAM
+  Local Char DESTINO
+  Local Decimal  PESONETO
+  Local Char PRELPN
+
+  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
+
+  Local Char HORA(6)
+  HORA = num$(time$)
+  HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,2)
+
+  PRES="100"
+  PMESS="No se encuentra el bulto/paquete"
+  Filter [F:YSPH] Where PACNUM=PPACNUM
+    For [F:YSPH]
+      [F:YSPH]PCK=PPCK
+      [F:YSPH]NETWEI=PNETWEI
+      [F:YSPH]YBRWEI=PBRWEI
+      [F:YSPH]YPCKHEI=PPCKHEI
+      [F:YSPH]YPCKLEN=PPCKLEN
+      [F:YSPH]YPCKWID=PPCKWID
+      [F:YSPH]YPCKHEI=PPCKHEI
+      [F:YSPH]VOL=PVOL
+      [F:YSPH]YCAMION=PCAMION
+      [F:YSPH]YFECHA = date$
+      [F:YSPH]YHORA = HORA
+      [F:YSPH]YCERRADO=2 #CERRAMOS EL BULTO
+      Rewrite [F:YSPH]
+
+      Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
+      Call IMPETIQSPACK(PPACNUM, INFNAM,DESTINO)
+      PRES="200"
+      PMESS="OK"
+
+    Next
+  Filter [F:YSPH]
+  Close Local File [YSPH]
+End
+
+Subprog IMPETIQSPACK(PPACNUM, PINFNAM, PDESTINO)
+  Value     Char    PINFNAM
+  Value     Char    PPACNUM
+  Value     Char    PDESTINO
+
+  Local Char    TBPAR(20)(1..20)
+  Local Char    TBVAL(20)(1..20)
+  Local Integer LIMPFAC # estado impresión factura
+  # Fuerzo a que el informe a imprimir sea Y_SAN_ETIQBULTO
+  PINFNAM = "Y_SAN_ETIQBULTO"
+  Raz TBPAR, TBVAL, LIMPFAC
+  TBPAR(1)  = "Bulto"         : TBVAL(1)  = PPACNUM
+  Call ETAT(PINFNAM, PDESTINO, "SPA", 0, "", TBPAR, TBVAL) From AIMP3
+End
+
+#**
+#*
+#* cambia el estado de la dcoumento  de preparación a "entregable"
+#* Comprueba primero que no queda nada por entregar
+#* Si el transportista es DACHSER lanzo la generación del envío del fichero de forma automática
+#*
+#* @param PPRHNUM, lista de distribución
+#* @param PUSR, usuario que finaliza la preparación
+#* @param PRES , resultado del web service
+#* @param PMESS, mensaje
+#*!
+
+Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
+  # Entrada
+  Value Char PPRHNUM()
+  Value Char PUSR()
+  Value Integer PCAMION
+  # Salida
+  Variable Char PRES()
+  Variable Char PMESS()
+
+  Local Char LOK(1)
+
+  If !clalev([YPRH])  Then : Local File STOPREH      [YPRH]  : Endif
+  If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
+  If !clalev([YBPT])  Then : Local File BPCARRIER    [YBPT]  : Endif
+  If !clalev([YSPA])  Then : Local File YSPACK       [YSPA]  : Endif
+
+    LOK="S"
+
+
+    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and ([F:YYPR2]QTYSTU-[F:YYPR2]YQTYSTU) > 0 and [YYPR2]ALLQTY<>0
+    For [F:YYPR2]
+      LOK="N"
+      PRES="175"
+      PMESS="Preparación sin terminar. No se puede finalizar."
+      Break
+    Next
+    Filter [F:YYPR2]
+
+    # Solamente lo marco entregable si el transportista tiene en el campo Modo de Entrega = Entregable directo
+    If LOK="S"
+      Read [YPRH]PRH0=PPRHNUM
+      If !fstat Then
+        Read [YBPT]BPT0 = [YPRH]BPTNUM
+        If fstat = 0
+          If [YBPT]YMODENTREGA <> 1
+            LOK="N"
+            PRES = "200"
+            PMESS = "Modo de entrega NO directo. No se realiza ninguna acción adicional."
+          Endif
+        Else
+          LOK="N"
+        Endif
+      Else
+        LOK="N"
+      Endif
+    Endif
+
+    Local Char HORA(6)
+    HORA = num$(time$)
+    HORA = mid$(HORA, 1, 2) + mid$(HORA, 4, 2) + mid$(HORA, 7, 2)
+
+    If LOK="S" Then
+      Local Integer I
+      I=0
+      Read [F:YPRH]PRH0=PPRHNUM
+      If !fstat Then
+        Trbegin [F:YPRH]
+        [F:YPRH]DLVFLG = 2
+        [F:YPRH]YCAMION = PCAMION
+        Rewrite [F:YPRH]
+        If !fstat Then
+          Commit
+
+          # Si hemos llegado hasta aquí es porque el transportista tiene en el campo Modo de Entrega = Entregable directo,
+          # por lo que actualizamos todos los bultos a Cargado = Sí
+          Filter [YSPA] Where VCRNUM = PPRHNUM
+          For [YSPA]
+            Trbegin [YSPA]
+            [YSPA]YCARGADO = 2
+            Rewrite [YSPA]
+            If !fstat Then
+              Commit
+            Else
+              Rollback
+            Endif
+          Next
+
+          PRES="200"
+          PMESS="OK"
+        Else
+          Rollback
+          PRES="100"
+          PMESS="Problema modificando entregable en: " +PPRHNUM
+          End
+        Endif
+      Else
+        PRES="150"
+        PMESS="No existe: "+PPRHNUM
+      Endif
+
+      # Gestión del envío DASCHER
+      If PMESS="OK"
+        Read [F:YPRH]PRH0=PPRHNUM
+        If fstat = 0 and [F:YPRH]BPTNUM = 'NA000030' Then
+          Local Integer LERR
+          Local Char LOK
+          Call DACHSER_CHECK(PPRHNUM,LERR) From YENVDACH
+
+          # Si todo OK, genero fichero
+          If LERR = 0
+            LOK = ""
+            Call DACHSER_GENERA_FICHERO(PPRHNUM,LOK) From YENVDACH
+            If LOK = 'N'
+              Call TRAZA_DACHSER(PPRHNUM,4,GUSER,2) From YENVDACH
+            Else
+              [F:YPRH]YDACESTADO  = 5
+              [F:YPRH]YDACFECHA   = date$
+              [F:YPRH]YDACHORA    = time$
+              [F:YPRH]YDACUSUARIO = GUSER
+              Trbegin [F:YPRH]
+                Rewrite [F:YPRH]
+              Commit
+              Call TRAZA_DACHSER(PPRHNUM,5,GUSER,0) From YENVDACH
+            Endif
+          Endif
+
+        Endif
+      Endif
+
+    Endif
+
+  Close Local File [F:YPRH], [F:YYPR2], [YBPT], [YSPA]
+End
+
+#**
+#* Sub que devuelve las listas de preparación sin entregar
+#*
+#*!
+Subprog PREPARACIONESSINENTREGAR(PDVLDATDESDE, PDVLDATHASTA, PBPCORDDESDE, PBTNUMDESDE, PPRHNUM , PPREUSR, PSTOFCY, PPRLNUM,  PBPCORD, PBPCNAM,  PBPTNUM, PBPTDES, PDLVDAT)
+  # Entrada
+  Value Char PDVLDATDESDE()
+  Value Char PDVLDATHASTA()
+  Value Char PBPCORDDESDE()
+  Value Char PBTNUMDESDE()
+  # Salida 1
+  Variable Char PPRHNUM()()
+  Variable Char PPREUSR()()
+  Variable Char PSTOFCY()()
+  Variable Char PPRLNUM()()
+  Variable Char PBPCORD()()
+  Variable Char PBPCNAM()()
+  Variable Char PBPTNUM()()
+  Variable Char PBPTDES()()
+  Variable Char PDLVDAT()()
+
+  Local Char CRITERE(250)(19) : CRITERE(0) ="1=1"
+  Local    Char LFCY
+  Local Integer YESTADOPREP
+
+  If !clalev([YPRH]) Then : Local File STOPREH     [YPRH] : Endif
+  If !clalev([YPBC]) Then : Local File BPCUSTOMER  [YPBC] : Endif
+  If !clalev([YPBR]) Then : Local File BPARTNER    [YPBR] : Endif
+  If !clalev([YBPT]) Then : Local File BPCARRIER   [YBPT] : Endif
+
+ Raz CRITERE
+
+ CRITERE(0)="[YPRH]DLVFLG = 1"
+
+  #fecha envío
+  If PDVLDATDESDE <> "" Then
+    CRITERE(1) += " & [YPRH]SHIDAT>=[" + (PDVLDATDESDE) + "]"
+  Endif
+  If PDVLDATHASTA <> "" Then
+    CRITERE(1) += " & [YPRH]SHIDAT<=[" + (PDVLDATHASTA) + "]"
+  Endif
+ #Cliente
+  If PBPCORDDESDE <> "" Then
+    CRITERE(2) += " & [YPRH]BPCORD='" + PBPCORDDESDE + "'"
+  Endif
+#transportista
+  If PBTNUMDESDE <> "" Then
+    CRITERE(3) += " & [YPRH]BPTNUM='" + PBTNUMDESDE + "'"
+  Endif
+
+  Local Integer I : I = 0
+
+  Filter [F:YPRH] Where evalue(CRITERE(0..9))
+
+  For [F:YPRH]
+    YESTADOPREP = func SPEPRH.ESTADO_VALE([F:YPRH]PRHNUM)
+
+    If YESTADOPREP = 3 Then
+      PPRHNUM(I)=[F:YPRH]PRHNUM
+      PPREUSR(I)=[F:YPRH]PREUSR
+      PSTOFCY(I)=[F:YPRH]STOFCY
+      PPRHNUM(I)=[F:YPRH]PRHNUM
+      PPRLNUM(I)=[F:YPRH]PRLNUM
+      PBPCORD(I)=[F:YPRH]BPCORD
+      PBPTNUM(I)=[F:YPRH]BPTNUM
+      PDLVDAT(I)=num$([F:YPRH]SHIDAT)
+      Read [YPBR]BPR0=[F:YPRH]BPCORD
+      If !fstat Then
+        PBPCNAM(I) = [YPBR]BPRNAM(0) + [YPBR]BPRNAM(1)
+      Endif
+      If [F:YPRH]BPTNUM<>""
+        Read [YBPT]BPT0=[F:YPRH]BPTNUM
+        If !fstat Then
+          PBPTDES(I) = [YBPT]BPTNAM
+        Endif
+      Endif
+
+      I+=1
+    Endif
+  Next
+
+  Close Local File [YPRH], [YPBC], [YPBR]
+End
+
+Subprog MARCARPREPARACIONENTREGABLE(PPRHNUM, PRES)
+  # Entrada
+  Value Char PPRHNUM
+  # Salida
+  Variable Integer PRES
+
+  PRES = 0
+
+  If !clalev([YPRH]) : Local File STOPREH [YPRH] : Endif
+
+  Read [YPRH]PRH0 = PPRHNUM
+  If !fstat Then
+    Trbegin [YPRH]
+    If !fstat Then
+      [YPRH]DLVFLG = 2
+      Rewrite [YPRH]
+      If !fstat Then
+        Commit
+        PRES = 1
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+
+  Close Local File [YPRH]
+End
+
+Subprog MARCARBULTOCARGADO(PCOD_BULTO)
+  Value Char PCOD_BULTO
+
+  If !clalev([YSPA]) : Local File YSPACK [YSPA]: Endif
+
+  Filter [YSPA] Where PACNUM = PCOD_BULTO
+  Read [YSPA] First
+  If !fstat
+    Trbegin [YSPA]
+    If !fstat
+      [YSPA]YCARGADO = 2
+      Rewrite [YSPA]
+      If !fstat
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+
+  Filter [YSPA]
+
+  Close Local File [YSPA]
+End

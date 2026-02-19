@@ -1,0 +1,1217 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#######################################################################################
+
+#@01@: JLP  19-07-2024 Cambios para EDI - DESADV para (BCM - Portugal)
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+#@03@: RAP  08-10-2024 Ajustes terceros EDI
+#@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha
+
+#######################################################################################
+
+  Call ZCREINVSERES('ENV112200003', '','','','',[0/0/0],[0/0/0],0)
+
+Return
+
+#**
+#* Función encargada de generar un DESADV a partir de la información de una o varias entregas
+#*
+#* @param PALBARAN
+#* @param PSDHDEB
+#* @param PSDHFIN
+#* @param PBPCDEB
+#* @param PBPCFIN
+#* @param PDATEDEB
+#* @param PDATEFIN
+#* @param PDUPLICADO
+#*!
+#Subprog ZCREINVSERES(PCITA,PALBARAN, PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN, PDATEDEB, PDATEFIN, PDUPLICADO)
+Subprog ZCREINVSERES(PCITA,PALBARAN,PVALE, PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN, PDATEDEB, PDATEFIN, PDUPLICADO, PI_FICHERO_ABIERTO, I, J) #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  Value Char PCITA
+  Value Char PALBARAN
+  Value Char PVALE
+  Value Char PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN
+  Value Integer PDUPLICADO
+  Value Date PDATEDEB, PDATEFIN
+  Variable Integer PI_FICHERO_ABIERTO #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  Variable Integer I
+  Variable Integer J  #mario
+
+  I = 0 #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit
+  J = 0 #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit
+
+  Local Char LCRITERIO(250)
+  #--
+  Gosub OUVRE
+  If PALBARAN <> '' Then
+    Filter [F:YSDH] Where SDHNUM = PALBARAN and (YENVIOEDI <= 1 or YENVIOEDI = PDUPLICADO)
+
+  Else
+    LCRITERIO = "1=1"
+    # albarán
+    If PSDHDEB <> '' Then
+      LCRITERIO += " & SDHNUM >= PSDHDEB"
+    Endif
+    If PSDHFIN <> '' Then
+      LCRITERIO += " & SDHNUM <= PSDHFIN"
+    Endif
+    # clientes
+    If PBPCDEB <> '' Then
+      LCRITERIO += " & BPCORD >= PBPCDEB"
+    Endif
+    If PBPCFIN <> '' Then
+      LCRITERIO += " & BPCORD <= PBPCFIN"
+    Endif
+    # fechas
+    If PDATEDEB <> [0/0/0] Then
+      LCRITERIO += " & DLVDAT >= PDATEDEB"
+    Endif
+    If PDATEFIN <> [0/0/0] Then
+      LCRITERIO += " & DLVDAT <= PDATEFIN"
+    Endif
+
+    Filter [F:YSDH] Where (YENVIOEDI <= 1 or YENVIOEDI = PDUPLICADO) and evalue(LCRITERIO)
+  Endif
+
+#  Call ECR_TRACE("Albaranes encontrado:"-num$(rowcount([F:YSDH])),0) From GESECRAN
+
+    #-- EMBALAJES
+    Local Char LPRHNUM
+    Local Integer LPRHLIN
+
+  For [F:YSDH] # Where SDHNUM = PALBARAN
+
+#    Call ECR_TRACE("Albarán encontrado:"-[F:YSDH]SDHNUM,0) From GESECRAN
+
+    Gosub DEFINE_FIC
+    Gosub ECR_RECTL         #-- identificacion del mensaje
+#    If PI_FICHERO_ABIERTO = 0
+      Gosub ECR_SINCC         #-- cabecera
+      For WCAL = 1 To 5#@01@: NUN14  11-03-2024 (Y119) INI
+        Gosub ECR_SINCP         #-- informacion sobre las partes de la factura
+      Next#@01@: NUN14  11-03-2024 (Y119) INI
+#    Endif
+
+    Gosub ECR_SINCEMB_L0 # -- SUMATORIO DE LOS PALLETS NO RETORNABLES, ¿COMO LOS IDENTIFICO EN SAGE?
+    Gosub ECR_SINCEMB_L1
+
+    For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM
+      LPRHNUM = [F:YSDD]PRHNUM
+      LPRHLIN = [F:YSDD]PRELIN
+        Filter [F:YSPK] Where VCRNUM = LPRHNUM # and VCRLIN = LPRLIN # [F:YSDD]PRHNUM
+        For [F:YSPK]
+#          If I < 1 and  PI_FICHERO_ABIERTO = 0 Then
+          If I < 1 Then
+#            Gosub ECR_SINCEMB_L0 # -- SUMATORIO DE LOS PALLETS NO RETORNABLES, ¿COMO LOS IDENTIFICO EN SAGE?
+#            Gosub ECR_SINCEMB_L1 # -- SUMATORIO DE LOS PALLETS DE TIPO "C". ¿COMO LOS IDENTIFICO EN SAGE
+         Endif
+        Next
+        Filter [F:YSPK]
+        # POR CADA PAQUETE HAY QUE MOSTRAR LOS ARTÍCULOS QUE CONTIENE.
+        # ¿NO HACEN FALTA LAS LINEAS DE ALBARÁN?
+        # COMO IDENTIFICO UN ARTÍCULO DE UN PAQUETE CON UNA LÍNEA DE ALBARÁN??
+        #LINEAS
+        # For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM
+
+    Next #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+
+#@01@: NUN14  11-03-2024 (Y119) INI
+
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - NUEVO - INI
+#Filter [F:YSPK] Where VCRNUM = LPRHNUM
+#       For [F:YSPK]
+#       Call ECR_TRACE ("For [F:YSPK]" - [F:YSPK]VCRNUM - [F:YSPK]PACNUM ,0) From GESECRAN
+#         Gosub ECR_SINCEMB #-- -- LINEA POR CADA PALET O BULTO ENVIADO -- TAMBIÉN LLAMADO CONTENEDOR secuencia de embalajes
+#
+#          For [F:YPACKD2] Where VCRNUM = [F:YSPK]VCRNUM and  PACNUM = [F:YSPK]PACNUM and SDHNUM = PALBARAN
+#             Call ECR_TRACE ("For [F:YPACKD2] Where VCRNUM",0) From GESECRAN
+#             Filter [F:YSTOPRED] Where PRHNUM = [F:YPACKD2]VCRNUM and PRELIN = [F:YPACKD2]VCRLIN
+#                For [F:YSTOPRED]
+#                  Call ECR_TRACE ("For [F:YSTOPRED]",0) From GESECRAN
+#                  Filter [F:YSDHC] Where SOHNUM = [F:YSTOPRED]ORINUM
+#                    For [F:YSDHC]
+#                    Call ECR_TRACE ("For [F:YSDHC]",0) From GESECRAN
+#
+#                       Filter [F:YSDD] Where SDHNUM = [F:YSDHC]SDHNUM and PRHNUM = [F:YPACKD2]VCRNUM and PRELIN = [F:YPACKD2]VCRLIN #and SOHNUM = [F:YSTOPRED]ORINUM
+#                        For [F:YSDD]
+#                        Call ECR_TRACE ("For [F:YSDD]",0) From GESECRAN
+#
+##                          Filter [F:YSOQ1] Where [F:YSOQ1]SOHNUM = [F:YSDD]SOHNUM and [F:YSOQ1]SDHNUM = [F:YSDD]SDHNUM
+##                            For [F:YSOQ1]
+#                               Gosub ECR_SINCL
+#                               Gosub ECR_SINCOBS
+#                               Gosub ECR_SINCQTY
+##                            Next
+#                        Next
+#                        Filter [F:YSDD]
+#                    Next
+#                    Filter [F:YSDHC]
+#                Next
+#                Filter [F:YSTOPRED]
+#          Next
+#       Next
+#Filter [F:YSPK]
+
+
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - NUEVO - FIN
+
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - ANTES - INI
+      Filter [F:YSPK] Where VCRNUM = LPRHNUM # and VCRLIN = LPRLIN # [F:YSDD]PRHNUM
+        For [F:YSPK]
+
+          #Gosub ECR_SINCEMB #-- -- LINEA POR CADA PALET O BULTO ENVIADO -- TAMBIÉN LLAMADO CONTENEDOR secuencia de embalajes
+        Local Integer YCOMPRO: YCOMPRO =0
+        For [F:YPACKD2] Where VCRNUM = PVALE and  PACNUM = [F:YSPK]PACNUM and SDHNUM = PALBARAN
+
+          If YCOMPRO =0
+          Gosub ECR_SINCEMB #-- -- LINEA POR CADA PALET O BULTO ENVIADO -- TAMBIÉN LLAMADO CONTENEDOR secuencia de embalajes
+          YCOMRPO = 1
+          Endif
+          Filter [F:YSDD] Where SDHNUM = PALBARAN and PRHNUM = [F:YPACKD2]VCRNUM and PRELIN = [F:YPACKD2]VCRLIN
+          For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM and PRHNUM = [F:YPACKD2]VCRNUM and PRELIN = [F:YPACKD2]VCRLIN
+            Gosub ECR_SINCL
+            Gosub ECR_SINCOBS
+            Gosub ECR_SINCQTY
+          Next
+        Next
+
+        Next
+      Filter [F:YSPK]
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - ANTES - FIN
+
+    Openo Using [ZCRE] # cerramos fichero
+
+#    Call ECR_TRACE("Fichero generado para albarán " - C_NOMFIC,0) From GESECRAN
+    # Read [F:XOCCABF]ZOCCABF0 = [F:ZOCCABF]NUMFAC
+#    If !fstat : [F:XOCCABF]ENVIADOEDI = 2
+#      Call DEBTRANS() From GLOCK
+#      Trbegin [F:XOCCABF]
+#      Rewrite [F:XOCCABF]
+#      If !fstat
+#        Commit
+#      Else
+#        GOK = 0 : Call FSTA("XOCCABF") From GLOCK
+#        Rollback
+#      Endif
+#    Endif
+    [F:YSDH]YENVIOEDI = 2
+    [F:YSDH]YFECHAEDI = date$
+    Trbegin [F:YSDH]
+    Rewrite [F:YSDH]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+  PI_FICHERO_ABIERTO = 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  Filter [F:YSDH]
+End
+
+###########################################################################################
+$OUVRE
+  #--
+
+  Local Integer WCAL
+  #--
+  If !clalev([F:YSDH]): Local File SDELIVERY  [F:YSDH]   : Endif # CABECERA ALBARANES
+  If !clalev([F:YSDD]): Local File SDELIVERYD [F:YSDD]   : Endif # LINEA ALBARANES
+  If !clalev([F:YSDD2]): Local File SDELIVERYD [F:YSDD2]   : Endif # LINEA ALBARANES
+  If !clalev([F:YSPK]): Local File YSPACK     [F:YSPK]   : Endif # CABECERA EMPAQUETADO
+  If !clalev([F:YSPK4]): Local File YSPACK    [F:YSPK4]   : Endif #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YSPD]): Local File YSPACKD    [F:YSPD]   : Endif # LINEA EMPAQUETADO
+  If !clalev([F:YFCY]): Local File FACILITY  [F:YFCY]   : Endif # Edi por tercero #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+
+  # TABLAS EDI ESTÁNDAR
+
+  If !clalev([F:YEBP]): Local File EDIBPRPAR  [F:YEBP]   : Endif # Edi por tercero
+  If !clalev([F:YECP]): Local File EDICPYPAR  [F:YECP]   : Endif # Edi por tercero
+  If !clalev([F:YEFY]): Local File EDIFCYPAR  [F:YEFY]   : Endif # Edi por tercero #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YEBP2]): Local File EDIBPRPAR  [F:YEBP2]   : Endif # Edi por tercero #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YBPA2]): Local File BPARTNER  [F:YBPA2]   : Endif # Edi por tercero #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YPACKD2]): Local File YPACKD2  [F:YPACKD2]   : Endif # Edi por tercero #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YPACKD4]): Local File YPACKD4  [F:YPACKD4]   : Endif # Edi por tercero #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+
+  If !clalev([F:YBPA]): Local File BPADDRESS  [F:YBPA]   : Endif # Direcciones
+  If !clalev([F:YBPT]): Local File BPARTNER   [F:YBPT]   : Endif # Terceros
+  #@03@: RAP  08-10-2024
+  If !clalev([F:YBPC]): Local File BPCUSTOMER [F:YBPC]   : Endif # Cliente
+  #@03@: RAP  08-10-2024
+  If !clalev([F:YITM]): Local File ITMMASTER  [F:YITM]   : Endif # ARTICULOS
+  If !clalev([F:YIBP]): Local File ITMBPC     [F:YIBP]   : Endif # ARTICULOS
+  If !clalev([F:YIBS]): Local File ITMBPS     [F:YIBS]   : Endif # ARTICULOS
+
+  If !clalev([F:YCPY]): Local File COMPANY    [F:YCPY]   : Endif # SOCIEDAD
+  If !clalev([F:YTAP]): Local File TABPACKAGE [F:YTAP]   : Endif # embalajes
+  If !clalev([F:YSPK0]): Local File YSPACK     [F:YSPK0]  : Endif # CABECERA EMPAQUETADO
+
+  If !clalev([F:YSOH]): Local File SORDER     [F:YSOH]  : Endif # CABECERA EMPAQUETADO
+
+  If !clalev([F:YCIT]):  Local File ZCITASTL      [F:YCIT]  : Endif #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YCITH]): Local File ZCITASTH     [F:YCITH]  : Endif #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YSOH1]): Local File SORDER       [F:YSOH1]  : Endif #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YEDIF]): Local File EDIFCYPAR    [F:YEDIF]  : Endif #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  If !clalev([F:YEDIPAR]): Local File EDIBPRPAR    [F:YEDIPAR]  : Endif #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+
+#  If !clalev([F:ZOCLINF]): Local File ZOCLINF [F:ZOCLINF]   : Endif
+#  If !clalev([F:ZDUD])   : Local File GACCDUDATE [F:ZDUD]   : Endif
+
+  If !clalev([F:YSTOPRED]): Local File STOPRED    [F:YSTOPRED]  : Endif #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+   If !clalev([F:YSTOPREH]): Local File STOPREH    [F:YSTOPREH]  : Endif #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+  If !clalev([F:YSDHC]): Local File SDELIVERY    [F:YSDHC]  : Endif #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+  If !clalev([F:YSOQ1]): Local File SORDERQ    [F:YSOQ1]  : Endif
+  If !clalev([F:YPACKD3]): Local File YPACKD3    [F:YPACKD3]  : Endif
+  #--
+ Return
+
+
+###########################################################################################
+$DEFINE_FIC
+    #-- variables de fichero, inicializacion
+    adxifs = ""                      #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+    #--
+    C_CARPETA = "EDI\ISSUEEDICOM"
+    #--
+#    C_NOMFIC  = PCITA # Numero entrega
+    C_NOMFIC  = PALBARAN # Numero envio #@01@ - JLP - 22/07/2024
+#    C_FICHERO = filpath(C_CARPETA,C_NOMFIC+"_test","txt","","","")
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+
+
+#@01@: NUN14  11-03-2024 (Y119) - INI
+
+    # borramos el fichero si existe...
+#    If PI_FICHERO_ABIERTO = 0
+      If filinfo(C_FICHERO, 7) > 0 Then
+        System "ae_rm " + C_FICHERO
+     Endif
+
+      Sleep 3  # Nos esperamos unos segundos por el borrado
+#    Endif
+#@01@: NUN14  11-03-2024 (Y119) - FIN
+
+
+
+    Openo C_FICHERO,-1 Using [ZCRE]
+Return
+
+###########################################################################################
+#-- Generación del fichero de albaranes
+#-- identificacion
+$ECR_RECTL
+  #--
+  Read [F:YECP]ECP0=[F:YSDH]CPY
+  #@03@: RAP  08-10-2024
+  #Read [F:YEBP]EBP0=1;[F:YSDH]BPCORD
+   Read [F:YBPC]BPC0 = [F:YSDH]BPCORD
+   Read [F:YEBP]EBP0=1;[F:YBPC]BPCINV
+  #@03@: RAP  08-10-2024
+#  If PI_FICHERO_ABIERTO = 0   #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:6X","RECTL");                                      Using [ZCRE] #-- POSICIÓN 1
+    Wrseq format$("K:6X","DESADV");                                     Using [ZCRE] #-- POSICIÓN 6
+    Wrseq format$("K:35X",[F:YECP]EXCEDICOD);                           Using [ZCRE] #-- POSICIÓN 13
+    Wrseq format$("K:35X",[F:YEBP]EXCEDICOD);                           Using [ZCRE] #-- POSICIÓN 48
+  #  Wrseq format$("K:40X",right$([F:YSDH]SDHNUM,4));                    Using [ZCRE] #-- POSICIÓN 83 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  #  Wrseq format$("K:40X",right$(PCITA,4));                             Using [ZCRE] #-- POSICIÓN 83 #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:40X",(PALBARAN));                                  Using [ZCRE] #-- POSICIÓN 83 #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+#    Wrseq format$("K:12X",num$(format$("YYYYMMDD",[F:YSDH]SHIDAT)) )    Using [ZCRE] #-- POSICION 123
+    Wrseq format$("K:12X",num$(format$("YYYYMMDDhhmmss",datetime$)) )    Using [ZCRE] #-- POSICION 123 #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+#  Endif
+
+Return
+
+###########################################################################################
+#-- cabecera
+$ECR_SINCC
+  #--
+  Wrseq format$("K:6X","SEH1C");                          Using [ZCRE] #--
+#  Wrseq format$("K:6X","351");                            Using [ZCRE] #-- tipo de documento - 351 envío
+  Wrseq format$("K:6X","YA5");                            Using [ZCRE] #-- tipo de documento(YA5) - #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+#  Wrseq format$("K:17X",right$(PCITA,4));                  Using [ZCRE] #--
+  Wrseq format$("K:17X",(PALBARAN));                  Using [ZCRE] #-- #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  If [F:YSDH]YENVIOEDI = 2 Then
+    Wrseq format$("K:6X","7");                            Using [ZCRE] #-- función del mensaje - DUPLICADO
+  Else
+    Wrseq format$("K:6X","9");                            Using [ZCRE] #-- función del mensaje - ORGINAL
+  Endif
+
+
+#@01@: NUN14  11-03-2024 (Y119) - INI
+# (Los comentarios son explicaciones de ESPE)
+#  Wrseq format$("K:12X",num$(format$("YYYYMMDD",date$)) );                Using [ZCRE] # • “FECHA DEL DOCUMENTO” = FECHA DEL DÍA EN EL QUE SE GENERA EL FICHERO (HOY)
+  Wrseq format$("K:12X",num$(format$("YYYYMMDD",[F:ZCITH]ZCITAFEC)) );    Using [ZCRE] # • “FECHA CITA DE TRANSPORTE” #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  Wrseq format$("K:12X",num$(format$("YYYYMMDD",[F:ZCITH]ZCITAFECC)) );   Using [ZCRE] # • “fecha estimada de entrega” = FECHA DE ENTREGA DE LA CITA
+  Wrseq format$("K:3X","");                                               Using [ZCRE] # • “Calificador fecha 1” = debe contener el valor fijo “2” CUYO SIGNIFICADO ES “Fecha de entrega requerida”
+  Wrseq format$("K:12X","");                                              Using [ZCRE] # • “Fecha de entrega requerida” =  FECHA DE ENTREGA DE LA CITA
+  Wrseq format$("K:3X","");                                               Using [ZCRE] # • “Calificador fecha 2” = debe contener el valor fijo “11” CUYO SIGNIFICADO ES “Enviado en Fecha”
+  Wrseq format$("K:12X","");                                              Using [ZCRE] # • “Enviado en Fecha” =  FECHA DE LA CITA
+
+#@01@: NUN14  11-03-2024 (Y119) - FIN
+
+  Wrseq format$("K:6X","");                               Using [ZCRE] #-- 11
+  Wrseq format$("K:17X",[F:YSDH]SOHNUM);                  Using [ZCRE] #-- 12 - Campo referencia unido pedido de venta #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  Wrseq format$("K:12X","");                              Using [ZCRE] #-- 13
+  Wrseq format$("K:17X",PALBARAN);                        Using [ZCRE] #-- 14 - Numero de entrega #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  Wrseq format$("K:12X","");                              Using [ZCRE] #-- 15
+  Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16
+  Wrseq format$("K:17X","");                              Using [ZCRE] #-- 17
+  Wrseq format$("K:12X","");                              Using [ZCRE] #-- 18
+  Wrseq format$("K:3X","");                               Using [ZCRE] #-- 19
+  Wrseq format$("K:17X","");                              Using [ZCRE] #-- 20
+  Wrseq format$("K:12X","");                              Using [ZCRE] #-- 21
+  Wrseq format$("K:3X","");                               Using [ZCRE] #-- 22
+  Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23
+  Wrseq format$("K:70X","");                              Using [ZCRE] #-- 24
+  Wrseq format$("K:3X","");                               Using [ZCRE] #-- 25
+  Wrseq format$("K:13X","");                              Using [ZCRE] #-- 26
+  Wrseq format$("K:35X","");                              Using [ZCRE] #-- 27
+  Wrseq format$("K:17X","");                              Using [ZCRE] #-- 28
+  Wrseq format$("K:17X","");                              Using [ZCRE] #-- 29
+  Wrseq format$("K:35X","")                               Using [ZCRE] #-- 30
+Return
+###########################################################################################
+$ECR_SINCP
+  #--
+#  Wrseq format$("K:6X","SEH1D");                          Using [ZCRE] #--
+#  Case WCAL
+#    When 1 : Gosub ECR_SINCP_SU # proveedor sanycess
+#    When 2 : Gosub ECR_SINCP_DP # destino mercancia - tercero - dirección
+#    When 3 : Gosub ECR_SINCP_SH # expedidor
+#    When 4 : Gosub ECR_SINCP_BY # comprador
+#    When Default
+#  Endcase
+#Return
+
+#@01@: JLP -INI- 19-07-2024 Cambios para EDI - DESADV para (BCM - Portugal)
+    Wrseq format$("K:6X","SEH1D");                          Using [ZCRE] #--
+  Case WCAL
+    When 1 : Gosub ECR_SINCP_MS # Emisor del mensaje
+    When 2 : Gosub ECR_SINCP_MR # Receptor del mensaje
+    When 3 : Gosub ECR_SINCP_SU # Proveedor
+    When 4 : Gosub ECR_SINCP_BY # Comprador
+    When 5 : Gosub ECR_SINCP_DP # Punto destino de la mercancía (
+    When Default
+  Endcase
+Return
+#@01@: JLP -FIN- 19-07-2024 Cambios para EDI - DESADV para (BCM - Portugal)
+
+###########################################################################################
+$ECR_SINCP_MS
+    Local Char SU_NAM
+    SU_NAM = ''
+
+    Read [F:YFCY]FCY0=[F:ZCITH]STOFCY
+    If !fstat
+      SU_NAM = [F:YFCY]FCYNAM
+    Endif
+
+    Read [F:YEDIF]EFP0=[F:ZCITH]STOFCY;'EDICOM'
+
+    Wrseq format$("K:3X","MS");                             Using [ZCRE] #-- Proveedor - sanycces
+    Wrseq format$("K:17X",[F:YEDIF]EXCEDICOD);              Using [ZCRE] #-- 3 Código interlocutor
+    Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4 agencia responsable de los código
+    Wrseq format$("K:35X",SU_NAM);                          Using [ZCRE] #-- 5 nombre 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 10 calle 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 14 Población
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15 Provincia
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16 cod pos
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17 pais
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 18 califica referencia 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 19 referencia 1
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 20 función del contacto
+    Wrseq format$("K:17X","");                              Using [ZCRE] #-- 21 dpto
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 22 dpto
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23 cal ref 2
+    Wrseq format$("K:17X","")                               Using [ZCRE] #-- 24 ref 2
+#  Next
+#  Filter [F:YBPA]
+
+Return
+
+###########################################################################################
+$ECR_SINCP_MR
+    Read [F:YEDIPAR]EBP0 = 1;[F:YSDH]BPCORD;[F:YSDH]BPAADD;'EDICOM'
+    Read [F:YBPT]BPR0=[F:YSDH]BPCORD
+
+    Wrseq format$("K:3X","MR");                             Using [ZCRE] #-- Proveedor - sanycces
+    Wrseq format$("K:17X",[F:YEDIPAR]EDIORDCOD);            Using [ZCRE] #-- 3 Código interlocutor
+    Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4 agencia responsable de los código
+    Wrseq format$("K:35X",[F:YBPT]BPRNAM);                  Using [ZCRE] #-- 5 nombre 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 10 calle 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 14 Población
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15 Provincia
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16 cod pos
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17 pais
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 18 califica referencia 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 19 referencia 1
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 20 función del contacto
+    Wrseq format$("K:17X","");                              Using [ZCRE] #-- 21 dpto
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 22 dpto
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23 cal ref 2
+    Wrseq format$("K:17X","")                               Using [ZCRE] #-- 24 ref 2
+#  Next
+#  Filter [F:YBPA]
+
+Return
+
+###########################################################################################
+$ECR_SINCP_BY
+  #--
+  #  Wrseq format$("K:6X","SEH1D");                          Using [ZCRE] #--
+
+    Wrseq format$("K:3X","BY");                             Using [ZCRE] #-- Proveedor - sanycces
+    Read [F:YBPT]BPR0=[F:YSDH]BPCORD #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+#    Read [F:YBPT]BPR0=[F:YSDH]BPCINV #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+
+    If !clalev([F:YEDIPAR2]): Local File EDIBPRPAR      [F:YEDIPAR2]  : Endif
+    #@03@: RAP  08-10-2024
+    #Read [F:YEDIPAR2]EBP0 = 1;[F:YSDH]BPCINV;[F:YSDH]BPAINV;'EDICOM'
+    Read [F:YEDIPAR2]EBP0 = 1;[F:YSDH]BPCORD;[F:YSDH]BPAADD;'EDICOM'
+    #@03@: RAP  08-10-2024
+
+    Wrseq format$("K:17X",[F:YEDIPAR2]EXCEDICOD);            Using [ZCRE] #-- 3 Código interlocutor
+    Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4 agencia responsable de los código
+    Wrseq format$("K:35X",[F:YBPT]BPRNAM);                  Using [ZCRE] #-- 5 nombre 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 10 calle 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 14 Población
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15 Provincia
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16 cod pos
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17 pais
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 18 califica referencia 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 19 referencia 1
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 20 función del contacto
+    Wrseq format$("K:17X","");                              Using [ZCRE] #-- 21 dpto
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 22 dpto
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23 cal ref 2
+    Wrseq format$("K:17X","")                               Using [ZCRE] #-- 24 ref 2
+
+
+Return
+
+###########################################################################################
+# EXPEDIDOR
+$ECR_SINCP_SH
+  #--
+  #  Wrseq format$("K:6X","SEH1D");                          Using [ZCRE] #--
+#  Filter [F:YBPA] Where BPANUM = [F:YSDH]BPTNUM and BPAADDFLG = 2
+#  For [F:YBPA]
+    Read [F:YBPT]BPR0=[F:YSDH]BPTNUM
+
+    Wrseq format$("K:3X","SH");                             Using [ZCRE] #-- Proveedor - sanycces
+#    Wrseq format$("K:17X",[F:YBPT]CRN);                     Using [ZCRE] #-- 3 Código interlocutor #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:17X",[F:ZCITH]TRANSNIF);               Using [ZCRE] #-- 3 Código interlocutor #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4 agencia responsable de los código
+#    Wrseq format$("K:35X",[F:YBPT]BPRNAM(0));               Using [ZCRE] #-- 5 nombre 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:35X",[F:ZCITH]TRANSDES);               Using [ZCRE] #-- 5 nombre 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 10 calle 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 14 Población
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15 Provincia
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16 cod pos
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17 pais
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 18 califica referencia 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 19 referencia 1
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 20 función del contacto
+    Wrseq format$("K:17X","");                              Using [ZCRE] #-- 21 dpto
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 22 dpto
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23 cal ref 2
+    Wrseq format$("K:17X","")                               Using [ZCRE] #-- 24 ref 2
+#  Next
+#  Filter [F:YBPA]
+
+Return
+###########################################################################################
+$ECR_SINCP_DP
+  #--
+  #  Wrseq format$("K:6X","SEH1D");                          Using [ZCRE] #--
+#  Filter [F:YBPA] Where BPANUM = [F:YSDH]  SALFCY and BPAADDFLG = 2
+#  For [F:YBPA]
+#    Read [F:YBPA]BPA0=1;[F:YSDH]BPCORD;[F:YSDH]BPAADD
+
+
+#@01@: NUN14  11-03-2024 (Y119) - INI
+#    Local Char DP_NIF, DP_NAM
+#    DP_NIF = ''
+#    DP_NAM = ''
+#
+#    Read [F:YEBP2]EBP0=1;[F:YSDH]BPCORD;[F:YSDH]BPAADD;'EDICOM'
+#    If !fstat
+#      DP_NIF = [F:YEBP2]EXCEDICOD
+#    Endif
+#    Read [F:YBPA2]BPR0 = [F:ZCITH]ZCITATRA
+#    If !fstat
+#      DP_NAM = [F:YBPA2]BPRNAM
+#    Endif
+#@01@: NUN14  11-03-2024 (Y119) - FIN
+    Read [F:YBPA2]BPR0 = [F:YSDH]BPTNUM
+    If !fstat
+      DP_NAM = [F:YBPA2]BPRNAM
+    Endif
+
+    Read [F:YEDIPAR]EBP0=1;[F:YSDH]BPTNUM;[F:YSDH]BPAADD;'EDICOM'
+
+    Wrseq format$("K:3X","DP");                             Using [ZCRE] #-- Proveedor - sanycces
+#    Wrseq format$("K:17X",[F:YBPA]EXTNUM);                  Using [ZCRE] #-- 3 Código interlocutor #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:17X",[F:YEDIPAR]EDISDHCOD);           Using [ZCRE] #-- 3 Código interlocutor #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4 agencia responsable de los código
+#    Wrseq format$("K:35X",[F:YBPA]BPADES);                  Using [ZCRE] #-- 5 nombre 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:35X",DP_NAM);                          Using [ZCRE] #-- 5 nombre 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 10 calle 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 14 Población
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15 Provincia
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16 cod pos
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17 pais
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 18 califica referencia 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 19 referencia 1
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 20 función del contacto
+    Wrseq format$("K:17X","");                              Using [ZCRE] #-- 21 dpto
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 22 dpto
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23 cal ref 2
+    Wrseq format$("K:17X","")                               Using [ZCRE] #-- 24 ref 2
+#  Next
+#  Filter [F:YBPA]
+
+Return
+
+###########################################################################################
+$ECR_SINCP_SU
+  #--
+  #  Wrseq format$("K:6X","SEH1D");                          Using [ZCRE] #--
+  # Filter [F:YBPA] Where BPANUM = [F:YSDH]SALFCY and BPAADDFLG = 2
+  # For [F:YBPA]
+
+#@01@: NUN14  11-03-2024 (Y119) - INI
+#    Read [F:YCPY]CPY0=[F:YSDH]CPY
+
+    Local Char SU_NIF, SU_NAM
+    SU_NIF = ''
+    SU_NAM = ''
+
+    Read [F:YEFY]EFP0 = [F:ZCITH]STOFCY;'EDICOM'
+    If !fstat
+      SU_NIF = [F:YEFY]EXCEDICOD
+    Endif
+    Read [F:YFCY]FCY0=[F:ZCITH]STOFCY
+    If !fstat
+      SU_NAM = [F:YFCY]FCYNAM
+    Endif
+
+#@01@: NUN14  11-03-2024 (Y119) - FIN
+
+
+
+    Wrseq format$("K:3X","SU");                             Using [ZCRE] #-- 2 Proveedor - sanycces
+#    Wrseq format$("K:17X",[F:YECP]EXCEDICOD);               Using [ZCRE] #-- 3 Código interlocutor #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:17X",SU_NIF);                          Using [ZCRE] #-- 3 Código interlocutor #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:3X","9");                              Using [ZCRE] #-- 4 agencia responsable de los código
+#    Wrseq format$("K:35X",[F:YCPY]CPYNAM);                  Using [ZCRE] #-- 5 nombre 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:35X",SU_NAM);                          Using [ZCRE] #-- 5 nombre 1 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 6
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 7
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 8
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 9
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 10 calle 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 11
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 12
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 13
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 14 Población
+    Wrseq format$("K:9X","");                               Using [ZCRE] #-- 15 Provincia
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 16 cod pos
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 17 pais
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 18 califica referencia 1
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 19 referencia 1
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 20 función del contacto
+    Wrseq format$("K:17X","");                              Using [ZCRE] #-- 21 dpto
+    Wrseq format$("K:35X","");                              Using [ZCRE] #-- 22 dpto
+    Wrseq format$("K:3X","");                               Using [ZCRE] #-- 23 cal ref 2
+    Wrseq format$("K:17X","")                               Using [ZCRE] #-- 24 ref 2
+#  Next
+#  Filter [F:YBPA]
+
+Return
+###########################################################################################
+#-- lineas
+$ECR_SINCL
+  #--
+  Read [F:YITM]ITM0=[F:YSDD]ITMREF  #   [F:YSDD]ITMREF
+  Read [F:YIBP]ITU0=[F:YSDD]ITMREF;[F:YSDH]BPCORD
+
+  Read [F:YIBS]ITP0=[F:YPACKD2]ITMREF;[F:YSDH]BPCORD
+
+  Read [F:YIBS] First
+  # Read [F:YIBS]ITP0=[F:YSDD]ITMREF;[F:YSDH]BPC
+  # Wrseq format$("K:6X","SEH1L");                                 Using [ZCRE] #--
+  Wrseq format$("K:6X","SEH1L");                                    Using [ZCRE] #-- 1 TIPO REGISTRO “SEH1L” C 6 1 M
+  # Wrseq format$("K:6X",num$([F:YSDD]SDDLIN));                                 Using [ZCRE] #-- 2 NÚMERO DE LÍNEA DEL ARTICULO N 6 7 M
+  J+=1
+  Wrseq format$("K:6X",num$(J));                                                  Using [ZCRE] #-- 2 NÚMERO DE LÍNEA DEL ARTICULO N 6 7 M
+#@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha - INI
+  If left$([F:YITM]ITMREF,2) = 'T_'
+  Wrseq format$("K:15X",func EAN_ARTICULO_T_([F:YITM]ITMREF));                    Using [ZCRE] #-- 3 CÓDIGO EAN DEL ARTICULO C 15 13 O
+  Else
+  Wrseq format$("K:15X",[F:YITM]EANCOD);                                          Using [ZCRE] #-- 3 CÓDIGO EAN DEL ARTICULO C 15 13 O
+  Endif
+#  Wrseq format$("K:15X",[F:YITM]EANCOD);                                          Using [ZCRE] #-- 3 CÓDIGO EAN DEL ARTICULO C 15 13 O
+#@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha - FIN
+#  Wrseq format$("K:70X",[F:YPACKD2]ITMDES);                                         Using [ZCRE] #-- 4 DESCRIPCIÓN DEL ARTICULO C 70 28 O
+   Wrseq format$("K:70X",[F:YSDD]ITMDES1);                                         Using [ZCRE] #-- 4 DESCRIPCIÓN DEL ARTICULO C 70 28 O
+  Wrseq format$("K:7X","");                                                       Using [ZCRE] #-- 5 TIPO DE IDENTIFICACIÓN DEL ARTICULO (CU/DU) C 7 98 O
+  Wrseq format$("K:15X",[F:YSDD]ITMREF);                                          Using [ZCRE] #-- 6 NÚMERO DE ARTICULO DEL --> REFENCIA DE SANNYCES
+  Wrseq format$("K:15X","");                                                      Using [ZCRE] #-- 7 NÚMERO Variable PROMOCIONAL (PV) C 15 120 O
+  Wrseq format$("K:15X", [F:YPACKD2]PACNUM);                                                     Using [ZCRE] #-- 8 CÓDIGO DUN-14 (ADU) C 15 135 O
+  Wrseq format$("K:15X","");                                                      Using [ZCRE] #-- 9 CÓDIGO ACU (ACU) C 15 150 O
+  Wrseq format$("K:35X", [F:YPACKD2]LOT);                                            Using [ZCRE] #-- 10 NÚMERO DE LOTE (NB) C 35 165 O
+#  Wrseq format$("K:15X",[F:YIBS]ITMREFBPS);                                       Using [ZCRE] #-- 11 NÚMERO DE ARTICULO DEL COMPRADOR (IN) C 15 200 O #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI
+# - DESADV
+  Wrseq format$("K:15X",func GET_ITM_COM([F:YPACKD2]VCRNUM, [F:YPACKD2]VCRLIN));        Using [ZCRE] #-- 11 NÚMERO DE ARTICULO DEL COMPRADOR (IN) C 15 200 O #@01@: NUN14  11-03-2024 (Y119) Cambios
+# para
+# EDI
+# - DESADV
+  Wrseq ctrans(format$("N0:12.3",[F:YPACKD2]SUMQTY),",",".");                        Using [ZCRE] #-- 12 CANTIDAD ENVIADA (12) N(12,3) 16 215 O
+#  Wrseq format$("K:6X", [F:YSDD]SAU);                                             Using [ZCRE] #-- 13 UNIDAD DE MEDIDA CANTIDAD ENVIADA C 6 231 O
+  Wrseq format$("K:6X", "PCE");                                                   Using [ZCRE] #-- 13 UNIDAD DE MEDIDA CANTIDAD ENVIADA C 6 231 O #@01@: JLP  22-07-2024 (Y119) Cambios para EDI -
+# DESADV
+  Wrseq format$("K:16X","");                                                      Using [ZCRE] #--14 UNIDADES DE CONSUMO EN UNIDAD DE EXPEDICIÓN (59) N(12,3) 16 237 O
+  Wrseq format$("K:12X","");                                                      Using [ZCRE] #--15 FECHA DE CADUCIDAD (36) (102/203) C 12 253 O
+  Wrseq format$("K:6X","ON");                                                     Using [ZCRE] #--16 CALIFICADOR REFERENCIA 1 C 6 265 O
+  Read [F:YSOH]SOH0=[F:YSDD]SOHNUM
+
+  Wrseq format$("K:17X",string$([F:YSOH]CUSORDREF<>"",[F:YSOH]CUSORDREF)+string$([F:YSOH]CUSORDREF="",[F:YSOH]SOHNUM));                         Using [ZCRE] #--17 NUMERO REFERENCIA 1 C 17 271 O
+
+  Wrseq format$("K:12X",num$(format$("YYYYMMDD",[F:YSOH]ORDDAT)));  Using [ZCRE] #--18 FECHA/HORA REFERENCIA 1(102/203) C 12 288 O   ¿?¿?
+#  Wrseq format$("K:6X","AAJ");                                      Using [ZCRE] #--19 CALIFICADOR REFERENCIA 2 C 6 300 O
+#  Wrseq format$("K:17X",[F:YSDH]SDHNUM );                           Using [ZCRE] #--20 NÚMERO REFERENCIA 2 C 17 306 O   ¿?¿?
+#  Wrseq format$("K:12X",num$(format$("YYYYMMDD",[F:YSDH]SHIDAT)));  Using [ZCRE] #--21 FECHA/HORA REFERENCIA 2(102/203) C 12 323 O
+  Wrseq format$("K:6X","");                                         Using [ZCRE] #--19 CALIFICADOR REFERENCIA 2 C 6 300 O
+  Wrseq format$("K:17X","" );                                       Using [ZCRE] #--20 NÚMERO REFERENCIA 2 C 17 306 O   ¿?¿?
+  Wrseq format$("K:12X","");                                        Using [ZCRE] #--21 FECHA/HORA REFERENCIA 2(102/203) C 12 323 O
+  Wrseq format$("K:6X","");                                         Using [ZCRE] #--22 CALIFICADOR REFERENCIA 3 C 6 335 O
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #--23 NÚMERO REFERENCIA 3 C 17 341 O
+  Wrseq format$("K:12X","");                                        Using [ZCRE] #--24 FECHA/HORA REFERENCIA 3(102/203) C 12 358 O
+  Wrseq format$("K:16X","");                                        Using [ZCRE] #--25 UNIDADES EN AGRUPACIÓN SUPERIOR (45E) C 16 370 O
+  Wrseq format$("K:15X","");                                        Using [ZCRE] #--26 CÓDIGO EAN ADICIONAL C 15 386 O
+  Wrseq format$("K:16X","");                                        Using [ZCRE] #--27 CANTIDAD sin CARGO (192) C 16 401 O
+  Wrseq format$("K:3X","");                                         Using [ZCRE] #--28 CALIFICADOR CANTIDAD ADICIONAL C 3 417 O
+  Wrseq format$("K:16X","");                                        Using [ZCRE] #--29 CANTIDAD ADICIONAL N(12,3) 16 420 O
+  Wrseq format$("K:6X","");                                         Using [ZCRE] #--30 UNIDAD DE MEDIDA CANTIDAD ADICIONAL C 6 436 O
+  Wrseq format$("K:35X","");                                        Using [ZCRE] #--31 NÚMERO DE SERIE DEL ARTÍCULO (SN) C 35 442 O
+  Wrseq format$("K:35X","");                                        Using [ZCRE] #--32 NÚMERO ARTÍCULO FABRICANTE (MF) C 35 477 O
+  Wrseq format$("K:6X","");                                         Using [ZCRE] #--33 NÚMERO DE LÍNEA REFERENCIA 1 N 6 512 O
+  Wrseq format$("K:6X","");                                         Using [ZCRE] #--34 NÚMERO DE LÍNEA REFERENCIA 2 N 6 518 O
+  Wrseq format$("K:6X","");                                         Using [ZCRE] #--35 NÚMERO DE LÍNEA REFERENCIA 3 N 6 524 O
+  Wrseq format$("K:16X","");                                        Using [ZCRE] #--36 DIFERENCIA EN CANTIDAD PEDIDA (21) N(12,3) 16 530 O
+  Wrseq format$("K:3X","");                                         Using [ZCRE] #--37 CÓDIGO DISCREPANCIA C 3 546 O
+#  Wrseq format$("K:18X","prueba");                                        Using [ZCRE] #--38 PESO TOTAL NETO DE LA LÍNEA (AAI/AAF) N(14,3) 18 549 O
+  Wrseq ctrans(format$("N0:12.3",num$(func PESO_NETO_LINEA([F:YSOH]SOHNUM,[F:YSDD]ITMREF))),",","."); Using [ZCRE] #--38 PESO TOTAL NETO DE LA LÍNEA (AAI/AAF) N(14,3) 18 549 O #@01@: JLP  22-07-2024
+# (Y119)
+# Cambios para EDI - DESADV
+  Wrseq format$("K:18X","");                                        Using [ZCRE] #--39 PESO TOTAL BRUTO DE LA LÍNEA (AAI/AAB) N(14,3) 18 567 O
+#  Wrseq format$("K:3X","");                                         Using [ZCRE] #--40 UNIDAD DE MEDIDA PESO C 3 585 O
+  Wrseq format$("K:3X","KGM");                                         Using [ZCRE] #--40 UNIDAD DE MEDIDA PESO C 3 585 O #@01@: JLP  22-07-2024 (Y119) Cambios para EDI - DESADV
+  Wrseq format$("K:18X","");                                        Using [ZCRE] #--41 DIMENSIÓN DE TEMPERATURA 1 (TC) N(14,3) 18 588 O
+  Wrseq format$("K:18X","");                                        Using [ZCRE] #--42 DIMENSIÓN DE TEMPERATURA 2 N(14,3) 18 606 O
+  Wrseq format$("K:3X","");                                         Using [ZCRE] #--43 UNIDAD DE MEDIDA PARA LA TEMPERATURA C 3 624 O
+  Wrseq format$("K:70X","");                                        Using [ZCRE] #--44 DENOMINACIÓN COMERCIAL C 70 627 O
+  Wrseq format$("K:70X","");                                        Using [ZCRE] #--45 DENOMINACIÓN CIENTÍFICA C 70 697 O
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #--46 PAÍS DE CAPTURA/PRODUCCIÓN/COSECHA/CRÍA C 17 767 O
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #--47 ZONA FAO DE CAPTURA C 17 784 O
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #--48 MÉTODO DE PRODUCCIÓN C 17 801 O
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #--49 CÓDIGO DE PRESENTACIÓN C 17 818 O
+  Wrseq format$("K:35X","");                                        Using [ZCRE] #--50 CÓDIGO FAO DE LA ESPECIE C 35 835 O
+  Wrseq format$("K:16X","");                                        Using [ZCRE] #--51 FECHA O PERIODO DE CAPTURA C 16 870 O
+  Wrseq format$("K:12X","");                                        Using [ZCRE] #--52 FECHA DE PRODUCCIÓN C 12 886 O
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #-- 53 ARTE DE PESCA
+  Wrseq format$("K:17X","");                                        Using [ZCRE] #-- 54 INFORMACIÓN DE CONGELADO C 17 915 O
+  Wrseq format$("K:12X","");                                        Using [ZCRE] #-- 55 FECHA DE CONGELACIÓN (91E) C 12 932 O
+  Wrseq format$("K:70X","");                                        Using [ZCRE] #-- 56 IMD (FTG) C 70 944 O
+  Wrseq format$("K:19X","")                                         Using [ZCRE] #-- 57 IMPORTE NETO LÍNEA (203) CON DESCUENTOS/CARGOS C 19 1014 O
+
+Return
+
+###########################################################################################
+#-- secuencia de embalajes LINEA 0
+$ECR_SINCEMB_L0
+
+  Local Integer PESO_BRUTO : [L]PESO_BRUTO = 0
+
+  Read [F:YSDD]SDD0=[F:YSDH]SDHNUM
+  If fstat Then
+    Return
+  Endif
+  Filter [F:YTAP]
+  Filter [F:YSPK0]
+  # FILTRAMOS POR LOS palets
+  # Infbox "albaran que busco:" - [F:YSDD]PRHNUM
+  Link [F:YSPK0] With [F:YTAP]TPA0~=[F:YSPK0]PCK As [YSPK2] Where [F:YTAP]YTIPO = 1 and [F:YSPK0]VCRNUM = LPRHNUM
+  Filter [F:YSPK2] # Where VCRNUM = [F:YSDD]PRHNUM
+
+
+  Filter [F:YSPK4] Where [F:YSPK4]ZCITANUM = PCITA
+  For  [F:YSPK4]
+    PESO_BRUTO += [F:YSPK4]YBRWEI
+  Next
+
+  Read [F:YSPK2] First
+
+# @02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - INI
+  Filter [F:YPACKD3] Where [F:YPACKD3]SDHNUM = [F:YSDH]SDHNUM and [F:YPACKD3]VCRNUM = [F:YSDD]PRHNUM and [F:YPACKD3]YTIPO = 1
+  Read [F:YPACKD3] First
+    If rowcount([F:YPACKD3]) = 0
+      Return
+    Endif
+# @02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - FIN
+  I+=1
+  If !clalev([F:YPACK2C1]): Local File YPACKD2    [F:YPACK2C1]  : Endif
+  Filter [F:YPACK2C1] Where [F:YPACK2C1]SDHNUM = [F:YSDD]SDHNUM and [F:YPACK2C1]VCRNUM = [F:YSDD]PRHNUM
+  Read [F:YPACK2C1] First
+
+  Filter [F:YPACKD4] Where VCRNUM = [F:YSDD]PRHNUM and SDHNUM =[F:YSDD]SDHNUM
+
+If [F:YSDH]SDHNUM = 'ENV112400293'
+  Infbox "AAAA" - num$([F:YPACKD3]YTIPO)
+Endif
+
+
+  #--
+  # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
+  Wrseq format$("K:6X","SEH1P");                                  Using [ZCRE] #--  # 1 TIPO REGISTRO “SEH1P” C 6 1 M
+  Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  # 2 NÚMERO DE JERARQUÍA DE EMBALAJE C 12 7 M
+  Wrseq format$("K:12X",num$(''));                              Using [ZCRE] #--  # 3 NÚMERO DE JERARQUÍA PADRE DE EMBALAJE C 12 19 O
+#  Wrseq format$("K:8X",num$(rowcount([F:YSPK4])));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+#  Wrseq format$("K:8X",num$(func CONT_BULT(LPRHNUM,'201')));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+    Wrseq format$("K:8X",num$(rowcount([F:YPACKD4])));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+  # Filter [F:YSPK]
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 5 INFORMACIÓN SOBRE EL EMBALAJE, CODIFICADO C 6 39 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 6 TÉRMINOS Y CONDICIONES DEL EMBALAJE, CODIFICADO C 6 45 O
+#  Wrseq format$("K:6X","08");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  If [F:YPACKD3]YTIPO = 1 Then
+    Wrseq format$("K:6X","201");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  Else
+    Wrseq format$("K:6X","CT");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  Endif
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 8 TIPO DE EMBALAJE, TEXTO LIBRE C 35 57 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 9 RESPONSABILIDAD PAGO TRANSPORTE DE EMBALAJE C 6 92 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 10 PESO NETO1 (AAC) N(14,3) 18 98 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 11 PESO NETO 2 N(14,3) 18 116 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 12 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO NETO C 6 134 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 13 UNIDAD DE MEDIDA PARA EL PESO NETO C 6 140 O
+#  Wrseq ctrans(format$("N0:14.3",sum([F:YSPK2]YBRWEI)),",",".");   Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O            #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+#  Wrseq ctrans(format$("N0:14.3",PESO_BRUTO),",",".");            Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O            #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O            #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 15 PESO BRUTO 2 N(14,3) 18 164 O
+#  Wrseq format$("K:6X","4");                                      Using [ZCRE] #--  # 16 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO BRUTO C 6 182 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 16 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO BRUTO C 6 182 O
+#  Wrseq format$("K:6X","KGM");                                    Using [ZCRE] #--  # 17 UNIDAD DE MEDIDA PARA EL PESO BRUTO C 6 188 O
+  Wrseq format$("K:6X","");                                    Using [ZCRE] #--  # 17 UNIDAD DE MEDIDA PARA EL PESO BRUTO C 6 188 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 18 DIMENSIÓN DE ALTURA 1 (HT) N(14,3) 18 194 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 19 DIMENSIÓN DE ALTURA 2 N(14,3) 18 212 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 20 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA ALTURA C 6 230 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #21 UNIDAD DE MEDIDA PARA LA ALTURA C 6 236 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 22 DIMENSIÓN DE ANCHO 1 (WD) N(14,3) 18 242 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  #23 DIMENSIÓN DE ANCHO 2 N(14,3) 18 260 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 24 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA ANCHO C 6 278 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 25 UNIDAD DE MEDIDA PARA EL ANCHO C 6 284 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 26 DIMENSIÓN DE LONGITUD 1 (ln) N(14,3) 18 290 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 27 DIMENSIÓN DE LONGITUD 2 N(14,3) 18 308 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 28 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA LONGITUD C 6 326 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 29 UNIDAD DE MEDIDA PARA LA LONGITUD C 6 332 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 30 DIMENSIÓN DE TEMPERATURA 1 (TC) N(14,3) 18 338 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 31 DIMENSIÓN DE TEMPERATURA 2 N(14,3) 18 356 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 32 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA TEMPERATURA C 6 374 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #33 UNIDAD DE MEDIDA PARA LA TEMPERATURA C 6 380 O
+  Wrseq format$("K:16X","");                                      Using [ZCRE] #--  #34 CANTIDAD POR EMBALAJE N(12,3) 16 386 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #35 INSTRUCCIONES DE MANEJO, CODIFICADO C 6 402 O
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #36 INSTRUCCIONES DE MANEJO, TEXTO LIBRE C 70 408 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  #37 MARCA DE ENVIÓ 1 C 35 478 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 38 MARCA DE ENVIÓ 2 C 35 513 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 39 MARCA DE ENVIÓ 3 C 35 548 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 40 MARCA DE ENVIÓ 4 C 35 583 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  #41 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 618 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 42 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 653 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 43 NÚMERO SERIAL 2O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 688 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 45 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 758 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 44 NÚMERO SERIAL 2 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 723 O
+  Wrseq format$("K:35X","")                                       Using [ZCRE] #--  #46 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 793 O
+Filter [F:YPACKD4]
+Return
+
+###########################################################################################
+#-- secuencia de embalajes LINEA 1
+$ECR_SINCEMB_L1
+  Read [F:YSDD]SDD0=[F:YSDH]SDHNUM
+  If fstat Then
+    Return
+  Endif
+  # FILTRAMOS POR LOS BULTOS
+  Filter [F:YTAP]
+  Filter [F:YSPK0]
+
+  Link [F:YSPK0] With [F:YTAP]TPA0~=[F:YSPK0]PCK As [YSPK3] Where [F:YTAP]YTIPO = 2 and [F:YSPK0]VCRNUM = LPRHNUM
+  Filter [F:YSPK3] # Where VCRNUM = [F:YSDD]PRHNUM
+  Read [F:YSPK3] First
+
+
+
+  #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - INI
+  Filter [F:YPACKD3] Where [F:YPACKD3]SDHNUM = [F:YSDH]SDHNUM and [F:YPACKD3]VCRNUM = [F:YSDD]PRHNUM and [F:YPACKD3]YTIPO = 2
+  Read [F:YPACKD3] First
+    If rowcount([F:YPACKD3]) = 0
+      Return
+    Endif
+  #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - FIN
+  I+=1
+  If !clalev([F:YPD2C]): Local File YPACKD2    [F:YPD2C]  : Endif
+  Filter [F:YPD2C] Where [F:YPD2C]SDHNUM = [F:YSDD]SDHNUM and [F:YPD2C]VCRNUM = [F:YSDD]PRHNUM
+  Read [F:YPD2C] First
+
+  Filter [F:YPACKD4] Where VCRNUM = [F:YSDD]PRHNUM and SDHNUM =[F:YSDD]SDHNUM
+If [F:YSDH]SDHNUM = 'ENV112400293'
+  Infbox "BBB " - num$([F:YPACKD3]YTIPO)
+Endif
+
+  #--
+  # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
+  # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
+  Wrseq format$("K:6X","SEH1P");                                  Using [ZCRE] #--  # 1 TIPO REGISTRO “SEH1P” C 6 1 M
+  Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  # 2 NÚMERO DE JERARQUÍA DE EMBALAJE C 12 7 M
+  Wrseq format$("K:12X",num$(''));                                Using [ZCRE] #--  # 3 NÚMERO DE JERARQUÍA PADRE DE EMBALAJE C 12 19 O
+#  Wrseq format$("K:8X",num$(rowcount([F:YSPK3])));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+  Wrseq format$("K:8X",num$(rowcount([F:YPACKD4])));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM
+  # Filter [F:YSPK]
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 5 INFORMACIÓN SOBRE EL EMBALAJE, CODIFICADO C 6 39 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 6 TÉRMINOS Y CONDICIONES DEL EMBALAJE, CODIFICADO C 6 45 O
+#  Wrseq format$("K:6X","C");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  If [F:YPACKD3]YTIPO = 1 Then
+    Wrseq format$("K:6X","201");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  Else
+    Wrseq format$("K:6X","CT");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  Endif
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 8 TIPO DE EMBALAJE, TEXTO LIBRE C 35 57 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 9 RESPONSABILIDAD PAGO TRANSPORTE DE EMBALAJE C 6 92 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 10 PESO NETO1 (AAC) N(14,3) 18 98 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 11 PESO NETO 2 N(14,3) 18 116 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 12 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO NETO C 6 134 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 13 UNIDAD DE MEDIDA PARA EL PESO NETO C 6 140 O
+#  If rowcount([F:YSPK3]) = 0 Then
+#    Wrseq ctrans(format$("N0:14.3",0),",",".");   Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O
+#  Else
+#    Wrseq ctrans(format$("N0:14.3",sum([F:YSPK3]YBRWEI)),",",".");   Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O
+    Wrseq format$("K:18X","");   Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O
+#  Endif
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 15 PESO BRUTO 2 N(14,3) 18 164 O
+#  Wrseq format$("K:6X","4");                                      Using [ZCRE] #--  # 16 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO BRUTO C 6 182 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 16 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO BRUTO C 6 182 O
+#  Wrseq format$("K:6X","KGM");                                    Using [ZCRE] #--  # 17 UNIDAD DE MEDIDA PARA EL PESO BRUTO C 6 188 O
+  Wrseq format$("K:6X","");                                    Using [ZCRE] #--  # 17 UNIDAD DE MEDIDA PARA EL PESO BRUTO C 6 188 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 18 DIMENSIÓN DE ALTURA 1 (HT) N(14,3) 18 194 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 19 DIMENSIÓN DE ALTURA 2 N(14,3) 18 212 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 20 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA ALTURA C 6 230 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #21 UNIDAD DE MEDIDA PARA LA ALTURA C 6 236 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 22 DIMENSIÓN DE ANCHO 1 (WD) N(14,3) 18 242 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  #23 DIMENSIÓN DE ANCHO 2 N(14,3) 18 260 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 24 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA ANCHO C 6 278 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 25 UNIDAD DE MEDIDA PARA EL ANCHO C 6 284 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 26 DIMENSIÓN DE LONGITUD 1 (ln) N(14,3) 18 290 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 27 DIMENSIÓN DE LONGITUD 2 N(14,3) 18 308 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 28 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA LONGITUD C 6 326 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 29 UNIDAD DE MEDIDA PARA LA LONGITUD C 6 332 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 30 DIMENSIÓN DE TEMPERATURA 1 (TC) N(14,3) 18 338 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 31 DIMENSIÓN DE TEMPERATURA 2 N(14,3) 18 356 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 32 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA TEMPERATURA C 6 374 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #33 UNIDAD DE MEDIDA PARA LA TEMPERATURA C 6 380 O
+  Wrseq format$("K:16X","");                                      Using [ZCRE] #--  #34 CANTIDAD POR EMBALAJE N(12,3) 16 386 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #35 INSTRUCCIONES DE MANEJO, CODIFICADO C 6 402 O
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #36 INSTRUCCIONES DE MANEJO, TEXTO LIBRE C 70 408 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  #37 MARCA DE ENVIÓ 1 C 35 478 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 38 MARCA DE ENVIÓ 2 C 35 513 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 39 MARCA DE ENVIÓ 3 C 35 548 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 40 MARCA DE ENVIÓ 4 C 35 583 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  #41 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 618 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 42 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 653 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 43 NÚMERO SERIAL 2O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 688 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 45 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 758 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 44 NÚMERO SERIAL 2 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 723 O
+  Wrseq format$("K:35X","")                                       Using [ZCRE] #--  #46 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 793 O
+Filter [F:YPACKD4]
+Return
+
+
+
+
+
+###########################################################################################
+#-- secuencia de embalajes
+$ECR_SINCEMB
+  #--
+  # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
+  Wrseq format$("K:6X","SEH1P");                                  Using [ZCRE] #--  # 1 TIPO REGISTRO “SEH1P” C 6 1 M
+  I+=1
+  Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  # 2 NÚMERO DE JERARQUÍA DE EMBALAJE C 12 7 M
+  Wrseq format$("K:12X","1");                                     Using [ZCRE] #--  # 3 NÚMERO DE JERARQUÍA PADRE DE EMBALAJE C 12 19 O
+
+
+  Read [F:YTAP]TPA0=[F:YSPK]PCK
+
+
+
+If [F:YSDH]SDHNUM = 'ENV112400293'
+  Infbox "111  " - num$([F:YTAP]YTIPO)
+Endif
+
+
+  # Wrseq format$("K:8X",num$(rowcount([F:YSPK])));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O
+  Wrseq format$("K:8X","1");                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O
+  # Filter [F:YSPK]
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 5 INFORMACIÓN SOBRE EL EMBALAJE, CODIFICADO C 6 39 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 6 TÉRMINOS Y CONDICIONES DEL EMBALAJE, CODIFICADO C 6 45 O
+  If [F:YTAP]YTIPO = 1 Then
+    Wrseq format$("K:6X","201");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  Else
+    Wrseq format$("K:6X","CT");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
+  Endif
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 8 TIPO DE EMBALAJE, TEXTO LIBRE C 35 57 O   ¿¿?¿¿¿??¿?
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 9 RESPONSABILIDAD PAGO TRANSPORTE DE EMBALAJE C 6 92 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 10 PESO NETO1 (AAC) N(14,3) 18 98 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 11 PESO NETO 2 N(14,3) 18 116 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 12 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO NETO C 6 134 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 13 UNIDAD DE MEDIDA PARA EL PESO NETO C 6 140 O
+#  Wrseq ctrans(format$("N0:14.3",([F:YSPK]YBRWEI)),",",".");      Using [ZCRE] #--  # 14 PESO BRUTO 1 (AAD) N(14,3) 18 146 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE]
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 15 PESO BRUTO 2 N(14,3) 18 164 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 16 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA PESO BRUTO C 6 182 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 17 UNIDAD DE MEDIDA PARA EL PESO BRUTO C 6 188 O
+#  Wrseq ctrans(format$("N0:14.3",([F:YSPK]YPCKHEI)),",",".");     Using [ZCRE] #--  # 18 DIMENSIÓN DE ALTURA 1 (HT) N(14,3) 18 194 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE]
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 19 DIMENSIÓN DE ALTURA 2 N(14,3) 18 212 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 20 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA ALTURA C 6 230 O
+  Wrseq format$("K:6X","");                                    Using [ZCRE] #--  #21 UNIDAD DE MEDIDA PARA LA ALTURA C 6 236 O
+#  Wrseq ctrans(format$("N0:14.3",([F:YSPK]YPCKWID)),",",".");     Using [ZCRE] #--  # 22 DIMENSIÓN DE ANCHO 1 (WD) N(14,3) 18 242 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE]
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  #23 DIMENSIÓN DE ANCHO 2 N(14,3) 18 260 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 24 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA ANCHO C 6 278 O
+  Wrseq format$("K:6X","");                                    Using [ZCRE] #--  # 25 UNIDAD DE MEDIDA PARA EL ANCHO C 6 284 O
+#  Wrseq ctrans(format$("N0:14.3",([F:YSPK]YPCKLEN)),",",".");     Using [ZCRE] #--  # 26 DIMENSIÓN DE LONGITUD 1 (ln) N(14,3) 18 290 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE]
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 27 DIMENSIÓN DE LONGITUD 2 N(14,3) 18 308 O
+  Wrseq format$("K:6X","");                                      Using [ZCRE] #--  # 28 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA LONGITUD C 6 326 O
+  Wrseq format$("K:6X","");                                    Using [ZCRE] #--  # 29 UNIDAD DE MEDIDA PARA LA LONGITUD C 6 332 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 30 DIMENSIÓN DE TEMPERATURA 1 (TC) N(14,3) 18 338 O
+  Wrseq format$("K:18X","");                                      Using [ZCRE] #--  # 31 DIMENSIÓN DE TEMPERATURA 2 N(14,3) 18 356 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 32 CÓDIGO SIGNIFICACIÓN DE LA MEDIDA TEMPERATURA C 6 374 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #33 UNIDAD DE MEDIDA PARA LA TEMPERATURA C 6 380 O
+  Wrseq format$("K:16X","");                                      Using [ZCRE] #--  #34 CANTIDAD POR EMBALAJE N(12,3) 16 386 O
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #--  #35 INSTRUCCIONES DE MANEJO, CODIFICADO C 6 402 O
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #36 INSTRUCCIONES DE MANEJO, TEXTO LIBRE C 70 408 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  #37 MARCA DE ENVIÓ 1 C 35 478 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 38 MARCA DE ENVIÓ 2 C 35 513 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 39 MARCA DE ENVIÓ 3 C 35 548 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 40 MARCA DE ENVIÓ 4 C 35 583 O
+
+  # SSCC
+  Read [F:YECP]ECP0=[F:YSDH]CPY
+  # "84353155"
+  #  18435315524000547
+Local Char     YLFCY
+Local Char     YLITM
+Local Char     YLNUM
+Local Integer  YLRET
+
+
+
+Call NUMERO_SSCC(YLFCY,YLITM,YLNUM,YLRET,"1" + left$([F:YECP]EXCEDICOD,8) + right$([F:YSPK]PACNUM,3)) From YCOMUN
+
+#  Wrseq format$("K:35X","1" + left$([F:YECP]EXCEDICOD,8) + right$([F:YSPK]PACNUM,3)); Using [ZCRE] #--  #41 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 618 O
+  Wrseq format$("K:35X",YLNUM); Using [ZCRE] #--  #41 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 618 O
+
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 42 NÚMERO SERIAL 1 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 653 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 43 NÚMERO SERIAL 2O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 688 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 45 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 758 O
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 44 NÚMERO SERIAL 2 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 723 O
+  Wrseq format$("K:35X","")                                       Using [ZCRE] #--  #46 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 793 O
+
+
+
+Return
+
+
+###########################################################################################
+#-- observaciones
+$ECR_SINCOBS
+  #--
+  # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
+  Wrseq format$("K:6X","SEH1U");                                  Using [ZCRE] #--  # 1 TIPO REGISTRO “SEH1P” C 6 1 M
+  Wrseq format$("K:6X","LIN");                                    Using [ZCRE] #--  #2 CALIFICADOR DE TIPO DE TEXTO C 6 7 M  ¿?¿
+  Wrseq format$("K:70X","L01");                                   Using [ZCRE] #--  #3 TEXTO 1 C 70 13 M   ?¿?¿
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #4 TEXTO 2 C 70 83 O
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #5 TEXTO 3 C 70 153 O
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #6 TEXTO 4 C 70 223 O
+  Wrseq format$("K:70X","")                                       Using [ZCRE] #--  #7 TEXTO 5 C 70 293 O
+
+Return
+
+
+###########################################################################################
+#-- desglose cantidad/localizaciones
+$ECR_SINCQTY
+  #--
+  # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
+  Wrseq format$("K:6X","SEH1G");                                  Using [ZCRE] #--  #1 TIPO REGISTRO “SEH1G” C 6 1 M
+#  Wrseq format$("K:25X",[F:YEBP]EDISDHCOD);                                 Using [ZCRE] #--  #2 CÓDIGO LUGAR/LOCALIZACIÓN C 25 7 M
+  Wrseq format$("K:25X",[F:YEBP]EDIORDCOD);                       Using [ZCRE] #--  #2 CÓDIGO LUGAR/LOCALIZACIÓN C 25 7 M #@01@: JLP  19-07-2024 Cambios para EDI - DESADV para (BCM -
+# Portugal)
+  Wrseq format$("K:3X","9");                                      Using [ZCRE] #--  #3 AGENCIA RESPONSABLE LISTA DE CÓDIGOS C 3 32 O
+  Wrseq format$("K:70X","");                                      Using [ZCRE] #--  #4 LUGAR/LOCALIZACIÓN, TEXTO LIBRE C 70 35 O
+  Wrseq format$("K:12X","");                                      Using [ZCRE] #--  #5 FECHA/HORA ESTIMADA DE ENTREGA (17) C 12 105 O
+  Wrseq format$("K:16X","");                                      Using [ZCRE] #--  #6 CANTIDAD ENVÍO DIVIDIDA (11/12) N(12,3) 16 117 O
+  Wrseq format$("K:16X","");                                      Using [ZCRE] #--  #7 PESO ENVÍO DIVIDIDO EN KGM (12) N(12,3) 16 133 O
+  Wrseq format$("K:3X","7");                                      Using [ZCRE] #--  #8 CALIFICADOR LUGAR/LOCALIZACIÓN C 3 149 O
+  Wrseq format$("K:12X","");                                      Using [ZCRE] #--  #9 FECHA DE SACRIFICIO (X20) C 12 152 O
+  Wrseq format$("K:25X","");                                      Using [ZCRE] #--  #10 CÓDIGO PRIMER LUGAR/LOCALIZACIÓN RELACIONADA C 25 164 O
+  Wrseq format$("K:70X","")                                       Using [ZCRE] #--  #11 PRIMER LUGAR/LOCALIZACIÓN RELACIONADA, TEXTO LIBRE C 70 189 O
+
+Return
+
+
+###########################################################################################
+
+#@01@: NUN14  11-03-2024 (Y119) - INI
+
+Funprog GET_ITM_COM(PS_VCRNUM, PI_VCRLIN)
+  Value Char PS_VCRNUM
+  Value Integer PI_VCRLIN
+
+  Local Char ITM_COM(250)
+  ITM_COM = ''
+
+  If !clalev([F:YSTD]): Local File STOPRED     [F:YSTD]  : Endif
+  If !clalev([F:YSOQ]): Local File SORDERQ     [F:YSOQ]  : Endif
+
+  Read [F:YSTD]PRE0 = PS_VCRNUM;PI_VCRLIN
+  If !fstat
+    Read [F:YSOQ]SOQ0 = [F:YSTD]ORINUM; [F:YSTD]ORILIN; [F:YSTD]ORISEQ
+    If !fstat
+      ITM_COM = [F:YSOQ]YITMCOMP
+    Endif
+  Endif
+
+  Read
+
+End ITM_COM
+
+#@01@: NUN14  11-03-2024 (Y119) - FIN
+
+#@01@: JLP  22-07-2024 -INI- (Y119) Cambios para EDI - DESADV
+Funprog PESO_NETO_LINEA(PS_NUM,ITM)
+Value Char PS_NUM, ITM
+Local Double YTOT : YTOT = 0
+Local Double PESO : PESO = 0
+
+  If !clalev([F:YSOHQ]): Local File SORDERQ     [F:YSOHQ]  : Endif
+  If !clalev([F:YITM]): Local File ITMMASTER     [F:YITM]  : Endif
+
+  For [F:YSOHQ] Where [F:YSOHQ]SOHNUM = PS_NUM and [F:YSOHQ]ITMREF = ITM
+      QTY = [F:YSOHQ]QTY
+  Next
+
+  Read [F:YITM]ITM0 = ITM
+    PESO = [F:YITM]ITMWEI
+
+#    YTOT = PESO * QTY
+    YTOT = PESO * [F:YPACKD2]SUMQTY
+
+End YTOT
+
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - INI
+Funprog CONT_BULT(ENT, TIP)
+Value Char ENT
+Value Char TIP
+
+  Local Integer P : P = 0# PALET
+  Local Integer B : B = 0# BULTO
+  Local Integer TOT : TOT = 0 # TOTAL
+
+  If !clalev([F:YSPCK]): Local File YSPACK     [F:YSPCK]  : Endif
+  If !clalev([F:YTABP]): Local File TABPACKAGE [F:YTABP]  : Endif
+  If !clalev([F:YSTP]): Local File STOPREH [F:YSTP]  : Endif
+
+  For [F:YSTP] Where [F:YSTP]SDHNUM = ENT
+      For [F:YSPCK] Where [F:YSPCK]VCRNUM = [F:YSTP]PRHNUM
+          Read [F:YTABP]TPA0 = [F:YSPCK]PCK
+            If [F:YTABP]YTIPO = 1
+              P+=1
+            Elsif [F:YTABP]YTIPO = 2
+              B+=1
+            Endif
+      Next
+  Next
+
+    If (TIP = '201')
+      TOT = P
+    Else
+      TOT = B
+    Endif
+
+End TOT
+#@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - FIN
+Funprog DEVUELVE_MR()
+
+
+End
+#@01@: JLP  22-07-2024 -FIN- (Y119) Cambios para EDI - DESADV
+
+#/////////////////////////////////////////////////////////////////////////////////////////////////////////////#
+#@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha - INI
+Funprog EAN_ARTICULO_T_(YARTICULO)
+Value Char YARTICULO
+Local Char EAN_T_(50)
+
+If !clalev([F:YITM])    : Local File ITMMASTER  [F:YITM]   : Endif
+If !clalev([F:YITM1])    : Local File ITMMASTER  [F:YITM1]   : Endif
+
+  Read [F:YITM]ITM0 = YARTICULO
+    If !fstat
+      Read [F:YITM1]ITM0 = [F:YITM]SEAKEY
+        If !fstat
+          EAN_T_ = [F:YITM1]EANCOD
+        Endif
+    Endif
+
+End EAN_T_
+#@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha - FIN
+#/////////////////////////////////////////////////////////////////////////////////////////////////////////////#

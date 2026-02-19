@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Control facturas
+# Gestión de la máscara PIH1 (Especifico)
+$ACTION
+Case ACTION
+ When Default
+Endcase
+Return
+
+
+######################################################################################
+Subprog C_BPRDAT(VALEUR)
+Variable Date    VALEUR
+If  VALEUR > [M:PIH0]ACCDAT
+	GMESSAGE = "Fecha de factura de proveedor posterior a la fecha introducida"
+	mkstat = 2 
+Endif 
+# Controlo que no hay otra factura / abono para este proveedor con misma fecha y num factura proveedor
+If VALEUR <> "000000" and [M:PIH1]BPRVCR <> ""
+  If clalev([C1])<=0 Local File PINVOICE [C1] : Endif
+
+  Filter [C1] Where year([C1]BPRDAT) = year(VALEUR)  and toupper([C1]BPRVCR) = toupper([M:PIH1]BPRVCR) and [C1]BPR = [M:PIH0]BPR and [C1]NUM <> [M:PIH0]NUM
+  Read [C1] First
+  If fstat = 0
+    Errbox "La factura " + [C1]NUM + " tiene la misma fecha y número de factura proveedor"
+    mkstat = 2
+  Endif
+  Filter [C1]
+
+  Close Local File [C1]
+Endif
+End
+
+
+######################################################################################
+Subprog C_BPRVCR(VALEUR)
+Variable Char    VALEUR()
+
+VALEUR = toupper(VALEUR)
+affzo [M:PIH1]BPRVCR
+# Controlo que no hay otra factura / abono para este proveedor con misma fecha y num factura proveedor
+If [M:PIH1]BPRDAT <> "000000" and VALEUR <> ""
+  If clalev([C1])<=0 Local File PINVOICE [C1] : Endif
+
+  Filter [C1] Where year([C1]BPRDAT) = year([M:PIH1]BPRDAT) and toupper(([C1]BPRVCR)) = toupper(VALEUR) and [C1]BPR = [M:PIH0]BPR and [C1]NUM <> [M:PIH0]NUM
+  Read [C1] First
+  If fstat = 0
+    Errbox "La factura " + [C1]NUM + " tiene la misma fecha y número de factura proveedor"
+    mkstat = 2
+  Endif
+  Filter [C1]
+
+  Close Local File [C1]
+Endif
+End

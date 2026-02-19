@@ -1,0 +1,152 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#Local Char CIT
+#Local Char PACN
+#Local Char DOC
+#CIT = 'CTR2400008'
+#DOC = 'DPR112400322'
+#PACN='PL24000176'
+#
+#Local Char SEC(10)
+#Local Char S_SQLDADV(250)(10)
+#
+#  [L]S_SQLDADV(0) = "SELECT s.PRHNUM_0,y.PACNUM_0, y2.ITMREF_0, CAST(ROW_NUMBER() OVER (PARTITION BY y.PACNUM_0 ORDER BY y2.ITMREF_0) AS VARCHAR(10)) "
+#  [L]S_SQLDADV(1) = "FROM  STOPREH s INNER JOIN ZCITASTL z ON z.PRHNUM_0 = s.PRHNUM_0 "
+#  [L]S_SQLDADV(2) = "INNER JOIN YSPACK y ON s.PRHNUM_0 = y.VCRNUM_0 "
+#  [L]S_SQLDADV(3) = "INNER JOIN YSPACKD y2 ON y2.PACNUM_0 = y.PACNUM_0 "
+#  [L]S_SQLDADV(4) = "WHERE z.ZCITANUM_0 = '"+CIT+"' "
+#  [L]S_SQLDADV(5) = "GROUP BY  s.PRHNUM_0,  y.PACNUM_0, y2.ITMREF_0;"
+#
+#      For (Char S_DOC, Char S_PAC, Char S_ITM, Char S_SECU) From "S" Sql [L]S_SQLDADV (0..6) As [ZPRSD]
+#         If  [ZPRSD]S_PAC = PACN  #and [ZPRSD]S_SECU
+##                SEC = [ZPRSD]S_SECU
+#            Infbox "DOC" - [ZPRSD]S_DOC - "BULTO: "- [ZPRSD]S_PAC
+#         Endif
+#      Next
+
+
+#If !clalev([F:YSOQ]): Local File  SORDERQ    [F:YSOQ] : Endif
+#If !clalev([F:YSDD]): Local File  SDELIVERYD    [F:YSDD] : Endif
+#
+#
+#  Filter [F:YSDD] Where SDHNUM = 'ENG112400022'
+#    For [F:YSDD]
+#      Filter [F:YSOQ] Where SOHNUM = [F:YSDD]SOHNUM
+#        For [F:YSOQ]
+#          Infbox "Art. Comprador: "-[F:YSOQ]YITMCOMP
+#        Next
+#     Next
+
+#Local Char ITM
+#Local Char SDH
+#ITM ='BNEX011BMRG'
+#
+#     Read [F:YTTI]YITT0 = ITM
+#      If [F:YTTI]PREPICKING = 2
+#          Infbox "ARTICULO PRE. "-num$([F:YTTI]PREPICKING)
+#      Endif
+
+#Local Char FACT
+#FACT='FAV11240800194'
+#
+#  If (func GET_VENCI(FACT)) =''
+#    Infbox "ESTA VACIO"
+#  Else
+#    Infbox "RELLENO: "- func GET_VENCI(FACT)
+#  Endif
+##   Filter [F:YPAYD] Where VCRNUM = FACT
+##    For [F:YPAYD]
+##      Filter [F:YPAY] Where NUM = [F:YPAYD]NUM
+##        For [F:YPAY]
+##         Infbox "fecha: "-[F:YPAY]DUDDAT
+##        Next
+##    Next
+#
+#Funprog GET_VENCI(FACT)
+#Value Char FACT
+#
+#
+#    If !clalev([F:YPAY]): Local File  PAYMENTH    [F:YPAY] : Endif
+#    If !clalev([F:YPAYD]): Local File  PAYMENTD    [F:YPAYD] : Endif
+#
+#  Local Char FECH_VEN(25)
+#  FECH_VEN =''
+#
+#   Filter [F:YPAYD] Where VCRNUM = FACT
+#    For [F:YPAYD]
+#      Filter [F:YPAY] Where NUM = [F:YPAYD]NUM
+#        For [F:YPAY]
+#          FECH_VEN = [F:YPAY]DUDDAT
+#        Next
+#    Next
+#
+#
+#End FECH_VEN
+
+
+
+#Local Char ENT
+#Local Char TIP
+#Local Char S_SQLDADV(250)
+#Local Char CITA
+#Local Char PRH
+#Local Char PACNUM
+#PRH='DPR112400431'
+#CITA ='CTR2400013'
+#PACNUM ='PL24000324'
+#ENT = 'ENV112400275'
+#
+#  Local Integer P : P = 0# PALET
+#  Local Integer B : B = 0# BULTO
+#  Local Integer TOT : TOT = 0 # TOTAL
+#
+#  If !clalev([F:YSPCK]): Local File YSPACK     [F:YSPCK]  : Endif
+#  If !clalev([F:YTABP]): Local File TABPACKAGE [F:YTABP]  : Endif
+#  If !clalev([F:YSTP]): Local File STOPREH [F:YSTP]  : Endif
+#  If !clalev([F:YPACKD2]): Local File YPACKD2 [F:YPACKD2]  : Endif
+#  If !clalev([F:ZCITASTL]): Local File ZCITASTL [F:ZCITASTL]  : Endif
+#
+#
+#  Filter  [F:YPACKD2] Where [F:YPACKD2]SDHNUM = ENT and [F:YPACKD2]VCRNUM = PRH
+#  For [F:YPACKD2]
+#    Infbox "TOT: "-num$(rowcount([F:YPACKD2]))
+#  Next
+
+#
+#[L]S_SQLDADV =
+#& "SELECT SDHNUM_0,PRHNUM_0 FROM SDELIVERYD  WHERE PRHNUM_0 IN (SELECT s.PRHNUM_0  FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE z.ZCITANUM_0 = '"+CITA+
+#&                            "' group by s.PRHNUM_0) group by SDHNUM_0,PRHNUM_0 "
+#
+#For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+#Filter [F:YPACKD2] Where [F:YPACKD2]SDHNUM = S_SDH and [F:YPACKD2]VCRNUM = S_PRH
+#  For [F:YPACKD2]
+##    Infbox "[F:YPACKD2]"
+#  Filter [F:ZCITASTL] Where [F:ZCITASTL]PRHNUM = [F:YPACKD2]VCRNUM and [F:ZCITASTL]PACNUM = [F:YPACKD2]PACNUM
+#  For [F:ZCITASTL]
+#    Read [F:ZCITASTL] First
+##    Infbox "[F:ZCITASTL]"
+##    Read [F:ZCITASTL] First
+#    Infbox "SDH: "-[F:YPACKD2]SDHNUM - " PRH : "- [F:ZCITASTL]PRHNUM - " PACNUM: "-[F:ZCITASTL]PACNUM - "BUL: "-num$([F:ZCITASTL]ZNBUL) - " PAL: "- num$([F:ZCITASTL]ZNPAL)
+#  Next
+#  Filter [F:ZCITASTL]
+#Next
+#Filter[F:YPACKD2]
+#Next
+#
+#For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+#          P=0
+#          B=0
+
+
+##        For [F:YSTP] Where [F:YSTP]SDHNUM = S_SDH
+#        For [F:YSTP] Where [F:YSTP]PRHNUM = S_PRH
+#            For [F:YSPCK] Where [F:YSPCK]VCRNUM = [F:YSTP]PRHNUM
+#                Read [F:YTABP]TPA0 = [F:YSPCK]PCK
+#                  If [F:YTABP]YTIPO = 1
+#                    P+=1
+#                  Elsif [F:YTABP]YTIPO = 2
+#                    B+=1
+#                  Endif
+#            Next
+#        Next
+#        Infbox "ENTREGA -> "-S_SDH-" PALET: "- num$(P)- "BULTO: "-num$(B)
+#Next

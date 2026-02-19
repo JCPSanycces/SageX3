@@ -1,0 +1,151 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Control para no poder asociar una linea a un articulos con origen "NORMAL"
+# OK = 1 : Bloqueo para no asociar a un articulo normal
+# OK = 2 : Bloque para no poder asociar a una linea que no exista
+######################################################################################
+Funprog ASOC_ART(ZLIN)
+Value Decimal ZLIN
+Local Integer OK : OK = 0
+
+    For I = 0 To [M:SOH4]NBLIG-1
+      If [M:SOH4]SOPLIN(I) = ZLIN and [M:SOH4]FMI(I) <> 5
+        OK = 1
+      Endif
+    Next
+
+End OK
+######################################################################################
+Funprog ASOC_ART_OF(ZLIN)
+Value Decimal ZLIN
+
+Local Integer OK : OK = 0
+Local Integer EXISTE_VACIO : EXISTE_VACIO = 0
+Local Integer EXISTE_NO_VACIO : EXISTE_NO_VACIO = 0
+Local Integer ENCONTRO_ZLIN : ENCONTRO_ZLIN = 0
+Local Integer ENCONTRO_ZLIN_VALIDO : ENCONTRO_ZLIN_VALIDO = 0
+Local Integer CONTROL_EXISTE_LINEA  : CONTROL_EXISTE_LINEA = 0
+
+  For I = 0 To [M:SOH4]NBLIG - 1
+
+      If [M:SOH4]FMI(I) = 5 Then
+          If [M:SOH4]FMINUM(I) = '' Then
+              EXISTE_VACIO = 1
+          Else
+              EXISTE_NO_VACIO = 1
+          Endif
+      Endif
+
+      If ZLIN = [M:SOH4]SOPLIN(I) Then
+          ENCONTRO_ZLIN = 1   # Línea encontrada
+
+          # Si la línea tiene FMI=5 y FMINUM = vacío, marcar como válida
+          If [M:SOH4]FMI(I) = 5 and [M:SOH4]FMINUM(I) = '' Then
+              ENCONTRO_ZLIN_VALIDO = 1
+          Endif
+      Endif
+
+  Next
+
+# Validaciones finales
+  If EXISTE_VACIO = 1 and ENCONTRO_ZLIN <> 1 Then
+      OK = 2    : # Error - ZLIN no existe en líneas vacías
+  Elsif EXISTE_NO_VACIO = 1 and ENCONTRO_ZLIN = 1 and ENCONTRO_ZLIN_VALIDO = 0 Then
+      OK = 3    : # Error - ZLIN ya está usado en línea con FMINUM, pero no es válido
+  Else
+      OK = 0    : # Todo OK
+  Endif
+
+End OK
+
+#FUNPROG ASOC_ART_OF(ZLIN)
+#VALUE DECIMAL ZLIN
+#LOCAL INTEGER OK : OK = 0
+#LOCAL INTEGER EXISTE_VACIO : EXISTE_VACIO = 0
+#LOCAL INTEGER EXISTE_NO_VACIO : EXISTE_NO_VACIO = 0
+#LOCAL INTEGER ENCONTRO_ZLIN : ENCONTRO_ZLIN = 0
+
+#For I = 0 To [M:SOH4]NBLIG - 1
+## EXISTE_VACIO = 0
+## EXISTE_NO_VACIO = 0
+## ENCONTRO_ZLIN = 0
+#    If [M:SOH4]FMI(I) = 5 Then
+#      If GUSER ='NUN28' : Infbox "DENTRO FMI=5: "-[M:SOH4]ITMREF(I) : Endif
+#
+#        If [M:SOH4]FMINUM(I) = '' Then
+#            If GUSER ='NUN28' : Infbox "DENTRO FMINUM=`` "-[M:SOH4]ITMREF(I) : Endif
+#            EXISTE_VACIO = 1
+#        Else
+#             If GUSER ='NUN28' : Infbox "DENTRO FMINUM<>`` "-[M:SOH4]ITMREF(I) : Endif
+#            EXISTE_NO_VACIO = 1
+#        Endif
+#    Endif
+#
+#    If ZLIN = [M:SOH4]SOPLIN(I) Then
+#       If GUSER ='NUN28' : Infbox "DENTRO ZLIN=SOPLIN "-[M:SOH4]ITMREF(I) : Endif
+#        ENCONTRO_ZLIN = 1   # SI LA LINEA EXISTE
+#    Endif
+#Next
+#
+## Validaciones
+#  If EXISTE_VACIO = 1 and ENCONTRO_ZLIN <> 1 Then # = 0
+#      OK = 2    : # Error - ZLIN no existe en líneas vacías
+#  Elsif EXISTE_NO_VACIO = 1 and ENCONTRO_ZLIN = 1 Then
+#      OK = 3    : # Error - ZLIN ya está usado en línea con FMINUM
+#  Else
+#      OK = 0    : # Todo OK
+#  Endif
+#
+#  If GUSER ='NUN28' : Infbox num$(OK) :Endif
+#End OK
+
+######################################################################################
+# BLOQUEA LOS CAMPOS DE LAS FECHAS
+Subprog BLOQ_CAMPOS()
+Local Integer CONTADOR : CONTADOR = 0
+Local Decimal OF_LANZADA(50)
+
+For I = 0 To [M:SOH4]NBLIG - 1
+    If [M:SOH4]FMINUM(I) <> "" and [M:SOH4]FMI(I) = 5 Then
+        If [M:SOH4]SOPLIN(I) <> 0
+#          If GUSER ='NUN26' : Infbox "OF_LANZADA: " - num$([M:SOH4]SOPLIN(I)): Endif
+          OF_LANZADA(CONTADOR) = [M:SOH4]SOPLIN(I)
+          CONTADOR +=1
+        Endif
+    Endif
+Next
+
+For I = 0 To [M:SOH4]NBLIG - 1
+    For J = 0 To CONTADOR -1
+        If [M:SOH4]ZLINASOC(I) = OF_LANZADA(J) and [M:SOH4]ZLINASOC(I) <> 0 and OF_LANZADA(J) <> 0 Then
+#          If GUSER ='NUN26' : Infbox "OF_LANZADA: " - num$(OF_LANZADA(J)) - " ZLIN: "-num$([M:SOH4]ZLINASOC(I)) : Endif
+          Grizo [M:SOH4]DDEMDLVDAT(I), DSHIDAT(I), EXTDLVDAT(I), ZALTO(I), ZANCHO(I), ZLARGO(I), YCOMENCLI(I), YRAL(I), QTY(I)
+          Affzo [M:SOH4]DDEMDLVDAT(I), DSHIDAT(I), EXTDLVDAT(I), ZALTO(I), ZANCHO(I), ZLARGO(I), YCOMENCLI(I), YRAL(I), QTY(I)
+        Endif
+    Next
+Next
+End
+######################################################################################
+Funprog EXISTE_ZLINSOC(ZLIN)
+Value Decimal ZLIN
+
+Local Integer YEXIST : YEXIST = 0
+
+    For I = 0 To [M:SOH4]NBLIG-1
+      If ZLIN = [M:SOH4]SOPLIN(I)
+        YEXIST = 1
+      Endif
+    Next
+
+End YEXIST
+######################################################################################
+Funprog DESMARC_ASOC(LIN)
+Value Decimal LIN
+Local Integer OK : OK = 0
+
+  For I = 0 To [M:SOH4]NBLIG-1
+    If [M:SOH4]SOPLIN(I) = LIN and [M:SOH4]FMI(I) = 5 and [M:SOH4]FMINUM(I) <> ''
+      OK = 1
+    Endif
+  Next
+
+End OK

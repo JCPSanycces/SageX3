@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "RECHTARIF"   :   Gosub RECHTARIF
+Endcase
+Return
+
+
+##############################################
+$RECHTARIF
+# Aunque sean componentes de estructura busco a que busquen el precio en las tarifas como artículo normal
+# Los componentes KIT los tengo que dejar según el cálculo STD
+If TYPRECH = 4
+  If !clalev([ZS1]) Then : Local File ITMSALES [ZS1] : Endif
+
+  Read [ZS1]ITS0 = GPNTITMREF
+  If fstat = 0  and [ZS1]ITMTYP = 2
+    TYPRECH = 1
+  Endif
+
+  Close Local File [ZS1]
+Endif
+Return

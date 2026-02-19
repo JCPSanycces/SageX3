@@ -1,0 +1,189 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog ZCHARGEDICOM
+  #--
+  Gosub OUVRE
+  #-- SINVOIC
+  Gosub FIC_IMPORTACION_CABF
+  Gosub FIC_IMPORTACION_LINF
+    #-- DESADV
+  # Gosub FIC_IMPORTACION_CABA
+  # Gosub FIC_IMPORTACION_EMBA
+  # Gosub FIC_IMPORTACION_LINA
+  #--
+  If !GSERVEUR : Call LEC_TRACE From LECFIC : Endif
+End
+
+#------------------------------------------------------------------------------------
+$OUVRE
+  #-- longitud de registro max. 1.135
+  Local Char REGISTRO(250), REGISTRO1(250), REGISTRO2(250), REGISTRO3(250), REGISTRO4(250), WCONTADOR(20)
+  Local Integer STAT, WERE1TLIN, WERE1PLIN, WERE1LLIN, LNGTH
+  #--
+  If !clalev([AOE])  : Local File AOBJEXT    [AOE]  : Endif
+  If !clalev([AOD])  : Local File AOBJEXTD   [AOD]  : Endif
+  If !clalev([AOR])  : Local File AOBJEXTR   [AOR]  : Endif
+  #--
+  If !clalev([M:IMP2]) : Global Mask IMPOBJ2    [IMP2] : Endif
+  If !clalev([M:AOE0]) : Global Mask AOE0       [AOE0] : Endif
+  If !clalev([M:AOE1]) : Global Mask AOE1       [AOE1] : Endif
+  If !clalev([M:AOE2]) : Global Mask AOE2       [AOE2] : Endif
+  #--
+  Local Char DOSSIER(GLONADS), MACHINE(GDIMFIC), APPLI(GDIMFIC), ORDSYS(250), FILELIST(250)(1..100)
+  #--
+  If !GSERVEUR : Call OUVRE_TRACE ("Generación EDICOM - SERES") From LECFIC : Endif
+Return
+
+#------------------------------------------------------------------------------------ SINVOIC
+$FIC_IMPORTACION_CABF
+  #--
+  DOSSIER = nomap
+  Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+  # Infbox "BUSCANDO FACTURAS"
+  #--
+  ORDSYS = "lsadx -a " + APPLI + " EDI\ISSUEEDICOM CABFAC*"
+  Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que tratar
+  If LNGTH<1
+    Call ECR_TRACE("Generación ficheros EDI SERES CABFAC - " + num$(LNGTH),0) From GESECRAN
+    Call ECR_TRACE("----------------------------------------------------",0) From GESECRAN : Return
+  Endif
+  #-- bucle sobre los ficheros a tratar
+  For ZZ=1 To LNGTH
+    Call ECR_TRACE("Fichero tratado CABFAC"-FILELIST(ZZ),0) From GESECRAN
+    Gosub IMP_DATOS_CABF    #-- 1
+  Next
+Return
+#------------------------------------------------------------------------------------
+$FIC_IMPORTACION_LINF
+  #--
+  DOSSIER = nomap
+  Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+  #--
+  ORDSYS = "lsadx -a " + APPLI + " EDI\ISSUEEDICOM LINFAC*"
+  Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que tratar
+  If LNGTH<1
+    Call ECR_TRACE("Generación ficheros EDI SERES LINFAC",0) From GESECRAN
+    Call ECR_TRACE("----------------------------------------------------",0) From GESECRAN : Return
+  Endif
+  #-- bucle sobre los ficheros a tratar
+  For ZZ=1 To LNGTH
+    Call ECR_TRACE("Fichero tratado LINFAC "-FILELIST(ZZ),0) From GESECRAN
+    Gosub IMP_DATOS_LINF    #-- 1
+  Next
+Return
+
+#------------------------------------------------------------------------------------
+$IMP_DATOS_CABF
+  #--
+  Raz [M:IMP2]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+  #--
+  [M:IMP2]MODIMP = "ZOCCABF"
+  [M:IMP2]NOMIMP = "S:\SAGE\X3CLIPRD\FOLDERS\" + nomap +  "\EDI\ISSUEEDICOM\"+FILELIST(ZZ)
+  [M:IMP2]TYPIMP = 2
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+  #--
+Return
+
+$IMP_DATOS_LINF
+  #--
+  Raz [M:IMP2]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+  #--
+  [M:IMP2]MODIMP = "ZOCLINF"
+  [M:IMP2]NOMIMP = "S:\SAGE\X3CLIPRD\FOLDERS\" + nomap +  "\EDI\ISSUEEDICOM\"+FILELIST(ZZ)
+  [M:IMP2]TYPIMP = 2
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+  #--
+Return
+
+#------------------------------------------------------------------------------------ DESADV
+$FIC_IMPORTACION_CABA
+  #--
+  DOSSIER = nomap
+  Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+  #--
+  ORDSYS = "lsadx -a " + APPLI + " EDI\ISSUEEDICOM CABABL*"
+  Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que tratar
+  If LNGTH<1
+    Call ECR_TRACE("Generación ficheros EDI SERES CABABL",0) From GESECRAN
+    Call ECR_TRACE("----------------------------------------------------",0) From GESECRAN : Return
+  Endif
+  #-- bucle sobre los ficheros a tratar
+  For ZZ=1 To LNGTH
+    Call ECR_TRACE("Fichero tratado CABABL"-FILELIST(ZZ),0) From GESECRAN
+    Gosub IMP_DATOS_CABA    #-- 1
+  Next
+Return
+#------------------------------------------------------------------------------------
+$FIC_IMPORTACION_EMBA
+  #--
+  DOSSIER = nomap
+  Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+  #--
+  ORDSYS = "lsadx -a " + APPLI + " EDI\ISSUEEDICOM EMBALB*"
+  Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que tratar
+  If LNGTH<1
+    Call ECR_TRACE("Generación ficheros EDI SERES EMBALB",0) From GESECRAN
+    Call ECR_TRACE("----------------------------------------------------",0) From GESECRAN : Return
+  Endif
+  #-- bucle sobre los ficheros a tratar
+  For ZZ=1 To LNGTH
+    Call ECR_TRACE("Fichero tratado EMBALB "-FILELIST(ZZ),0) From GESECRAN
+    Gosub IMP_DATOS_EMBA    #-- 1
+  Next
+Return
+#------------------------------------------------------------------------------------
+$FIC_IMPORTACION_LINA
+  #--
+  DOSSIER = nomap
+  Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+  #--
+  ORDSYS = "lsadx -a " + APPLI + " EDI\ISSUEEDICOM LINABL*"
+  Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que tratar
+  If LNGTH<1
+    Call ECR_TRACE("Generación ficheros EDI SERES LINABL",0) From GESECRAN
+    Call ECR_TRACE("----------------------------------------------------",0) From GESECRAN : Return
+  Endif
+  #-- bucle sobre los ficheros a tratar
+  For ZZ=1 To LNGTH
+    Call ECR_TRACE("Fichero tratado LINABL "-FILELIST(ZZ),0) From GESECRAN
+    Gosub IMP_DATOS_LINA    #-- 1
+  Next
+Return
+
+#------------------------------------------------------------------------------------
+$IMP_DATOS_CABA
+  #--
+  Raz [M:IMP2]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+  #--
+  [M:IMP2]MODIMP = "ZOCCABA"
+  [M:IMP2]NOMIMP = "S:\SAGE\X3CLIPRD\FOLDERS\" + nomap + "\EDI\ISSUEEDICOM\"+FILELIST(ZZ)
+  [M:IMP2]TYPIMP = 2
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+  #--
+Return
+
+$IMP_DATOS_EMBA
+  #--
+  Raz [M:IMP2]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+  #--
+  [M:IMP2]MODIMP = "ZOCEMBA"
+  [M:IMP2]NOMIMP = "S:\SAGE\X3CLIPRD\FOLDERS\" + nomap + "\EDI\ISSUEEDICOM\"+FILELIST(ZZ)
+  [M:IMP2]TYPIMP = 2
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+  #--
+Return
+
+$IMP_DATOS_LINA
+  #--
+  Raz [M:IMP2]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+  #--
+  [M:IMP2]MODIMP = "ZOCLINA"
+  [M:IMP2]NOMIMP = "S:\SAGE\X3CLIPRD\FOLDERS\" + nomap + "\EDI\ISSUEEDICOM\"+FILELIST(ZZ)
+  [M:IMP2]TYPIMP = 2
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+  #--
+Return

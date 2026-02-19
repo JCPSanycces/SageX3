@@ -1,0 +1,251 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara SIH0 (Especifico)
+# @01@ - JLP - 18/07/24 - Control para el boton de envio de SERES
+# @02@ - VEG - 07/08/2024 - V50 - Filtro devoluciones en abonos
+# @03@ - EQM - 07/08/2024 - V51 - No permitir abonar más cantidad que la factura original
+# @04@ - JLP - 21/08/2024 - V51 - Incidencia no permite crear abonos
+# @05@ - SCD - 26/09/2024 - Facturas y abonos simplificados(R5)
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SIH0) 10/01/2023 09:25:57 (NUN04)
+######################################################################################
+$ACTION
+#If GUSER='NUN28' : Infbox ACTION : Endif
+Case ACTION
+    When "SETBOUT"  : Gosub SETBOUT
+    When "FIN_PICK" : Gosub FIN_PICK
+    When "FILGAUCHE": Gosub FILGAUCHE # @02@ - VEG
+    When "INICRE"   : Gosub INICRE
+    When "STATUT"   : Gosub STATUT # @01@-JLP-18/04/2024
+    When Default
+Endcase
+Return
+
+######################################################################################
+$SETBOUT
+CHMEN += 'SZ'
+Gosub SET_BOUT_SPE From GSAISIE
+
+Return
+
+######################################################################################
+# @01@ - JLP - 18/07/2024 - INI
+
+$STATUT
+  Gosub ACTION From SUBSIH
+    If !clalev([F:YSIH])    : Local File SINVOICE   [F:YSIH]   : Endif # Cabecera de facturas de venta
+    If dim([M:SIH0]NUM) > 0
+      Read [F:YSIH]SIH0 = [M:SIH0]NUM
+      If !fstat
+        [M:SIH0]YSTAEDI = [F:YSIH]YSTAEDI
+        Affzo [M:SIH0]YSTAEDI
+      Endif
+    Endif
+  GPE = 1
+Return
+# @01@ - JLP - 18/07/2024 - FIN
+
+######################################################################################
+$FIN_PICK
+# Gestión del campo Tipo Factura Española
+Read [ZT1]BPR0 = [M:SIH0]BPCINV
+If fstat = 0
+  If [ZT1]BPRACC = 2 and [ZT1]DOCTYP = 6
+    Read [ZT2]BPC0 = [M:SIH0]BPCINV
+    If fstat = 0 and [ZT2]BPCTYP = 2
+      [M:SIH0]INVTYPSPA = 2
+      Affzo [M:SIH0]INVTYPSPA
+
+# @05@ - SCD - 26/09/2024 - INI
+      If [M:SIH0]INVTYP = 2
+        [M:SIH0]INVTYPSPA = 7
+        Affzo [M:SIH0]INVTYPSPA
+      Endif
+# @05@ - SCD - 26/09/2024 - FIN
+
+    Endif
+  Endif
+Endif
+# @01@ - JLP - 18/07/2024 - INI
+  [M:SIH0]YSTAEDI = 1
+  Affzo [M:SIH0]YSTAEDI
+# @01@ - JLP - 18/07/2024 - FIN
+Return
+
+######################################################################################
+
+$FILGAUCHE
+  If GFLAG = "SAN02"
+      Case currbox
+        When GBOXSR1
+            FILGAUSUP(1) += "& [F:SRH]YESTADO=3"
+        When Default
+            Return
+      Endcase
+  Endif
+
+Return
+
+######################################################################################
+$INICRE
+# Gestión del campo Tipo Factura Española, si vengo de la entrega
+If GFONCTION1 = "GESSDH" or GFONCTION1 = "GESSOH" or GFONCTION1 = "GESSQH"
+  Read [ZT1]BPR0 = [M:SIH0]BPCINV
+  If fstat = 0
+    If [ZT1]BPRACC = 2 and [ZT1]DOCTYP = 6
+      Read [ZT2]BPC0 = [M:SIH0]BPCINV
+      If fstat = 0 and [ZT2]BPCTYP = 2
+        [M:SIH0]INVTYPSPA = 2
+        Affzo [M:SIH0]INVTYPSPA
+
+# @05@ - SCD - 26/09/2024 - INI
+      If [M:SIH0]INVTYP = 2
+        [M:SIH0]INVTYPSPA = 7
+        Affzo [M:SIH0]INVTYPSPA
+      Endif
+# @05@ - SCD - 26/09/2024 - FIN
+
+      Endif
+    Endif
+  Endif
+Endif
+# @01@ - JLP - 18/07/2024 - INI
+  [M:SIH0]YSTAEDI = 1
+  Affzo [M:SIH0]YSTAEDI
+# @01@ - JLP - 18/07/2024 - FIN
+
+Gosub COMP_QTY_LIN # @03@ - EQM
+
+Return
+######################################################################################
+Subprog AM_BPCINV(VALEUR)
+Variable Char    VALEUR()
+# Gestión del campo Tipo Factura Española
+Read [ZT1]BPR0 = VALEUR
+If fstat = 0
+  If [ZT1]BPRACC = 2 and [ZT1]DOCTYP = 6
+    Read [ZT2]BPC0 = VALEUR
+    If fstat = 0 and [ZT2]BPCTYP = 2
+      [M:SIH0]INVTYPSPA = 2
+      Affzo [M:SIH0]INVTYPSPA
+
+# @05@ - SCD - 26/09/2024 - INI
+      If [M:SIH0]INVTYP = 2
+        [M:SIH0]INVTYPSPA = 7
+        Affzo [M:SIH0]INVTYPSPA
+      Endif
+# @05@ - SCD - 26/09/2024 - FIN
+
+    Endif
+  Endif
+Endif
+End
+
+
+######################################################################################
+# @03@ - INI
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SIH4) 09/08/2024 12:35:45 (NUN12)
+######################################################################################
+Subprog AM_QTY(VALEUR)
+Variable Decimal VALEUR
+
+    If [M:SIH0]INVTYP=2
+    Gosub COMP_QTY
+    If OK <>2
+        mkstat=2
+        Infbox "Cantidad"-num$(SUMA) -" ya abonada para el artículo "-[M:SIH4]ITMREF - ". Se puede abonar "-num$([F:YSID3]QTY-SUMA)
+#       VALEUR=2
+#       Affzo [M:SIH4]QTY(NBLIG)
+    Endif
+Endif
+
+End
+
+
+######################################################################################
+$COMP_QTY_LIN
+
+  Local Integer OK : OK=0
+  Local Decimal SUMA
+
+  If clalev([F:YSID3])=0 : Local File SINVOICED  [F:YSID3] : Endif
+  If clalev([F:YSID])=0  : Local File SINVOICED  [F:YSID]  : Endif
+  If clalev([F:YSIH])=0  : Local File SINVOICE   [F:YSIH]  : Endif
+
+#  For I=0 To [M:SIH4]NBLIG-1
+#      Read [F:YSID3]SID0=[M:SIH4]XSIHORINUM(I);[M:SIH4]SIDORILIN(I)
+#      If !fstat
+#            Link [YSID] With [YSIH]SIH0=NUM As [YSID2]
+#            Filter [YSID2] Where SIHORINUM=[M:SIH4]XSIHORINUM(I) and SIDORILIN=[M:SIH4]SIDORILIN(I) and INVTYP=2
+#            SUMA=0
+#            For [YSID2]
+#                SUMA+=[F:YSID]QTY
+#            Next
+#            Filter [YSID2]
+#
+#            If [F:YSID3]QTY-SUMA>=[M:SIH4]QTY(I)
+#                OK=2
+#            Endif
+#
+#       Endif
+#       If OK<>2
+#           Infbox "Cantidad"-num$(SUMA) -" ya abonada para el artículo "-[M:SIH4]ITMREF(I) - ". Se puede abonar "-num$([F:YSID3]QTY-SUMA)
+#           GOK =0
+#           Break
+#       Endif
+#  Next
+# @04@ - JLP - 21/08/2024 - V51 - Incidencia no permite crear abonos - INI
+  For I=0 To [M:SIH4]NBLIG-1
+      Read [F:YSID3]SID0=[M:SIH4]XSIHORINUM(I);[M:SIH4]SIDORILIN(I)
+      If !fstat
+            Link [YSID] With [YSIH]SIH0=NUM As [YSID2]
+            Filter [YSID2] Where SIHORINUM=[M:SIH4]XSIHORINUM(I) and SIDORILIN=[M:SIH4]SIDORILIN(I) and INVTYP=2
+            SUMA=0
+            For [YSID2]
+                SUMA+=[F:YSID]QTY
+            Next
+            Filter [YSID2]
+
+            If [F:YSID3]QTY-SUMA>=[M:SIH4]QTY(I)
+                OK=2
+            Endif
+
+       If OK<>2
+           Infbox "Cantidad"-num$(SUMA) -" ya abonada para el artículo "-[M:SIH4]ITMREF(I) - ". Se puede abonar "-num$([F:YSID3]QTY-SUMA)
+           GOK =0
+           Break
+       Endif
+      Endif
+  Next
+# @04@ - JLP - 21/08/2024 - V51 - Incidencia no permite crear abonos - FIN
+
+Return
+######################################################################################
+$COMP_QTY
+
+    Local Integer OK : OK=0
+    Local Decimal SUMA : SUMA=0
+
+    If clalev([F:YSID3])=0 : Local File SINVOICED  [F:YSID3] : Endif
+    If clalev([F:YSID])=0  : Local File SINVOICED  [F:YSID]  : Endif
+    If clalev([F:YSIH])=0  : Local File SINVOICE   [F:YSIH]  : Endif
+
+    Read [F:YSID3]SID0=[M:SIH4]XSIHORINUM;[M:SIH4]SIDORILIN
+    If !fstat
+        Link [YSID] With [YSIH]SIH0=NUM As [YSID2]
+        Filter [YSID2] Where SIHORINUM=[M:SIH4]XSIHORINUM and SIDORILIN=[M:SIH4]SIDORILIN and INVTYP=2
+        For [YSID2]
+            SUMA+=[F:YSID]QTY
+        Next
+        Filter [YSID2]
+        If [F:YSID3]QTY-SUMA>=VALEUR
+            OK=2
+        Endif
+# @04@ - JLP - 21/08/2024 - V51 - Incidencia no permite crear abonos - INI
+    Else
+      OK = 2
+    Endif
+# @04@ - JLP - 21/08/2024 - V51 - Incidencia no permite crear abonos - FIN
+Return
+######################################################################################
+# @03@ - FIN

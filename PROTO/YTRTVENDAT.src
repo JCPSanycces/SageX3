@@ -1,0 +1,139 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Puntos de entrada pedido de venta
+#  @01@ - EQM - 10-09-2024 - Modificar cálculo fecha expedición, se suma nuevo campo art/planta
+#  @02@ - ASZ - 03-12-2024 - Modificar para que tenga en cuenta el dia del bloqueo
+$ACTION
+Case ACTION
+  When "CALCDAT"    :   Gosub CALCDAT
+Endcase
+Return
+
+################################################
+#$CALCDAT
+#LA FECHA DE EXPEDICIÓN DE LAS LÍNEAS DEL PEDIDO, SUMANDO A LA FECHA DEL PEDIDO (ORDDAT),
+#UN PLAZO QUE INDICAMOS POR ARTÍCULO-PLANTA (EN EL CAMPO PICKING-PRPLTI ) COMO DÍAS NATURALES (NO COMO DÍAS LABORABLES)
+#SOLAMENTE DESDE LA PANTALLA DE PEDIDOS DE VENTA
+#SOLAMANTE SI SE TRATA DE UNA NUEVA LINEA (04/03/2024)
+#If GFONCTION = "GESSOH"
+#  If !clalev([PP1]) : Local File ITMFACILIT [PP1] : Endif
+#  If !clalev([PP2]) : Local File SORDERP    [PP2] : Endif
+#  For I=0 To [M:SOH4]NBLIG-1
+#    If [M:SOH4]CREFLG(I)=0
+#      Read [PP1]ITF0 = [M:SOH4]ITMREF(I);[M:SOH0]SALFCY
+#      If fstat = 0
+#      #  @01@ - EQM - INI
+##        DSTDAT = [M:SOH0]ORDDAT + [PP1]PRPLTI
+#        DSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+#        #  @01@ - EQM -FIN
+#        Call CTL_JOU(DSTDAT, UVYDAY, UVYCOD, SENDEC) From CONTX3
+#        [M:SOH4]DSHIDAT(I) = DSTDAT
+#        [M:SOH4]EXTDLVDAT(I) = DSTDAT
+#        Affzo [M:SOH4]DSHIDAT(I)
+#        Affzo [M:SOH4]EXTDLVDAT(I)
+#      Endif
+#    Endif
+#  Next
+#  Close Local File [PP1]
+#Endif
+#Return
+################################################################################################
+#  @01@ - EQM - INI
+$CALCDAT
+#LA FECHA DE EXPEDICIÓN DE LAS LÍNEAS DEL PEDIDO, SUMANDO A LA FECHA DEL PEDIDO (ORDDAT),
+#UN PLAZO QUE INDICAMOS POR ARTÍCULO-PLANTA (EN EL CAMPO PICKING-PRPLTI ) COMO DÍAS NATURALES (NO COMO DÍAS LABORABLES)
+#SOLAMENTE DESDE LA PANTALLA DE PEDIDOS DE VENTA
+#SOLAMANTE SI SE TRATA DE UNA NUEVA LINEA (04/03/2024)
+If GFONCTION = "GESSOH"
+# If GUSER ='NUN28':Infbox "TRTVENDAT":Endif
+  If !clalev([PP1]) : Local File ITMFACILIT [PP1] : Endif
+  If !clalev([PP2]) : Local File SORDERP    [PP2] : Endif
+  If !clalev([PP5]) : Local File FACILITY   [PP5] : Endif
+
+  For I=0 To [M:SOH4]NBLIG-1
+     If I < 0 or I >= [M:SOH4]NBLIG
+          Break
+        Endif
+    If [M:SOH4]CREFLG(I)=0
+        If  [M:SOH4]LINTYP(I)<>6 and [M:SOH4]LINTYP(I)<>8 and [M:SOH4]LINTYP(I)<>9
+            Read [PP1]ITF0 = [M:SOH4]ITMREF(I);[M:SOH0]SALFCY
+            If !fstat
+                Read [PP5]FCY0 = [M:SOH0]SALFCY
+                If fstat = 0
+                    DSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+                    Call CTL_JOU(DSTDAT, [PP5]UVYDAY, [PP5]UVYCOD, 1) From CONTX3
+                    # @nun48
+#                    [M:SOH4]DSHIDAT(I) = DSTDAT
+#                    [M:SOH4]EXTDLVDAT(I) = DSTDAT
+                     [M:SOH4]DSHIDAT(I)   = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),DSTDAT)
+                     [M:SOH4]EXTDLVDAT(I) = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),DSTDAT)
+                    # nun48
+                    Affzo [M:SOH4]DSHIDAT(I)
+                    Affzo [M:SOH4]EXTDLVDAT(I)
+                Endif
+            Endif
+        Endif
+        If  [M:SOH4]LINTYP(I)=9
+            Read [PP1]ITF0 = [M:SOH4]ITMREF(I);[M:SOH0]SALFCY
+            If fstat = 0
+                Read [PP5]FCY0 = [M:SOH0]SALFCY
+                If fstat = 0
+                    YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+                    Call CTL_JOU(YDSTDAT, [PP5]UVYDAY, [PP5]UVYCOD, 1) From CONTX3
+                    # @nun48
+#                    [M:SOH4]DSHIDAT(I)   = YDSTDAT
+#                    [M:SOH4]EXTDLVDAT(I) = YDSTDAT
+                    [M:SOH4]DSHIDAT(I)   = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),YDSTDAT)
+                    [M:SOH4]EXTDLVDAT(I) = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),YDSTDAT)
+                    # @nun48
+                    Break
+                Endif
+            Endif
+        Endif
+        If  [M:SOH4]LINTYP(I)=8   or [M:SOH4]LINTYP(I)=7
+            For YX =0 To [M:SOH4]NBLIG-1
+                If ([M:SOH4]ZLINASOC(I)=[M:SOH4]SOPLIN(YX)) and [M:SOH4]LINTYP(YX)=9
+                    Read [PP1]ITF0 = [M:SOH4]ITMREF(I);[M:SOH0]SALFCY
+                    If fstat = 0
+                        Read [PP5]FCY0 = [M:SOH0]SALFCY
+                        If fstat = 0
+                            YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+                            Call CTL_JOU(YDSTDAT, [PP5]UVYDAY, [PP5]UVYCOD, 1) From CONTX3
+                            # @nun48
+#                            [M:SOH4]DSHIDAT(I)   = YDSTDAT
+#                            [M:SOH4]EXTDLVDAT(I) = YDSTDAT
+                            [M:SOH4]DSHIDAT(I)   = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),YDSTDAT)
+                            [M:SOH4]EXTDLVDAT(I) = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),YDSTDAT)
+                            # @nun48
+
+                            Break
+                        Endif
+                     Endif
+                 Endif
+            Next
+        Endif
+        If [M:SOH4]LINTYP(I)=6
+             If [M:SOH4]LINTYP(I+1)=9
+                 Read [PP1]ITF0 = [M:SOH4]ITMREF(I+1);[M:SOH0]SALFCY
+                 If fstat = 0
+                     Read [PP5]FCY0 = [M:SOH0]SALFCY
+                     If fstat = 0
+                         YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+                         Call CTL_JOU(YDSTDAT, [PP5]UVYDAY, [PP5]UVYCOD, 1) From CONTX3
+#                         [M:SOH4]DSHIDAT(I)   = YDSTDAT
+#                         [M:SOH4]EXTDLVDAT(I) = YDSTDAT
+                         [M:SOH4]DSHIDAT(I)   = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),YDSTDAT)
+                         [M:SOH4]EXTDLVDAT(I) = func SPESOH.COMPROBAR_FECHA([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),YDSTDAT)
+                     Endif
+                 Endif
+             Endif
+         Endif
+    Endif
+  Next
+  Close Local File [PP1]
+  Close Local File [PP2]
+  Close Local File [PP5]
+
+Endif
+Return
+################################################################################################
+#  @01@ - EQM - FIN

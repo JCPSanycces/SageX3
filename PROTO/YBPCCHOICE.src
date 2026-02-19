@@ -1,0 +1,68 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Selección automática de clientes a partir del campo SPE con las dos razones sociales concatenadas
+#@01@ - EQM - Mod if
+$ACTION
+Case ACTION
+ When "SEL_TABLE"     : Gosub SEL_TABLE
+ When Default
+Endcase
+Return
+
+
+#########################################################################
+$SEL_TABLE
+#If GFONCTION = 'YGENSDH'
+#  Return
+#Endif
+Case TABLE
+    When "BPCCHOICE" : Gosub S_SPE_BPC
+Endcase
+Return
+
+
+#########################################################################
+$S_SPE_BPC
+If clalev([F:BPR])=0 : Local File BPARTNER   [BPR] : Endif
+If clalev([F:ATZ])=0 : Local File ATABZON    [ATZ] : Endif
+
+Local Char    UPVAL(type(VALEUR)-10) : UPVAL = toupper(VALEUR)
+Local Integer NBREC
+
+Read [BPR]BPR0=UPVAL
+#If !fstat : OK=0 : Return : Endif  #@01@ - EQM
+
+If !fstat
+  OK=0
+Else
+  Return
+Endif
+
+ORDRE   = 'BPRNUM'
+START   = 'BPRNUM'
+OBJET   = 'BPR'
+
+CRITERE  = '((left$([F:BPR]BPRNUM,' + num$(len(UPVAL)) + ')="'+UPVAL+'")'
+CRITERE -= '| (pat(toupper([F:BPR]YRAZSOC),"*'+UPVAL+'*")))'
+CRITERE -='& [F:BPR]BPCFLG=2'
+
+Local Clbfile SQL_REQ(1)
+SQL_REQ  = "select count(*) From BPARTNER BPR"
+Append SQL_REQ," Where BPR.BPCFLG_0=2 and ("+func TRTSEL.FUZZIFY("BPR.BPRNUM_0",VALEUR,2)
+Append SQL_REQ," or"-func TRTSEL.FUZZIFY("upper(BPR.YRAZSOC_0)",VALEUR,3)+")"
+
+For (Integer RES) From num$(GTYPDBA*2+1) Sql SQL_REQ As [CONT]
+  NBREC = RES
+Next
+
+If NBREC<2
+  If NBREC=1
+    Filter [BPR] Where evalue(CRITERE)
+    Read [BPR] First
+    VALEUR = [F:BPR]BPRNUM
+    Filter [BPR]
+  Endif
+  OK=0 : Return
+Endif
+
+GPE=1
+Return

@@ -1,0 +1,38 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+################################################################################
+# Envío automático del fichero DACHSER a partir de los documentos de preparación
+################################################################################
+
+# Apertura de tablas
+If !clalev([BD01]) : Local File STOPREH [BD01] : Endif
+
+# Definición de variables
+Local Integer LERR
+Local Char LOK
+
+# Recorro todos los documentos de preparación que estén pendientes de envío
+For [BD01] Where [BD01]YDACESTADO = 3
+  # Contro de errores
+  LERR = 0
+  Call DACHSER_CHECK([BD01]PRHNUM,LERR) From YENVDACH
+
+  # Si todo OK, genero fichero
+  If LERR = 0
+    LOK = ""
+    Call DACHSER_GENERA_FICHERO([BD01]PRHNUM,LOK) From YENVDACH
+    If LOK = 'N'
+      Call TRAZA_DACHSER([BD01]PRHNUM,4,GUSER,2) From YENVDACH
+    Else
+      [BD01]YDACESTADO  = 5
+      [BD01]YDACFECHA   = date$
+      [BD01]YDACHORA    = time$
+      [BD01]YDACUSUARIO = GUSER
+      Rewrite [BD01]
+      Call TRAZA_DACHSER([BD01]PRHNUM,5,GUSER,0) From YENVDACH
+    Endif
+  Endif
+Next
+
+# Cierre de tablas
+Close Local File [BD01]
+End

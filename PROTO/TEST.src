@@ -1,0 +1,1692 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)6.0.0.0 $Revision$
+###########################################################################
+#                                                                         #
+#                           TRTBPMVT                       Module TC      #
+#                                                                         #
+#    Traitements liés aux mouvements tiers client et fournisseurs         #
+#                                                                         #
+# ----------------------------------------------------------------------- #
+# Subprog MAJMVC (CLIENT,DEVDOC,CHGTYP,WCHGRAT,DATDOC,NUMDOC,SITDOC,      #
+#                 AMTNOT,AMTATI,SENS,TYP,ACT,CAT)                         #
+#      Maj des montants dans les mouvements clients                       #
+#                                                                         #
+# Subprog CALENC (CLIFAC,DAT,ENCOURS)                                     #
+#      Calcul de l'en-cours client                                        #
+#                                                                         #
+# Subprog MAJENC_BPS (WBPSNUM,WIFFTYP,WIFFFCY,WCUR,WCHGTYP,WMVTDAT,       #
+#                     WVCRNUM,WAMTNOT,WAMTATI,WTOTATI)                    #
+#      Màj des montants dans les mouvements fournisseurs                  #
+#                                                                         #
+# Subprog CALENC_BPS (WBPSRSK,WDAT,WENCOURS)                              #
+#      Calcul de l'en-cours fournisseur                                   #
+#                                                                         #
+# Funprog CALOST(CLIFAC,TYPCOU,DAT)                                       #
+#      Calcul de l'en-cours client en devise de reporting                 #
+#                                                                         #
+# Funprog CALOSTCPYCTLRSK(CPY,WBPCNUM,TYPCOU,DAT,FLGCTL) SEGAY 19/03/10   #
+#      Calcul de l'en-cours client ou client risque en devise de reporting#
+#      pour une société                                                   #
+#                                                                         #
+# Funprog CALOSTCPY(CPY,WBPCRSK,TYPCOU,DAT)      SEGAY 16/01/09           #
+#      Calcul de l'en-cours client risque en devise de reporting          #
+#      pour une société                                                   #
+#                                                                         #
+# Funprog CALOSTCPYCTL(CPY,WBPCNUM,TYPCOU,DAT)     SEGAY 19/03/10         #
+#      Calcul de l'en-cours client en devise de reporting pour une société#
+#                                                                         #
+# Funprog BPSLASTDATE(BPSNUM,IFFTYP,CPY)       SEGAY 08/12/08             #
+#      Derniere date de mouvement fournisseur                             #
+###########################################################################
+
+#---------------------------------------------------------#
+# Maj des montants dans les mouvements clients            #
+#---------------------------------------------------------#
+# Entrée  CLIENT      : Client                            #
+#         DEVDOC      : Devise du document                #
+#         CHGTYP      : Taux de change                    #
+#         WCHGRAT     : Cours devise/devise societe ou 0  #
+#         DATDOC      : Date du document                  #
+#         NUMDOC      : N° du document                    #
+#         SITDOC      : Site du document                  #
+#         AMTNOT      : Montant HT                        #
+#         AMTATI      : Montant TTC                       #
+#         SENS        : En + ou en -                      #
+#                     : 0 : Maj uniquement LASCUSTMVT     # 84771 : Pb update last delivery in LASCUSTMVT
+#         TYP         : Type montant à traiter            #
+#         ACT         : Code action                       #
+#         CAT         : Type de commande ou livraison     #
+#---------------------------------------------------------#
+# CAT : attention ! valeur 2 & 5     --> prêt             #
+#       donc si valeur 5 pour CATSOH --> problème         #
+#---------------------------------------------------------#
+#----------------------------------------------------------------------------------------------#
+# NB :                                                                                         #
+# Le cours / devise société WCHGRAT n'est renseigné que pour les factures où il est modifiable #
+# Pour tous les autres documents, on passe 0 et COURMNT se charge d'aller le rechercher        #
+#----------------------------------------------------------------------------------------------#
+Subprog MAJMVC (CLIENT,DEVDOC,CHGTYP,WCHGRAT,DATDOC,NUMDOC,SITDOC,AMTNOT,AMTATI,SENS,TYP,ACT,CAT)
+Value   Char     CLIENT
+Value   Char     DEVDOC
+Value   Integer  CHGTYP
+Value   Decimal  WCHGRAT
+Value   Date     DATDOC
+Value   Char     NUMDOC
+Value   Char     SITDOC
+Value   Decimal  AMTNOT
+Value   Decimal  AMTATI
+Value   Char     SENS
+Value   Char     TYP
+Value   Char     ACT
+Value   Integer  CAT
+
+Local   Char     WBPCRSK, WRPTCUR
+Local   Decimal  XAMTNOT, XAMTATI, XAMTNOTL, XAMTATIL, XAMTNOTR, XAMTATIR
+Local   Decimal  WMNTORG(0..1), WMNTDES(0..1)
+Local   Integer  SPSTAT, WIFFTYP, WMVTTYP
+Local   Char     WSVSITE(GLONFCY) # FGR 10/08/2009 : X3SUIVI57005
+
+If clalev([F:BPC]) = 0 Local File BPCUSTOMER [BPC] : Endif
+If clalev([F:MVC]) = 0 Local File BPCUSTMVT  [MVC] : Endif
+If clalev([F:LCM]) = 0 Local File LASTCUSMVT [LCM] : Endif
+
+#---------------------------------------------------------------------#
+# Point d'entree maj en-cours                                         #
+#---------------------------------------------------------------------#
+Local Char WPOINT_CLIENT
+#GPOINT="MAJMVC" : Gosub ENTREE From EXEFNC
+If WPOINT_CLIENT <> "" CLIENT = WPOINT_CLIENT Endif
+
+# On recherche d'abord le tiers risque lié au client
+If [F:BPC]BPCNUM<>CLIENT
+    Read [BPC]BPC0 = CLIENT : If fstat Raz [F:BPC] Endif
+Endif
+
+#If [F:BPC]BPCTYP=4 End : Endif    : # Bug 70139
+# Bug 66527
+#If [F:BPC]BPCRSK="" GOK=0 : End : Endif
+WBPCRSK=[F:BPC]BPCRSK
+If WBPCRSK="" WBPCRSK=CLIENT Endif
+# Bug 66527
+
+# Pour les prospects, on ne met à jour que le fichier LASTCUSMVT (Bug 70139)
+If [F:BPC]BPCTYP=4                 Gosub MNT : End : Endif
+# Pour les retours, on ne met à jour que le fichier LASTCUSMVT
+If TYP="R"                         Gosub MNT : End : Endif
+# Pour les factures validées depuis la resynchro, on ne met à jour que le fichier LASTCUSMVT
+If find(TYP, "I","N") & SENS="0"   Gosub INV : End : Endif    : # Bug 62857
+
+Readlock [MVC]MVC0 = WBPCRSK;GSOCIETE;CLIENT;DEVDOC
+If fstat = 1 : GOK = -1 : GLOCK = "$BPCUSTMVT"-WBPCRSK-GSOCIETE-CLIENT-DEVDOC : End : Endif
+If fstat = 4 | fstat = 5
+   Raz [F:MVC]
+   [F:MVC]BPCRSK    = WBPCRSK
+   [F:MVC]ACCCUR    = GLOCALDEV
+   [F:MVC]CPY       = GSOCIETE
+   [F:MVC]BPCNUM    = CLIENT
+   [F:MVC]CUR       = DEVDOC
+   If dim([F:MVC]CREDAT)>0 [F:MVC]CREDAT = date$:Endif
+   If dim([F:MVC]CREUSR)>0 [F:MVC]CREUSR = GUSER:Endif
+   If dim([F:MVC]EXPNUM)>0 [F:MVC]EXPNUM = [C]EXPORT:Endif
+   Gosub MNT : If GOK<1 End Endif
+
+   Write [MVC]
+   If fstat : GOK = 0 : Call FSTA("MVC") From GLOCK : End : Endif
+Elsif fstat = 0
+   If dim([F:MVC]UPDDAT)>0 [F:MVC]UPDDAT = date$:Endif
+   If dim([F:MVC]UPDUSR)>0 [F:MVC]UPDUSR = GUSER:Endif
+   If dim([F:MVC]EXPNUM)>0 [F:MVC]EXPNUM = [C]EXPORT:Endif
+   Gosub MNT : If GOK<1 End Endif
+
+   Rewrite [MVC]
+   If fstat : GOK = 0 : Call FSTA("MVC") From GLOCK : End : Endif
+Endif
+End
+
+#-------------------------------------#
+# Calcul des montants                 #
+#-------------------------------------#
+$MNT
+
+If DATDOC=[0/0/0] DATDOC=date$ Endif
+XAMTNOT = AMTNOT
+XAMTATI = AMTATI
+ Infbox "DENTRO TEST - 154" - num$(XAMTNOT)- num$(XAMTATI)
+
+If SENS = "-" & TYP<>"R" & [F:BPC]BPCTYP<>4     : # Bug 70139
+    XAMTNOT*=-1
+    XAMTATI*=-1
+Endif
+If TYP<>"R" & [F:BPC]BPCTYP<>4                  : # Bug 70139
+    # Bug 68017
+    Gosub CONVMNT : # Conversion du montant dans la devise société et reporting
+    # Bug 68017
+Endif
+
+Case TYP
+    When "Q" : Gosub QUO    :    # Devis
+    When "C" : Gosub BPC    :    # Commande
+    When "F" : Gosub BPI    :    # Commande
+    When "O" : Gosub OST    :    # En-cours Livraison
+    When "D" : Gosub DLV    :    # Livraison
+    When "I" : Gosub INV    :    # Facture
+    When "N" : Gosub INV    :    # Avoir
+    When "R" : Gosub RET    :    # Retour
+    When "S" : Gosub SOL    :    # Solde
+    When "P" : Gosub POR    :    # Portefeuilles
+    When "M" : Gosub PAY    :    # Impayés et/ou dévaloration du portefeuille
+Endcase
+
+  # FGR 10/08/2009 : X3SUIVI57005 (début)
+  #If SITDOC <> "" and GOK >= 1 Then
+  #  # on se rappelle avec SITDOC = "" pour stocker aussi l'information au niveau société
+  #  # Seulement s'il n'y a pas eu une erreur la première fois
+  #  WSVSITE = SITDOC  # On sauvegarde le site, au cas où il se passerait quelque chose après...
+  #  SITDOC = ""
+  #  Gosub MNT
+  #  SITDOC = WSVSITE  # ... et on le restaure.
+  #  # S'il y a eu une erreur à ce niveau elle sera aussi traitée par l'appelant (Gosub MNT).
+  #Endif
+  # FGR 10/08/2009 : X3SUIVI57005 (fin)
+Return
+
+# ---------------------------------------------------------------- #
+# Conversion des montants en devise societe et en devise reporting #
+# ---------------------------------------------------------------- #
+$CONVMNT
+
+# Conversion des montants en devise societe
+# Conversion si dev soc<>dev txn ou si on a un cours dev soc particulier
+If GLOCALDEV <> [F:MVC]CUR | WCHGRAT <> 0
+   WMNTORG (0) = XAMTNOT
+   WMNTORG (1) = XAMTATI
+#   Call CONVERT([F:MVC]CUR,GLOCALDEV, GLOCALDEV,CHGTYP,DATDOC,WMNTORG(0),WMNTDES(0),SPSTAT) From TRTDEV
+#   Call CONVERT([F:MVC]CUR,GLOCALDEV, GLOCALDEV,CHGTYP,DATDOC,WMNTORG(1),WMNTDES(1),SPSTAT) From TRTDEV
+#   Call CONVERT3([F:MVC]CUR,GLOCALDEV, GLOCALDEV,CHGTYP,DATDOC,WMNTORG(0),WMNTDES(0),WCHGRAT, SPSTAT) From CPTSUB
+#   Call CONVERT3([F:MVC]CUR,GLOCALDEV, GLOCALDEV,CHGTYP,DATDOC,WMNTORG(1),WMNTDES(1),WCHGRAT, SPSTAT) From CPTSUB
+   Call COURMNT([F:MVC]CUR,GLOCALDEV, GLOCALDEV,CHGTYP,DATDOC,1,WMNTORG(0),WMNTDES(0),WCHGRAT, SPSTAT) From TRTDEV
+   Call COURMNT([F:MVC]CUR,GLOCALDEV, GLOCALDEV,CHGTYP,DATDOC,1,WMNTORG(1),WMNTDES(1),WCHGRAT, SPSTAT) From TRTDEV
+   XAMTNOTL = WMNTDES (0)
+   XAMTATIL = WMNTDES (1)
+Else
+   XAMTNOTL = XAMTNOT
+   XAMTATIL = XAMTATI
+Endif
+
+# Conversion des montants en devise dossier
+# Devise dossier : Paramètre Devise zone commune ou Devise dossier si le paramètre n'est pas renseigné
+WRPTCUR=GCURSHR
+If WRPTCUR="" WRPTCUR=GSYSCUR Endif
+# Conversion si dev dossier<>dev txn et dev soc
+If (WRPTCUR <> [F:MVC]CUR & WRPTCUR <> GLOCALDEV)
+   WMNTORG (0) = XAMTNOT
+   WMNTORG (1) = XAMTATI
+#   Call CONVERT([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,WMNTORG(0),WMNTDES(0),SPSTAT) From TRTDEV
+#   Call CONVERT([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,WMNTORG(1),WMNTDES(1),SPSTAT) From TRTDEV
+   # On ne connait jamais le cours/devise dossier, c'est tjs le sous-pro qui le recherche
+#   Call CONVERT3([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,WMNTORG(0),WMNTDES(0),0, SPSTAT) From CPTSUB
+#   Call CONVERT3([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,WMNTORG(1),WMNTDES(1),0, SPSTAT) From CPTSUB
+   Call COURMNT([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,1,WMNTORG(0),WMNTDES(0),0, SPSTAT) From TRTDEV
+   Call COURMNT([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,1,WMNTORG(1),WMNTDES(1),0, SPSTAT) From TRTDEV
+   XAMTNOTR = WMNTDES (0)
+   XAMTATIR = WMNTDES (1)
+Elsif WRPTCUR = GLOCALDEV
+   # Si dev dossier=dev soc on prend directement les montants en dev soc sauf si on a un cours dev soc particulier
+   If WCHGRAT=0
+       XAMTNOTR = XAMTNOTL
+       XAMTATIR = XAMTATIL
+   Else
+       WMNTORG (0) = XAMTNOT
+       WMNTORG (1) = XAMTATI
+       # On ne connait jamais le cours/devise dossier, c'est tjs le sous-pro qui le recherche
+#       Call CONVERT3([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,WMNTORG(0),WMNTDES(0),0, SPSTAT) From CPTSUB
+#       Call CONVERT3([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,WMNTORG(1),WMNTDES(1),0, SPSTAT) From CPTSUB
+       Call COURMNT([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,1,WMNTORG(0),WMNTDES(0),0, SPSTAT) From TRTDEV
+       Call COURMNT([F:MVC]CUR,WRPTCUR,GLOCALDEV,CHGTYP,DATDOC,1,WMNTORG(1),WMNTDES(1),0, SPSTAT) From TRTDEV
+       XAMTNOTR = WMNTDES (0)
+       XAMTATIR = WMNTDES (1)
+   Endif
+Else
+   XAMTNOTR = XAMTNOT
+   XAMTATIR = XAMTATI
+Endif
+
+Return
+
+#-------------------------------------------#
+# Mise à jour des montants En devis         #
+#-------------------------------------------#
+$QUO
+WIFFTYP=4 : WMVTTYP=1 : Gosub MAJLCM : If GOK<1 Return Endif : # Bug 62857
+If [F:BPC]BPCTYP=4 Return Endif                              : # Bug 70139
+
+# 84771 :  Pb update last quote in LASCUSTMVT
+# Case Ordered quote (If update from FUNBPCMVT) : Just update LASCUSTMVT
+If SENS="0" Return Endif
+# 84771
+
+XAMTNOT  += [F:MVC]QUONOTC                               : # Calcul du montant en devise txn
+XAMTATI  += [F:MVC]QUOATIC                               : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTNOTL += [F:MVC]QUONOTL                               : # Calcul du montant en devise société
+XAMTNOTR += [F:MVC]QUONOTR                               : # Calcul du montant en devise reporting
+XAMTATIL += [F:MVC]QUOATIL                               : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]QUOATIR                               : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]QUONOTC=XAMTNOT  : [F:MVC]QUONOTL=XAMTNOTL : [F:MVC]QUONOTR=XAMTNOTR       : # Mise à jour des montants
+[F:MVC]QUOATIC=XAMTATI  : [F:MVC]QUOATIL=XAMTATIL : [F:MVC]QUOATIR=XAMTATIR       : # Mise à jour des montants
+Return
+
+#-------------------------------------#
+# Mise à jour des montants client cde #
+#-------------------------------------#
+$BPC
+
+Case CAT
+    When  2       : Gosub LNDBPCMNT
+    When  Default : Gosub ORDBPCMNT
+Endcase
+Return
+
+$LNDBPCMNT
+XAMTNOT  += [F:MVC]LNDBPCNOTC                            : # Calcul du montant en devise txn
+XAMTATI  += [F:MVC]LNDBPCATIC                            : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTNOTL += [F:MVC]LNDBPCNOTL                            : # Calcul du montant en devise société
+XAMTNOTR += [F:MVC]LNDBPCNOTR                            : # Calcul du montant en devise reporting
+XAMTATIL += [F:MVC]LNDBPCATIL                            : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]LNDBPCATIR                            : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]LNDBPCNOTC=XAMTNOT : [F:MVC]LNDBPCNOTL=XAMTNOTL : [F:MVC]LNDBPCNOTR=XAMTNOTR : # Mise à jour des montants
+[F:MVC]LNDBPCATIC=XAMTATI : [F:MVC]LNDBPCATIL=XAMTATIL : [F:MVC]LNDBPCATIR=XAMTATIR : # Mise à jour des montants
+Return
+
+$ORDBPCMNT
+
+XAMTNOT  += [F:MVC]ORDBPCNOTC                            : # Calcul du montant en devise txn
+XAMTATI  += [F:MVC]ORDBPCATIC                            : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTNOTL += [F:MVC]ORDBPCNOTL                            : # Calcul du montant en devise société
+XAMTNOTR += [F:MVC]ORDBPCNOTR                            : # Calcul du montant en devise reporting
+XAMTATIL += [F:MVC]ORDBPCATIL                            : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]ORDBPCATIR                            : # Calcul du montant en devise reporting
+# Bug 68017
+#[F:MVC]ORDBPCNOTC=XAMTNOT : [F:MVC]ORDBPCNOTL=XAMTNOTL : [F:MVC]ORDBPCNOTR=XAMTNOTR : # Mise à jour des montants
+#[F:MVC]ORDBPCATIC=XAMTATI : [F:MVC]ORDBPCATIL=XAMTATIL : [F:MVC]ORDBPCATIR=XAMTATIR : # Mise à jour des montants7
+[F:MVC]ORDBPCNOTC=XAMTNOT : [F:MVC]ORDBPCNOTL=XAMTNOT : [F:MVC]ORDBPCNOTR=XAMTNOT : # Mise à jour des montants
+[F:MVC]ORDBPCATIC=XAMTATI : [F:MVC]ORDBPCATIL=XAMTATI : [F:MVC]ORDBPCATIR=XAMTATI : # Mise à jour des montants7
+
+ Infbox "DENTRO TEST - 321" - num$([F:MVC]ORDBPCNOTC  )- num$([F:MVC]ORDBPCATIC )
+
+Return
+
+#-------------------------------------------#
+# Mise à jour en-commande du client facture #
+#-------------------------------------------#
+$BPI
+WIFFTYP=5 : WMVTTYP=2 : Gosub MAJLCM : If GOK<1 Return Endif : # Bug 62857
+WIFFTYP=6 : WMVTTYP=2 : Gosub MAJLCM : If GOK<1 Return Endif : # Bug 62857
+
+# 84771 :  Pb update last order in LASCUSTMVT
+# Case Closed order (If update from FUNBPCMVT) : Just update LASCUSTMVT
+If SENS="0" Return Endif
+# 84771
+
+Case CAT
+    When  2      : Gosub LNDBPIMNT
+    When Default : Gosub ORDBPIMNT
+Endcase
+Return
+
+$LNDBPIMNT
+XAMTNOT  += [F:MVC]LNDBPINOTC                            : # Calcul du montant en devise txn
+XAMTATI  += [F:MVC]LNDBPIATIC                            : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTNOTL += [F:MVC]LNDBPINOTL                            : # Calcul du montant en devise société
+XAMTNOTR += [F:MVC]LNDBPINOTR                            : # Calcul du montant en devise reporting
+XAMTATIL += [F:MVC]LNDBPIATIL                            : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]LNDBPIATIR                            : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]LNDBPINOTC=XAMTNOT : [F:MVC]LNDBPINOTL=XAMTNOTL : [F:MVC]LNDBPINOTR=XAMTNOTR : # Mise à jour des montants
+[F:MVC]LNDBPIATIC=XAMTATI : [F:MVC]LNDBPIATIL=XAMTATIL : [F:MVC]LNDBPIATIR=XAMTATIR : # Mise à jour des montants
+Return
+
+$ORDBPIMNT
+XAMTNOT  += [F:MVC]ORDBPINOTC                            : # Calcul du montant en devise txn
+XAMTATI  += [F:MVC]ORDBPIATIC                            : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTNOTL += [F:MVC]ORDBPINOTL                            : # Calcul du montant en devise société
+XAMTNOTR += [F:MVC]ORDBPINOTR                            : # Calcul du montant en devise reporting
+XAMTATIL += [F:MVC]ORDBPIATIL                            : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]ORDBPIATIR                            : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]ORDBPINOTC=XAMTNOT : [F:MVC]ORDBPINOTL=XAMTNOTL : [F:MVC]ORDBPINOTR=XAMTNOTR : # Mise à jour des montants
+[F:MVC]ORDBPIATIC=XAMTATI : [F:MVC]ORDBPIATIL=XAMTATIL : [F:MVC]ORDBPIATIR=XAMTATIR : # Mise à jour des montants
+Return
+
+#-------------------------------------------#
+# Mise à jour en-cours de livraison         #
+#-------------------------------------------#
+$OST
+XAMTATI  += [F:MVC]DLVOSTC                               : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTATIL += [F:MVC]DLVOSTL                               : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]DLVOSTR                               : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]DLVOSTC=XAMTATI : [F:MVC]DLVOSTL=XAMTATIL : [F:MVC]DLVOSTR=XAMTATIR       : # Mise à jour des montants
+Return
+
+#-------------------------------------------#
+# Mise à jour livré                         #
+#-------------------------------------------#
+$DLV
+WIFFTYP=7 : WMVTTYP=3 : Gosub MAJLCM : If GOK<1 Return Endif : # Bug 62857
+
+# 84771 :  Pb update last delivery in LASCUSTMVT
+# Case Invoiced delivery (If update from FUNBPCMVT) : Just update LASCUSTMVT
+If SENS="0" Return Endif
+# 84771
+
+Case CAT
+    When  2      : Gosub LNDDLV
+    When Default : Gosub NIVDLV
+Endcase
+Return
+
+$LNDDLV
+XAMTATI  += [F:MVC]LNDDLVC                               : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                          : # Conversion du montant dans la devise société et reporting
+XAMTATIL += [F:MVC]LNDDLVL                              : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]LNDDLVR                              : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]LNDDLVC=XAMTATI : [F:MVC]LNDDLVL=XAMTATIL : [F:MVC]LNDDLVR=XAMTATIR       : # Mise à jour des montants
+Return
+
+$NIVDLV
+XAMTATI  += [F:MVC]NIVDLVC                               : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                          : # Conversion du montant dans la devise société et reporting
+XAMTATIL += [F:MVC]NIVDLVL                              : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]NIVDLVR                              : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]NIVDLVC=XAMTATI : [F:MVC]NIVDLVL=XAMTATIL : [F:MVC]NIVDLVR=XAMTATIR       : # Mise à jour des montants
+Return
+
+#-------------------------------------------#
+# Mise à jour facturé non comptabilisé      #
+#-------------------------------------------#
+$INV
+Local Decimal SVXAMTATI : SVXAMTATI=XAMTATI : XAMTATI=abs(XAMTATI) #Gbn-85796
+If TYP="I" WIFFTYP=9 Else WIFFTYP=10 Endif : WMVTTYP=5 : Gosub MAJLCM : XAMTATI=SVXAMTATI : If GOK<1 Return Endif : # Bug 62857 #Gbn-85796
+# Pour les factures validées depuis la resynchro, on ne met à jour que le fichier LASTCUSMVT  : # Bug 62857
+If SENS="0" Return Endif : # Bug 62857
+
+XAMTATI  += [F:MVC]NPTINVC                               : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTATIL += [F:MVC]NPTINVL                               : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]NPTINVR                               : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]NPTINVC=XAMTATI : [F:MVC]NPTINVL=XAMTATIL : [F:MVC]NPTINVR=XAMTATIR       : # Mise à jour des montants
+Return
+
+#-------------------------------------------#
+# Mise à jour dernier retour                #
+#-------------------------------------------#
+$RET
+
+WIFFTYP=8 : WMVTTYP=4 : Gosub MAJLCM
+Return
+
+#-------------------------------------------#
+# Mise à jour solde comptable               #
+#-------------------------------------------#
+$SOL
+XAMTATI  += [F:MVC]BLCC                                  : # Calcul du montant en devise txn
+# Bug 68017
+#Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+XAMTATIL += [F:MVC]BLCL                                  : # Calcul du montant en devise société
+XAMTATIR += [F:MVC]BLCR                                  : # Calcul du montant en devise reporting
+# Bug 68017
+[F:MVC]BLCC  = XAMTATI
+[F:MVC]BLCL  += XAMTNOT   : # Montant forcé
+#[F:MVC]BLCR = XAMTATIR
+Return
+#-------------------------------------------#
+# Mise à jour des portefeuilles             #
+#-------------------------------------------#
+$POR
+If XAMTNOT<>0
+ XAMTNOT  += [F:MVC]NYTBILC(CAT-2)                        : # Calcul du montant en devise txn
+# Bug 68017
+# Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+ XAMTNOTL += [F:MVC]NYTBILL(CAT-2)                        : # Calcul du montant en devise société
+ XAMTNOTR += [F:MVC]NYTBILR(CAT-2)                        : # Calcul du montant en devise reporting
+# Bug 68017
+ [F:MVC]NYTBILC(CAT-2)  = XAMTNOT
+ [F:MVC]NYTBILL(CAT-2)  = XAMTNOTL
+ [F:MVC]NYTBILR(CAT-2)  = XAMTNOTR
+Endif
+WIFFTYP=15 : WMVTTYP=10 : XAMTATI=abs(XAMTATI) : Gosub MAJLCM
+Return
+
+#-------------------------------------------------------------------------#
+# Mise à jour des impayés & dévaloration du portefeuille                  #
+#-------------------------------------------------------------------------#
+$PAY
+# Mise à jour des portefeuilles (appel depuis IMPAYE, VALPORT et ANUPYH)
+If XAMTNOT<>0
+ XAMTNOT  += [F:MVC]NYTBILC(CAT-2)                        : # Calcul du montant en devise txn
+# Bug 68017
+# Gosub CONVMNT                                           : # Conversion du montant dans la devise société et reporting
+ XAMTNOTL += [F:MVC]NYTBILL(CAT-2)                        : # Calcul du montant en devise société        : # Bug 79604
+ XAMTNOTR += [F:MVC]NYTBILR(CAT-2)                        : # Calcul du montant en devise reporting      : # Bug 79604
+# Bug 68017
+ [F:MVC]NYTBILC(CAT-2)  = XAMTNOT
+ [F:MVC]NYTBILL(CAT-2)  = XAMTNOTL
+ [F:MVC]NYTBILR(CAT-2)  = XAMTNOTR
+Endif
+# Document mise à jour uniquement pour l'impayé
+If ACT="C"
+ # Dernier impayé
+ WIFFTYP=16 : WMVTTYP=11 : XAMTATI=abs(XAMTATI) : Gosub MAJLCM
+ # Nombre d'impayé impayé
+ WIFFTYP=17
+ # FGR 11/08/2009 : X3SUIVI57005 Ajout du site (SITDOC) dans la clé primaire
+ #Read [LCM]LCM0 = CLIENT;WIFFTYP;GSOCIETE;SITDOC
+ Read [LCM]LCM0 = CLIENT;WIFFTYP;GSOCIETE
+ If !fstat
+  XAMTATI =  [F:LCM]AMT+1
+ Else
+  XAMTATI =  1
+ Endif
+ WMVTTYP=11 : Gosub MAJLCM
+Endif
+
+Return
+
+#-------------------------------------------#
+# Mise à jour de la table LASTCUSMVT        #
+#-------------------------------------------#
+$MAJLCM
+# FGR 11/08/2009 : X3SUIVI57005 Ajout du site (SITDOC) dans la clé primaire
+#Readlock [LCM]LCM0 = CLIENT;WIFFTYP;GSOCIETE;SITDOC
+Readlock [LCM]LCM0 = CLIENT;WIFFTYP;GSOCIETE
+If fstat = 1 : GOK = -1 : GLOCK = "$LASTCUSMVT"-CLIENT-num$(WIFFTYP)-GSOCIETE-SITDOC : Return : Endif
+If fstat = 4 | fstat = 5
+   Raz [F:LCM]
+   [F:LCM]BPCNUM    = CLIENT
+   [F:LCM]IFFTYP    = WIFFTYP
+   [F:LCM]CPY       = GSOCIETE
+   [F:LCM]IFFFCY    = SITDOC    # FGR 11/08/2009 : X3SUIVI57005 : Maintenant il est dans la clé
+
+   [F:LCM]MVTTYP    = WMVTTYP
+   [F:LCM]MVTDAT    = DATDOC
+   [F:LCM]VCRNUM    = NUMDOC
+   [F:LCM]CUR       = DEVDOC
+   [F:LCM]AMT       = XAMTATI #Gbn-Fq77139 on prend le montant du document au lieu de XAMTATI qui peut être * par -1 #Gbn-85796-Rétablissement XAMTATI
+   If dim([F:LCM]CREDAT)>0 [F:LCM]CREDAT = date$:Endif
+   If dim([F:LCM]CREUSR)>0 [F:LCM]CREUSR = GUSER:Endif
+   If dim([F:LCM]EXPNUM)>0 [F:LCM]EXPNUM = [C]EXPORT:Endif
+   Write [LCM]
+   If fstat : GOK = 0 : Call FSTA("LCM") From GLOCK : Return : Endif
+Elsif fstat = 0
+   # Si dernier doc   déjà renseigné, maj ssi modif et (date nvx doc > date anc doc ou même doc),
+   #                                  maj ssi créa., duppli., valid. et (date nvx doc >=date anc doc
+   # Si 1ère commande déjà renseigné, maj ssi modif et (date nvx doc < date anc doc ou même doc),
+   #                                  maj ssi créa., duppli., valid. et (date nvx doc <=date anc doc
+   If (WIFFTYP<>5 & ((ACT="M" & (DATDOC>[F:LCM]MVTDAT | NUMDOC=[F:LCM]VCRNUM)) |
+&     (find(ACT,"D","C","V")  & DATDOC>=[F:LCM]MVTDAT))) |
+&     (WIFFTYP=5  & ((ACT="M" & (DATDOC<[F:LCM]MVTDAT | NUMDOC=[F:LCM]VCRNUM)) |
+&     (find(ACT,"D","C")      & DATDOC<=[F:LCM]MVTDAT)))
+       [F:LCM]MVTDAT    = DATDOC
+       [F:LCM]VCRNUM    = NUMDOC
+       [F:LCM]CUR       = DEVDOC
+       [F:LCM]AMT       = XAMTATI #Gbn-Fq77139 on prend le montant du document au lieu de XAMTATI qui peut être * par -1 #Gbn-85796-Rétablissement XAMTATI
+       [F:LCM]IFFFCY   = SITDOC    # FGR 11/08/2009 : X3SUIVI57005 : Maintenant il est dans la clé
+
+       If dim([F:LCM]UPDDAT)>0 [F:LCM]UPDDAT = date$:Endif
+       If dim([F:LCM]UPDUSR)>0 [F:LCM]UPDUSR = GUSER:Endif
+       If dim([F:LCM]EXPNUM)>0 [F:LCM]EXPNUM = [C]EXPORT:Endif
+       Rewrite [LCM]
+       If fstat : GOK = 0 : Call FSTA("LCM") From GLOCK : Return : Endif
+   Else
+       Unlock [LCM]
+   Endif
+Endif
+
+Return
+
+
+#---------------------------------------------------------#
+# Calcul de l'en-cours client                             #
+#---------------------------------------------------------#
+# Entrée  WBPCRSK  : Tiers risque                         #
+#         DAT      : Date                                 #
+# Sortie  ENCOURS  : En-cours calculé du tiers risque     #
+#                    en devise dossier (GOSTCTL=1) ou société (GOSTCTL=2)
+#---------------------------------------------------------#
+Subprog CALENC (WBPCRSK,DAT,ENCOURS)
+Value    Char    WBPCRSK
+Value    Date    DAT
+Variable Decimal ENCOURS
+
+Gosub CALCUL_ENCOURS
+
+End
+
+#---------------------------------------------------------#
+# Etiquette de calcul de l'en-cours client                #
+# Appelée par :                                           #
+# --> Subprog CALENC et par l'action visu détail          #
+# --> l'action visu détail calcul en-cours client         #
+#---------------------------------------------------------#
+$CALCUL_ENCOURS
+Local Char    WCRITERE(50), WCPY(GLONCPY), WCUR(GLONCUR)
+
+Local Decimal COURS
+Local Integer SPSTAT
+Local Decimal WDLVOST
+Local Decimal WNIVDLV
+Local Decimal WNPTINV
+Local Decimal WNYTBIL(0..2)
+Local Decimal WBLC
+Local Decimal WORDBPIATI
+Local Decimal WLNDBPIATI
+Local Decimal WLNDDLV
+Local Decimal WMNTORG (0..9)
+Local Decimal WMNTDES (0..9)
+
+If clalev([F:MVC]) = 0 Local File BPCUSTMVT [MVC] Endif
+
+CRITERE="BPCRSK=WBPCRSK"
+If GOSTCTL=2 & GSOCIETE<>"" CRITERE -="& CPY=GSOCIETE" Endif
+
+Local Char WPARAM(10)
+#MAE, bg 83653
+#If GOSTCTL=2 & GSOCIETE<>""
+#    # Ctrl au niveau société : Chargement des paramètres nécessaires
+#    [F:MVC]CPY=GSOCIETE : Gosub RECH_PARAM
+#    WCUR=GLOCALDEV           : # La devise utilisée pour calculer les mnts actualisés est la devise société
+If GOSTCTL=2
+  If GSOCIETE<>""
+    # Ctrl au niveau société : Chargement des paramètres nécessaires
+    [F:MVC]CPY=GSOCIETE : Gosub RECH_PARAM
+    WCUR=GLOCALDEV           : # La devise utilisée pour calculer les mnts actualisés est la devise société
+  Else
+    WCUR =GCUR
+  Endif
+Else
+    # Ctrl au niveau dossier : Chargement des paramètres nécessaires
+    WCUR=GCURSHR             : # La devise utilisée pour calculer les mnts actualisés est la devise dossier
+Endif
+
+Raz WCPY
+For [MVC]MVC0 Where evalue(CRITERE)
+    If (GOSTCTL=1 | GSOCIETE="") & WCPY<>[F:MVC]CPY
+        # Ctrl au niveau dossier : Chargement des paramètres nécessaires qd on change de société
+        Gosub RECH_PARAM
+        WCPY=[F:MVC]CPY
+    Endif
+
+   #If GOSTCHGTYP=2             : # Pour les prochaines versions
+    If GOSTCHGTYP=2 | GOSTCTL=1 : # Pour la version Béryl (pas de solde comptable en devise dossier)
+        # Cours actualisé :
+        # On prend les montants en devise txn que l'on convertit en devise dossier (GCURSHR) ou société (GLOCALDEV)
+        If [F:MVC]CUR=WCUR
+            WMNTDES (0) = [F:MVC]DLVOSTC
+            WMNTDES (1) = [F:MVC]NIVDLVC
+            WMNTDES (2) = [F:MVC]NPTINVC
+            WMNTDES (3) = [F:MVC]NYTBILC(0)
+            WMNTDES (4) = [F:MVC]NYTBILC(1)
+            WMNTDES (5) = [F:MVC]NYTBILC(2)
+            WMNTDES (6) = [F:MVC]BLCC
+            WMNTDES (7) = [F:MVC]ORDBPIATIC
+            If dim([F:MVC]LNDDLVC) <> -1
+                WMNTDES (8) = [F:MVC]LNDBPIATIC
+                WMNTDES (9) = [F:MVC]LNDDLVC
+            Endif
+        Else
+            WMNTORG (0) = [F:MVC]DLVOSTC
+            WMNTORG (1) = [F:MVC]NIVDLVC
+            WMNTORG (2) = [F:MVC]NPTINVC
+            WMNTORG (3) = [F:MVC]NYTBILC(0)
+            WMNTORG (4) = [F:MVC]NYTBILC(1)
+            WMNTORG (5) = [F:MVC]NYTBILC(2)
+            WMNTORG (6) = [F:MVC]BLCC
+            WMNTORG (7) = [F:MVC]ORDBPIATIC
+            If dim([F:MVC]LNDDLVC) <> -1
+                WMNTORG (8) = [F:MVC]LNDBPIATIC
+                WMNTORG (9) = [F:MVC]LNDDLVC
+            Endif
+            #MAE, bg 74267
+            Raz WMNTDES
+            For IJ0=0 To dim(WMNTORG)-1
+                If WMNTORG(IJ0)<>0
+                   # FGR 30/06/2008 : WTYPCOU à priori mauvais nom de variable.
+#                  Call CONVERT([F:MVC]CUR,WCUR,GLOCALDEV,WTYPCOU,DAT,
+#&                               WMNTORG(IJ0),WMNTDES(IJ0),SPSTAT) From TRTDEV
+                   Call CONVERT([F:MVC]CUR,WCUR,GLOCALDEV,GOSTTYPCUR,DAT, WMNTORG(IJ0),WMNTDES(IJ0),SPSTAT) From TRTDEV
+
+                Endif
+            Next IJ0
+        Endif
+
+    Elsif GOSTCTL=1
+        # Niveau dossier et Cours historisé : On prend tel quel les montants en devise dossier (GCURSHR)
+        WMNTDES (0) = [F:MVC]DLVOSTR
+        WMNTDES (1) = [F:MVC]NIVDLVR
+        WMNTDES (2) = [F:MVC]NPTINVR
+        WMNTDES (3) = [F:MVC]NYTBILR(0)
+        WMNTDES (4) = [F:MVC]NYTBILR(1)
+        WMNTDES (5) = [F:MVC]NYTBILR(2)
+        WMNTDES (6) = [F:MVC]BLCR
+        WMNTDES (7) = [F:MVC]ORDBPIATIR
+        If dim([F:MVC]LNDDLVR) <> -1
+            WMNTDES (8) = [F:MVC]LNDBPIATIR
+            WMNTDES (9) = [F:MVC]LNDDLVR
+        Endif
+    Else
+        # Niveau société et Cours historisé : On prend tel quel les montants en devise société
+        WMNTDES (0) = [F:MVC]DLVOSTL
+        WMNTDES (1) = [F:MVC]NIVDLVL
+        WMNTDES (2) = [F:MVC]NPTINVL
+        WMNTDES (3) = [F:MVC]NYTBILL(0)
+        WMNTDES (4) = [F:MVC]NYTBILL(1)
+        WMNTDES (5) = [F:MVC]NYTBILL(2)
+        WMNTDES (6) = [F:MVC]BLCL
+        WMNTDES (7) = [F:MVC]ORDBPIATIL
+        If dim([F:MVC]LNDDLVL) <> -1
+            WMNTDES (8) = [F:MVC]LNDBPIATIL
+            WMNTDES (9) = [F:MVC]LNDDLVL
+        Endif
+    Endif
+
+    WDLVOST        += WMNTDES (0)
+    WNIVDLV        += WMNTDES (1)
+    WNPTINV        += WMNTDES (2)
+    If GMODU(5)=2
+      If GOSTDRAFT=2
+        WNYTBIL(0) += WMNTDES(3)
+        WNYTBIL(1) += WMNTDES(4)
+        WNYTBIL(2) += WMNTDES(5)
+      Endif
+    Endif
+    WBLC           += WMNTDES (6)
+    If GOSTORD=2
+        WORDBPIATI += WMNTDES (7)
+    Endif
+    If GOSTLND=2
+        If GOSTORD=2
+            WLNDBPIATI += WMNTDES (8)
+        Endif
+        WLNDDLV    += WMNTDES (9)
+    Endif
+Next
+
+# Calcul du total en-cours
+ENCOURS  = WDLVOST + WNIVDLV + WNPTINV + WNYTBIL(0) + WNYTBIL(1) + WNYTBIL(2)
+ENCOURS += WBLC + WORDBPIATI + WLNDBPIATI + WLNDDLV
+
+Return
+
+# ------------------------------------- #
+# Chargement des paramètres nécessaires #
+# ------------------------------------- #
+$RECH_PARAM
+Local Char WPARAM(10)
+If GMODU(5) = 2
+  Call PARAML([F:MVC]CPY,"OSTDRAFT",WPARAM) From ADOVAL  : # Mnt portefeuille dans en-cours      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+  GOSTDRAFT=val(WPARAM)
+Endif
+Call PARAML([F:MVC]CPY,"OSTLND",WPARAM) From ADOVAL    : # Prêt dans total en-cours      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+GOSTLND = val(WPARAM)
+Call PARAML([F:MVC]CPY,"OSTORD",WPARAM) From ADOVAL    : # Carnet cde dans total en-cours      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+GOSTORD = val(WPARAM)
+Call PARAML([F:MVC]CPY,"OSTTYPCUR",WPARAM) From ADOVAL  : # Type de cours pour contrôle au cours actualisé      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+GOSTTYPCUR = val(WPARAM)
+Return
+
+
+##################################################################
+# MAJENC_BPS : Màj des montants dans les mouvements fournisseurs #
+# -------------------------------------------------------------- #
+# Entrée  WBPSNUM  : Fournisseur du document                     #
+#         WIFFTYP  : Type d'information (M 565)                  #
+#         WIFFFCY  : Site du document                            #
+#         WCUR     : Devise du document                          #
+#         WCHGTYP  : Type de cours du document                   #
+#         WMVTDAT  : Date du document                            #
+#         WVCRNUM  : Numéro du document                          #
+#         WAMTNOT  : Montant HT  dans la devise du document      #
+#         WAMTATI  : Montant TTC dans la devise du document      #
+#         WTOTATI  : Total TTC du document                       #
+# -------------------------------------------------------------- #
+# Pour les factures le [F:PIH] doit être chargé                  #
+#   Cours devise société : [F:PIH]RATMLT(x)/[F:PIH]RATDIV(x)     #
+#   Date cours           : [F:PIH]RATDAT                         #
+#                                                                #
+#   x = find(GLOCALDEV,[F:PIH]CURLED)-1                          #
+# -------------------------------------------------------------- #
+# Pour les réceptions le [F:PTH] doit être chargé car la date et #
+#      le type de cours passés en paramètres peuvent être ceux   #
+#      de la commande                                            #
+#   Date du document     : [F:PTH]RCPDAT                         #
+##################################################################
+Subprog MAJENC_BPS (WBPSNUM,WIFFTYP,WIFFFCY,WCUR,WCHGTYP,WMVTDAT,WVCRNUM,WAMTNOT,WAMTATI,WTOTATI)
+Value Char    WBPSNUM
+Value Integer WIFFTYP
+Value Char    WIFFFCY
+Value Char    WCUR
+Value Integer WCHGTYP
+Value Date    WMVTDAT
+Value Char    WVCRNUM
+Value Decimal WAMTNOT
+Value Decimal WAMTATI
+Value Decimal WTOTATI
+#-----
+Local Char    WBPSRSK(GLONBPS)
+Local Libelle WMVTTYP
+Local Integer WSTA, I
+Local Char SVFCY(GLONFCY) # FGR 13/08/2009 : X3SUIVI57005
+#-----
+If !clalev([F:BPS])  Local File BPSUPPLIER [BPS] : Endif
+If !clalev([F:MVS])  Local File BPSUPPMVT  [MVS] : Endif
+If !clalev([F:LSM])  Local File LASTSUPMVT [LSM] : Endif
+#----- Récupération du tiers risque -----#
+If [F:BPS]BPSNUM<>WBPSNUM
+  Read [BPS] BPS0=WBPSNUM : If fstat  Raz [F:BPS] : Endif
+Endif
+If [F:BPS]BPSRSK<>""
+  WBPSRSK=[F:BPS]BPSRSK
+Else
+  WBPSRSK=WBPSNUM
+Endif
+#----- Chargement du type de mouvement à partir du type d'information -----#
+If find(WIFFTYP,6,7)
+  WMVTTYP=6
+Elsif find(WIFFTYP,8,9,10)
+  WMVTTYP=7
+Else
+  WMVTTYP=WIFFTYP
+Endif
+#----------------------------------------------------#
+#                   Type information  Type mouvement #
+#                        WIFFTYP         WMVTTYP     #
+# Appel d'offre....:        1               1        #
+# Demande d'achat..:        2               2        #
+# Commande.........:        3               3        #
+# Réception .......:        4               4        #
+# Retour...........:        5               5        #
+# Facture..........:        6               6        #
+# Avoir............:        7               6        #
+# Règlement........:        8,9,10          7        #
+# Solde comptable..:        0               0        #
+#----------------------------------------------------#
+Case WIFFTYP
+  When 0       : Gosub TRT_MAJMVS
+  When 1,2,5   : Gosub TRT_MAJLSM
+  When Default : Gosub TRT_MAJMVS : If GOK=1  Gosub TRT_MAJLSM : Endif
+Endcase
+#-----
+End
+
+#--------------------------------------------------#
+# Traitement des mouvements fournisseurs BPSUPPMVT #
+#--------------------------------------------------#
+$TRT_MAJMVS
+#----- Pas de màj mouvement si facture ou avoir validé -----#
+If WMVTTYP=6 & clalev([F:PIH]) & [F:PIH]STA=3  Return : Endif
+#-----
+Readlock [MVS] MVS0=WBPSRSK;GSOCIETE;WBPSNUM;WCUR
+If fstat=1
+  GOK=-1 : GLOCK="$BPSUPPMVT"-WBPSRSK-GSOCIETE-WBPSNUM-WCUR : End
+Elsif fstat
+  #----- Création de l'encours fournisseurs -----#
+  Raz [F:MVS]
+  [F:MVS]BPSNUM=WBPSNUM
+  [F:MVS]ACCCUR=GLOCALDEV
+  [F:MVS]BPSRSK=WBPSRSK
+  [F:MVS]CPY   =GSOCIETE
+  [F:MVS]CUR   =WCUR
+  Gosub CUMUL_MVS
+  If dim([F:MVS]CREDAT)>0 [F:MVS]CREDAT=date$     : Endif
+  If dim([F:MVS]CREUSR)>0 [F:MVS]CREUSR=GUSER     : Endif
+  If dim([F:MVS]EXPNUM)>0 [F:MVS]EXPNUM=[C]EXPORT : Endif
+  Write [MVS]
+  If fstat  GOK=0 : Call FSTA("MVS") From GLOCK : End : Endif
+Else
+  #----- Mise à jour de l'encours fournisseurs -----#
+  Gosub CUMUL_MVS
+  If dim([F:MVS]UPDDAT)>0  [F:MVS]UPDDAT=date$       : Endif
+  If dim([F:MVS]UPDUSR)>0  [F:MVS]UPDUSR=GUSER       : Endif
+  If dim([F:MVS]EXPNUM)>0  [F:MVS]EXPNUM=[C]EXPORT   : Endif
+  Rewrite [MVS]
+  If fstat  GOK=0 : Call FSTA("MVS") From GLOCK : End : Endif
+Endif
+Return
+
+#------------------------------------------------#
+# Mise à jour des montants de la table BPSUPPMVT #
+#------------------------------------------------#
+$CUMUL_MVS
+#----- Pas de màj si montants nuls -----#
+If WAMTNOT=0 & WAMTATI=0  Return : Endif
+#-----
+Local Decimal WAMTNOTL, WAMTNOTR, WAMTATIL, WAMTATIR, WCHGRAT
+Local Date    WCHGDAT
+#----- Si facture/avoir, prendre le cours saisi et la date pour les conversions -----#
+If WMVTTYP=6 & clalev([F:PIH]) & [F:PIH]NUM=WVCRNUM
+  I=find(GLOCALDEV,[F:PIH]CURLED)
+  If I & [F:PIH]RATDIV(I-1)<>0
+    WCHGRAT=[F:PIH]RATMLT(I-1)/[F:PIH]RATDIV(I-1)
+    WCHGDAT=[F:PIH]RATDAT
+  Else
+    WCHGRAT=0
+    WCHGDAT=[F:PIH]RATDAT
+  Endif
+  If WCHGDAT=[0/0/0]  WCHGDAT=WMVTDAT : Endif
+Else
+  WCHGRAT=0
+  WCHGDAT=WMVTDAT
+Endif
+#----- Conversion si nécessaire des montants en devise société -----#
+If WCUR<>GLOCALDEV
+  Call COURMNT(WCUR,GLOCALDEV,GLOCALDEV,WCHGTYP,WCHGDAT,1,WAMTNOT,WAMTNOTL,WCHGRAT,WSTA) From TRTDEV
+  If WSTA  WAMTNOTL=WAMTNOT : Endif
+  Call COURMNT(WCUR,GLOCALDEV,GLOCALDEV,WCHGTYP,WCHGDAT,1,WAMTATI,WAMTATIL,WCHGRAT,WSTA) From TRTDEV
+  If WSTA  WAMTATIL=WAMTATI : Endif
+Else
+  WAMTNOTL=WAMTNOT
+  WAMTATIL=WAMTATI
+Endif
+#----- Conversion si nécessaire des montants en devise dossier -----#
+If WCUR<>GCURSHR
+  Call COURMNT(WCUR,GCURSHR,GLOCALDEV,WCHGTYP,WCHGDAT,1,WAMTNOT,WAMTNOTR,0,WSTA) From TRTDEV
+  If WSTA  WAMTNOTR=WAMTNOT : Endif
+  Call COURMNT(WCUR,GCURSHR,GLOCALDEV,WCHGTYP,WCHGDAT,1,WAMTATI,WAMTATIR,0,WSTA) From TRTDEV
+  If WSTA  WAMTATIR=WAMTATI : Endif
+Else
+  WAMTNOTR=WAMTNOT
+  WAMTATIR=WAMTATI
+Endif
+Case WMVTTYP
+  When 3 : #----- Commandes -----#
+    [F:MVS]ORDNOTC+=WAMTNOT
+    [F:MVS]ORDNOTL+=WAMTNOTL
+    [F:MVS]ORDNOTR+=WAMTNOTR
+    [F:MVS]ORDATIC+=WAMTATI
+    [F:MVS]ORDATIL+=WAMTATIL
+    [F:MVS]ORDATIR+=WAMTATIR
+  When 4 : #----- Réceptions -----#
+    [F:MVS]RCPNOTC+=WAMTNOT
+    [F:MVS]RCPNOTL+=WAMTNOTL
+    [F:MVS]RCPNOTR+=WAMTNOTR
+    [F:MVS]RCPATIC+=WAMTATI
+    [F:MVS]RCPATIL+=WAMTATIL
+    [F:MVS]RCPATIR+=WAMTATIR
+  When 6 : #----- Factures ou Avoirs -----#
+    [F:MVS]INVAMTC+=WAMTATI
+    [F:MVS]INVAMTL+=WAMTATIL
+    [F:MVS]INVAMTR+=WAMTATIR
+  When 7 : #----- Règlements -----#
+    [F:MVS]BILAMTC(WIFFTYP-8)+=WAMTNOT
+    [F:MVS]BILAMTL(WIFFTYP-8)+=WAMTNOTL
+    [F:MVS]BILAMTR(WIFFTYP-8)+=WAMTNOTR
+    WIFFTYP = 8
+  When 0 : #----- Solde comptable -----#
+    [F:MVS]BLCAMTC+=WAMTATI
+    [F:MVS]BLCAMTL+=WAMTNOT # Montant forcé
+#    [F:MVS]BLCAMTR+=WAMTATIR
+Endcase
+Return
+
+#------------------------------------------------------#
+# Traitement des derniers mvts fournisseurs LASTSUPMVT #
+#------------------------------------------------------#
+$TRT_MAJLSM
+#----- Si réception, récupérer la date de la réception -----#
+If WMVTTYP=4 & clalev([F:PTH]) & [F:PTH]PTHNUM=WVCRNUM
+  WMVTDAT=[F:PTH]RCPDAT
+Endif
+#-----
+# FGR 13/08/2009 : X3SUIVI57005 : ajout du site (WIFFFCY)
+#Readlock [LSM] LSM0=WBPSNUM;WIFFTYP;GSOCIETE;WIFFFCY
+Readlock [LSM] LSM0=WBPSNUM;WIFFTYP;GSOCIETE
+If fstat=1
+  # FGR 13/08/2009 : X3SUIVI57005 : Return semble plus approprié
+  #GOK=-1 : GLOCK="$LASTSUPMVT"-WBPSNUM-num$(WIFFTYP)-GSOCIETE-WIFFFCY : End
+  GOK=-1 : GLOCK="$LASTSUPMVT"-WBPSNUM-num$(WIFFTYP)-GSOCIETE-WIFFFCY : Return
+Elsif fstat
+  #----- Création de l'enregistrement dernier mvt fournisseur -----#
+  Raz [F:LSM]
+  [F:LSM]BPSNUM=WBPSNUM
+  [F:LSM]IFFTYP=WIFFTYP
+  [F:LSM]CPY   =GSOCIETE
+  [F:LSM]IFFFCY=WIFFFCY  # FGR 13/08/2009 : X3SUIVI57005 : le site fait parti de la clé
+  [F:LSM]MVTTYP=WMVTTYP
+  Gosub CHARG_LSM
+  If dim([F:LSM]CREDAT)>0 [F:LSM]CREDAT=date$     : Endif
+  If dim([F:LSM]CREUSR)>0 [F:LSM]CREUSR=GUSER     : Endif
+  If dim([F:LSM]EXPNUM)>0 [F:LSM]EXPNUM=[C]EXPORT : Endif
+  Write [LSM]
+  # FGR 13/08/2009 : X3SUIVI57005 : Return semble plus approprié
+  #If fstat  GOK=0 : Call FSTA("LSM") From GLOCK : End : Endif
+  If fstat  GOK=0 : Call FSTA("LSM") From GLOCK : Return : Endif
+Else
+  #----- Mise à jour de l'enregistrement dernier mvt fournisseur -----#
+  Gosub CHARG_LSM
+  If dim([F:LSM]UPDDAT)>0  [F:LSM]UPDDAT=date$       : Endif
+  If dim([F:LSM]UPDUSR)>0  [F:LSM]UPDUSR=GUSER       : Endif
+  If dim([F:LSM]EXPNUM)>0  [F:LSM]EXPNUM=[C]EXPORT   : Endif
+  Rewrite [LSM]
+  # FGR 13/08/2009 : X3SUIVI57005 : Return semble plus approprié
+  #If fstat  GOK=0 : Call FSTA("LSM") From GLOCK : End : Endif
+  If fstat  GOK=0 : Call FSTA("LSM") From GLOCK : Return : Endif
+Endif
+  # FGR 13/08/2009 : X3SUIVI57005 (début)
+  #If WIFFFCY <> "" Then
+  #  SVFCY = WIFFFCY
+  #  WIFFFCY = ""
+  #  Gosub TRT_MAJLSM
+  #  WIFFFCY = SVFCY
+  #Endif
+  # FGR 13/08/2009 : X3SUIVI57005 (fin)
+Return
+
+#-----------------------------------------------------------#
+# Mise à jour infos dernier document de la table LASTSUPMVT #
+#-----------------------------------------------------------#
+$CHARG_LSM
+If WMVTDAT>[F:LSM]MVTDAT |
+& (WMVTDAT=[F:LSM]MVTDAT & WVCRNUM>=[F:LSM]VCRNUM) |
+&  WVCRNUM=[F:LSM]VCRNUM
+  [F:LSM]MVTDAT=WMVTDAT
+  [F:LSM]VCRNUM=WVCRNUM
+  [F:LSM]CUR   =WCUR
+  [F:LSM]AMT   =WTOTATI
+  #[F:LSM]IFFFCY=WIFFFCY  # FGR 13/08/2009 : X3SUIVI57005 : le site fait parti de la clé
+  [F:LSM]IFFFCY=WIFFFCY  # FGR 13/08/2009 : X3SUIVI57005 : le site fait parti de la clé
+Endif
+Return
+
+
+###########################################################
+# CALENC_BPS : Calcul de l'en-cours fournisseur           #
+# ------------------------------------------------------- #
+# Entrée  WBPSRSK  : Fournisseur risque                   #
+#         WDAT     : Date                                 #
+# Sortie  WENCOURS : En-cours calculé du tiers risque     #
+#                    en devise dossier (GOSTSCTL=1)       #
+#                    ou devise société (GOSTSCTL=2)       #
+###########################################################
+Subprog CALENC_BPS (WBPSRSK,WDAT,WENCOURS)
+Value    Char    WBPSRSK
+Value    Date    WDAT
+Variable Decimal WENCOURS
+#-----
+Gosub CALCUL_ENCOURS_BPS
+#-----
+End
+
+$CALCUL_ENCOURS_BPS
+#-----
+Local Char    WCPY(GLONCPY)
+Local Char    WCUR(GLONCUR)
+Local Char    WCRITERE(50)
+Local Char    WPARAM(10)
+Local Libelle WOSTSDRAFT
+Local Decimal WORDNOT
+Local Decimal WORDATI
+Local Decimal WRCPNOT
+Local Decimal WRCPATI
+Local Decimal WBILAMT(3)
+Local Decimal WBLCAMT
+Local Decimal WINVAMT
+Local Decimal WMTORG(9)
+Local Decimal WMTDES(9)
+Local Integer STA
+Local Integer I
+#-----
+If !clalev([F:MVS])  Local File BPSUPPMVT [MVS] : Endif
+#-----
+If GOSTSCTL=1 | GSOCIETE=""
+  WCRITERE="BPSRSK=WBPSRSK"
+  WCUR    =GCURSHR
+Else
+  WCRITERE="BPSRSK=WBPSRSK & CPY=GSOCIETE"
+  WCUR    =GLOCALDEV
+Endif
+WCPY=GSOCIETE
+Call PARAML(GSOCIETE,"OSTSDRAFT",WPARAM) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+WOSTSDRAFT=val(WPARAM)
+Call PARAML(GSOCIETE,"OSTTYPCUR",WPARAM) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+GOSTTYPCUR=val(WPARAM)
+#-----
+Raz WORDNOT,WORDATI,WRCPNOT,WRCPATI,WBILAMT,WBLCAMT,WINVAMT,WENCOURS
+For [MVS] MVS0 Where evalue(WCRITERE)
+  #----- Rechargement paramètres si changement de société -----#
+  If [F:MVS]CPY<>WCPY
+    Call PARAML([F:MVS]CPY,"OSTSDRAFT",WPARAM) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    WOSTSDRAFT=val(WPARAM) : # Mnt portefeuille dans en-cours
+    Call PARAML([F:MVS]CPY,"OSTTYPCUR",WPARAM) From ADOVAL      # FGR 28/07/2015 : X3SUIVI108078 : Plus Call PARAM (performances)
+    GOSTTYPCUR=val(WPARAM)    : # Type de cours pour contrôle au cours actualisé
+    WCPY=[F:MVS]CPY
+  Endif
+  #----- Contrôle encours au cours historique -----#
+ #If GOSTCHGTYP=1               : # Pour les prochaines versions
+  If GOSTCHGTYP=1 & GOSTSCTL<>1 : # Pour la version Béryl (pas de solde comptable en devise dossier)
+    #----- Contrôle encours au niveau dossier -----#
+    If GOSTSCTL=1
+      WORDNOT+=[F:MVS]ORDNOTR
+      WORDATI+=[F:MVS]ORDATIR
+      WRCPNOT+=[F:MVS]RCPNOTR
+      WRCPATI+=[F:MVS]RCPATIR
+      If WOSTSDRAFT=2
+        WBILAMT(0)+=[F:MVS]BILAMTR(0)
+        WBILAMT(1)+=[F:MVS]BILAMTR(1)
+        WBILAMT(2)+=[F:MVS]BILAMTR(2)
+      Endif
+      WBLCAMT+=[F:MVS]BLCAMTR
+      WINVAMT+=[F:MVS]INVAMTR
+    #----- contrôle encours au niveau société -----#
+    Else
+      WORDNOT+=[F:MVS]ORDNOTL
+      WORDATI+=[F:MVS]ORDATIL
+      WRCPNOT+=[F:MVS]RCPNOTL
+      WRCPATI+=[F:MVS]RCPATIL
+      If WOSTSDRAFT=2
+        WBILAMT(0)+=[F:MVS]BILAMTL(0)
+        WBILAMT(1)+=[F:MVS]BILAMTL(1)
+        WBILAMT(2)+=[F:MVS]BILAMTL(2)
+      Endif
+      WBLCAMT+=[F:MVS]BLCAMTL
+      WINVAMT+=[F:MVS]INVAMTL
+    Endif
+  #----- Contrôle encours au cours actualisé -----#
+  Else
+    WMTORG(0)=[F:MVS]ORDNOTC
+    WMTORG(1)=[F:MVS]ORDATIC
+    WMTORG(2)=[F:MVS]RCPNOTC
+    WMTORG(3)=[F:MVS]RCPATIC
+    WMTORG(4)=[F:MVS]BILAMTC(0)
+    WMTORG(5)=[F:MVS]BILAMTC(1)
+    WMTORG(6)=[F:MVS]BILAMTC(2)
+    WMTORG(7)=[F:MVS]BLCAMTC
+    WMTORG(8)=[F:MVS]INVAMTC
+    For I=0 To dim(WMTORG)-1
+      Call CONVERT([F:MVS]CUR,WCUR,GLOCALDEV,GOSTTYPCUR,WDAT,WMTORG(I),WMTDES(I),STA) From TRTDEV
+    Next I
+    WORDNOT+=WMTDES(0)
+    WORDATI+=WMTDES(1)
+    WORDNOT+=WMTDES(2)
+    WRCPATI+=WMTDES(3)
+    If WOSTSDRAFT=2
+      WBILAMT(0)+=WMTDES(4)
+      WBILAMT(1)+=WMTDES(5)
+      WBILAMT(2)+=WMTDES(6)
+    Endif
+    WBLCAMT+=WMTDES(7)
+    WINVAMT+=WMTDES(8)
+  Endif
+Next
+#----- Calcul du total encours -----#
+WENCOURS=WORDATI+WRCPATI+WBILAMT(0)+WBILAMT(1)+WBILAMT(2)+WBLCAMT+WINVAMT
+#-----
+Return
+
+
+#######################################################################
+#                                                                     #
+# ACTIONS LIEES A L'EN-COURS                                          #
+#---------------------------------------------------------------------#
+#                                                                     #
+# VISUBPCOST  : Visualisation détail calcul en-cours client           #
+#                                                                     #
+#######################################################################
+$ACTION
+
+#--- Actions liés au type fenêtre de saisie
+Case ACTION
+ When "OUVRE"      : Gosub OUVRE
+ When "DEBUT"      : Gosub DEBUT
+Endcase
+
+Return
+
+#########################################################################
+#    Actions liés au type fenêtre de saisie                             #
+#########################################################################
+$OUVRE
+Case GACTION
+ When "VISUBPCOST" : Gosub OUV_VISUBPCOST
+ When "VISUBPSOST" : Gosub OUV_VISUBPSOST
+Endcase
+Return
+
+$DEBUT
+Case GACTION
+
+ When "VISUBPCOST" : Gosub DEB_VISUBPCOST
+                     Affzo [M]1-99
+ When "VISUBPSOST" : Gosub DEB_VISUBPSOST
+                     Affzo [M]1-99
+Endcase
+Return
+
+################################################################################
+# VISUBPCOST : Affichage fenêtre visu détail calcul en-cours client            #
+################################################################################
+
+################################################################################
+$OUV_VISUBPCOST
+Local    Char    WBPCRSK : WBPCRSK = PARAM(1)
+Local    Date    DAT     : DAT = datesyst
+Local    Decimal ENCOURS
+
+Return
+
+$OUV_VISUBPSOST
+Local    Char    WBPSRSK : WBPSRSK = PARAM(1)
+Local    Date    WDAT    : WDAT = datesyst
+Local    Decimal WENCOURS
+
+Return
+
+
+################################################################################
+$DEB_VISUBPCOST
+
+# Issue SAM118344 - 2016-10-19 by FGR : BEGIN
+If GSOCIETE <> "" Then
+  Raz GSOCIETE
+Endif
+# Issue SAM118344 - 2016-10-19 by FGR : END
+# Calcul de l'en-cours
+Gosub CALCUL_ENCOURS
+
+# Les mnt ORDBPIATI LNDBPIATI LNDDLV NYTBIL participent au calcul de l'encours en fct de paramètres société :
+# Si ctrl au niveau dossier, ces mnts sont toujours affichés
+# Si ctrl au niveau société, ces mnts sont affichés ssi ils participent au calcul
+# --> Au départ, init. des formats des champs ORDBPIATI LNDBPIATI LNDDLV NYTBIL au type de données MD1
+# --> Ensuite les champs sont rendus invisibles s'ils ne participent pas au calcul
+#    (faire un chgfmt ne fonctionne pas il est écrasé on passe donc par des intitulés évalués)
+[M]FORMORDBPI="NPz3:"+GDEVFMT
+[M]FORMLNDBPI="NPz3:"+GDEVFMT
+[M]FORMLNDDLV="NPz3:"+GDEVFMT
+[M]FORMNYTBIL="NPz3:"+GDEVFMT
+
+If GOSTCTL=1 | GOSTORD=2                                         : # En commande
+    [M]ORDBPIATI = WORDBPIATI
+Else
+    # Modif du format pour faire disparaître le champs
+    [M]FORMORDBPI="-K:1X"
+Endif
+
+If dim([M]LNDBPIATI) <> -1
+    If GOSTCTL=1 | GOSTLND=2
+        If GOSTCTL=1 | GOSTORD=2
+            [M]LNDBPIATI = WLNDBPIATI                : # En commande prêt
+        Else
+            # Modif du format pour faire disparaître le champs
+            [M]FORMLNDBPI="-K:1X"
+        Endif
+        [M]LNDDLV = WLNDDLV                          : # Livré en prêt
+    Else
+        # Modif du format pour faire disparaître le champs
+        [M]FORMLNDBPI="-K:1X"
+        [M]FORMLNDDLV="-K:1X"
+    Endif
+Endif
+[M]DLVOST = WDLVOST                                  : # En cours livraison
+[M]NIVDLV = WNIVDLV                                  : # Livré non facturé
+[M]NPTINV = WNPTINV                                  : # Facturé non comptabilisé
+If GMODU(5) = 2
+  If GOSTCTL=1 | GOSTDRAFT=2
+      # Modif du format pour faire disparaître le champs
+      [M]NYTBIL(0) = WNYTBIL(0)                        : # Portefeuille 1
+      [M]NYTBIL(1) = WNYTBIL(1)                        : # Portefeuille 2
+      [M]NYTBIL(2) = WNYTBIL(2)                        : # Portefeuille 3
+  Else
+      [M]FORMNYTBIL="-K:1X"
+  Endif
+Endif
+[M]BLC = WBLC                                        : # Solde comptable
+
+[M]XCUR=WCUR
+[M]XOST=ENCOURS
+
+Return
+
+
+
+################################################################################
+$DEB_VISUBPSOST
+
+# Calcul de l'en-cours
+Gosub CALCUL_ENCOURS_BPS
+
+# Les mnt ORDBPIATI LNDBPIATI LNDDLV NYTBIL participent au calcul de l'encours en fct de paramètres société :
+# Si ctrl au niveau dossier, ces mnts sont toujours affichés
+# Si ctrl au niveau société, ces mnts sont affichés ssi ils participent au calcul
+# --> Au départ, init. des formats des champs ORDBPIATI LNDBPIATI LNDDLV NYTBIL au type de données MD1
+# --> Ensuite les champs sont rendus invisibles s'ils ne participent pas au calcul
+#    (faire un chgfmt ne fonctionne pas il est écrasé on passe donc par des intitulés évalués)
+[M]FORMORDBPI="NPz3:"+GDEVFMT
+[M]FORMLNDBPI="NPz3:"+GDEVFMT
+[M]FORMLNDDLV="NPz3:"+GDEVFMT
+[M]FORMNYTBIL="NPz3:"+GDEVFMT
+
+If GOSTCTL=1 | GOSTORD=2                                         : # En commande
+    [M]ORDBPIATI = WORDATI
+Else
+    # Modif du format pour faire disparaître le champs
+    [M]FORMORDBPI="-K:1X"
+Endif
+
+If dim([M]LNDBPIATI) <> -1
+    If GOSTCTL=1 | GOSTLND=2
+        If GOSTCTL=1 | GOSTORD=2
+            #[M]LNDBPIATI = WLNDBPIATI                : # En commande prêt
+        Else
+            # Modif du format pour faire disparaître le champs
+            [M]FORMLNDBPI="-K:1X"
+        Endif
+        #[M]LNDDLV = WLNDDLV                          : # Livré en prêt
+    Else
+        # Modif du format pour faire disparaître le champs
+        [M]FORMLNDBPI="-K:1X"
+        [M]FORMLNDDLV="-K:1X"
+    Endif
+Endif
+#[M]DLVOST = WDLVOST                                  : # En cours livraison
+#[M]DLVOST = WRCPATI
+#[M]NIVDLV = WNIVDLV                                  : # Livré non facturé
+[M]NIVDLV = WRCPATI
+#[M]NPTINV = WNPTINV                                  : # Facturé non comptabilisé
+[M]NPTINV = WINVAMT
+If GMODU(5) = 2
+If GOSTCTL=1 | GOSTDRAFT=2
+    # Modif du format pour faire disparaître le champs
+    [M]NYTBIL(0) = WBILAMT(0)                        : # Portefeuille 1
+    [M]NYTBIL(1) = WBILAMT(1)                        : # Portefeuille 2
+    [M]NYTBIL(2) = WBILAMT(2)                        : # Portefeuille 3
+Else
+    [M]FORMNYTBIL="-K:1X"
+Endif
+Endif
+[M]BLC = WBLCAMT                                     : # Solde comptable
+
+[M]XCUR=WCUR
+[M]XOST=WENCOURS
+
+Return
+
+
+
+#----------------------------------------------------
+# Calcul de l'en-cours client en devise de reporting
+#----------------------------------------------------
+# Entrée  CLIFAC   : Client
+#         TYPCOU   : Type de cours
+#         DAT      : Date
+# Sortie  LOST     : En-cours calculé
+#----------------------------------------------------
+Funprog CALOST(WBPCRSK,TYPCOU,DAT)
+Value   Char    WBPCRSK        : # Client risque
+Value   Integer TYPCOU         : # Type de cours
+Value   Date    DAT            : # Date du cours
+
+Local   Decimal LOST           : # En-cours en devise de reporting
+Local   Char    WPARAM(10)
+Local   Decimal WMNTORG (0..9)
+Local   Decimal WMNTDES (0..9)
+Local   Integer I, SPSTAT
+Local   Char    WCPY(GLONCPY), WCUR(GLONCUR)
+
+If clalev([F:MVC]) = 0 Local File BPCUSTMVT [MVC] Endif
+
+WCUR=GCURSHR : WCPY=""
+
+Raz LOST
+For [MVC]MVC0 Where BPCRSK=WBPCRSK
+   If WCPY<>[F:MVC]CPY
+      # Chargement des paramètres nécessaires qd on change de société
+      Gosub RECH_PARAM
+      WCPY=[F:MVC]CPY
+   Endif
+
+  #If GOSTCHGTYP=2             : # Pour les prochaines versions
+   If GOSTCHGTYP=2 | GOSTCTL=1 : # Pour la version Béryl (pas de solde comptable en devise dossier)
+      # Cours actualisé :
+      # Conversion des montants en devise transaction en devise dossier (GCURSHR)
+      If [F:MVC]CUR=WCUR
+         WMNTDES (0) = [F:MVC]DLVOSTC
+         WMNTDES (1) = [F:MVC]NIVDLVC
+         WMNTDES (2) = [F:MVC]NPTINVC
+         WMNTDES (3) = [F:MVC]NYTBILC(0)
+         WMNTDES (4) = [F:MVC]NYTBILC(1)
+         WMNTDES (5) = [F:MVC]NYTBILC(2)
+         WMNTDES (6) = [F:MVC]BLCC
+         WMNTDES (7) = [F:MVC]ORDBPIATIC
+         If dim([F:MVC]LNDDLVC) <> -1
+            WMNTDES (8) = [F:MVC]LNDBPIATIC
+            WMNTDES (9) = [F:MVC]LNDDLVC
+         Endif
+      Else
+         WMNTORG (0) = [F:MVC]DLVOSTC
+         WMNTORG (1) = [F:MVC]NIVDLVC
+         WMNTORG (2) = [F:MVC]NPTINVC
+         WMNTORG (3) = [F:MVC]NYTBILC(0)
+         WMNTORG (4) = [F:MVC]NYTBILC(1)
+         WMNTORG (5) = [F:MVC]NYTBILC(2)
+         WMNTORG (6) = [F:MVC]BLCC
+         WMNTORG (7) = [F:MVC]ORDBPIATIC
+         If dim([F:MVC]LNDDLVC) <> -1
+            WMNTORG (8) = [F:MVC]LNDBPIATIC
+            WMNTORG (9) = [F:MVC]LNDDLVC
+         Endif
+         For I=0 To dim(WMNTORG)-1
+            If WMNTORG(I)<>0
+               Call CONVERT([F:MVC]CUR,WCUR,GLOCALDEV,TYPCOU,DAT,
+&                           WMNTORG(I),WMNTDES(I),SPSTAT) From TRTDEV
+            Endif
+         Next I
+      Endif
+   Else
+      # Niveau dossier et Cours historisé :
+      # On prend tel quel les montants en devise dossier (GCURSHR)
+      WMNTDES (0) = [F:MVC]DLVOSTR
+      WMNTDES (1) = [F:MVC]NIVDLVR
+      WMNTDES (2) = [F:MVC]NPTINVR
+      WMNTDES (3) = [F:MVC]NYTBILR(0)
+      WMNTDES (4) = [F:MVC]NYTBILR(1)
+      WMNTDES (5) = [F:MVC]NYTBILR(2)
+      WMNTDES (6) = [F:MVC]BLCR
+      WMNTDES (7) = [F:MVC]ORDBPIATIR
+      If dim([F:MVC]LNDDLVR) <> -1
+         WMNTDES (8) = [F:MVC]LNDBPIATIR
+         WMNTDES (9) = [F:MVC]LNDDLVR
+      Endif
+   Endif
+   # Incrémentation du total en-cours
+   LOST += WMNTDES(0)+WMNTDES(1)+WMNTDES(2)+WMNTDES(6)
+   If GMODU(5)=2
+     If GOSTDRAFT=2
+        LOST += WMNTDES(3)+WMNTDES(4)+WMNTDES(5)
+     Endif
+   Endif
+   If GOSTORD=2
+      LOST += WMNTDES(7)
+   Endif
+   If GOSTLND=2
+      LOST += WMNTDES(9)
+      If GOSTORD=2
+         LOST += WMNTDES(8)
+      Endif
+   Endif
+Next
+
+End LOST
+#**
+#* Calcul de l'en-cours client ou client à risque en devise de reporting pour une société
+#* SEGAY
+#* @since 19/03/10
+#* @param  CPY  : Société
+#* @param  WBPCRSK  : Tiers risque
+#* @param  TYPCOU   : Type de cours
+#* @param  DAT      : Date
+#* @param  FLACTL   : Client O/N
+#* @return LOST     : En-cours calculé
+#*!
+Funprog CALOSTCPYCTLRSK(CPY, WBPC,TYPCOU,DAT,FLGCTL)
+Value   Char    CPY            : # Société
+Value   Char    WBPC           : # Tiers
+Value   Integer TYPCOU         : # Type de cours
+Value   Date    DAT            : # Date du cours
+Value   Integer FLGCTL         : # Flag client O/N
+
+Local   Decimal LOST           : # En-cours en devise de reporting
+Local   Char    WPARAM(10)
+Local   Decimal WMNTORG (0..9)
+Local   Decimal WMNTDES (0..9)
+Local   Integer I, SPSTAT
+Local   Char    WCPY(GLONCPY), WCUR(GLONCUR), WCURSOC(GLONCUR),WSOCIETE(GLONCPY)
+Local   Char    WCRITERE(50)
+Local   Integer OPENCPY1
+
+OPENCPY1=0
+Raz WSOCIETE
+WCURSOC = GLOCALDEV
+If clalev([F:MVC]) = 0 Local File BPCUSTMVT [MVC] Endif
+If clalev([F:CPY1]) = 0 Then
+  Local File COMPANY [CPY1]
+  OPENCPY1=1
+Endif
+
+Read [CPY1] CPY0 = CPY
+If !fstat WSOCIETE = [F:CPY1]CPY Endif
+If FLGCTL Then
+  CRITERE="BPCNUM=WBPC"
+Else
+  CRITERE="BPCRSK=WBPC"
+Endif
+If GOSTCTL=2 & WSOCIETE<>"" CRITERE -="& CPY=WSOCIETE" Endif
+
+If GOSTCTL=2 & WSOCIETE <> "" Then
+
+  If [F:CPY1]ACCCUR <> "" Then
+    # Ctrl au niveau société : Chargement des paramètres nécessaires
+    [F:MVC]CPY=WSOCIETE : Gosub RECH_PARAM
+    WCUR=[F:CPY1]ACCCUR          : # La devise utilisée pour calculer les mnts actualisés est la devise société
+    WCURSOC = [F:CPY1]ACCCUR
+    Endif
+Else
+    # Ctrl au niveau dossier : Chargement des paramètres nécessaires
+    WCUR=GCURSHR             : # La devise utilisée pour calculer les mnts actualisés est la devise dossier
+Endif
+
+
+Raz LOST
+Raz WCPY
+For [MVC]MVC0 Where evalue(CRITERE)
+    If GOSTCTL=1 & WCPY<>[F:MVC]CPY
+        # Ctrl au niveau dossier : Chargement des paramètres nécessaires qd on change de société
+        Gosub RECH_PARAM
+        WCPY=[F:MVC]CPY
+    Endif
+
+   Raz WMNTDES :#--CPO 101070
+
+  #If GOSTCHGTYP=2             : # Pour les prochaines versions
+   If GOSTCHGTYP=2 | GOSTCTL=1 : # Pour la version Béryl (pas de solde comptable en devise dossier)
+      # Cours actualisé :
+      # Conversion des montants en devise transaction en devise dossier (GCURSHR)
+      If [F:MVC]CUR=WCUR
+         WMNTDES (0) = [F:MVC]DLVOSTC
+         WMNTDES (1) = [F:MVC]NIVDLVC
+         WMNTDES (2) = [F:MVC]NPTINVC
+         WMNTDES (3) = [F:MVC]NYTBILC(0)
+         WMNTDES (4) = [F:MVC]NYTBILC(1)
+         WMNTDES (5) = [F:MVC]NYTBILC(2)
+         WMNTDES (6) = [F:MVC]BLCC
+         WMNTDES (7) = [F:MVC]ORDBPIATIC
+         If dim([F:MVC]LNDDLVC) <> -1
+            WMNTDES (8) = [F:MVC]LNDBPIATIC
+            WMNTDES (9) = [F:MVC]LNDDLVC
+         Endif
+      Else
+         Raz WMNTORG :#--CPO 101070
+
+         WMNTORG (0) = [F:MVC]DLVOSTC
+         WMNTORG (1) = [F:MVC]NIVDLVC
+         WMNTORG (2) = [F:MVC]NPTINVC
+         WMNTORG (3) = [F:MVC]NYTBILC(0)
+         WMNTORG (4) = [F:MVC]NYTBILC(1)
+         WMNTORG (5) = [F:MVC]NYTBILC(2)
+         WMNTORG (6) = [F:MVC]BLCC
+         WMNTORG (7) = [F:MVC]ORDBPIATIC
+         If dim([F:MVC]LNDDLVC) <> -1
+            WMNTORG (8) = [F:MVC]LNDBPIATIC
+            WMNTORG (9) = [F:MVC]LNDDLVC
+         Endif
+         For I=0 To dim(WMNTORG)-1
+            If WMNTORG(I)<>0
+               Call CONVERT([F:MVC]CUR,WCUR,WCURSOC,TYPCOU,DAT,
+&                           WMNTORG(I),WMNTDES(I),SPSTAT) From TRTDEV
+            Endif
+         Next I
+      Endif
+   Elsif GOSTCTL=1
+        # Niveau dossier et Cours historisé :
+        # On prend tel quel les montants en devise dossier (GCURSHR)
+        WMNTDES (0) = [F:MVC]DLVOSTR
+        WMNTDES (1) = [F:MVC]NIVDLVR
+        WMNTDES (2) = [F:MVC]NPTINVR
+        WMNTDES (3) = [F:MVC]NYTBILR(0)
+        WMNTDES (4) = [F:MVC]NYTBILR(1)
+        WMNTDES (5) = [F:MVC]NYTBILR(2)
+        WMNTDES (6) = [F:MVC]BLCR
+        WMNTDES (7) = [F:MVC]ORDBPIATIR
+        If dim([F:MVC]LNDDLVR) <> -1
+           WMNTDES (8) = [F:MVC]LNDBPIATIR
+           WMNTDES (9) = [F:MVC]LNDDLVR
+        Endif
+    Else
+          # Niveau société et Cours historisé : On prend tel quel les montants en devise société
+          WMNTDES (0) = [F:MVC]DLVOSTL
+          WMNTDES (1) = [F:MVC]NIVDLVL
+          WMNTDES (2) = [F:MVC]NPTINVL
+          WMNTDES (3) = [F:MVC]NYTBILL(0)
+          WMNTDES (4) = [F:MVC]NYTBILL(1)
+          WMNTDES (5) = [F:MVC]NYTBILL(2)
+          WMNTDES (6) = [F:MVC]BLCL
+          WMNTDES (7) = [F:MVC]ORDBPIATIL
+          If dim([F:MVC]LNDDLVL) <> -1
+              WMNTDES (8) = [F:MVC]LNDBPIATIL
+              WMNTDES (9) = [F:MVC]LNDDLVL
+          Endif
+   Endif
+   # Incrémentation du total en-cours
+   LOST += WMNTDES(0)+WMNTDES(1)+WMNTDES(2)+WMNTDES(6)
+   If GMODU(5) = 2
+     If GOSTDRAFT=2
+      LOST += WMNTDES(3)+WMNTDES(4)+WMNTDES(5)
+     Endif
+   Endif
+   If GOSTORD=2
+      LOST += WMNTDES(7)
+   Endif
+   If GOSTLND=2
+      LOST += WMNTDES(9)
+      If GOSTORD=2
+         LOST += WMNTDES(8)
+      Endif
+   Endif
+Next
+If OPENCPY1=1 Then
+    Close Local File [F:CPY1]
+Endif
+End LOST
+
+#**
+#* Calcul de l'en-cours client risque en devise de reporting pour une société
+#* SEGAY
+#* @since 16/01/09
+#* @param  CPY  : Société
+#* @param  WBPCRSK  : Tiers risque
+#* @param  TYPCOU   : Type de cours
+#* @param  DAT      : Date
+#* @return LOST     : En-cours calculé
+#*!
+Funprog CALOSTCPY(CPY,WBPCRSK,TYPCOU,DAT)
+Value   Char    CPY            : # Société
+Value   Char    WBPCRSK       : # Tiers risque
+Value   Integer TYPCOU         : # Type de cours
+Value   Date    DAT            : # Date du cours
+
+Local   Integer FLGCLT         : # Flag client O/N
+Local   Decimal LOST           : # En-cours en devise de reporting
+FLGCLT = 0
+Raz LOST
+LOST = func TRTBPMVT.CALOSTCPYCTLRSK(CPY,WBPCRSK,TYPCOU,DAT,FLGCLT)
+
+End LOST
+#**
+#* Calcul de l'en-cours client en devise de reporting pour une société
+#* SEGAY
+#* @since 19/03/10
+#* @param  CPY  : Société
+#* @param  WBPCNUM  : Tiers
+#* @param  TYPCOU   : Type de cours
+#* @param  DAT      : Date
+#* @return LOST     : En-cours calculé
+#*!
+Funprog CALOSTCPYCTL(CPY,WBPCNUM,TYPCOU,DAT)
+Value   Char    CPY            : # Société
+Value   Char    WBPCNUM       : # Tiers
+Value   Integer TYPCOU         : # Type de cours
+Value   Date    DAT            : # Date du cours
+
+Local   Integer FLGCLT         : # Flag client O/N
+Local   Decimal LOST           : # En-cours en devise de reporting
+FLGCLT = 1
+Raz LOST
+LOST = func TRTBPMVT.CALOSTCPYCTLRSK(CPY,WBPCNUM,TYPCOU,DAT,FLGCLT)
+
+End LOST
+
+#----------------------------------------------------
+# Derniere date de mouvement fournisseur SEGAY 08/12/08
+#----------------------------------------------------
+# Entrée  BPSNUM   : Fournisseur
+#         IFFTYP   : Type d'information menu local 565
+#                       1 : Dernier appel d'offre
+#                       2 : Dernière demande d'achat
+#                       3 : Dernière commande
+#                       4 : Dernière réception
+#                       5 : Dernier retour
+#                       6 : Dernière facture
+#                       7 : Dernier avoir
+#                       8 : Dernier réglement
+#         CPY      : Company
+#         FCY      : Site
+# Sortie  LASTDAT  : Dernière date de mouvement
+#----------------------------------------------------
+Funprog BPSLASTDATE(BPSNUM,IFFTYP,CPY,FCY)
+Value   Char    BPSNUM       : # Fournisseur
+Value   Integer IFFTYP        : # Type d'information
+Value   Char    CPY           : # Société
+Value   Char    FCY           : # Site   # FGR 13/08/2009 : X3SUIVI57005 : le site fait parti de la PK
+
+Local   Date    LASTDAT        : # Dernière date de mouvement
+Local Integer OPENFILE
+
+OPENFILE=0
+Raz LASTDAT
+If clalev([F:LSM]) = 0 Then
+  Local File LASTSUPMVT [LSM]
+  OPENFILE=1
+Endif
+If BPSNUM <> "" and CPY <> "" and IFFTYP > 0 and IFFTYP < 9 Then
+  #Read [LSM]LSM0=BPSNUM;IFFTYP;CPY;FCY                 #--- Dernier mouvement
+  Read [LSM]LSM0=BPSNUM;IFFTYP;CPY                      #--- Dernier mouvement
+  If !fstat LASTDAT = [F:LSM]MVTDAT Endif
+Endif
+If OPENFILE=1 Then
+    Close Local File [F:LSM]
+Endif
+End LASTDAT
+
+######################################################################################
+## Etiquette ajoutée par le superviseur (écran BPSOST) 31/08/2009 11:52:41 (HCB)
+######################################################################################
+Subprog IB_BLC
+End

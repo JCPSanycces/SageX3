@@ -1,0 +1,252 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog IMPRIME(NBPAR,PARAMETRE)
+Variable    Integer NBPAR
+Variable Char    PARAMETRE()(1..)
+
+Call EXEC(NBPAR,PARAMETRE)
+
+End
+
+######################################################################
+# modifié llc 05.03 18271
+Subprog EXEC(NBPAR,PARAMETRE)
+Variable    Integer NBPAR
+Variable Char    PARAMETRE()(1..)
+Local Integer IMPR
+Local Integer WWRK
+Local Integer LDOSOK
+# sr 02.03 demande 17319
+Local Char    WPJTSTR, WPJTEND
+
+# llc 05.03 18271
+Local Date    WDATSTR, WDATEND
+Local Char    WROUSTR, WROUEND
+Local Char    WCRITMFI(200)
+Local Integer W_OK
+Local Char    CHART  :  CHART=chr$(1)
+
+Gosub OUVRE
+If GERREUR : GERREUR=0 : End : Endif
+Gosub DECLARE
+[L]CRITERE = "1=1"
+# llc 05.03 18271
+WCRITMFI = "1=1"
+WCRITMFG = "1=1"
+
+For I=1 To NBPAR
+ J=instr(1,[L]PARAMETRE(I),"=")
+ If J
+    [L]PARAM  = left$([L]PARAMETRE(I),J-1)
+    If J<>0 and mid$(PARAMETRE(I),J+1,1)=CHART
+      [L]VALEUR = right$([L]PARAMETRE(I),J+2)
+    Else
+      [L]VALEUR = right$([L]PARAMETRE(I),J+1)
+    Endif
+  Case [L]PARAM
+   When "X3ETA"           : [L]ETAT = [L]VALEUR
+   When "__REQUETE"       : [L]NUMREQ = val([L]VALEUR)
+   When "mfgfcydeb"       : [L]CRITERE -= "& MFGFCY>='"+[L]VALEUR+"'"
+   When "mfgfcyfin"       : [L]CRITERE -= "& MFGFCY<='"+[L]VALEUR+"'"
+   When "mfgnumdeb"       : [L]CRITERE -= "& MFGNUM>='"+[L]VALEUR+"'"
+   When "mfgnumfin"       : [L]CRITERE -= "& MFGNUM<='"+[L]VALEUR+"'"
+   When "pjtdeb"          : # llc 05.03 18271
+                            [L]VALEUR = vireblc([L]VALEUR,2)
+                            If [L]VALEUR <> ""
+                                WCRITMFI -= "& PJT>='"+[L]VALEUR+"'"
+                            Endif
+   When "pjtfin"          : # llc 05.03 18271
+                            WCRITMFI -= "& PJT<='"+[L]VALEUR+"'"
+   When "gammedeb"        : [L]VALEUR = vireblc([L]VALEUR,2)
+                            If [L]VALEUR<>""
+                                WROUSTR = [L]VALEUR
+                            Endif
+   When "gammefin"        : # llc 05.03 18271
+                            WROUEND = [L]VALEUR
+   When "strdatdeb"       : # llc 05.03 18271
+                            WDATSTR   =  gdat$(val(right$([L]VALEUR,7)),
+&                                              val(seg$([L]VALEUR,5,6)),val(left$([L]VALEUR,4)))
+   When "strdatfin"       : # llc 05.03 18271
+                            WDATEND   =  gdat$(val(right$([L]VALEUR,7)),
+&                                              val(seg$([L]VALEUR,5,6)),val(left$([L]VALEUR,4)))
+
+   When "numedt"          : [L]PARAMETRE(I) = "numedt="+num$([L]NUMREQ)
+   When "usr"             : [L]PARAMETRE(I) = "usr="+GUSER
+   When "etat"            : [L]PARAMETRE(I) = "etat="+[L]ETAT
+ Endcase
+ Endif
+Next
+Filter [F:MFP] Where evalue([L]CRITERE)
+Gosub TRT_MFP
+
+  # When "codimp"          : [L]CRITERE -= "& MFGTIKFLG="+num$([L]VALEUR)
+  #                          [L]IMPR = val([L]VALEUR)
+
+
+End
+
+###################################################################
+###################################################################
+$TRT_MFP
+Raz WNUMLIG
+Local Decimal W_NUM
+Default File [MFP]
+For [F:MFP]MFP0
+    Raz LDOSOK
+    W_OK = 0                                                # sr 02.03 demande 17319 + llc 05.03 18271
+    Read [F:MFG]MFG0 = [F:MFP]MFGNUM
+    If !fstat
+       # llc 05.03 18271
+       If WROUSTR <> "" & [F:MFG]ROUNUM < WROUSTR : Goto N_MFP : Endif
+       If WROUEND <> "" & [F:MFG]ROUNUM > WROUEND : Goto N_MFP : Endif
+       If WDATSTR <> [0/0/0] & [F:MFG]STRDAT < WDATSTR : Goto N_MFP : Endif
+       If WDATEND <> [0/0/0] & [F:MFG]STRDAT > WDATEND : Goto N_MFP : Endif
+
+       # llc 05.03 18271
+       For [MFI] Where MFGNUM = [F:MFG]MFGNUM & evalue(WCRITMFI)
+             W_NUM=[F:MFI]EXTQTY
+             W_OK = 1
+             Break
+       Next
+
+       # llc 05.03 18271
+       If W_OK
+          Call  TEST_DOSSIER(LDOSOK)
+          If LDOSOK <> 0
+             Call DEBTRANS From GLOCK
+             If [L]IMPR = 1 Gosub TR1
+             Else           Gosub TR2
+             Endif
+          Endif
+       Endif
+    Endif
+$N_MFP
+Next
+Return
+
+##########################################################################
+$TR1
+# llc 03.02 13245
+Local Integer WPICLIS
+Local Integer WROUSHE
+Local Integer WLABTIK
+Local Integer WMFGTIK
+Local Integer WTECCRD
+
+Trbegin [MFP] , [MFG], [ARM]
+# Mise à jour table PRN si demande d'impression
+If [L]IMPR = 1
+ Readlock [F:MFP]MFP0 Curr
+ If fstat = 1 : GOK = -1 : GLOCK = "$MFGPRN" : Goto ROLL_TR1
+ Elsif fstat  : GOK = 0 : Call RSTA("MFP","*") From GLOCK : Goto AB_TR1
+ Endif
+ # llc 03.02 13245 on ne flag que les documents initialement prévus
+ WWRK = [F:MFP]EXTMFGFDR
+ If WWRK > 15 : WTECCRD = 2 : WWRK -= 16 : Endif
+ If WWRK >  7 : WMFGTIK = 2 : WWRK -=  8 : Endif
+ If WWRK >  3 : WLABTIK = 2 : WWRK -=  4 : Endif
+ If WWRK >  1 : WROUSHE = 2 : WWRK -=  2 : Endif
+ If WWRK >  0 : WPICLIS = 2 : Endif
+ If WMFGTIK = 2 : [F:MFP]MFGTIKFLG = 2 : Endif
+ WWRK = 0
+ If [F:MFP]PICLISFLG = 2 : WWRK += 1 : Endif
+ If [F:MFP]ROUSHEFLG = 2 : WWRK += 2 : Endif
+ If [F:MFP]LABTIKFLG = 2 : WWRK += 4 : Endif
+ If [F:MFP]MFGTIKFLG = 2 : WWRK += 8 : Endif
+ If [F:MFP]TECCRDFLG = 2 : WWRK += 16 : Endif
+ If [F:MFP]EXTMFGFDR = WWRK : [F:MFP]MFGFDRFLG = 2 : Endif
+ Rewrite [F:MFP]
+ If fstat=1
+  GOK=-1 : GLOCK="$MFGPRN"-[F:MFP]MFGNUM
+  Goto ROLL_TR1
+ Elsif fstat
+  GOK=0 : Call RSTA("MFGPRN",[F:MFP]MFGNUM) From GLOCK : Goto AB_TR1
+ Endif
+#
+ If [F:MFP]EXTMFGFDR = WWRK
+    Readlock [MFG]MFG0=[F:MFP]MFGNUM
+    If fstat = 1 : GOK = -1 : GLOCK = "$MFGHEAD" : Goto ROLL_TR1
+    Elsif fstat  : GOK = 0 : Call RSTA("MFG","*") From GLOCK : Goto AB_TR1
+    Endif
+    If [F:MFG]MFGTRKFLG < 3 : [F:MFG]MFGTRKFLG = 3 : Endif
+    Rewrite [F:MFG]
+    If fstat=1
+     GOK=-1 : GLOCK="$MFGHEAD"-[F:MFG]MFGNUM
+     Goto ROLL_TR1
+    Elsif fstat
+     GOK=0 : Call RSTA("MFGHEAD",[F:MFG]MFGNUM) From GLOCK : Goto AB_TR1
+    Endif
+#
+ Endif
+Endif
+#Création de l'enregistrement dans la table AREPORTM
+WNUMLIG      += 1
+
+For WNUMLIG=1 To W_NUM
+Raz [F:ARM]
+[F:ARM]USR     = GUSER
+[F:ARM]RPTCOD  = [F:ARP]RPTCOD
+[F:ARM]NUMREQ  = [L]NUMREQ
+[F:ARM]NUMLIG  = WNUMLIG
+[F:ARM]CLEA1   = [F:MFP]MFGNUM
+[F:ARM]CREDAT  = date$
+Write [F:ARM]
+If fstat : GOK = 0 : Call FSTA("ARM") From GLOCK : Goto AB_TR1 : Endif
+Next
+Commit
+Return
+
+$ROLL_TR1
+Rollback : Call ROLL From GLOCK
+If GROLL : Return : Else : Goto TR1 : Endif
+
+$AB_TR1
+Rollback
+Return
+
+##############################
+$TR2
+Trbegin [ARM]
+#Création de l'enregistrement dans la table AREPORTM
+WNUMLIG      += 1
+For WNUMLIG=1 To W_NUM
+  Raz [F:ARM]
+  [F:ARM]USR     = GUSER
+  [F:ARM]RPTCOD  = [F:ARP]RPTCOD
+  [F:ARM]NUMREQ  = [L]NUMREQ
+  [F:ARM]NUMLIG  = WNUMLIG
+  [F:ARM]CLEA1   = [F:MFP]MFGNUM
+  [F:ARM]CREDAT  = date$
+  Write [F:ARM]
+  If fstat : GOK = 0 : Call FSTA("ARM") From GLOCK : Goto AB_TR2 : Endif
+Next
+Commit
+Return
+
+$ROLL_TR2
+Rollback : Call ROLL From GLOCK
+If GROLL : Return : Else : Goto TR2 : Endif
+
+$AB_TR2
+Rollback
+Return
+
+###########################################################################
+
+$OUVRE
+# sr 02.03 demande 17319
+Local File MFGHEAD [MFG], MFGPRN [MFP], AREPORTM [ARM], MFGITM [MFI]
+
+Return
+
+$DECLARE
+Local Char    CRITERE(255), PARAM(30) , VALEUR(30) , ETAT(15)
+Local Integer WNUMLIG, NUMREQ
+Local Date    DATREF
+Return
+
+########################################################################
+Subprog TEST_DOSSIER(LDOSOK)
+Variable Integer LDOSOK
+If [F:MFG]MFGSTA <> 1 : End : Endif               # llc 05.02 14276
+LDOSOK = 1
+End

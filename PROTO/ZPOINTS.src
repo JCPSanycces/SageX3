@@ -1,0 +1,198 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#-- C.A. ZPR08 Comentarios SOH --> MFG <07/2022>
+#-- C.A. ZPR04 Fecha de entrega solicitada -->  <08/2022>
+# NUN05.10072023.NEW - Añado la función FUNMAUXXXX para que no entre en esta parte de código.
+#                     Comentado con D.S. Creemos que no es necesario ya que pasamos la OF firme y ya tenemos estos datos completados.
+$ACTION
+  #--
+  Case ACTION
+    When "AUTLIBMAJ"       : Gosub AUTLIBMAJ    #-- ZPR08 / MFG
+    When "MFIMAJ"          : Gosub MFIMAJ       #-- ZPR08 / MFI
+    When "ORDMAJ"          : Gosub ORDMAJ       #-- ZPR04 / ORD
+    When "LOAMSKMBP"       : Gosub LOAMSKMBP    #-- ZPR04 / Planes de seguimiento
+    When "UPDMFIMAJ"       : Gosub UPDMFIMAJ
+    When Default
+  Endcase
+Return
+
+
+###################################################
+$UPDMFIMAJ
+
+Return
+
+
+#--
+$AUTLIBMAJ
+  #--
+  #If GFONCTION <> "FUNSTKB" and left$(GFONCTION,6) <> "FUNMAU"
+  # If GFONCTION <> "FUNSTKB" # NUN05.10072023.OLD
+  # NUN05.10072023.NEW
+  #If GFONCTION <> "FUNSTKB" and left$(GFONCTION,6) <> "FUNMAU"
+  If GFONCTION <> "FUNSTKB"
+&  and GFONCTION <> "FUNTDUOF" and GFONCTION <> "YPRODSANY"
+##XVT05122022 OMITIR ESTE PROCESO TAMBIÉN DESDE LA FUNCIÓN "MODIFICACIÓN OBJETIVOS"
+    [F:MFG]MFGTEX = [F:SOH]SOHTEX1
+  Endif
+Return
+
+#--
+$MFIMAJ
+  #--
+  # If GFONCTION <> "FUNSTKB"                                   # NUN05.10072023.OLD
+  # NUN05.10072023.NEW
+#  If GFONCTION <> "FUNSTKB" and left$(GFONCTION,6) <> "FUNMAU"
+  If GFONCTION <> "FUNSTKB"
+&  and GFONCTION <> "FUNTDUOF" and GFONCTION <> "YPRODSANY"
+##XVT05122022 OMITIR ESTE PROCESO TAMBIÉN DESDE LA FUNCIÓN "MODIFICACIÓN OBJETIVOS"
+    #--
+    [F:MFI]SOQTEX     = [F:SOQ]SOQTEX
+    [F:MFI]DEMDLVDAT  = [F:SOQ]SHIDAT
+    #--
+    [F:MFI]ZALTO      = [F:SOQ]ZALTO
+    [F:MFI]ZANCHO     = [F:SOQ]ZANCHO
+    [F:MFI]ZLARGO     = [F:SOQ]ZLARGO
+
+    # Creo los números de serie en función del artículo
+    If !clalev([F:ZZ0]): Local File ZITMLOGO    [ZZ0] : Endif
+    If !clalev([F:ZZ1]): Local File ITMMASTER   [ZZ1] : Endif
+    If !clalev([F:ZZ2]): Local File YMFGSERIE   [ZZ2] : Endif
+    If !clalev([F:ZZ3]): Local File YITMTECNICO [ZZ3] : Endif
+
+
+
+    Read [ZZ1]ITM0 = [F:MFI]ITMREF
+    If fstat = 0
+      Read [ZZ0]ZITML0 = [ZZ1]TSICOD(1)
+      If fstat = 0
+        If [ZZ0]TIPOSERIE = 2  # Producto Sanycces
+          Local Char PREFIJO
+          Local Integer SUFIJO
+          Local Char SERIE
+          Local Integer I
+
+          For I=1 To [MFI]EXTQTY
+            PREFIJO = mid$([F:MFI]MFGNUM,5,7)
+            SUFIJO +=1
+            Case len(num$(SUFIJO))
+              When 1 : SERIE = PREFIJO + "00" + num$(SUFIJO)
+              When 2 : SERIE = PREFIJO + "0" + num$(SUFIJO)
+              When 3 : SERIE = PREFIJO + num$(SUFIJO)
+            Endcase
+
+            Raz [ZZ2]
+            [ZZ2]MFGNUM = [MFI]MFGNUM
+            [ZZ2]MFGLIN = [MFI]MFGLIN
+            [ZZ2]NSERIE = SERIE
+            Write [ZZ2]
+          Next
+
+        Elsif [ZZ0]TIPOSERIE = 3  # Producto Noken con hidro
+          Local Char PRIMERO
+          Local Integer I
+
+          Read [ZZ3]YITT0 = [MFI]ITMREF
+          If fstat = 0
+            If [ZZ3]VERSION <> ""
+              PRIMERO = [ZZ3]VERSION
+            Else
+              PRIMERO = "000"
+            Endif
+          Endif
+
+          For I=1 To [MFI]EXTQTY
+            Local Integer WSTAT
+            Local Char LCON(15)
+            Call NUMERO("YSER2","",date$,"",LCON,WSTAT) From SUBANM
+
+            Raz [ZZ2]
+            [ZZ2]MFGNUM = [MFI]MFGNUM
+            [ZZ2]MFGLIN = [MFI]MFGLIN
+            [ZZ2]NSERIE = PRIMERO + "1005568" + LCON
+            Write [ZZ2]
+          Next
+
+
+        Elsif [ZZ0]TIPOSERIE = 4  # Productos sin hidro
+          Local Char PRIMERO
+          Local Char DIA,MES,ANYO,FECHA
+          Local Integer I
+
+          Read [ZZ3]YITT0 = [MFI]ITMREF
+          If fstat = 0
+            If [ZZ3]VERSION <> ""
+              PRIMERO = [ZZ3]VERSION
+            Else
+              PRIMERO = "000"
+            Endif
+          Endif
+
+          DIA = num$(day(date$))
+          If len(DIA) = 1 : DIA = "0" + DIA : Endif
+
+          MES = num$(month(date$))
+          If len(MES) = 1 : MES = "0" + MES : Endif
+
+          ANYO = right$(num$(year(date$)),3)
+
+          FECHA = DIA + MES + ANYO
+
+          [F:MFI]LOT = PRIMERO + "1005568" + FECHA
+
+        Endif
+      Endif
+    Endif
+
+
+    Close Local File [ZZ0]
+    Close Local File [ZZ1]
+    Close Local File [ZZ2]
+    Close Local File [ZZ3]
+
+  Endif
+Return
+
+#--
+$ORDMAJ
+  #--
+  #If GFONCTION <> "FUNSTKB" and left$(GFONCTION,6) <> "FUNMAU" # NUN05.10072023.old
+  # If GFONCTION <> "FUNSTKB"                                   # NUN05.10072023.old
+  # NUN05.10072023.NEW
+  If GFONCTION <> "FUNSTKB" and left$(GFONCTION,6) <> "FUNMAU"
+&  and GFONCTION <> "FUNTDUOF" and GFONCTION <> "YPRODSANY" and GFONCTION <> "GESMKM" and GFONCTION <> "GESMKI" and GFONCTION <> "GESSMR" and GFONCTION <> "GESPTH"
+&  and GFONCTION <> "GESMTK" and GFONCTION <> "GESSTQ"
+##XVT05122022 OMITIR ESTE PROCESO TAMBIÉN DESDE LA FUNCIÓN "MODIFICACIÓN OBJETIVOS"
+
+     [F:ORDW]DEMDLVDAT  = [F:SOQ]DEMDLVDAT
+
+    #--
+    If GREP = "M"
+      If !clalev([ZMFI]): Local File MFGITM [ZMFI] : Endif
+      If !clalev([ZORD]): Local File ORDERS [ZORD] : Endif
+
+      Filter [ZORD] Where VCRNUMORI = [F:ORDW]VCRNUM and ITMREF = [F:ORDW]ITMREF
+      Read First
+      If !fstat
+        [F:ZORD]DEMDLVDAT  = [F:SOQ]SHIDAT
+        Rewrite [ZORD]
+        If fstat : Call FSTA("ZORD") From GLOCK : End : Endif
+        Read [F:ZMFI]MFI0 = [F:ZORD]VCRNUM;[F:ZORD]VCRLIN
+        [F:ZMFI]DEMDLVDAT  = [F:SOQ]SHIDAT
+        Rewrite [ZMFI]
+        If fstat : Call FSTA("ZMFI") From GLOCK : End : Endif
+      Endif
+      Filter [ZORD]
+    Endif
+  Endif
+Return
+
+#--
+$LOAMSKMBP
+  #--
+  If !clalev([ZMFI]): Local File MFGITM [ZMFI] : Endif
+  Read [F:ZMFI]MFI2 = [F:MFG]MFGNUM
+  If !fstat
+    [M:MBP]DEMDLVDAT(nolign-1) = [F:MFI]DEMDLVDAT
+    Infbox num$([F:MFI]DEMDLVDAT)- num$([M:MBP]DEMDLVDAT(nolign-1))
+  Endif
+Return

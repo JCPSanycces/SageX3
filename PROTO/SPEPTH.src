@@ -1,0 +1,67 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###########################################################################
+# @01@ - EQM - 15/10/2024 - Si la recepción es de un contenedor, modificamos estado del contenedor YESTADO
+###########################################################################
+$ACTION
+    Case ACTION
+      When "APRES_CRE"     : Gosub APRES_CRE # @01@ - EQM
+      When "APRES_MOD"     : Gosub APRES_MOD # @01@ - EQM
+      When "ANNULE"        : Gosub ANNULE    # @01@ - EQM
+    Endcase
+Return
+
+#############################################################################
+$APRES_CRE
+    Gosub ESTADO_CONTENEDORES # @01@ - EQM
+Return
+#############################################################################
+$APRES_MOD
+    Gosub ESTADO_CONTENEDORES # @01@ - EQM
+Return
+#############################################################################
+# @01@ - EQM
+$ESTADO_CONTENEDORES
+
+  If clalev([F:YCTRH]) = 0  : Local File CONTAINER [YCTRH] : Endif
+  If clalev([F:YSHD])  = 0  : Local File SHIPMENTD [YSHD]  : Endif
+
+  For Y=0 To [M:PTH1]NBLIG-1
+    If [M:PTH1]SHIPNUM(Y)<>''
+        Read[YSHD]SHD0=[M:PTH1]SHIPNUM(Y);[M:PTH1]SHIPLIN(Y)
+        If [YSHD]CTRNUM<>''
+            Read [F:YCTRH]CTRH0=[YSHD]CTRNUM
+            If !fstat
+                [F:YCTRH]YESTADO=3
+                Rewrite[F:YCTRH]
+            Endif
+        Endif
+    Endif
+  Next
+  Close Local File [YCTRH]
+  Close Local File [YSHD]
+
+Return
+#############################################################################
+# @01@ - EQM
+$ANNULE
+
+  If clalev([F:YCTRH]) = 0  : Local File CONTAINER [YCTRH] : Endif
+  If clalev([F:YSHD])  = 0  : Local File SHIPMENTD [YSHD]  : Endif
+
+  For Y=0 To [M:PTH1]NBLIG-1
+    If [M:PTH1]SHIPNUM(Y)<>''
+        Read[YSHD]SHD0=[M:PTH1]SHIPNUM(Y);[M:PTH1]SHIPLIN(Y)
+        If [YSHD]CTRNUM<>''
+            Read [F:YCTRH]CTRH0=[YSHD]CTRNUM
+            If !fstat
+                [F:YCTRH]YESTADO=2
+                Rewrite[F:YCTRH]
+            Endif
+        Endif
+    Endif
+  Next
+  Close Local File [YCTRH]
+  Close Local File [YSHD]
+
+Return
+#############################################################################

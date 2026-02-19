@@ -1,0 +1,880 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#@001@ - RAP - 20/09/2024 - Añado funcionalidad para el campo CFECHARECD y filtrar en f. recepcion pedido
+
+
+$ACTION
+Case ACTION
+  When "DEBUT"      :  Gosub DEBUT
+  When "BOUTON"     :  Gosub BOUTON
+  When "SEL_TABLE"  :  Gosub SEL_TABLE
+Endcase
+Return
+
+
+##############################################
+$DEBUT
+# Limpio la pantalla
+Raz [M:YRUSA]
+[M:YRUSA]PIE_R = 0
+Grizo [M:YRUSA]CTIPODOC
+Affzo [M:YRUSA]
+Return
+
+
+
+##############################################
+$BOUTON
+Case BOUT
+  When "Z"  :   Gosub BUSCAR
+  When "Y"  :   Gosub MAJ_DATES
+Endcase
+Return
+
+
+##############################################
+$BUSCAR
+# Limpio el bloque de líneas
+Gosub LIMPIO_LINEAS
+
+# Apertura de tablas
+If !clalev([QQ1]) : Local File ITMMASTER     [QQ1] : Endif
+If !clalev([QQ2]) : Local File ITMBPS        [QQ2] : Endif
+If !clalev([QQ3]) : Local File ITMMVT        [QQ3] : Endif
+If !clalev([QQ4]) : Local File PORDERQ       [QQ4] : Endif
+If !clalev([QQ5]) : Local File CONTAINERD    [QQ5] : Endif
+If !clalev([QQ6]) : Local File CONTAINER     [QQ6] : Endif
+If !clalev([QQ7]) : Local File SHIPMENTD     [QQ7] : Endif
+If !clalev([QQ8]) : Local File MFGMAT        [QQ8] : Endif
+If !clalev([Q10]) : Local File SORDERQ       [Q10] : Endif
+If !clalev([Q11]) : Local File ITMBPS        [Q11] : Endif
+
+# Enlazo ITM-ITMBPS
+Link [QQ2] With [QQ1]ITM0 = [QQ2]ITMREF As [XX1] Where [QQ2]PIO = 0
+
+# Compongo criterios
+Local Char CRITERIOS1(250) : CRITERIOS1 = "[QQ1]ITMSTA=1"
+Local Char CRITERIOS2(250) : CRITERIOS2 = "1=1"
+
+# Sobre artículos
+If [M:YRUSA]CCATEGORIA <> ""
+  CRITERIOS1 += " & [QQ1]TCLCOD=[M:YRUSA]CCATEGORIA"
+Endif
+If [M:YRUSA]CARTICULO <> ""
+  CRITERIOS1 += " & [QQ1]ITMREF=[M:YRUSA]CARTICULO"
+Endif
+If [M:YRUSA]CFAMILIASUP <> ""
+  CRITERIOS1 += " & [QQ1]TSICOD(0)=[M:YRUSA]CFAMILIASUP"
+Endif
+If [M:YRUSA]CFAMILIA <> ""
+  CRITERIOS1 += " & [QQ1]TSICOD(1)=[M:YRUSA]CFAMILIA"
+Endif
+
+# Sobre pedidos
+If [M:YRUSA]CPROVEEDOR <> ""
+  If [M:YRUSA]CPROVEEDORP = 2
+    CRITERIOS1 += " & [QQ2]BPSNUM=[M:YRUSA]CPROVEEDOR"  # Si marco el proveedor principal busco primero en artículo-proveedor..
+    CRITERIOS2 += " & [QQ4]BPSNUM=[M:YRUSA]CPROVEEDOR"  # .. y después en pedidos
+  Else
+    CRITERIOS2 += " & [QQ4]BPSNUM=[M:YRUSA]CPROVEEDOR"  # Si no marco el proveedor principal, busco directamente en pedidos
+  Endif
+Else
+  If [M:YRUSA]CPROVEEDORP = 2 and [M:YRUSA]CARTICULO <> ""
+    # (estoy en el caso que marque el flag de proveedor principal pero no ponga este proveedor) Busco el proveedor principal y aplico lógica de pantalla para este proveedor
+    Filter [Q11] Where [Q11]ITMREF = [M:YRUSA]CARTICULO Order By [Q11]PIO Asc
+    Read [Q11] First
+    If fstat = 0
+      CRITERIOS1 += " & [QQ2]BPSNUM=[Q11]BPSNUM"  # Si marco el proveedor principal busco primero en artículo-proveedor..
+      CRITERIOS2 += " & [QQ4]BPSNUM=[Q11]BPSNUM"  # .. y después en pedidos
+    Endif
+    Filter [Q11]
+  Endif
+Endif
+
+If [M:YRUSA]CPEDIDOD <> ""
+  CRITERIOS2 += " & [QQ4]POHNUM>=[M:YRUSA]CPEDIDOD"
+Endif
+If [M:YRUSA]CPEDIDOH <> ""
+  CRITERIOS2 += " & [QQ4]POHNUM<=[M:YRUSA]CPEDIDOH"
+Endif
+If [M:YRUSA]CFPEDIDOD <> "000000"
+  CRITERIOS2 += " & [QQ4]ORDDAT>=[M:YRUSA]CFPEDIDOD"
+Endif
+If [M:YRUSA]CFPEDIDOH <> "000000"
+  CRITERIOS2 += " & [QQ4]ORDDAT<=[M:YRUSA]CFPEDIDOH"
+Endif
+
+#@001@ - RAP - 20/09/2024 - INI
+
+If [M:YRUSA]CFECHARECD <> "000000"
+  CRITERIOS2 += " & [QQ4]EXTRCPDAT>=[M:YRUSA]CFECHARECD"
+Endif
+If [M:YRUSA]CFECHARECH <> "000000"
+  CRITERIOS2 += " & [QQ4]EXTRCPDAT<=[M:YRUSA]CFECHARECH"
+Endif
+#Gestionamos lineas saldadas
+CRITERIOS2 += " & [QQ4]LINCLEFLG<>2"
+#@001@ - RAP - 20/09/2024 - FIN
+
+# Cargo pantalla (máximo 3000 líneas)
+Local Integer CONTA
+Local Integer EN_PC
+Local Decimal QTY_CON
+Local Integer LINE
+Local Decimal PDTE_RECEP
+Local Char PED_NUM(200)(20)
+Local Integer I,J
+Local Integer SIGO
+nolign = 1
+Filter [XX1] Where evalue(CRITERIOS1) Order By [QQ1]ITMREF Asc
+  For [XX1]
+
+    # Busco los datos en pedidos de compra firmes no saldados
+    # Si tengo registro, quito la línea de huérfano e indico la línea de pedido de compra
+    Filter [QQ4] Where [QQ4]POHFCY = [M:YRUSA]CPLANTA and [QQ4]ITMREF = [QQ1]ITMREF and [QQ4]LINSTA<3 and evalue(CRITERIOS2)
+      For [QQ4]
+        [L]EN_PC      = 0
+        [L]QTY_CON    = 0
+        [L]EN_PC +=1
+        [L]PDTE_RECEP = [QQ4]QTYPUU - [QQ4]RCPQTYPUU
+        # Compruebo si la línea del pedido está en un contenedor, aplicando en filtro por contenedor
+        Filter [QQ5] Where [QQ5]POHNUM = [QQ4]POHNUM and [QQ5]POPLIN = [QQ4]POPLIN and [QQ5]POQSEQ = [QQ4]POQSEQ
+          For [QQ5]
+            [L]SIGO = 2
+            # Filtro de contenedor desde
+            If [M:YRUSA]CCONTENEDORD <> ""
+              Read [QQ6]CTRH0 = [QQ5]CTRNUM
+              If fstat = 0 and [QQ6]CTRUID >= [M:YRUSA]CCONTENEDORD
+              Else
+                [L]SIGO = 1
+              Endif
+            Endif
+
+            # Filtro de contenedor hasta
+            If [M:YRUSA]CCONTENEDORH <> ""
+              Read [QQ6]CTRH0 = [QQ5]CTRNUM
+              If fstat = 0 and [QQ6]CTRUID <= [M:YRUSA]CCONTENEDORH
+              Else
+                [L]SIGO = 1
+              Endif
+            Endif
+
+            If [L]SIGO = 2
+              [L]QTY_CON += [QQ5]QTYUOM
+              If [QQ5]SHIPNUM = ""  # El contenedor no está en una expedición ---> creo línea de contenedor
+                # Filtro por tipo de documento
+                If [M:YRUSA]CACTIVOTIPO <> 2 or ([M:YRUSA]CACTIVOTIPO = 2 and [M:YRUSA]CTIPODOC = 2)
+                  If [M:YRUSA]CCARGADO <> 2 or ([M:YRUSA]CCARGADO = 2 and [QQ5]QTYUOM > 0)
+                    Read [QQ6]CTRH0 = [QQ5]CTRNUM
+                    If fstat = 0
+                      LINE = 0
+                      Call NEW_LINE([QQ1]ITMREF,[QQ4]UOM,[QQ4]BPSNUM,[QQ5]QTYUOM,[QQ4]POHNUM,[QQ4]POPLIN,[QQ4]POQSEQ,[QQ4]EXTRCPDAT,[QQ6]YFECHAESTENT,[QQ6]CTRUID,[QQ6]SHIPNUM,[QQ6]CTRNUM,[L]PDTE_RECEP
+& ,2
+& ,
+& nolign,LINE)
+                      nolign += LINE
+                      CONTA  += LINE
+                      If [L]CONTA = 3000 : Goto SALIR : Endif
+                    Endif
+                  Endif
+                Endif
+              Else
+                # Compruebo si el contenedor está en una expedición no saldada
+                # Filtro por tipo de documento
+                If [M:YRUSA]CACTIVOTIPO <> 2 or ([M:YRUSA]CACTIVOTIPO = 2 and [M:YRUSA]CTIPODOC = 1)
+                  For [QQ7] Where [QQ7]CTRNUM = [QQ5]CTRNUM and [QQ7]SHIPNUM = [QQ5]SHIPNUM and [QQ7]RCPQTYSTU <> [QQ7]SHIQTYSTU and [QQ7]POHNUM = [QQ5]POHNUM and [QQ7]POQSEQ = [QQ5]POQSEQ and [QQ7]
+& POPLIN = [QQ5]
+& POPLIN
+                    Read [QQ6]CTRH0 = [QQ5]CTRNUM
+                    If fstat = 0
+                      If [M:YRUSA]CCARGADO <> 2 or ([M:YRUSA]CCARGADO = 2 and [QQ7]SHIQTY > 0)
+                        LINE = 0
+                        Call NEW_LINE([QQ1]ITMREF,[QQ4]UOM,[QQ4]BPSNUM,[QQ7]SHIQTY,[QQ4]POHNUM,[QQ4]POPLIN,[QQ4]POQSEQ,[QQ4]EXTRCPDAT,[QQ7]EXTRCPDAT,[QQ6]CTRUID,[QQ6]SHIPNUM,[QQ6]CTRNUM,[L]PDTE_RECEP,
+& 1,
+& nolign,LINE)
+                        nolign += LINE
+                        CONTA  += LINE
+                        If [L]CONTA = 3000 : Goto SALIR : Endif
+                      Endif
+                    Endif
+                  Next
+                Endif
+              Endif
+            Endif
+          Next
+        Filter [QQ5]
+
+
+          # Resto del pedido que no está en contenedor (solamente si no he filtrado por contenedor)
+          If [L]QTY_CON < [QQ4]QTYPUU and [M:YRUSA]CCONTENEDORD = "" and [M:YRUSA]CCONTENEDORH = ""
+            # Filtro por tipo de documento
+            If ([M:YRUSA]CACTIVOTIPO <> 2 and [M:YRUSA]CCARGADO <> 2 )or ([M:YRUSA]CACTIVOTIPO = 2 and [M:YRUSA]CTIPODOC = 3)
+              LINE = 0
+              Call NEW_LINE([QQ1]ITMREF,[QQ4]UOM,[QQ4]BPSNUM,([QQ4]QTYPUU-[L]QTY_CON),[QQ4]POHNUM,[QQ4]POPLIN,[QQ4]POQSEQ,[QQ4]EXTRCPDAT,"000000","","","",[L]PDTE_RECEP,3,nolign,LINE)
+              nolign += LINE
+              CONTA  += LINE
+              If [L]CONTA = 3000 : Goto SALIR : Endif
+            Endif
+          Endif
+
+      Next
+    Filter
+
+
+    # Si no hay datos de pedidos de compra (tampoco de contenedor y expedición) creo la línea de tipo huérfano, excepto si he filtrado por proveedor
+    # o por contenedor o pedidos
+    If [L]EN_PC = 0 and ([M:YRUSA]CPROVEEDORP = 2 ) and [M:YRUSA]CCONTENEDORD = "" and [M:YRUSA]CCONTENEDORH = ""
+&                   and [M:YRUSA]CPEDIDOD = "" and [M:YRUSA]CPEDIDOH = "" and ([M:YRUSA]CACTIVOTIPO <> 2 or ([M:YRUSA]CACTIVOTIPO = 2 and [M:YRUSA]CTIPODOC = 4))
+&                   and [M:YRUSA]CFPEDIDOD = "000000" and [M:YRUSA]CFPEDIDOH= "000000" and [M:YRUSA]CCARGADO <> 2
+      LINE = 0
+      Call NEW_LINE([QQ1]ITMREF,[QQ1]STU,[QQ2]BPSNUM,0,"",0,0,"000000","000000","","","",0,4,nolign,LINE)
+      nolign += LINE
+      CONTA  += LINE
+      If [L]CONTA = 3000 : Goto SALIR : Endif
+    Endif
+
+
+    $SALIR
+    If CONTA = 3000
+      Errbox "Atención!! No se van a cargar todos los registros en pantalla"
+      Break
+    Endif
+
+    $SIGUIENTE
+  Next
+Filter
+
+
+# Visualizo pantalla
+[M:YRUSA]PIE_R = nolign-1
+Affzo [M:YRUSA]10
+
+# Marco en color el campo Fecha recep. prevista que tenga valor
+For K=0 To [M:YRUSA]PIE_R-1
+  If [M:YRUSA]FECHARPRE(K) <> "000000"
+    Chgstl [M:YRUSA]FECHARPRE(K) With "GDD2"
+  Else
+    Chgstl [M:YRUSA]FECHARPRE(K) With ""
+  Endif
+Next
+
+# Cierre de tablas
+Close Local File [QQ1]
+Close Local File [QQ2]
+Close Local File [QQ3]
+Close Local File [QQ4]
+Close Local File [QQ5]
+Close Local File [QQ6]
+Close Local File [QQ7]
+Close Local File [QQ8]
+Close Local File [Q10]
+Close Local File [Q11]
+Return
+
+
+
+#######################################################
+Subprog NEW_LINE(NART,NUNI,NPRO,NPDTE,NDOC,NPLI,NPSE,NFEC,NDAT,NCON,NEXP,NCID,NQTY,NTIP,NNOL,NLIN)
+Value Char NART
+Value Char NUNI
+Value Char NPRO
+Value Decimal NPDTE
+Value Char NDOC
+Value Integer NPLI
+Value Integer NPSE
+Value Date NFEC
+Value Date NDAT
+Value Char NCON
+Value Char NEXP
+Value Char NCID
+Value Decimal NQTY
+Value Integer NTIP
+Value Integer NNOL
+Variable Integer NLIN
+
+Local Decimal QTY_MFM
+Local Decimal PDT_PROD
+
+# Genero línea
+[M:YRUSA]PLANTA(NNOL-1)       = [M:YRUSA]CPLANTA
+[M:YRUSA]ARTICULO(NNOL-1)     = NART
+Call LECTEXTRA([M:YRUSA]ARTICULODES(NNOL-1),"ITMMASTER","DES1AXX",[M:YRUSA]ARTICULO(NNOL-1),"") From ATEXTRA
+[M:YRUSA]UNIDAD(NNOL-1)       = NUNI
+[M:YRUSA]PROVEEDOR(NNOL-1)    = NPRO
+[M:YRUSA]DOCUMENTO(NNOL-1)    = NDOC
+[M:YRUSA]LINEA(NNOL-1)        = NPLI
+[M:YRUSA]SECUENCIA(NNOL-1)    = NPSE
+[M:YRUSA]FECHAPREV(NNOL-1)    = NFEC  # Esta es la fecha pedido (para Pedido / Expedición / Contenedor)
+If NTIP >= 3 # Pedido / huérfana
+  [M:YRUSA]CTDCARGADA(NNOL-1)   = 0
+  [M:YRUSA]PDTERECCON(NNOL-1)   = NPDTE
+Else  # Expedición / Contenedor
+  [M:YRUSA]CTDCARGADA(NNOL-1)   = NPDTE
+  [M:YRUSA]PDTERECCON(NNOL-1)   = 0
+Endif
+[M:YRUSA]TIPO(NNOL-1)         = NTIP
+[M:YRUSA]CONTENEDOR(NNOL-1)   = NCON
+[M:YRUSA]EXPEDICION(NNOL-1)   = NEXP
+[M:YRUSA]CONTENEID(NNOL-1)    = NCID
+If NTIP = 1
+  [M:YRUSA]FECHARPRE(NNOL-1)    = NDAT # Esta es la fecha rec. prevista (para Expedición)
+  [M:YRUSA]FECHAESEN(NNOL-1)    = "000000"
+Elsif NTIP = 2
+  [M:YRUSA]FECHAESEN(NNOL-1)    = NDAT # Esta es la fecha estim. entrega (para Contenedor)
+  [M:YRUSA]FECHARPRE(NNOL-1)    = "000000"
+Endif
+
+# Saco la info de la MFM (tabla MFGMAT)
+[L]QTY_MFM = 0
+Filter [QQ8] Where [QQ8]MFGFCY = [M:YRUSA]CPLANTA and [QQ8]ITMREF = NART and [QQ8]MFGSTA = 1 and [QQ8]MATSTA < 3
+  For [QQ8]
+    [L]QTY_MFM += [QQ8]RETQTY - [QQ8]USEQTY               # PDT PROD: Cantidades en ordenes de fabricación como componente Pdt de consumir
+  Next
+Filter [QQ8]
+
+
+Read [QQ3]ITV0 = NART;[M:YRUSA]PLANTA(NNOL-1)
+If fstat = 0
+  [M:YRUSA]DISPONIBLEV(NNOL-1)   = [QQ3]PHYSTO + [QQ3]CTLSTO - [QQ3]SALSTO - [L]QTY_MFM
+Endif
+
+# Si tengo marcado el criterio de solo disponible ventas <= 0, aplico
+If [M:YRUSA]CDISPONIBLE = 2 and [M:YRUSA]DISPONIBLEV(NNOL-1) > 0
+  Goto SALIDA
+Endif
+
+# Informaciones de la demanda. Busco en tabla de histórico si hoy-365 < fecha arranque
+# Fecha de arranque
+[M:YRUSA]DEMANDA(NNOL-1)  = func GET_DEMANDA([M:YRUSA]CPLANTA,NART)
+
+If [M:YRUSA]DEMANDA(NNOL-1) > 0
+  [M:YRUSA]MESESACT(NNOL-1) = arr([M:YRUSA]DISPONIBLEV(NNOL-1) / [M:YRUSA]DEMANDA(NNOL-1),0.01)
+Endif
+
+[M:YRUSA]PENDIENTE(NNOL-1) = NQTY
+
+NLIN += 1
+
+$SALIDA
+End
+
+
+##############################################
+Funprog GET_DEMANDA(FPLA,FART)
+Value Char FPLA
+Value Char FART
+
+Local Decimal LDEM
+
+If !clalev([QQ8]) : Local File MFGMAT        [QQ8] : Endif
+If !clalev([Q10]) : Local File SORDERQ       [Q10] : Endif
+If !clalev([P12]) : Local File SORDER        [P12] : Endif
+
+Local Date F_ARRANQUE : F_ARRANQUE = gdat$(13,08,2024)
+Local Decimal DH_PV
+Local Decimal DH_OF
+Local Decimal D_PV
+Local Decimal D_OF
+
+[L]DH_PV = 0
+[L]DH_OF = 0
+[L]D_PV  = 0
+[L]D_OF  = 0
+
+If date$-365 <= [L]F_ARRANQUE
+  Call DEMANDA_HIST(FART,FPLA,[L]F_ARRANQUE,[L]DH_PV,[L]DH_OF) From SPEYAPSA
+Endif
+
+# Saco ahora la info de los datos de X3
+Filter [Q10] Where [Q10]SALFCY = FPLA and [Q10]ITMREF = FART and [Q10]DEMSTA = 1 and [Q10]ORDDAT>=[L]F_ARRANQUE and [Q10]ORDDAT>=(date$-365) and [Q10]
+& ORDDAT<=date$ and [Q10]STOMGTCOD = 2
+    For [Q10]
+      # 12/03/2024. No tomo en cuenta los pedidos especiales
+      Read [P12]SOH0 = [Q10]SOHNUM
+      If fstat = 0 and [P12]YOPEESPE<> 2
+        [L]D_PV += [Q10]QTYSTU
+      Endif
+    Next
+  Filter [Q10]
+Filter [QQ8] Where [QQ8]MFGFCY = FPLA and [QQ8]ITMREF = FART and [QQ8]MFGSTA = 1 and [QQ8]RETDAT>=[L]F_ARRANQUE and [QQ8]RETDAT>=(date$-365) and [QQ8]
+& RETDAT<=date$
+  For [QQ8]
+    [L]D_OF += [QQ8]RETQTY
+  Next
+Filter [QQ8]
+
+LDEM  = arr(([L]DH_PV + [L]D_PV + [L]DH_OF + [L]D_OF) / 12,0.01)
+
+End LDEM
+
+
+##############################################
+$LIMPIO_LINEAS
+# Limpio el bloque de líneas
+Local Integer J
+For J=0 To [M:YRUSA]PIE_R-1
+  [M:YRUSA]TIPO(J)          = 0
+  [M:YRUSA]ARTICULO(J)      = ""
+  [M:YRUSA]ARTICULODES(J)   = ""
+  [M:YRUSA]UNIDAD(J)        = ""
+  [M:YRUSA]DISPONIBLEV(J)   = 0
+  [M:YRUSA]DOCUMENTO(J)     = ""
+  [M:YRUSA]CTDCARGADA(J)    = 0
+  [M:YRUSA]PDTERECCON(J)    = 0
+  [M:YRUSA]FECHARPRE(J)     = "000000"
+  [M:YRUSA]FECHAESEN(J)     = "000000"
+  [M:YRUSA]FECHAPREV(J)     = "000000"
+  [M:YRUSA]CONTENEDOR(J)    = ""
+  [M:YRUSA]EXPEDICION(J)    = ""
+  [M:YRUSA]CONTENEID(J)     = ""
+  [M:YRUSA]PROVEEDOR(J)     = ""
+  [M:YRUSA]DEMANDA(J)       = 0
+  [M:YRUSA]MESESACT(J)      = 0
+  [M:YRUSA]PENDIENTE(J)     = 0
+  [M:YRUSA]LINEA(J)         = 0
+  [M:YRUSA]SECUENCIA(J)     = 0
+  [M:YRUSA]MODIFICACION(J)  = 0
+Next
+
+[M:YRUSA]PIE_R = 0
+Affzo [M:YRUSA]10
+Return
+
+
+##############################################
+$MAJ_DATES
+# Actualización de las fechas de recepción de las líneas
+Local Char LERR(100) : LERR = "No es posible actualizar ninguna fecha de recepción prevista"
+Local Integer SIGO   : SIGO = 2
+
+If [M:YRUSA]PIE_R = 0
+  Errbox LERR
+  SIGO = 1
+Endif
+
+If SIGO = 2
+  Local Integer HAY_SOH
+  For LINE = 0 To [M:YRUSA]PIE_R-1
+    If [M:YRUSA]TIPO(LINE) = 3 and [M:YRUSA]MODIFICACION(LINE) = 2
+      [L]HAY_SOH = 1
+      Break
+    Endif
+  Next
+  If [L]HAY_SOH = 0
+    Errbox LERR
+    SIGO = 1
+  Endif
+Endif
+
+If SIGO = 2
+  # Si modifico, pido confirmación para modificar fecha de recepción en la línea del pedido
+  Local Integer EXITO
+
+  # Si la línea no está saldada, actualizo fecha
+  If !clalev([QA1]) : Local File PORDERQ       [QA1] : Endif
+  If !clalev([QA2]) : Local File FACILITY      [QA2] : Endif
+  If !clalev([QA3]) : Local File PORDER        [QA3] : Endif
+
+  For LINE = 0 To [M:YRUSA]PIE_R-1
+    If [M:YRUSA]TIPO(LINE) = 3 and [M:YRUSA]MODIFICACION(LINE) = 2
+      Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(LINE);[M:YRUSA]LINEA(LINE);[M:YRUSA]SECUENCIA(LINE)
+      If fstat = 0
+        If [QA1]LINSTA = 3
+          Errbox [M:YRUSA]DOCUMENTO(LINE) + ". La línea del pedido está saldada; no se puede actualizar la fecha de recepción"
+          End
+        Endif
+      Else
+        Errbox [M:YRUSA]DOCUMENTO(LINE) + ". No se ha podido actualizar la fecha de recepción en la línea del pedido de compra"
+        End
+      Endif
+
+      # Control sobre la fecha de la necesidad
+      Local    Integer  OK   : OK=2
+      Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(LINE);[M:YRUSA]LINEA(LINE);[M:YRUSA]SECUENCIA(LINE)
+      If fstat = 0
+        If [QA1]RETQTYSTU<>0 & [M:YRUSA]FECHAPREV(LINE)>[QA1]RETRCPDAT
+          Call AVERTIR([M:YRUSA]DOCUMENTO(LINE) + ". " + mess(95,194,1),OK) From GESECRAN
+          If OK=1  mkstat=1 : End : Endif
+        Endif
+      Endif
+
+      #----- Vérification date d'expédition si commande inter-sociétés -----#
+      Read [QA3]POH0 = [M:YRUSA]DOCUMENTO(LINE)
+      If fstat = 0
+        If [QA3]BETFCY=2 & [QA3]SALFCY<>""
+          Call C_SHIDAT([M:YRUSA]FECHAPREV(LINE),[QA3]BPCORD,[QA1]PRHFCY,
+&                      [QA1]LINSTOFCY,[QA3]ORDDAT) From TRTVENISOC
+          If mkstat  End : Endif
+        Endif
+      Endif
+
+      # Si es de contramarca..
+      Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(LINE);[M:YRUSA]LINEA(LINE);[M:YRUSA]SECUENCIA(LINE)
+      If fstat = 0
+        If [QA1]SOHNUM<>""
+          Call AVERTIR([M:YRUSA]DOCUMENTO(LINE) + ". " + mess(166,194,1),OK) From GESECRAN
+          If OK=1
+            mkstat=1
+            End
+          Endif
+        Endif
+      Endif
+
+      # Actualizo
+      Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(LINE);[M:YRUSA]LINEA(LINE);[M:YRUSA]SECUENCIA(LINE)
+      If fstat = 0
+        Read [QA2]FCY0=[M:YRUSA]PLANTA(LINE)
+        If fstat = 0
+          Call CTL_JOU2([M:YRUSA]FECHAPREV(LINE),[QA1]ORDDAT,[QA2]UVYDAY,[QA2]UVYCOD,0) From CONTX3
+          [QA1]EXTRCPDAT=[M:YRUSA]FECHAPREV(LINE)
+          Trbegin [QA1]
+            Rewrite [QA1]
+            If fstat = 0
+              # Quito la confirmación en la finalización del proceso 28/03/2024
+              #Infbox "Fecha modificada con éxito en la línea del pedido de compra"
+              [L]EXITO = 2
+            Else
+              Errbox [M:YRUSA]DOCUMENTO(LINE) + ". No se ha podido actualizar la fecha en la línea del pedido de compra"
+            Endif
+          Commit
+        Endif
+      Endif
+
+    Endif
+  Next
+
+  Close Local File [QA1]
+  Close Local File [QA2]
+  Close Local File [QA3]
+
+  If [L]EXITO = 2 : Gosub BUSCAR : Endif
+
+
+Endif
+Return
+
+
+######################################################
+$SEL_TABLE
+  Case COUZON
+    When "CCD": Gosub SEL_CCD
+    When "CCH": Gosub SEL_CCH
+  Endcase
+Return
+
+
+######################################################
+$SEL_CCD
+# Selección de contenedores
+If !clalev([F:S1]) Then: Local File CONTAINER [F:S1] : Endif
+CRITERE="1=1"
+#Filter [F:YSOH] Where [F:YSOH]BPCORD =[M:OPP0]OPPCMP Order By [F:YSOH]SOHNUM Asc
+Default File [F:S1]
+GSELFAC=1
+#OBJET="SOH"
+OBJET="CTRH"
+ORDRE = "CTRNUM"
+START = "CTRNUM"
+SENS  = 1
+Filter [F:S1]
+#CRITERE="BPTNUM ='" + [M:ZCIT0]ZCITATRA + "' AND ZCITANUM='' "
+VALEUR = [F:S1]CTRUID
+Return
+
+
+######################################################
+$SEL_CCH
+Return
+# Selección de contenedores
+If !clalev([F:S1]) Then: Local File CONTAINER [S1] : Endif
+Libelle RESU
+Local Char    TBFRM(250)(1..100)
+Local Integer NBFRM
+RESU = 5
+Filter [S1] Where [S1]CTRUID <> ""
+  For [S1]
+    NBFRM +=1
+    TBFRM(NBFRM) = [V1]PEDIDO
+  Next
+Filter [V1]
+
+Local Char TITULO(100)
+TITULO = [M:YSPK]VCRNUM + "-" + [M:YSPK2]PEDIDO(nolign-1)
+Selbox TBFRM(1..NBFRM) Titled TITULO Using RESU
+If RESU>0
+  VALEUR = TBFRM(RESU)
+Endif
+Return
+
+
+######################################################
+$TEXTE
+Call TEXTFIC(CODFIC, COL(NBCOL), 1, TIT(NBCOL)) From OBJDIV
+Return
+
+
+######################################################################################
+Subprog AS_CFECHARECH(VALEUR)
+Variable Date    VALEUR
+# Propongo valor por defecto
+If VALEUR = "000000"
+  VALEUR = [M:YRUSA]CFECHARECD
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CPEDIDOH(VALEUR)
+Variable Char    VALEUR()
+# Propongo valor por defecto
+If VALEUR = ""
+  VALEUR = [M:YRUSA]CPEDIDOD
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CCONTENEDORH(VALEUR)
+Variable Char    VALEUR()
+# Propongo valor por defecto
+If VALEUR = ""
+  VALEUR = [M:YRUSA]CCONTENEDORD
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CFPEDIDOH(VALEUR)
+Variable Date    VALEUR
+# Propongo valor por defecto
+If VALEUR = "000000"
+  VALEUR = [M:YRUSA]CFPEDIDOD
+Endif
+End
+
+
+######################################################################################
+Subprog C_CCONTENEDORD(VALEUR)
+Variable Char    VALEUR()
+# Control de existencia del contenedor
+If VALEUR <> ""
+  If !clalev([C1]) : Local File CONTAINER [C1] : Endif
+
+  Filter [C1] Where [C1]CTRUID = VALEUR
+  Read [C1] First
+  If fstat <> 0
+    Errbox "El contenedor introducido no existe"
+    mkstat = 2
+  Endif
+  Filter [C1]
+
+  Close Local File [C1]
+Endif
+End
+
+
+######################################################################################
+Subprog C_CCONTENEDORH(VALEUR)
+Variable Char    VALEUR()
+# Control de existencia del contenedor
+If VALEUR <> ""
+  If !clalev([C1]) : Local File CONTAINER [C1] : Endif
+
+  Filter [C1] Where [C1]CTRUID = VALEUR
+  Read [C1] First
+  If fstat <> 0
+    Errbox "El contenedor introducido no existe"
+    mkstat = 2
+  Endif
+  Filter [C1]
+
+  Close Local File [C1]
+Endif
+End
+
+
+######################################################################################
+Subprog S_CCONTENEDORH(VALEUR)
+Variable Char    VALEUR()
+# Selección de contenedores
+If !clalev([F:CTRH]) : Local File CONTAINER [CTRH] : Endif
+Filter [CTRH] Where [CTRH]CTRUID <> ""
+  Call SELECT("CTRH","",VALEUR,"") From SELOBJ
+Filter [CTRH]
+VALEUR = [F:CTRH]CTRUID
+Close Local File [CTRH]
+End
+
+
+######################################################################################
+Subprog S_CCONTENEDORD(VALEUR)
+Variable Char    VALEUR()
+# Selección de contenedores
+If !clalev([F:CTRH]) : Local File CONTAINER [CTRH] : Endif
+Filter [CTRH] Where [CTRH]CTRUID <> ""
+  Call SELECT("CTRH","",VALEUR,"") From SELOBJ
+Filter [CTRH]
+VALEUR = [F:CTRH]CTRUID
+Close Local File [CTRH]
+End
+
+
+######################################################################################
+Subprog AM_CACTIVOTIPO(VALEUR)
+Variable Integer VALEUR
+# Activo o no el campo de tipo de documento
+If VALEUR = 2
+  Actzo [M:YRUSA]CTIPODOC
+Else
+  Grizo [M:YRUSA]CTIPODOC
+Endif
+Affzo [M:YRUSA]CTIPODOC
+End
+
+
+
+######################################################################################
+Subprog IB_PIE_R
+# Túnel a pedidos
+If [M:YRUSA]TIPO(nolign-1) = 3
+  GBOUT1 = "Pedido de compra: " + [M:YRUSA]DOCUMENTO(nolign-1)
+Else
+  GBOUT1 = ""
+Endif
+
+# Túnel a contenedor
+If [M:YRUSA]CONTENEID(nolign-1) <> "" and [M:YRUSA]CONTENEDOR(nolign-1) <> ""
+  GBOUT2 = "Contenedor: " + [M:YRUSA]CONTENEDOR(nolign-1)
+Else
+  GBOUT2 = ""
+Endif
+
+# Túnel a expedición
+If [M:YRUSA]EXPEDICION(nolign-1) <> ""
+  GBOUT3 = "Expedición: " + [M:YRUSA]EXPEDICION(nolign-1)
+Else
+  GBOUT3 = ""
+Endif
+End
+
+
+######################################################################################
+Subprog B1_PIE_R
+# Túnel al pedido de compra
+Call OBJET("POH",[M:YRUSA]DOCUMENTO(nolign-1),"") From GOBJET
+End
+
+
+######################################################################################
+Subprog B2_PIE_R
+# Túnel al contenedor
+Call OBJET("CTRH",[M:YRUSA]CONTENEID(nolign-1),"") From GOBJET
+End
+
+
+######################################################################################
+Subprog B3_PIE_R
+# Túnel a la expedición
+Call OBJET("SHIP",[M:YRUSA]EXPEDICION(nolign-1),"") From GOBJET
+End
+
+
+######################################################################################
+Subprog AS_FECHAPREV(VALEUR)
+Variable Date    VALEUR
+# Si la línea no es de tipo Pedido, no permito la entrada al campo
+If [M:YRUSA]TIPO(nolign-1) <> 3
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AM_FECHAPREV(VALEUR)
+Variable Date    VALEUR
+# Si modifico, marco la línea para tenerla en cuenta en la actualización de fechas
+[M:YRUSA]MODIFICACION(nolign-1) = 2
+End
+# Si modifico, pido confirmación para modificar fecha de recepción en la línea del pedido
+Local Integer OK9 : OK9 = 2
+Local Integer EXITO
+# Quito la pregunta de confirmación 28/03/2024
+#Call OUINON("Va a modificar la fecha prevista de recepción en la línea del pedido de compra. ¿Desea continuar?",OK9) From GESECRAN
+If OK9 <> 2
+  mkstat=1
+  End
+Endif
+
+# Si la línea no está saldada, actualizo fecha
+If !clalev([QA1]) : Local File PORDERQ       [QA1] : Endif
+If !clalev([QA2]) : Local File FACILITY      [QA2] : Endif
+If !clalev([QA3]) : Local File PORDER        [QA3] : Endif
+
+Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(nolign-1);[M:YRUSA]LINEA(nolign-1);[M:YRUSA]SECUENCIA(nolign-1)
+If fstat = 0
+  If [QA1]LINSTA = 3
+    Errbox "La línea del pedido está saldada; no se puede actualizar la fecha de recepción"
+    End
+  Endif
+Else
+  Errbox "No se ha podido actualizar la fecha de recepción en la línea del pedido de compra"
+  End
+Endif
+
+# Control sobre la fecha de la necesidad
+Local    Integer  OK   : OK=2
+Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(nolign-1);[M:YRUSA]LINEA(nolign-1);[M:YRUSA]SECUENCIA(nolign-1)
+If fstat = 0
+  If [QA1]RETQTYSTU<>0 & VALEUR>[QA1]RETRCPDAT
+    Call AVERTIR(mess(95,194,1),OK) From GESECRAN
+    If OK=1  mkstat=1 : End : Endif
+  Endif
+Endif
+
+#----- Vérification date d'expédition si commande inter-sociétés -----#
+Read [QA3]POH0 = [M:YRUSA]DOCUMENTO(nolign-1)
+If fstat = 0
+  If [QA3]BETFCY=2 & [QA3]SALFCY<>""
+    Call C_SHIDAT(VALEUR,[QA3]BPCORD,[QA1]PRHFCY,
+&               [QA1]LINSTOFCY,[QA3]ORDDAT) From TRTVENISOC
+    If mkstat  End : Endif
+  Endif
+Endif
+
+# Si es de contramarca..
+Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(nolign-1);[M:YRUSA]LINEA(nolign-1);[M:YRUSA]SECUENCIA(nolign-1)
+If fstat = 0
+  If [QA1]SOHNUM<>""
+    Call AVERTIR(mess(166,194,1),OK) From GESECRAN
+    If OK=1
+      mkstat=1
+      End
+    Endif
+  Endif
+Endif
+
+# Actualizo
+Read [QA1]POQ0 = [M:YRUSA]DOCUMENTO(nolign-1);[M:YRUSA]LINEA(nolign-1);[M:YRUSA]SECUENCIA(nolign-1)
+If fstat = 0
+  Read [QA2]FCY0=[M:YRUSA]PLANTA(nolign-1)
+  If fstat = 0
+    Call CTL_JOU2(VALEUR,[QA1]ORDDAT,[QA2]UVYDAY,[QA2]UVYCOD,0) From CONTX3
+    [QA1]EXTRCPDAT=VALEUR
+    Trbegin [QA1]
+      Rewrite [QA1]
+      If fstat = 0
+        # Quito la confirmación en la finalización del proceso 28/03/2024
+        #Infbox "Fecha modificada con éxito en la línea del pedido de compra"
+        [L]EXITO = 2
+      Else
+        Errbox "No se ha podido actualizar la fecha en la línea del pedido de compra"
+      Endif
+    Commit
+  Endif
+Endif
+
+Close Local File [QA1]
+Close Local File [QA2]
+Close Local File [QA3]
+
+If [L]EXITO = 2 : Gosub BUSCAR : Endif
+End

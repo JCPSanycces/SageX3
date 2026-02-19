@@ -1,0 +1,469 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara PREPLAN (Especifico)
+# @001@ - RAP - 090924 - Controles estandar aplicados a compuestos
+# @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+$ACTION
+
+Return
+
+######################################################################################
+Subprog AM_COCHAGE(VALEUR)
+Variable Integer VALEUR
+# Primero gestiono si el pedido está marcado como completo o no, para marcar/desmarcar todo
+Local Integer SIGO : SIGO = 2
+
+Local Integer STAT : STAT = 0
+
+# Modificación 16/07/2024. Si se marca la línea, controlo el estado del prepicking
+If VALEUR = 2
+  Local Integer NEW_VALEUR
+  Local Decimal NEW_QTY
+  Call CHECK_PREPICKING ([M:PREP]ORINUM(nolign-1),[M:PREP]ORILIN(nolign-1),[M:PREP]ORISEQ(nolign-1),[L]NEW_VALEUR,[L]NEW_QTY)
+  VALEUR = [L]NEW_VALEUR
+  If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+    [M:PREP]QTYSTU(nolign-1) = [L]NEW_QTY
+    Affzo [M:PREP]QTYSTU(nolign-1)
+  Endif
+  If VALEUR <> 2
+    SIGO = 1
+  Endif
+Endif
+
+
+# @001@ - RAP - 090924 - INI
+If ([M:PREP]YFMINUM(nolign-1) <>'' or [M:PREP]ZASOCIADO(nolign-1) = 2) and [M:PREP]ALLQTY(nolign-1) =0
+
+Errbox "La OF todavia no ha sido dada de alta"
+VALEUR = 1
+End
+Endif
+
+
+
+
+STAT = func CHECK_OF([M:PREP]ORINUM(nolign-1),[M:PREP]ORILIN(nolign-1),[M:PREP]ORISEQ(nolign-1))
+
+If STAT = 1
+VALEUR = 1
+End
+Endif
+
+# @001@ - RAP - 090924 - FIN
+
+If SIGO = 2
+  If !clalev([YSOH]) Then : Local File SORDER [YSOH] : Endif
+
+  Read [YSOH]SOH0 = [M:PREP]ORINUM(nolign-1)
+  If fstat = 0 and [YSOH]DME = 3
+    # Busco hacia abajo
+    For LINE = nolign To [M:PREP]NBLIG-1
+      If [M:PREP]ORINUM(LINE) = [YSOH]SOHNUM
+        # Modificación 16/07/2024. Control de cantidades prepickineadas
+        If VALEUR = 2
+          Local Integer NEW_VALEUR
+          Local Decimal NEW_QTY
+          Call CHECK_PREPICKING ([M:PREP]ORINUM(LINE),[M:PREP]ORILIN(LINE),[M:PREP]ORISEQ(LINE),[L]NEW_VALEUR,[L]NEW_QTY)
+          VALEUR = [L]NEW_VALEUR
+          If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+            [M:PREP]QTYSTU(LIG) = [L]NEW_QTY
+            Affzo [M:PREP]QTYSTU(LIG)
+          Endif
+        Endif
+        [M:PREP]COCHAGE(LINE) = VALEUR
+        Affzo [M:PREP]COCHAGE(LINE)
+      Endif
+    Next
+
+    # Busco hacia arriba
+    If nolign > 1
+    Local Integer LIG : LIG = nolign-2
+      While LIG >= 0
+        If [M:PREP]ORINUM(LIG) = [YSOH]SOHNUM
+          # Modificación 16/07/2024. Control de cantidades prepickineadas
+          If VALEUR = 2
+            Local Integer NEW_VALEUR
+            Local Decimal NEW_QTY
+            Call CHECK_PREPICKING ([M:PREP]ORINUM(LIG),[M:PREP]ORILIN(LIG),[M:PREP]ORISEQ(LIG),[L]NEW_VALEUR,[L]NEW_QTY)
+            VALEUR = [L]NEW_VALEUR
+            If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+              [M:PREP]QTYSTU(LIG) = [L]NEW_QTY
+              Affzo [M:PREP]QTYSTU(LIG)
+            Endif
+          Endif
+          [M:PREP]COCHAGE(LIG) = VALEUR
+          Affzo [M:PREP]COCHAGE(LIG)
+        Endif
+        LIG -=1
+      Wend
+    Endif
+
+    SIGO = 1
+  Endif
+  Close Local File [YSOH]
+Endif
+
+
+If SIGO = 2
+  # Después gestiono marcajes automáticos en función de la gestión de asociados
+  If !clalev([YSOQ]) Then : Local File SORDERQ [YSOQ] : Endif
+  If !clalev([ZSOQ]) Then : Local File SORDERQ [ZSOQ] : Endif
+
+
+  # Si no es un asociado, busco si tengo otra línea que sea asociada a ésta
+  Read [YSOQ]SOQ0 = [M:PREP]ORINUM(nolign-1);[M:PREP]ORILIN(nolign-1);[M:PREP]ORISEQ(nolign-1)
+  If fstat = 0
+    If [YSOQ]ZASOCIADO <> 2
+      # Busco hacia debajo
+      For LINE = nolign To [M:PREP]NBLIG-1
+        If [M:PREP]ORINUM(LINE) = [YSOQ]SOHNUM
+          Read [ZSOQ]SOQ0 = [YSOQ]SOHNUM;[M:PREP]ORILIN(LINE);[M:PREP]ORISEQ(LINE)
+          If fstat = 0 and [ZSOQ]ZASOCIADO = 2 and [ZSOQ]ZLINASOC = [YSOQ]SOPLIN
+            # Modificación 16/07/2024. Control de cantidades prepickineadas
+            If VALEUR = 2
+              Local Integer NEW_VALEUR
+              Local Decimal NEW_QTY
+              Call CHECK_PREPICKING ([M:PREP]ORINUM(LINE),[M:PREP]ORILIN(LINE),[M:PREP]ORISEQ(LINE),[L]NEW_VALEUR,[L]NEW_QTY)
+              VALEUR = [L]NEW_VALEUR
+              If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+                [M:PREP]QTYSTU(LINE) = [L]NEW_QTY
+                Affzo [M:PREP]QTYSTU(LINE)
+              Endif
+            Endif
+            [M:PREP]COCHAGE(LINE) = VALEUR
+            Affzo [M:PREP]COCHAGE(LINE)
+          Endif
+        Endif
+      Next
+
+      # Busco hacia arriba
+      If nolign > 1
+      Local Integer LIG : LIG = nolign-2
+        While LIG >= 0
+          If [M:PREP]ORINUM(LIG) = [YSOQ]SOHNUM
+            Read [ZSOQ]SOQ0 = [YSOQ]SOHNUM;[M:PREP]ORILIN(LIG);[M:PREP]ORISEQ(LIG)
+            If fstat = 0 and [ZSOQ]ZASOCIADO = 2 and [ZSOQ]ZLINASOC = [YSOQ]SOPLIN
+              # Modificación 16/07/2024. Control de cantidades prepickineadas
+              If VALEUR = 2
+                Local Integer NEW_VALEUR
+                Local Decimal NEW_QTY
+                Call CHECK_PREPICKING ([M:PREP]ORINUM(LIG),[M:PREP]ORILIN(LIG),[M:PREP]ORISEQ(LIG),[L]NEW_VALEUR,[L]NEW_QTY)
+                VALEUR = [L]NEW_VALEUR
+                If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+                  [M:PREP]QTYSTU(LIG) = [L]NEW_QTY
+                  Affzo [M:PREP]QTYSTU(LIG)
+                Endif
+              Endif
+              [M:PREP]COCHAGE(LIG) = VALEUR
+              Affzo [M:PREP]COCHAGE(LIG)
+            Endif
+          Endif
+          LIG -=1
+        Wend
+      Endif
+
+    Else
+      # Busco hacia debajo
+      For LINE = nolign To [M:PREP]NBLIG-1
+        If [M:PREP]ORINUM(LINE) = [YSOQ]SOHNUM
+          Read [ZSOQ]SOQ0 = [YSOQ]SOHNUM;[M:PREP]ORILIN(LINE);[M:PREP]ORISEQ(LINE)
+          If fstat = 0 and [ZSOQ]ZASOCIADO <> 2 and [ZSOQ]SOPLIN = [YSOQ]ZLINASOC
+            # Modificación 16/07/2024. Control de cantidades prepickineadas
+            If VALEUR = 2
+              Local Integer NEW_VALEUR
+              Local Decimal NEW_QTY
+              Call CHECK_PREPICKING ([M:PREP]ORINUM(LINE),[M:PREP]ORILIN(LINE),[M:PREP]ORISEQ(LINE),[L]NEW_VALEUR,[L]NEW_QTY)
+              VALEUR = [L]NEW_VALEUR
+              If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+                [M:PREP]QTYSTU(LINE) = [L]NEW_QTY
+                Affzo [M:PREP]QTYSTU(LINE)
+              Endif
+            Endif
+            # @001@ - RAP - 090924 - INI
+
+              Call MAJ_STA_STAFLG(LINE,VALEUR) From TRTPREPA
+
+              If GERR = 2
+              [M:PREP]COCHAGE(nolign-1) = 1
+              Affzo [M:PREP]COCHAGE(nolign-1)
+              End
+              Endif
+
+            # @001@ - RAP - 090924 - FIN
+            [M:PREP]COCHAGE(LINE) = VALEUR
+            Affzo [M:PREP]COCHAGE(LINE)
+          Endif
+        Endif
+      Next
+
+      # Busco hacia arriba
+      If nolign > 1
+      Local Integer LIG : LIG = nolign-2
+        While LIG >= 0
+          If [M:PREP]ORINUM(LIG) = [YSOQ]SOHNUM
+            Read [ZSOQ]SOQ0 = [YSOQ]SOHNUM;[M:PREP]ORILIN(LIG);[M:PREP]ORISEQ(LIG)
+            If fstat = 0 and [ZSOQ]ZASOCIADO <> 2 and [ZSOQ]SOPLIN = [YSOQ]ZLINASOC
+              # Modificación 16/07/2024. Control de cantidades prepickineadas
+              If VALEUR = 2
+                Local Integer NEW_VALEUR
+                Local Decimal NEW_QTY
+                Call CHECK_PREPICKING ([M:PREP]ORINUM(LIG),[M:PREP]ORILIN(LIG),[M:PREP]ORISEQ(LIG),[L]NEW_VALEUR,[L]NEW_QTY)
+                VALEUR = [L]NEW_VALEUR
+                If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+                  [M:PREP]QTYSTU(LIG) = [L]NEW_QTY
+                  Affzo [M:PREP]QTYSTU(LIG)
+                Endif
+              Endif
+              # @001@ - RAP - 090924 - INI
+
+              Call MAJ_STA_STAFLG(LIG,VALEUR) From TRTPREPA
+
+              If GERR = 2
+              [M:PREP]COCHAGE(nolign-1) = 1
+              Affzo [M:PREP]COCHAGE(nolign-1)
+              End
+              Endif
+
+              # @001@ - RAP - 090924 - FIN
+              [M:PREP]COCHAGE(LIG) = VALEUR
+              Affzo [M:PREP]COCHAGE(LIG)
+            Endif
+          Endif
+          LIG -=1
+        Wend
+      Endif
+    Endif
+  Endif
+
+  # Gestiono compuestos / componentes a la vez al marcar / desmarcar la línea
+  If find([M:PREP]LINTYP(nolign-1),2,6)  # Si es un compuesto marco todas las líneas hacia bajo hasta encontrar un compuesto
+    For LINE = nolign To [M:PREP]NBLIG-1
+      If find([M:PREP]LINTYP(LINE),9,5,8,4,7,3) # son componentes
+      # Modificación 16/07/2024. Control de cantidades prepickineadas
+        If VALEUR = 2
+          Local Integer NEW_VALEUR
+          Local Decimal NEW_QTY
+          Call CHECK_PREPICKING ([M:PREP]ORINUM(LINE),[M:PREP]ORILIN(LINE),[M:PREP]ORISEQ(LINE),[L]NEW_VALEUR,[L]NEW_QTY)
+          VALEUR = [L]NEW_VALEUR
+          If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+            [M:PREP]QTYSTU(LINE) = [L]NEW_QTY
+            Affzo [M:PREP]QTYSTU(LINE)
+          Endif
+        Endif
+              # @001@ - RAP - 090924 - INI
+
+              Call MAJ_STA_STAFLG(LINE,VALEUR) From TRTPREPA
+
+              If GERR = 2
+              [M:PREP]COCHAGE(nolign-1) = 1
+              Affzo [M:PREP]COCHAGE(nolign-1)
+              End
+              Endif
+
+              # @001@ - RAP - 090924 - FIN
+        [M:PREP]COCHAGE(LINE) = VALEUR
+        Affzo [M:PREP]COCHAGE(LINE)
+      Else
+        Break
+      Endif
+    Next
+
+  Elsif find([M:PREP]LINTYP(nolign-1),9,5,8,4,7,3)  # Si es un componente marco todas las líneas hacia bajo y arriba hasta encontrar un compuesto
+    For LINE = nolign To [M:PREP]NBLIG-1
+      If find([M:PREP]LINTYP(LINE),9,5,8,4,7,3)
+        # Modificación 16/07/2024. Control de cantidades prepickineadas
+        If VALEUR = 2
+          Local Integer NEW_VALEUR
+          Local Decimal NEW_QTY
+          Call CHECK_PREPICKING ([M:PREP]ORINUM(LINE),[M:PREP]ORILIN(LINE),[M:PREP]ORISEQ(LINE),[L]NEW_VALEUR,[L]NEW_QTY)
+          VALEUR = [L]NEW_VALEUR
+          If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+            [M:PREP]QTYSTU(LINE) = [L]NEW_QTY
+            Affzo [M:PREP]QTYSTU(LINE)
+          Endif
+        Endif
+              # @001@ - RAP - 090924 - INI
+
+              Call MAJ_STA_STAFLG(LINE,VALEUR) From TRTPREPA
+
+              If GERR = 2
+              [M:PREP]COCHAGE(nolign-1) = 1
+              Affzo [M:PREP]COCHAGE(nolign-1)
+              End
+              Endif
+
+              # @001@ - RAP - 090924 - FIN
+        [M:PREP]COCHAGE(LINE) = VALEUR
+        Affzo [M:PREP]COCHAGE(LINE)
+      Else
+        Break
+      Endif
+    Next
+
+    If nolign > 1
+    Local Integer LIG : LIG = nolign-2
+      While LIG >= 0
+        If find([M:PREP]LINTYP(LIG),9,5,8,4,7,3)
+      # Modificación 16/07/2024. Control de cantidades prepickineadas
+          If VALEUR = 2
+            Local Integer NEW_VALEUR
+            Local Decimal NEW_QTY
+            Call CHECK_PREPICKING ([M:PREP]ORINUM(LIG),[M:PREP]ORILIN(LIG),[M:PREP]ORISEQ(LIG),NEW_VALEUR,[L]NEW_QTY)
+            VALEUR = [L]NEW_VALEUR
+            If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+              [M:PREP]QTYSTU(LIG) = [L]NEW_QTY
+              Affzo [M:PREP]QTYSTU(LIG)
+            Endif
+          Endif
+          [M:PREP]COCHAGE(LIG) = VALEUR
+          Affzo [M:PREP]COCHAGE(LIG)
+        Else
+          # Modificación 16/07/2024. Control de cantidades prepickineadas
+          If VALEUR = 2
+            Local Integer NEW_VALEUR
+            Local Decimal NEW_QTY
+            Call CHECK_PREPICKING ([M:PREP]ORINUM(LIG),[M:PREP]ORILIN(LIG),[M:PREP]ORISEQ(LIG),[L]NEW_VALEUR,[L]NEW_QTY)
+            VALEUR = [L]NEW_VALEUR
+            If [L]NEW_VALEUR = 2 and [L]NEW_QTY <> 0
+              [M:PREP]QTYSTU(LIG) = [L]NEW_QTY
+              Affzo [M:PREP]QTYSTU(LIG)
+            Endif
+          Endif
+          [M:PREP]COCHAGE(LIG) = VALEUR
+          Affzo [M:PREP]COCHAGE(LIG)
+          Break
+        Endif
+        LIG -=1
+      Wend
+    Endif
+  Endif
+
+  Close Local File [YSOQ],[ZSOQ]
+Endif
+End
+
+
+######################################################################################
+Subprog CHECK_PREPICKING(VORI,VLIN,VSEQ,VVAL,VQTY)
+Value Char VORI
+Value Integer VLIN
+Value Integer VSEQ
+Variable Integer VVAL
+Variable Decimal VQTY
+
+If !clalev([ZX1]) Then : Local File SORDERQ     [ZX1] : Endif
+If !clalev([ZX2]) Then : Local File YITMTECNICO [ZX2] : Endif
+If !clalev([ZX3]) Then : Local File STOALL      [ZX3] : Endif
+If !clalev([ZX4]) Then : Local File STOCK       [ZX4] : Endif
+
+
+Read [ZX1]SOQ0 = VORI;VLIN;VSEQ
+If fstat = 0
+  Read [ZX2]YITT0 = [ZX1]ITMREF
+  If fstat = 0 and [ZX2]PREPICKING = 2
+#    If [ZX1]ALLTYP <> 2  # No está asignada en detalle
+    If [ZX1]ALLTYP <> 2 and [ZX1]ZASOCIADO <> 2      # No está asignada en detalle
+#De momento quitamos el punto hasta nuevo aviso INI
+    #      If [ZX2]PREPICKING <> 2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+    #        Errbox "Estado de asignación de la línea " + num$(VLIN) + " del pedido " + VORI + " artículo " + [ZX1]ITMREF + " 'Global'"
+    #        VVAL = 1
+    #      Endif # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+#De momento quitamos el punto hasta nuevo aviso FIN
+      VVAL=2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+    Else
+      Local Decimal CTD_PREPICKING
+      Filter [ZX3] Where [ZX3]STOFCY = [ZX1]STOFCY and [ZX3]VCRNUM = VORI and [ZX3]VCRLIN = VLIN and [ZX3]VCRSEQ = VSEQ
+        For [ZX3]
+          If [ZX3]ALLTYP = 2
+            Read [ZX4]STO0 = [ZX3]STOFCY;[ZX3]STOCOU
+            If fstat = 0 and [ZX4]LPNNUM <> ""
+              [L]CTD_PREPICKING += [ZX4]QTYSTU
+            Endif
+          Endif
+        Next
+      Filter [ZX3]
+      If [L]CTD_PREPICKING = [ZX1]QTYSTU
+        VVAL = 2
+      Elsif [L]CTD_PREPICKING = 0
+          If [ZX2]PREPICKING <> 2 and [ZX1]ZASOCIADO <> 2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+            Errbox "No se ha prepickineado nada de la línea " + num$(VLIN) + " del pedido " + VORI + " artículo " + [ZX1]ITMREF
+            VVAL = 1
+          Else # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+            VVAL=2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+          Endif # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+      Else
+        Local Integer OK9
+        Local Char TEXTO(120)
+        TEXTO = "Se ha prepickineado parcialmente la línea " + num$(VLIN) + " del pedido " + VORI + " artículo " + [ZX1]ITMREF +
+&               ".¿Deseas incluir " + num$([L]CTD_PREPICKING) + " cantidad (sí prepickineada) en un doc. de preparación?"
+        Call OUINON(TEXTO,OK9) From GESECRAN
+        If OK9 = 2
+          VVAL = 2
+          VQTY = [L]CTD_PREPICKING
+        Else
+          VVAL = 1
+        Endif
+      Endif
+    Endif
+  Else
+    VVAL = 2
+  Endif
+Endif
+
+Close Local File [ZX1]
+Close Local File [ZX2]
+Close Local File [ZX3]
+Close Local File [ZX4]
+
+End
+
+# @001@ - RAP - 090924 -
+Funprog CHECK_OF(VORI,VLIN,VSEQ)
+Value Char VORI
+Value Integer VLIN
+Value Integer VSEQ
+If !clalev([ZX1]) Then : Local File SORDERQ     [ZX1] : Endif
+If !clalev([ZX5]) Then : Local File SORDER      [ZX5] : Endif
+
+Read [ZX5]SOH0 = VORI
+If fstat =0
+If [ZX5]DME = 3
+  Read [ZX1]SOQ0 = VORI;VLIN;VSEQ
+  If fstat = 0
+      If [ZX1]FMINUM <> ''
+        If [M:PREP]QTYSTUMAX(nolign-1) <> [M:PREP]ALLQTY(nolign-1)
+
+          Errbox 'Pedido marcado como pedido completo, debe servirse completo'
+          End 1
+        Endif
+      Endif
+  Endif
+Endif
+Endif
+
+
+Close Local File [ZX1]
+Close Local File [ZX5]
+
+End 0
+# @001@ - RAP - 090924 -
+
+######################################################################################
+Subprog C_QTYSTU(VALEUR)
+Variable Decimal VALEUR
+# Si el pedido es completo, no permito modificación a la baja (al alza dejo el control del sistema)
+If VALEUR < [M:PREP]QTYSTU(nolign-1)
+  If !clalev([YSOH]) Then : Local File SORDER [YSOH] : Endif
+
+  Read [YSOH]SOH0 = [M:PREP]ORINUM(nolign-1)
+  If fstat = 0 and [YSOH]DME = 3
+    Errbox "Pedido marcado como pedido completo, debe servirse completo"
+    VALEUR = [M:PREP]QTYSTU(nolign-1)
+    mkstat = 2
+  Endif
+
+  Close Local File [YSOH]
+Endif
+End
+
+
+######################################################################################

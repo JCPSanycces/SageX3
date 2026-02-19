@@ -1,0 +1,33 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+#If GUSER = 'NUN28':Infbox ACTION:Endif
+Case ACTION
+  When "DEBUT" : Gosub DEBUT
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+$DEBUT
+#   If GUSER = 'NUN28':Infbox "TEST: "-[M:SOH0]SALFCY-[M:SOH4]ITMREF(nolign-1):Endif
+#   For I = 0 To [M:SOH4]NBLIG-1
+#      If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(I),[M:SOH4]DSHIDAT(I))) = 1
+#         mkstat = 2
+#         [V]GMESSAGE = "ACCIÓN NO PERMITIDA. FECHA DE EXPEDICIÓN BLOQUEADA PARA "-(func GET_FAM_DES([M:SOH4]ITMREF(I)))-", PÓNGASE CON EL RESPONSABLE DE ESTA SECCIÓN DE PREPICKING."
+#         [V]GERR=1
+#         GPE = 1
+#      Endif
+#   Next
+##  If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),[M:SOH4]DSHIDAT(nolign-1))) = 1
+##    mkstat = 2
+##    [V]GMESSAGE = "ACCIÓN NO PERMITIDA. FECHA DE EXPEDICIÓN BLOQUEADA PARA "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", PÓNGASE CON EL RESPONSABLE DE ESTA SECCIÓN DE PREPICKING."
+##    [V]GERR=1
+##    GPE = 1
+##  Endif
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           SUBPROGS                                                #
+#---------------------------------------------------------------------------------------------------#

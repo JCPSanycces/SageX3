@@ -1,0 +1,159 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @01@ - JLP - 28-11-2024 - Incidencia no envia al correo del cliente ya que no controla que el campo del email este relleno
+$ACTION
+Case ACTION
+   When "INIT"     : Gosub INIT
+   When "CONTROLE" : Gosub CONTROLE
+   When "EXEC"     : Gosub EXEC
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+
+$INIT
+
+    Local Integer I_OK
+    Local Integer I_TRON
+    Local Integer I_NBPAR_MAX
+    Global Char GCORREO(100)
+    Local Char S_CRITERE(250),S_TIPOENV(15),S_MAIL(30),TBPAR(20)(1..200),TBVAL(50)(1..200)
+
+    If !clalev([F:YSIH])    : Local File SINVOICE   [F:YSIH]   : Endif # Cabecera de facturas de venta
+    If !clalev([F:YSIV])    : Local File SINVOICEV  [F:YSIV]   : Endif # Valorización de facturas de venta
+    If !clalev([F:YBPC])    : Local File BPCUSTOMER [F:YBPC]   : Endif # Clientes
+    If !clalev([F:YBPA])    : Local File BPADDRESS  [F:YBPA]   : Endif # Direcciones
+
+
+    If GTRACE=''
+        If !GSERVEUR : Call OUVRE_TRACE("Creación factura de venta con formato SERES") From LECFIC : Endif
+    Endif
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$CONTROLE
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$EXEC
+
+    Call ECR_TRACE("#----------------------------------------- Envío masivo de facturas -----------------------------------------#",0) From GESECRAN
+    Call ECR_TRACE("  Se procede a enviar todas las facturas desde el día"-num$((date$-7))-"que no se hayan enviado todavía" ,0) From GESECRAN
+    Call ECR_TRACE("#------------------------------------------------------------------------------------------------------------#",0) From GESECRAN
+
+#    Link [F:YSIH] With [F:YSIV]SIV0 ~= [F:YSIH]NUM As [YSINV] Where [F:YSIH]YENVIADA<>2 and [F:YSIV]INVDAT>=(date$-7)
+    Link [F:YSIH] With [F:YSIV]SIV0 ~= [F:YSIH]NUM As [YSINV] Where [F:YSIH]YENVIADA<>2 and [F:YSIV]INVDAT>=(date$)
+
+    For [YSINV] #Where  [F:YSIH]NUM = 'FAC11241102678'
+        Call ECR_TRACE("" ,0) From GESECRAN
+        Call ECR_TRACE("Se realiza el envío de la factura"-[F:YSIH]NUM,0) From GESECRAN
+        [L]I_OK = 0
+
+        Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+        If !fstat
+            [L]S_TIPOENV = mess([F:YBPC]YTIPENV,6100,1)
+            If [L]S_TIPOENV <> "Impresora"
+                Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;'001'
+#                If !fstat                                    # @01@ - JLP - 28-11-2024
+                If !fstat and [F:YBPA]WEB(0) <> ''            # @01@ - JLP - 28-11-2024
+                    [L]I_OK      = 1
+                    [L]S_MAIL    = [F:YBPA]WEB(0)
+                    Call ECR_TRACE("Dirección 001 del cliente facturador"-[F:YBPC]BPCNUM-"encontrada",0) From GESECRAN
+                Endif
+
+            Else
+                [L]I_OK      = 1
+            Endif
+
+        Endif
+
+        If ![L]I_OK
+            Call ECR_TRACE("**Dirección 001 del cliente facturador no encontrada",0) From GESECRAN
+            Read [F:YBPC]BPC0 = [F:YSIV]BPCORD
+            If !fstat
+                [L]S_TIPOENV = mess([F:YBPC]YTIPENV,6100,1)
+                If [L]S_TIPOENV <> "Impresora"
+                    Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;'002'
+                    If !fstat
+                        [L]I_OK      = 1
+                        [L]S_MAIL    = [F:YBPA]WEB(0)
+                        Call ECR_TRACE("Dirección 002 del cliente pedido"-[F:YBPC]BPCNUM-"encontrada",0) From GESECRAN
+                    Endif
+
+                Else
+                    [L]I_OK      = 1
+                Endif
+            Endif
+
+        Endif
+
+        If [L]I_OK
+            # paramètres par défaut impression Facture
+            NBPAR = 0
+            NBPAR += 1 : TBPAR(NBPAR) = "sitedeb"        : TBVAL(NBPAR) = [F:YSIV]SALFCY
+            NBPAR += 1 : TBPAR(NBPAR) = "sitefin"        : TBVAL(NBPAR) = [F:YSIV]SALFCY
+            NBPAR += 1 : TBPAR(NBPAR) = "facturedeb"     : TBVAL(NBPAR) = [F:YSIV]NUM
+            NBPAR += 1 : TBPAR(NBPAR) = "facturefin"     : TBVAL(NBPAR) = [F:YSIV]NUM
+            NBPAR += 1 : TBPAR(NBPAR) = "typedeb"        : TBVAL(NBPAR) = num$([F:YSIH]INVTYP)
+            NBPAR += 1 : TBPAR(NBPAR) = "typefin"        : TBVAL(NBPAR) = num$([F:YSIH]INVTYP)
+            NBPAR += 1 : TBPAR(NBPAR) = "clientdeb"      : TBVAL(NBPAR) = [F:YSIV]BPCINV
+            NBPAR += 1 : TBPAR(NBPAR) = "clientfin"      : TBVAL(NBPAR) = [F:YSIV]BPCINV
+            NBPAR += 1 : TBPAR(NBPAR) = "datedeb"        : TBVAL(NBPAR) = [F:YSIV]INVDAT
+            NBPAR += 1 : TBPAR(NBPAR) = "datefin"        : TBVAL(NBPAR) = [F:YSIV]INVDAT
+            NBPAR += 1 : TBPAR(NBPAR) = "codimp"         : TBVAL(NBPAR) = num$([F:YSIV]STARPT)
+            NBPAR += 1 : TBPAR(NBPAR) = "duplicata"      : TBVAL(NBPAR) = num$([F:YSIV]STARPT)
+
+            Case [L]S_TIPOENV
+                When 'Email' :
+
+                    GCORREO=S_MAIL
+#                    GCORREO="raul.arribas@nunsys.com"
+                    Call ETAT('Y-FACVENTA-SAN','MAIL',"",0,"",TBPAR,TBVAL) From AIMP3
+                    Call ECR_TRACE("Factura enviada por mail.",0) From GESECRAN
+                When 'Impresora' :
+                    Call ETAT('Y-FACVENTA-SAN','IMPFACTURA',"",0,"",TBPAR,TBVAL) From AIMP3
+                    Call ECR_TRACE("Factura enviada a la impresora.",0) From GESECRAN
+            Endcase
+
+            If !adxlog
+                Trbegin [F:YSIH]
+                [L]I_TRON = 1
+            Endif
+
+            [F:YSIH]YENVIADA = 2
+            Rewrite [F:YSIH]
+            If !fstat
+                Call ECR_TRACE("Factura marcada como enviada.",0) From GESECRAN
+            Else
+                Rollback
+                Call ECR_TRACE("No se pudo escribir en la tabla de facturas.",1) From GESECRAN
+            Endif
+
+            If [L]I_TRON
+                Commit
+                [L]I_TRON = 0
+            Endif
+
+        Endif
+
+        Call ECR_TRACE("#--------------------------------------------------------------------------------------------------------------------#",0) From GESECRAN
+
+    Next
+
+    Kill GCORREO
+
+    If !GSERVEUR
+        Call FERME_TRACE() From LECFIC
+        Call LEC_TRACE From LECFIC
+    Endif
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           SUBPROG                                                 #
+#---------------------------------------------------------------------------------------------------#

@@ -1,0 +1,468 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+#Call ESCRIBIR_TRAZA('ACTION: ' + ACTION, '')
+  Case [L]ACTION
+    When "IMP_OUVRE" : Gosub IMP_OUVRE
+    When "AP_IMPORT" : Gosub AP_IMPORT
+    When "IMP_INICRE" : Gosub IMP_INICRE
+    When "IMP_APRES_CRE" : Gosub IMP_APRES_CRE
+
+  Endcase
+Return
+#################################################
+$IMP_OUVRE
+  Local Char S_PRODUCT(GLONITM)(0..)
+  Local Decimal F_PRECBRU(0..)
+  Call ESCRIBIR_TRAZA('Llego hasta IMP_OUVRE - SOLO DECLARO VARIABLES', '')
+Return
+#################################################
+$AP_IMPORT
+
+  If VALIMP(0) = 'L'
+      S_PRODUCT(NBLIG) = VALIMP(1)
+      If GIMP(90) <> ''
+          F_PRECBRU(NBLIG) = val(GIMP(90))
+      Else
+          F_PRECBRU(NBLIG) = 0
+      Endif
+
+  Endif
+Call ESCRIBIR_TRAZA('Llego hasta AP_IMPORT - Cambio un par de valores', '')
+Return
+#################################################
+$IMP_INICRE
+
+  For WI=0 To maxtab(S_PRODUCT)
+        If F_PRECBRU(WI) > 0 and S_PRODUCT(WI) = [M:SOH4]ITMREF(WI)
+            [M:SOH4]GROPRI = F_PRECBRU(WI)
+            Affzo [M:SOH4]GROPRI(WI)
+
+            Local Decimal WANCNETPRI
+
+            Gosub DEF_DIVPRIPFM
+            WANCNETPRI=[M]NETPRI(NLIG)
+            Gosub DIVNETPRI
+            If mkstat=2 Return Endif
+
+            Gosub DIVPFM
+            If mkstat=2 [M]NETPRI(NLIG)=WANCNETPRI : Return Endif
+        Endif
+
+
+    Next
+
+Call ESCRIBIR_TRAZA('Llego hasta IMP_INICRE - hago cosas con precios', '')
+Return
+#################################################
+$DEF_DIVPRIPFM
+  Local Integer  DISCRGNUM, CHGTYP, NLIG, PRITYP
+  Local Decimal  QTY
+  Local Char     BPC(GLONBPC), CUR(GLONCUR), SITE(GLONFCY), NOMZONE
+  Local Date     DAT
+Call ESCRIBIR_TRAZA('Llego hasta DEF_DIVPRIPFM', '')
+  DISCRGNUM = 0
+  QTY       = [M]QTY(WI)
+  BPC       = [M:SOH0]BPCORD
+  CHGTYP    = [M:SOH0]CHGTYP
+  DAT       = [M:SOH0]ORDDAT
+  CUR       = [M:SOH0]CUR
+  NLIG      = WI
+  SITE      = [M]DSTOFCY(WI)
+  PRITYP    = [M:SOH1]PRITYP
+  NOMZONE   = 'GROPRI'
+
+Return
+##########################################################################################################
+
+#################################### Evento STD bajado a específico #########################################
+$DIVNETPRI
+
+Local Decimal  GROPRI, MAJREM(0..8), NETPRI
+Local Shortint I
+Local Decimal  WSVGNETPRI
+Call ESCRIBIR_TRAZA('Llego hasta DIVNETPRI', '')
+#If TRAIT="DIVNETPRI" Gosub DEF_DIVNETPRI Endif
+
+# Si l'on est sur une ligne d'avoir en valeur, pas de calcul du prix net
+If dim([M:SIH0]INVTYP)>0 & [M:SIH0]INVTYP=2 & [M]QTY(NLIG)=0 Return Endif
+
+If DISCRGNUM < 1
+  GROPRI=[M]GROPRI(NLIG)
+Else             GROPRI=[M]GROPRI(NLIG)
+Endif
+For I=1 To 9
+   If evalue("dim([M]DISCRGVAL"+num$(I)+"(NLIG))")>0
+      MAJREM(I-1)=evalue("[M]DISCRGVAL"+num$(I)+"(NLIG)")
+   Endif
+Next I
+Case DISCRGNUM
+  When 1 MAJREM(0)=VALEUR
+  When 2 MAJREM(1)=VALEUR
+  When 3 MAJREM(2)=VALEUR
+  When 4 MAJREM(3)=VALEUR
+  When 5 MAJREM(4)=VALEUR
+  When 6 MAJREM(5)=VALEUR
+  When 7 MAJREM(6)=VALEUR
+  When 8 MAJREM(7)=VALEUR
+  When 9 MAJREM(8)=VALEUR
+Endcase
+
+If dim([M]FOCFLG(NLIG)) > 0
+    If [M]FOCFLG(NLIG)= 3 Return Endif
+Endif
+# --> Calcul du prix net
+#Call CALNET (1,"", GROPRI,MAJREM,QTY,NETPRI,CUR) From TRTPRICE
+If dim(GCALNETLIN)>0 : GCALNETLIN=NLIG+1   : Endif
+If dim(GCALNETABR)>0 : GCALNETABR="[M]"    : Endif
+Call CALNET (1,[M]PLISTC, GROPRI,MAJREM,QTY,NETPRI,CUR) From TRTPRICE
+
+WSVGNETPRI= [M]NETPRI(NLIG)
+[M]NETPRI(NLIG) = NETPRI
+
+If GDACLOK =1 Call CTLNETPRI(BPC,CHGTYP,DAT,CUR,NLIG) Endif
+If mkstat = 2 [M]NETPRI(NLIG)=WSVGNETPRI : Return Endif
+
+# --> Si netpri = 0 : Pas de passage dans le calcul de la marge
+#                     Les prix ne seront pas recalculés : Il faut les raz
+If NETPRI = 0
+   [M]NETPRINOT(NLIG) = 0
+   [M]NETPRIATI(NLIG) = 0
+Endif
+
+If !GIMPORT Affzo [M]NETPRI(NLIG) Endif
+
+Return
+##########################################################################################################
+
+#################################### Evento STD bajado a específico #########################################
+$DIVPFM
+Local  Char    VAT(GLONVAT)(3) # FGR 12/11/2009 : X3SUIVI59766 plus (3)
+Local  Decimal WQTY
+Local  Integer INICPRPRI, XSTOMGTCOD
+Local  Decimal XCPRPRI, XCOEF, XPFM
+Local  Decimal WSVGPFM, WSVGCPRPRI, WSVGNETPRINOT, WSVGNETPRIATI
+Call ESCRIBIR_TRAZA('Llego hasta DIVPFM', '')
+#If find(TRAIT,"DIVPFM","DIVPFMOUV") Gosub DEF_DIVPFM Endif
+
+# Bug 43723 : Calcul du prix de revient pour les gratuits
+#If [M]NETPRI(NLIG) = 0
+#    # Pas de calcul de marge pour les gratuits
+#    If dim([M]FOCFLG(NLIG)) > 0
+#        If [M]FOCFLG(NLIG) = 3 Return : Endif
+#    Endif
+##    If dim([M]LINTYP(NLIG)) > 0  : # Bug 15525
+##        If find([M]LINTYP(NLIG),3,4,5,7,8,9) Return : Endif
+##    Endif
+#Endif
+
+#If !find(TRAIT, "DIVPFMOUV", "DIVPRIPFMO")
+   VAT (0) = [M]VAT1(NLIG)
+   VAT (1) = [M]VAT2(NLIG)
+   VAT (2) = [M]VAT3(NLIG)
+#Endif
+
+# Récupération du coef de conversion UV en US pour calcul de la marge
+#COEF = 1
+# Pour les devis, commandes, livraisons, factures
+#If TRAIT = "DIVPFM"
+#   If [M]SAU(NLIG) <> [M]STU(NLIG)
+#      Call SCAL_QUS(0,[M]ITMREF(NLIG),[M]BPCORD,[M]SAU(NLIG),[M]STU(NLIG),WQTY,COEF) From TRTVENQTE
+#   Endif
+# Pour les commandes ouvertes
+#Else
+#  If [M]SAU <> [M]STU
+#      Call SCAL_QUS(0,[M]ITMREF,[M]BPCORD,[M]SAU,[M]STU,WQTY,COEF) From TRTVENQTE
+#   Endif
+#Endif
+
+# ------- Calcul de la marge -------
+WSVGPFM=[M]PFM(NLIG)
+WSVGNETPRINOT=[M]NETPRINOT(NLIG) : WSVGNETPRIATI=[M]NETPRIATI(NLIG)
+XPFM=[M]PFM(NLIG)
+#If !find(TRAIT, "DIVPFMOUV", "DIVPRIPFMO")
+   WSVGCPRPRI=[M]CPRPRI(NLIG)
+   If NOMZONE = "CPRPRI"
+      INICPRPRI = 0
+      XCPRPRI = VALEUR
+      XCOEF   = [M]SAUSTUCOE(NLIG)
+   Elsif NOMZONE = "DSTOFCY"
+      INICPRPRI = 2
+      XCPRPRI = [M]CPRPRI(NLIG)
+      XCOEF   = [M]SAUSTUCOE(NLIG)
+   Elsif NOMZONE = "SAUSTUCOE"
+      INICPRPRI = 1
+      XCPRPRI = [M]CPRPRI(NLIG)
+      XCOEF   = VALEUR
+   Else
+      INICPRPRI = 1
+      XCPRPRI = [M]CPRPRI(NLIG)
+      XCOEF   = [M]SAUSTUCOE(NLIG)
+   Endif
+   XSTOMGTCOD=[M]STOMGTCOD(NLIG)
+   # FQ 47040 + masque par défaut
+   Call CALPFM("[M]",NLIG,[M]NETPRI(NLIG),VAT,PRITYP,SITE,[M]ITMREF(NLIG),CHGTYP,DAT,CUR,
+&              XCOEF,INICPRPRI,XSTOMGTCOD,XPFM,XCPRPRI) From TRTVENPRI
+#Else
+#   XCPRPRI  =0
+#   INICPRPRI=1
+#   XSTOMGTCOD=[M]STOMGTCOD
+#   # FQ 47040 + masque par défaut
+#   Call CALPFM("[M]",NLIG,[M]NETPRI(NLIG),VAT,PRITYP,SITE,[M]ITMREF,CHGTYP,DAT,CUR,
+#&              [M]SAUSTUCOE,INICPRPRI,XSTOMGTCOD,XPFM,XCPRPRI) From TRTVENPRI
+#Endif
+
+# Bug 43723 : Pas de calcul de la marge pour les gratuits
+If [M]NETPRI(NLIG)<>0 | (dim([M]FOCFLG(NLIG))>0 & [M]FOCFLG(NLIG)<>3)
+    [M]PFM(NLIG)=XPFM
+Endif
+
+#If INICPRPRI <> 0 & !find(TRAIT, "DIVPFMOUV", "DIVPRIPFMO") [M]CPRPRI(NLIG)=XCPRPRI : Endif
+
+If GDACLOK =1 Call CTLPFM(CUR,XCPRPRI,NLIG) Endif
+If mkstat=2
+    [M]PFM(NLIG)=WSVGPFM : [M]NETPRINOT(NLIG)=WSVGNETPRINOT : [M]NETPRIATI(NLIG)=WSVGNETPRIATI
+#    If !find(TRAIT, "DIVPFMOUV", "DIVPRIPFMO")
+[M]CPRPRI(NLIG)=WSVGCPRPRI
+#Endif  :
+Return
+Endif
+
+Return
+##########################################################################################################
+
+#################################### Evento STD bajado a específico #########################################
+Subprog CTLNETPRI(BPC, CHGTYP, DAT, CUR, NLIG)
+Value Char    BPC
+Value Integer CHGTYP
+Value Date    DAT
+Value Char    CUR
+Value Integer NLIG
+
+Local Decimal MONT, MNTDES
+Local Integer SPSTAT
+Local Shortint I
+Local Char    WITMREF(GLONITM), WSAU(GLONUOM)
+Local Decimal WNETPRINOT
+Local Date    WDATCONVPRI : # Bug 84596 : Date utilisée pour le calcul des taxes (prix HT/TTC)
+
+# Si l'on est sur une ligne d'avoir en valeur, pas de contrôle du prix net
+If dim([M:SIH0]INVTYP)>0 & [M:SIH0]INVTYP=2 & [M]QTY(NLIG)=0 End Endif
+
+If dim([M]FOCFLG(NLIG)) > 0
+    # On est ds les devis, cdes, liv, factures
+    If [M]FOCFLG(NLIG) = 3 End Endif
+    WITMREF = [M]ITMREF(NLIG)
+    WSAU    = [M]SAU(NLIG)
+Else
+    # On est ds les cdes ouvertes : FOCFLG et LINTYP n'existent pas, ITMREF, SAU ne st pas ds le tableau
+    WITMREF = [M]ITMREF
+    WSAU    = [M]SAU
+Endif
+
+# Lecture article et article vente
+If !clalev([F:ITM]) Local File ITMMASTER [ITM] Endif
+If !clalev([F:ITS]) Local File ITMSALES  [ITS] Endif
+If [F:ITM]ITMREF <> WITMREF
+   Read [ITM]ITM0 = WITMREF
+   If fstat End Endif
+Endif
+If [F:ITS]ITMREF <> WITMREF
+   Read [ITS]ITS0 = WITMREF
+   If fstat End Endif
+Endif
+
+# --> Contrôle prix net >= prix plancher
+If [F:ITS]MINPRI <> 0
+   If WSAU <> [F:ITM]SAU
+      Call SREC_COE(WITMREF, BPC, [F:ITM]SAU, WSAU, GBIDD1) From TRTVENQTE
+      If GBIDD1 <> 0
+         MONT = [F:ITS]MINPRI * GBIDD1
+      Else
+         MONT = 0
+      Endif
+   Else
+      MONT = [F:ITS]MINPRI
+   Endif
+   If CUR <> GSYSCUR & MONT <> 0
+      Call CONVERT2(GSYSCUR, CUR, GLOCALDEV, CHGTYP, DAT, MONT, MNTDES, SPSTAT) From TRTDEV
+   Else
+      MNTDES = MONT
+   Endif
+   MONT = arr(MNTDES, 10^-GDECPRI)
+
+   # Par defaut on charge le prix net ( HT ou TTC )
+   WNETPRINOT=[M]NETPRI(NLIG)
+   # Si saisie en TTC il faut calculer le prix HT
+   If dim([M]PRITYP)>0 & [M]PRITYP=2
+      Local Decimal J_NETPRI, J_QTY, J_CLCAMT1, J_CLCAMT2, J_NETPRINOT
+      Local Char    J_VAT (GLONVAT) (0..2), J_VACBPR
+
+      If dim([M]NETPRI)>0  : J_NETPRI=[M]NETPRI(NLIG)   : Endif
+      If dim([M]VAT1)>0    : J_VAT(0)=[M]VAT1(NLIG)     : Endif
+      If dim([M]VAT2)>0    : J_VAT(1)=[M]VAT2(NLIG)     : Endif
+      If dim([M]VAT3)>0    : J_VAT(2)=[M]VAT3(NLIG)     : Endif
+      If dim([M]CLCAMT1)>0 : J_CLCAMT1=[M]CLCAMT1(NLIG) : Endif
+      If dim([M]CLCAMT2)>0 : J_CLCAMT1=[M]CLCAMT2(NLIG) : Endif
+      If dim([M]QTY)>0     : J_QTY=[M]QTY(NLIG)         : Endif
+      If dim([M]VACBPR)>0  : J_VACBPR=[M]VACBPR         : Endif
+      # Bug 84596 : Date utilisée pour le calcul des taxes (prix HT/TTC)
+      Local Date    WDATCONVPRI
+      WDATCONVPRI=DAT
+      If GFONCTION="GESSDH" WDATCONVPRI=[M:SDH1]DLVDAT Endif
+      # Bug 95337 : Date utilisée pour le calcul des taxes (prix HT/TTC)
+      # Utiliser [M]VATDAT si le champ est renseigné (sinon ce sera [M]INVDAT par défaut)
+      If GFONCTION="GESSIH" & dim([M:SIH2]VATDAT)>0 & [M:SIH2]VATDAT<>[0/0/0]
+          WDATCONVPRI=[M:SIH2]VATDAT
+      Endif
+      # Bug 95337
+      #Call CLCTAXEPRIV(J_NETPRI,J_VAT,[M]PRITYP,GSOCIETE,DAT,J_QTY,J_VACBPR,J_CLCAMT1,J_CLCAMT2,J_NETPRINOT) From TRTX3
+      Call CLCTAXEPRIV(J_NETPRI,J_VAT,[M]PRITYP,GSOCIETE,WDATCONVPRI,J_QTY,J_VACBPR,J_CLCAMT1,J_CLCAMT2,J_NETPRINOT) From TRTX3
+      # Bug 84596
+
+      If J_NETPRINOT : WNETPRINOT=J_NETPRINOT : Endif
+   Endif
+
+   If WNETPRINOT < MONT
+      # Si GNETMAR = 0 , pas d'affichage du message d'erreur (cas de l'APRES_NBLIG)
+      If GNETMAR = 1
+#         GMESSAGE = sum(format$("N3:15F[ ]",WNETPRINOT),mess(19,192,1),        : # 89275
+         GMESSAGE = sum(WITMREF,format$("N3:15F[ ]",WNETPRINOT),mess(19,192,1),
+&                   format$("N3:15F[ ]",MONT),CUR)                              : # 89275
+         # -------------------------------------------------------- #
+         # Point d'entree affichage du message de contrôle de prix  #
+         # -------------------------------------------------------- #
+         GPOINT="DSPCTLPRI" : Gosub ENTREE From EXEFNC
+         If GMESSAGE="" End Endif
+         #Gbn-89937-En import on doit prendre en compte SDACLOCK
+         If GTRACE <> "" & !GIMPORT
+              Call ECR_TRACE(WITMREF+" : "+GMESSAGE , 0) From GESECRAN
+#             Call ECR_TRACE(GMESSAGE,0) From GESECRAN
+         Elsif dim([M]LINTYP(NLIG))<=0 | (dim([M]LINTYP(NLIG))>0 & find([M]LINTYP(NLIG),1,2,6,10))
+            # Msg si cde ouverte ou autre doc et l'article n'est pas un composant
+            GERR=2
+            If GDACLOK=1 GERR=1 : mkstat=2 Endif
+         Endif
+      Endif
+   Endif
+Endif
+
+End
+##########################################################################################################
+
+#################################### Evento STD bajado a específico #########################################
+Subprog CTLPFM(CUR, XCPRPRI, NLIG)
+Value    Char     CUR
+Value    Decimal  XCPRPRI
+Value    Integer  NLIG
+
+Local    Decimal PFMRAT
+Local    Char    WITMREF(GLONITM), WSAU(GLONUOM)
+
+If dim([M]FOCFLG(NLIG)) > 0
+    # On est ds les devis, cdes, liv, factures
+#    If [M]NETPRI(NLIG) = 0 & ([M]FOCFLG(NLIG) = 3 | find([M]LINTYP(NLIG),3,4,5,7,8,9,11,12,13)) End Endif
+    If [M]NETPRI(NLIG) = 0 & [M]FOCFLG(NLIG) = 3 End Endif : # Bug 15525
+    WITMREF = [M]ITMREF(NLIG)
+    WSAU    = [M]SAU(NLIG)
+Else
+    # On est ds les cdes ouvertes : FOCFLG et LINTYP n'existent pas, ITMREF, SAU ne st pas ds le tableau
+    WITMREF = [M]ITMREF
+    WSAU    = [M]SAU
+Endif
+
+# Lecture article vente
+If !clalev([F:ITS]) Local File ITMSALES  [ITS] Endif
+If [F:ITS]ITMREF <> WITMREF
+   Read [ITS]ITS0 = WITMREF
+   If fstat End Endif
+Endif
+
+# --> Calcul du % de la marge pour le comparer avec le % marge minimale de l'article vente
+PFMRAT = [M]NETPRINOT(NLIG) - XCPRPRI
+Call ARRDEV(PFMRAT, CUR) From TRTDIV
+If [M]NETPRINOT(NLIG) <> 0
+   PFMRAT = (([M]NETPRINOT(NLIG) - XCPRPRI)/[M]NETPRINOT(NLIG))*100
+   PFMRAT = arr(PFMRAT, 0.01)
+Else
+   PFMRAT = 100
+Endif
+
+# Si l'on est dans les factures et qu'il s'agit d'un avoir, pas de contrôle marge mini
+If dim([M:SIH0]INVTYP)>0 & [M:SIH0]INVTYP=2 End Endif
+
+# --> Contrôle marge >= marge minimale
+If PFMRAT < [F:ITS]MINPFM & [F:ITS]MINPFM <> 0
+   # Si GNETMAR = 0 , pas d'affichage du message d'erreur
+   If GNETMAR = 1
+#      GMESSAGE = sum(format$("N:15F[ %]",PFMRAT)," ",mess(20,192,1),         : # 89275
+      GMESSAGE = sum(WITMREF,format$("N:15F[ %]",PFMRAT)," ",mess(20,192,1),
+&                format$("N:15F[ %]",[F:ITS]MINPFM))                          : # 89275
+      # -------------------------------------------------------- #
+      # Point d'entree affichage du message de contrôle de marge #
+      # -------------------------------------------------------- #
+      GPOINT="DSPCTLPFM" : Gosub ENTREE From EXEFNC
+      If GMESSAGE="" End Endif
+      If GTRACE <> ""
+         Call ECR_TRACE(WITMREF, 0) From GESECRAN
+         Call ECR_TRACE(GMESSAGE,0) From GESECRAN
+      Elsif dim([M]LINTYP(NLIG))<=0 | (dim([M]LINTYP(NLIG))>0 & find([M]LINTYP(NLIG),1,2,6,10))
+         # Msg si cde ouverte ou autre doc et l'article n'est pas un composant
+         GERR=2
+         If GDACLOK=1 GERR=1 : mkstat=2 Endif
+      Endif
+   Endif
+Endif
+
+
+End
+#################################################
+$IMP_APRES_CRE
+  Local    Char     PARAM_T (25) (0..10)
+
+  # - Resteamos los bloques 2/3/4
+  Raz [M:SOH4]DLRNOT
+  Raz [M:SOH4]INRNOT
+  Raz [M:SOH4]PFMTOT
+  Raz [M:SOH4]ORDNOT
+  Raz [M:SOH4]ORDATI
+  Raz [M:SOH4]DLRATI
+  Raz [M:SOH4]INRATI
+  Raz [M:SOH4]INRSCHNOT
+  Raz [M:SOH4]INRSCHATI
+  Raz [M:SOH4]ORDINVNOT
+  Raz [M:SOH4]ORDINVATI
+  Raz [M:SOH4]FMTREM
+  Raz [M:SOH4]WOBJ1
+
+  For WI=0 To NBLIG                                       # - Recorremos todas las líneas para ir acumulando
+    Call APRES_LIGNE (WI,1) From SUBSOHB                  # - Llamamos al proceso que se encarga de ir acumulando en la [M] los totales
+    Gosub CHARGENTETE From SUBSOHA                        # - Este proceso, guarda [M] en [F]
+
+    PARAM_T(0)="2"
+    PARAM_T(1)="1"
+    PARAM_T(2)=num$(0)
+    Call VALTTC ("GESSOH", PARAM_T) From TRTVENFACR       # - Proceso que actualiza los campos de (Valuation)
+
+    Rewrite [F:SOH]                                       # - Reescribimos [SOH]
+  Next
+Call ESCRIBIR_TRAZA('Llego hasta IMP_APRES_CRE', '')
+ Return
+
+#################################################
+
+Subprog ESCRIBIR_TRAZA (MENSAJE, MENSAJECLB)
+  Value Char MENSAJE
+  Value Clbfile MENSAJECLB
+
+  Openo filpath("YTRAZA","YYALI_"+format$("D:DDMMYYYY",date$),"txt") Using [XLOG]
+
+  If MENSAJE <> ''
+    Wrseq date$-time$-MENSAJE   Using [XLOG]
+  Endif
+
+  If MENSAJECLB <> ''
+    Wrseq date$-time$-MENSAJECLB Using [XLOG]
+  Endif
+
+  Openo Using [XLOG]
+End

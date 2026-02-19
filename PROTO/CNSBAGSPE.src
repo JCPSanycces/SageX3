@@ -1,0 +1,250 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @01@ - JLP - 12/07/2024 - Modificacion para que muestre el numero de factura del asiento desde la pantalla de Proveedores (Situacion de terceros)
+$ACTION
+Case ACTION
+  When "LECTURE"  :   Gosub LECTURE
+Endcase
+Return
+
+
+###########################################
+$LECTURE
+# SPE solamente para clientes
+#If [M:BAG1]CLIFOUR <> "C" : Return : Endif
+If ([M:BAG1]CLIFOUR <> "C" and [M:BAG1]CLIFOUR <> "F") : Return : Endif # @01@ - JLP - 12/07/2024 - Situacion de tercero
+
+# Me traigo el STD para poder añadir la info de un campo en la carga del bloque de vencimientos (Marcadas las líneas modificadas como #SANYCCES)
+Gosub AFF_LIB From CNSBAGSTD #SANYCCES
+Gosub DEVISE  From CNSBAGSTD #SANYCCES
+
+If [M:BAG1]BPR="" & [M:BAG1]BPRPAY="" & [M:BAG1]BPRRSK="" : NBLU=0 : Return : Endif
+
+Gosub SET_ECRAN From CNSBAGSTD #SANYCCES
+Gosub CHANGE_MSK From GCONSULT
+If CHGPAG<0 : NOL = MAXLIG : Endif
+
+Gosub INIT From CNSBAGSTD #SANYCCES
+Gosub DEVISE From CNSBAGSTD #SANYCCES
+
+# Filtres
+Gosub FILTRE From CNSBAGSTD #SANYCCES
+If PROGSPE<>""
+ ACTION = "FILTRE" : Gosub ACTION From =PROGSPE
+Endif
+
+# Parcours de page en page
+If CHGPAG>0 # Page suivante
+ SUITE = 1
+ If CHGPAG=1 : RETOUR=1 : Elsif CHGPAG=2 : RETOUR=2 : Endif
+Else         # Page précédente
+ RETOUR = 1
+ If CHGPAG=-1 : SUITE=1 : Else SUITE=2 : Endif
+Endif
+
+If CHGPAG<>2 & CHGPAG<>-2 : Effzo [M:BAG2]5 : Endif
+
+# chargement d'une tableau des échéances
+Gosub LECT_DUD
+
+#X3-248586 Issue Start
+If [M]RECALC = [V]CST_AYES
+  GMODIF = 1
+Endif
+#X3-248586 Issue End
+
+# Re-calcul des totaux et du risque si besoin...
+If BPRCUR<>[M:BAG1]BPR | BPRRSKCUR<>[M:BAG1]BPRRSK | BPRPAYCUR<>[M:BAG1]BPRPAY |
+&  CPYCUR<>[M:BAG1]CPY | FCYCUR<>[M:BAG1]FCY |  DATCUR<>[M:BAG1]DAT | ECRCUR<>[M:CBAG]ECRAN |
+&  COL1CUR<>[M:CBAG]COL1 | COL2CUR<>[M:CBAG]COL2 | COL3CUR<>[M:CBAG]COL3 | COL4CUR<>[M:CBAG]COL4 |
+&  COL5CUR<>[M:CBAG]COL5 | COL6CUR<>[M:CBAG]COL6 | COL7CUR<>[M:CBAG]COL7 | COL8CUR<>[M:CBAG]COL8
+&  | GMODIF=1 #X3-248586 Issue
+ If dim([M:BAG2]AMTTOTLOC)>0 | GMODIF=1
+  Gosub TOTAL From CNSBAGSTD : GMODIF=0 #SANYCCES
+ Endif
+ If [M:BAG1]BPRRSK<>""
+  Call RISQUE(FILTBAG,TSITE,NBSITE,TBSOC,NBSOC,GRP,TDEVSOC) From TRTCNSBAG
+ Else
+  Raz [M:BAG3]
+  If NBLU<2
+   Affzo [M:BAG3]
+  Endif
+ Endif
+ If [M:BAG1]BPR<>"" & [M:BAG1]CPY<>""
+  Call DERNIER From TRTCNSBAG
+ Else
+  Raz [M:BAG4]
+  If NBLU<2
+   Affzo [M:BAG4]
+  Endif
+ Endif
+
+ GPOINT = "UPDENQBAG" : Gosub ENTREE From EXEFNC
+Endif
+
+BPRCUR    = [M:BAG1]BPR
+BPRRSKCUR = [M:BAG1]BPRRSK
+BPRPAYCUR = [M:BAG1]BPRPAY
+FCYCUR    = [M:BAG1]FCY
+CPYCUR    = [M:BAG1]CPY
+DATCUR    = [M:BAG1]DAT
+ECRCUR    = [M:CBAG]ECRAN
+COL1CUR   = [M:CBAG]COL1
+COL2CUR   = [M:CBAG]COL2
+COL3CUR   = [M:CBAG]COL3
+COL4CUR   = [M:CBAG]COL4
+COL5CUR   = [M:CBAG]COL5
+COL6CUR   = [M:CBAG]COL6
+COL7CUR   = [M:CBAG]COL7
+COL8CUR   = [M:CBAG]COL8
+
+
+# Bloqueo el STD
+GPE=1
+Return
+
+
+
+############################################
+$LECT_DUD
+If clalev ([F:ZZ1])=0 : Local File GACCENTRYD  [ZZ1] : Endif  # SANYCCES
+# Ordre (choix dans la fenêtre de critère)
+If [M:CBAG]ORDDUD=2 #Desc
+ If CHGPAG>0    :# Page suivante
+  If [M:CBAG]TRIDUD=2 :#tri par pièce comptable
+   ORDRE = "[F:HAE]ACCDAT Desc;[F:HAE]TYP Desc;[F:HAE]NUM Desc;[F:DUD]NUMDUD Desc"
+  Else
+   ORDRE = "[F:DUD]DUDDAT Desc;[F:HAE]TYP Desc;[F:HAE]NUM Desc;[F:DUD]NUMDUD Desc"
+  Endif
+ Else           :# Page précédente
+  If [M:CBAG]TRIDUD=2 :#tri par pièce comptable
+   ORDRE = "[F:HAE]ACCDAT;[F:HAE]TYP;[F:HAE]NUM;[F:DUD]NUMDUD"
+  Else
+   ORDRE = "[F:DUD]DUDDAT;[F:HAE]TYP;[F:HAE]NUM;[F:DUD]NUMDUD"
+  Endif
+ Endif
+Else
+ If CHGPAG>0   :# Page suivante
+  If [M:CBAG]TRIDUD=2 :#tri par pièce comptable
+   ORDRE = "[F:HAE]ACCDAT;[F:HAE]TYP;[F:HAE]NUM;[F:DUD]NUMDUD"
+  Else
+   ORDRE = "[F:DUD]DUDDAT;[F:HAE]TYP;[F:HAE]NUM;[F:DUD]NUMDUD"
+  Endif
+ Else          :# Page précédente
+  If [M:CBAG]TRIDUD=2 :#tri par pièce comptable
+   ORDRE = "[F:HAE]ACCDAT Desc;[F:HAE]TYP Desc;[F:HAE]NUM Desc;[F:DUD]NUMDUD Desc"
+  Else
+   ORDRE = "[F:DUD]DUDDAT Desc;[F:HAE]TYP Desc;[F:HAE]NUM Desc;[F:DUD]NUMDUD Desc"
+  Endif
+ Endif
+Endif
+
+#Link...
+Case [M:BAG1]CLIFOUR
+ When "F" :
+   Link [DUD] With [HAE]HAE0=[DUD]TYP;[DUD]NUM , [F:BPS]BPS0=[F:DUD]BPR As [LNK]
+&  Order With [L]ORDRE
+   Columns [DUD] ([F:DUD],[F:HAE]ACCDAT,[F:HAE]TYP,[F:HAE]NUM,[F:HAE]BPRVCR,[F:HAE]BPRDATVCR)
+ When "C" :
+   Link [DUD] With [HAE]HAE0=[DUD]TYP;[DUD]NUM , [F:BPC]BPC0=[F:DUD]BPR As [LNK]
+&  Order With [L]ORDRE
+   Columns [DUD] ([F:DUD],[F:HAE]ACCDAT,[F:HAE]TYP,[F:HAE]NUM,[F:HAE]BPRVCR,[F:HAE]BPRDATVCR)
+Endcase
+
+Filter [F:LNK] Where evalue(FILTBAG) & evalue(FILTPAY) & evalue(FILTPAG)
+
+For [LNK]
+ If GRP=1
+  ISITE  = find([F:DUD]FCY,TSITE(1..NBSITE))
+ Endif
+ If NBLU=1
+  If CHGPAG=2 or CHGPAG=-2 : Effzo [M:BAG2]5 : Endif
+  NBLU=2
+ Endif
+ If CHGPAG>0
+  If NOL>=MAXLIG-1 : SUITE=2 : Break : Endif
+  NOL += 1
+  If NOL = 0
+   ACCDATD = [F:HAE]ACCDAT
+   DUDDATD = [F:DUD]DUDDAT
+   NUMD    = [F:DUD]NUMDUD
+   TYPD    = [F:HAE]TYP
+   VCRD    = [F:HAE]NUM
+  Endif
+  ACCDATF = [F:HAE]ACCDAT
+  DUDDATF = [F:DUD]DUDDAT
+  NUMF    = [F:DUD]NUMDUD
+  TYPF    = [F:HAE]TYP
+  VCRF    = [F:HAE]NUM
+ Else
+  If NOL<=0 : RETOUR=2 : Break : Endif
+  NOL-=1
+  If NOL = MAXLIG-1 :
+   ACCDATF = [F:HAE]ACCDAT
+   DUDDATF = [F:DUD]DUDDAT
+   NUMF    = [F:DUD]NUMDUD
+   TYPF    = [F:HAE]TYP
+   VCRF    = [F:HAE]NUM
+  Endif
+  ACCDATD = [F:HAE]ACCDAT
+  DUDDATD = [F:DUD]DUDDAT
+  NUMD    = [F:DUD]NUMDUD
+  TYPD    = [F:HAE]TYP
+  VCRD    = [F:HAE]NUM
+ Endif
+ nolign=NOL+1
+ [M:BAG2]=[F:HAE]
+ [M:BAG2]=[F:DUD]
+
+  #SANYCCES
+  Filter [ZZ1] Where [ZZ1]NUM = [M:BAG2]NUM(nolign-1) and [ZZ1]LIN = [M:BAG2]LIG(nolign-1)
+  Read [ZZ1] First
+  If fstat = 0
+    [M:BAG2]YFACTURA(nolign-1) = [ZZ1]DES
+    Affzo [M:BAG2]YFACTURA(nolign-1)
+  Endif
+  Filter [ZZ1]
+  #SANYCCES FIN
+
+
+ Case [M:BAG1]CLIFOUR
+  When "F" :
+  [M:BAG2]BPRRSK(NOL)=[F:BPS]BPSRSK
+  [M:BAG2]BPRGRU(NOL)=[F:BPS]BPSGRU
+  When "C"
+  [M:BAG2]BPRRSK(NOL)=[F:BPC]BPCRSK
+  [M:BAG2]BPRGRU(NOL)=[F:BPC]BPCGRU
+ Endcase
+ If dim([M:BAG2]REG)>0
+  Gosub LECT_REGL From CNSBAGSTD #SANYCCES
+ Endif
+ Gosub MTT_CUR From CNSBAGSTD #SANYCCES
+ Gosub MTT_LOC From CNSBAGSTD #SANYCCES
+Next
+
+Filter [F:LNK]
+
+Close Local File [ZZ1]  #SANYCCES
+Return
+
+
+
+###########################################
+$CLECUR
+# Cuando muestro vencimientos de clientes, voy a buscar el número de factura en la línea del asiento
+If [M:BAG1]CLIFOUR = "C" and 1=2
+  If clalev ([F:ZZ1])=0 : Local File GACCENTRYD  [ZZ1] : Endif
+
+  For LINE=0 To [M:BAG2]NBLIG-1
+    Filter [ZZ1] Where [ZZ1]NUM = [M:BAG2]NUM(LINE) and [ZZ1]LIN = [M:BAG2]LIG(LINE)
+    Read [ZZ1] First
+    If fstat = 0
+      [M:BAG2]YFACTURA(LINE) = [ZZ1]DES
+      Affzo [M:BAG2]YFACTURA(LINE)
+    Endif
+    Filter [ZZ1]
+  Next
+
+  Close Local File [ZZ1]
+Endif
+
+Return

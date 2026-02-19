@@ -1,0 +1,57 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# i3. Termina preparación con control transportista
+#Call TERMINA_PREPARACION ("DPR112401289",GUSER)
+
+# i3. Termina preparación sin ningún control
+#Call MARCA_PREPARACION ("DPR112401289")
+
+# (Caso 1 y 2): Actualiza líneas de pedidos de venta con cantidades preparadas negativas
+# si 3 es para líneas no saldadas
+# si 99 es para todas las líneas
+#Call MAJ_CTD_PREPARADA_NEGATIVA(3)
+
+# (Caso 3): Actualiza cantidad preparada líneas de pedidos de venta con cantidades preparadas distinta en vales de preparación
+Call MAJ_CTD_PREPARADA_DISTINA_VALES(VPED)
+End
+
+################################################################################################################
+Subprog TERMINA_PREPARACION(VVAL,VUSE)
+Value Char VVAL
+Value Char VUSE
+
+Local Char LRES
+Local Char LMESS
+Call TERMINARPREPARACION (VVAL, VUSE, 1, LRES, LMESS) From YX3MOBPREPARACION
+End
+
+
+################################################################################################################
+Subprog MARCA_PREPARACION(VVAL)
+Value Char VVAL
+Local Integer XRES
+Call MARCARPREPARACIONENTREGABLE(VVAL, XRES) From YX3MOBPREPARACION
+End
+
+
+################################################################################################################
+Subprog MAJ_CTD_PREPARADA_NEGATIVA(VSAL)
+Value Integer VSAL
+
+If !clalev([F:SOQ])  Local File SORDERQ  [SOQ] : Endif
+
+# Primero cuento las líneas negativas
+Local Integer CONTA_NEGATIVAS
+Filter [SOQ] Where [SOQ]SOQSTA<VSAL and [SOQ]PREQTYSTU<0
+  [L]CONTA_NEGATIVAS = rowcount([SOQ])
+Filter [SOQ]
+Infbox num$([L]CONTA_NEGATIVAS)
+
+Close Local File [SOQ]
+End
+
+
+################################################################################################################
+Subprog MAJ_CTD_PREPARADA_DISTINA_VALES(VPED)
+Value Char VPED
+
+End

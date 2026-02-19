@@ -1,0 +1,166 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+#If GUSER ='NUN28' : Infbox ACTION : Endif
+Case ACTION
+  When "OUVRE"    : Gosub OUVRE
+  When "SETBOUT"  : Gosub SETBOUT
+  When "DEBUT"    : Gosub DEBUT
+  When "APRES_MODIF": Gosub APRES_MODIF
+  When "FIN"      : Gosub FIN
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+######################################################################################
+$OUVRE
+  If !clalev([YBLOP]): Local File YBLOQPREP [YBLOP]  : Endif
+Return
+######################################################################################
+$SETBOUT
+  Case BOUT
+    When 'G'
+      Gosub GUARDAR_TABLA
+      BOUT = 'O'
+  Endcase
+
+Return
+
+######################################################################################
+$DEBUT
+
+  Lock YBLOQPREP
+
+  If nolign = 0
+    Gosub MOSTRAR_LINEAS
+  Endif
+Return
+
+######################################################################################
+$APRES_MODIF
+
+Return
+
+######################################################################################
+$FIN
+  Unlock YBLOQPREP
+Return
+######################################################################################
+
+######################################################################################
+$MOSTRAR_LINEAS
+Local File YBLOQPREP [YBLOP1]
+Local Integer I : I = 0
+
+  [M:YBPICK]NBLIG = 0
+
+  For [YBLOP1]
+    [M:YBPICK]PLANTA(I) = [YBLOP1]PLANTA
+    [M:YBPICK]FAMILIA(I) = [YBLOP1]FAMILIA
+    [M:YBPICK]FECHBLOQ(I) = [YBLOP1]FECHBLOQ
+
+    [M:YBPICK]NBLIG = I+1
+    Affzo [M:YBPICK]
+    I += 1
+  Next
+
+Affzo [M:YBPICK]
+Close Local File [YBLOP1]
+Return
+
+######################################################################################
+$GUARDAR_TABLA
+
+  Delete [YBLOP] Where [YBLOP]PLANTA ='11' or [YBLOP]PLANTA = '13'
+
+  For I=0 To [M:YBPICK]NBLIG-1
+    If [M:YBPICK]FAMILIA(I) <> ''
+        [YBLOP]PLANTA = [M:YBPICK]PLANTA(I)
+        [YBLOP]FAMILIA = [M:YBPICK]FAMILIA(I)
+        [YBLOP]FECHBLOQ = [M:YBPICK]FECHBLOQ(I)
+
+          Trbegin [YBLOP]
+            Write [YBLOP]
+              If !fstat Then
+                Commit
+              Else
+                Rollback
+              Endif
+    Endif
+  Next
+
+  Gosub MOSTRAR_LINEAS
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                      SUBPROGS/FUNPROGS                                            #
+#---------------------------------------------------------------------------------------------------#
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YBLOPPICK) 24/10/2024 15:43:36 (NUN28)
+######################################################################################
+Subprog C_FAMILIA(VALEUR)
+Variable Char    VALEUR()
+Local Char DESCRIP(30)
+
+  If !clalev([YATEX]): Local File ATEXTRA [YATEX]  : Endif
+
+  Read [YATEX]AXX0 = 'ATABDIV';'LNGDES';'SPA';'20';VALEUR
+    If !fstat
+        DESCRIP =  [YATEX]TEXTE
+    Endif
+
+  If !clalev([YBLQ]): Local File YBLOQPREP [YBLQ]  : Endif
+
+  Read [YBLQ]YBL0 = VALEUR
+    If !fstat
+        Errbox "La familia "- [YBLQ]FAMILIA -"-"-DESCRIP- " ya tiene fecha bloqueada: "-num$([YBLQ]FECHBLOQ)
+        mkstat = 1 : VALEUR = ''
+    Endif
+End
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YBLOPPICK) 31/10/2024 15:25:52 (NUN28)
+######################################################################################
+Subprog C_NBLIG
+
+  If status = 65
+     Delete [YBLOP] Where [YBLOP]FAMILIA = [M:YBPICK]FAMILIA(nolign-1) and [YBLOP]PLANTA = [M:YBPICK]PLANTA(nolign-1)
+     Affzo [M:YBPICK]
+    Endif
+End
+
+######################################################################################
+Funprog FECH_BLOQ (PLANTA,ITM,FECH)
+Value Char PLANTA, ITM
+Value Date FECH
+Local Integer YBLOQ : YBLOQ = 0
+Local Char FAM_ART(20) : FAM_ART = ''
+Local Integer PRE : PRE = 0
+
+#  If GUSER ='NUN28' : Infbox "ANTES: " - num$(FECH) : Endif
+
+If !clalev([YBLOF]): Local File YBLOQPREP [YBLOF]  : Endif
+If !clalev([YITM]): Local File ITMMASTER [YITM]  : Endif
+If !clalev([YITMT]): Local File YITMTECNICO [YITMT]  : Endif
+
+  Read [YITM]ITM0 = ITM
+    If !fstat
+       FAM_ART = [YITM]TSICOD(0)
+    Endif
+
+  Read [YITMT]YITT0 = ITM
+    If !fstat
+      PRE = [YITMT]PREPICKING
+    Endif
+
+    Read [YBLOF]YBL0 = FAM_ART
+      If !fstat and [YBLOF]PLANTA = PLANTA and [YBLOF]FECHBLOQ = FECH and PRE = 2
+        YBLOQ = 1
+      Endif
+
+#    If GUSER ='NUN28' : Infbox num$(YBLOQ)-PLANTA-num$(FECH) : Endif
+
+End YBLOQ

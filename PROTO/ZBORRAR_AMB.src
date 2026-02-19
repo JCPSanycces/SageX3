@@ -1,0 +1,248 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+#TODO
+#Local Char PPRHNUM(50) : PPRHNUM = "DPR112500007"
+#Local Char PCODIGOBARRAS(50) : PCODIGOBARRAS = "8435315561571"
+#Local Char PUSUARIO(5) : PUSUARIO = "NUN16"
+#
+#Local  Integer PLINEA_KIT : PLINEA_KIT=0
+#Local  Char PCOD_KIT (10) : PCOD_KIT =""
+#Local  Integer  PCANT : PCANT=1
+#
+#Local Char PPACNUM(50)
+#Local Char PRES(5)
+#Local Char PMESS(255)
+#
+#Call NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT, PCANT,PPACNUM, PRES, PMESS) From YX3MOBPREPARACION
+
+
+
+
+
+
+#  Value Char PSOHNUM()
+#  Value Char PSHIDAT()
+#  Value Char PTSICOD0()
+#  Value Char PTSICOD1()
+#  Value Char PCODIGOBARRAS()
+#  Value Char PLPNNUM
+#  Value Decimal PQTY
+
+#Call TESTCODIGOBARRAS(PSOHNUM, PSHIDAT, PTSICOD0, PTSICOD1, PCODIGOBARRAS, PLPNNUM, PQTY, PITMREF, PPCU, PSTU,PSTUCOE, PVCRDES, PRES, PMESS) From YX3MOBPREPICKING
+#################################################################################################################################################################################
+
+#
+#
+#
+#Local Char  PCOD_PEDIDO(50) :  PCOD_PEDIDO = "PDV112500892"
+#Local Char PNUM_SERIE(50) : PNUM_SERIE = "2500438002"
+#Local  Integer  PQTY : PQTY=2
+#Local Char PRES(5)
+#
+#
+#
+#
+#Subprog INFO_NUM_SERIE(PNUM_SERIE, PCOD_PEDIDO, PITMREF, PVCRDES, PPCU, PSTU, PSTUCOE, PRES, PMESS)
+#
+#  #ENTRADA
+#  Value Char PNUM_SERIE
+#  Value Char PCOD_PEDIDO
+#
+#  #SALIDA
+#  Variable Char PITMREF
+#  Variable Char PVCRDES
+#  Variable Char PPCU
+#  Variable Char PSTU
+#  Variable Char PSTUCOE
+#  Variable Char PRES
+#  Variable Char PMESS
+#
+#
+#
+#  If !clalev([YSTO])  : Local File STOCK  [YSTO]  : Endif
+#  If !clalev([YITM])  : Local File ITMMASTER [YITM]  : Endif
+#  If !clalev([YSOQ]) Then : Local File SORDERQ   [YSOQ]  : Endif
+#  If !clalev([YSOP]) Then : Local File SORDERP   [YSOP]  : Endif
+#
+#  Filter [YSTO] Where [YSTO]SERNUM = PNUM_SERIE
+#  Read [YSTO] First
+#    If !fstat Then
+#      Filter [F:YSOP]Where SOHNUM = PCOD_PEDIDO and ITMREF =[YSTO]ITMREF
+#      Read [F:YSOP] First
+#        If !fstat Then
+#           PPCU=[F:YSOP]SAU
+#           PSTU=[F:YSOP]STU
+#           PSTUCOE=num$([F:YSOP]SAUSTUCOE)
+#           PVCRDES=left$([F:YSOP]SOHNUM + ' ' +[F:YSOP]ITMDES1,80)
+#           PITMREFEF = [F:YSOP]ITMREF
+#           Infbox PPCU+ PSTU +PSTUCOE+ PVCRDES +PITMREFEF
+#          Else
+#            PRES="110"
+#            PMESS="Problemas con el pedido"
+#          Endif
+#
+#   Else
+#    PRES="117"
+#    PMESS="Problemas con el numero de serie"
+#   Endif
+#
+#
+#
+#  Close Local File [YSTO]
+#  Close Local File [YITM]
+#  Close Local File [YSOQ]
+#  Close Local File [YSOP]
+#
+#End
+
+#############################################################################################################################
+
+
+
+
+#Local Char PPRHNUM(50) : PPRHNUM = "DPR112500007"
+#Local Char PCODIGOBARRAS(50) : PCODIGOBARRAS = "8435315561571"
+#Local Char PUSUARIO(5) : PUSUARIO = "NUN16"
+#
+#Local  Integer PLINEA_KIT : PLINEA_KIT=0
+#Local  Char PCOD_KIT (10) : PCOD_KIT =""
+#Local  Integer  PCANT : PCANT=1
+#
+#Local Char PPACNUM(50)
+#Local Char PRES(5)
+#Local Char PMESS(255)
+
+#
+#Local Char  PCOD_PEDIDO(50) :  PCOD_PEDIDO = "PDV112500892"
+#Local Char PNUM_SERIE(50) : PNUM_SERIE = "2500438002"
+#Local  Integer  PQTY : PQTY=2
+#Local Char PRES(5)
+#
+#Call NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT, PCANT,PPACNUM, PRES, PMESS) From YX3MOBPREPARACION
+
+
+
+
+
+
+#  Value Char PSOHNUM()
+#  Value Char PSHIDAT()  fecha pedido
+#  Value Char PTSICOD0() puede ir vacio
+#  Value Char PTSICOD1()  puede ir vacio
+
+
+
+#Local Char  PCODPSOHNUM_PEDIDO(50) :  PSOHNUM = "PDV112500892"
+#Local Char PSHIDAT :  PSHIDAT="20/06/2025"  #Fecha expedición
+#Local Char PTSICOD1 :PTSICOD1=''
+#Local Char PTSICOD0 :PTSICOD0 =''
+
+#7Call GETDETALLEPEDIDOPREPICKING(PSOHNUM, PSHIDAT, PTSICOD0, PTSICOD1, PSOPLIN, PITMREF, PITMDES, PLPNNUM, PPRTFLG ,PQTY, PQTYLPN, PLPNNUM_USADO,PRES, PMESS) From YX3MOBPREPICKING
+#
+#
+#Variable Integer  PSOPLIN()
+#Variable Char  PITMREF()()
+#Variable Char   PITMDES()()
+#Variable Char   PLPNNUM()()
+#Variable Char   PPRTFLG()()
+#Variable Decimal PQTY()
+#Variable Decimal  PQTYLPN()
+#Variable Char   PLPNNUM_USADO()
+#Variable Char   PRES
+#Variable Char   PMESS()
+
+Local Char PCOD_PEDIDO(50) :  PCOD_PEDIDO = "PDV112500964"
+Local Char PNUM_SERIE :  PNUM_SERIE="2500473004"  #Fecha expedición
+Local Char PITMREF :  PITMREF=""
+  Local Char PVCRDES
+  Local Char PPCU
+  Local Char PSTU
+  Local Decimal PSTUCOE
+  Local Char PRES
+  Local Char PMESS
+Call INFO_NUM_SERIE(PNUM_SERIE, PCOD_PEDIDO, PITMREF, PVCRDES, PPCU, PSTU, PSTUCOE, PRES, PMESS) From YX3MOBPREPICKING
+Infbox PRES
+Infbox PMESS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Call COMPROBARNUMEROSERIE(PSOHNUM, PCODIGOBARRAS, PCANT,PRES)
+
+#
+#Subprog COMPROBARNUMEROSERIE(PSOHNUM, PCODIGOBARRAS,PQTY,PRES)
+#  Value Char PSOHNUM()
+#  Value Char PCODIGOBARRAS()
+#  Value Integer PQTY
+#  Variable Char  PRES()
+#  Local Decimal L_STOCOU
+#
+#  If !clalev([YSOQ])  : Local File SORDERQ   [YSOQ]  : Endif
+#  If !clalev([YSOP])  : Local File SORDERP   [YSOP]  : Endif
+#  If !clalev([YITM])  : Local File ITMMASTER [YITM]  : Endif
+#  If !clalev([YSTA])  : Local File STOALL           [YSTA]  : Endif
+#  If !clalev([YI3PR]) : Local File YI3PREPA         [YI3PR] : Endif
+#  If !clalev([YSTO])  : Local File STOCK            [YSTO]  : Endif
+#
+#
+## Comprobamos si el EAN existe en la base de datos
+#  Filter [YITM] Where EANCOD = PCODIGOBARRAS
+#  Read [YITM] First
+#  If !fstat Then # es código EAn
+#    If [YITM]SERMGTCOD =1     #SIN GESTION
+#      PRES="100"
+#      Infbox "PRES: 100  SIN GESTION ADMITE EAN"
+#    Else
+#      PRES="110"
+#      Infbox "PRES: 110  CON GESTION NO ADMITE EAN"            #EAN CONGESTION
+#    Endif
+#  Else #NO ES CODIGO EAN
+#    Filter [YSTO] Where SERNUM = PCODIGOBARRAS
+#    Read [YSTO] First
+#    If !fstat Then #EXISTE EL NUMERO DE SERIE
+#        Filter[YSTA] Where ITMREF=[YSTO]ITMREF and  STOFCY=[YSTO]STOFCY and STOCOU=[YSTO]STOCOU
+#        Read [YSTA] First
+#        If !fstat and [YSTA]VCRNUM=PSOHNUM #coincide pedido
+#                  If [YSTO]LPNNUM <>""
+#                      PRES="160"  #YA ESTA ASIGNADO
+#                      Infbox "PRES: 160 YA ESTA ASIGNADO"
+#                  Else
+#                    If PQTY>1
+#                      PRES="170"    #NUMERO SERI VALIDO Y ASIGNABLE PERO CANTIDAD SUPERIOR
+#                      Infbox "PRES: 170 CANTIDAD SUPERIOR"
+#                    Else
+#                        PRES="150" #  ES OK PRES=150 PSERIES
+#                        Infbox "PRES: 150 LISTO PARA ASIGNAR"
+#                    Endif
+#                  Endif
+#        Else
+#          PRES="190"  #ESTENUMERO DE SERIE NO PERTENE AL PEDIDO
+#         Infbox "PRES: 190 NUMERO DE SERIE NO PERTENE AL PEDIDO"
+#        Endif
+#    Else
+#      PRES="140" #NO SE ENCUENTRA ESTE NUMERO DE SERIE
+#      Infbox "PRES: 140 NO SE ENCUENTRA ESTE NUMERO DE SERIE"
+#    Endif
+#  Endif #Read [YITM]
+#  Filter [YITM]
+#
+#End

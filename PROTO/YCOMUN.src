@@ -1,0 +1,103 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog NUMERO_SSCC(LFCY,LITM,LNUM,LRET, LCODIGO)
+Value    Char     LFCY
+Value    Char     LITM
+Variable Char     LNUM
+Variable Integer  LRET
+Value Char LCODIGO
+
+
+Local Char WVCRNUM(10)
+Local Integer WVALEUR
+Local Integer I  # nombre de chiffre
+Local Integer P  # position
+Local Integer WCLE
+Raz LRET
+
+# si la racine est non renseign‚ alors pas de gestion du code SSCC
+#If GSSCCROOT = ""
+#   End
+#Endif
+#If GSSCCCOU = ""
+#   End
+#Endif
+
+# calcul  numero s‚quentiel 7/10chiffres
+Call NUMERO(GSSCCCOU,LFCY,date$,LITM,WVCRNUM,LRET) From SUBANM
+
+If LRET = 1
+   Call ERREUR(mess(939,196,1)) From GESECRAN    # Compteur SSCC absent ! v‚rifiez le parametre GSSCCCOU
+   Return
+Endif
+If LRET = 2
+   Call ERREUR(mess(30,196,1)) From GESECRAN
+   Return
+Endif
+
+LNUM = LCODIGO     # racine
+#LNUM += WVCRNUM      # numero sequentiel #COMENTADO POR ERROR AL CALCULAR
+
+I = len(LNUM)
+
+# hcb correction calcul demande 68050
+
+# somme position impaire *3
+For P = 1 To I Step 2
+    WVALEUR += val(mid$(LNUM,P,1))
+Next P
+WVALEUR = WVALEUR * 3
+
+# somme position pair
+For P = 2 To I Step 2
+    WVALEUR += val(mid$(LNUM,P,1))
+Next P
+
+If mod(WVALEUR,10) = 0
+   WCLE = 0
+Else
+   WCLE = 10 - mod(WVALEUR,10)
+Endif
+
+LNUM += num$(WCLE)
+#Infbox LNUM
+#If len(LNUM) <> 18
+#   Raz LNUM
+#   LRET = 3
+#   Call ERREUR(mess(272,184,1)) From GESECRAN
+#
+#Endif
+
+    LNUM = LCODIGO+right$(LNUM,len(LNUM))
+
+End
+
+
+###########################################################################
+#**
+#* Asignación de SSCC
+#*
+#* @param PACCION -
+#*    Valor 1 - Asigna nuevo sscc
+#*    Valor 2 - Elimina sscc
+#*!
+Subprog ASIGNAR_SSCC(PACCION)
+#  Value Integer PACCION
+#  # ASIGNAR SSCC A LOS PALETS MIXTOS
+#  Local Integer LRET
+#  Local Char LSSCC(50)
+#  For I = 0 To [M:YEMP2]YBLIG-1
+#    If [M:YEMP2]TIPO(I) = 2 Then
+#      If PACCION = 1 Then
+#        Call NUMERO_SSCC([M:YPR0]PLANTA,[M:YEMP2]ARTICULO(I),LSSCC,LRET)
+#        # If GUSER = 'NUN05' Then : Infbox "RSULTADO GEN SSCC:" + num$(LRET) : Endif
+#        [M:YEMP2]SSCC(I) = '00' + LSSCC
+#      Elsif PACCION = 0 Then
+#        [M:YEMP2]SSCC(I) = ''
+#      Endif
+#      Affzo [M:YEMP2]SSCC(I)
+#    Else
+#      [M:YEMP2]SSCC(I) = ''
+#      Affzo [M:YEMP2]SSCC(I)
+#    Endif
+#  Next
+End

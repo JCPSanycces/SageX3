@@ -1,0 +1,145 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#################################################
+
+
+Subprog IMPRIME(NBPAR,PARAMETRE)
+Variable    Integer NBPAR
+Variable Char    PARAMETRE()(1..)
+
+Call EXEC(NBPAR,PARAMETRE)
+
+End
+
+######################################################################
+Subprog EXEC(NBPAR,PARAMETRE)
+Variable    Integer NBPAR
+Variable Char    PARAMETRE()(1..)
+
+Local Char    CHART  :  CHART=chr$(1)
+
+Gosub OUVRE
+If GERREUR : GERREUR=0 : End : Endif
+Gosub DECLARE
+[L]CRITERE = "1=1"
+
+Local Char W_REPORT(20)
+Gosub DEFREPORT
+
+For I=1 To NBPAR
+ J=instr(1,[L]PARAMETRE(I),"=")
+ If J
+    [L]PARAM  = left$([L]PARAMETRE(I),J-1)
+    If J<>0 and mid$(PARAMETRE(I),J+1,1)=CHART
+      [L]VALEUR = right$([L]PARAMETRE(I),J+2)
+    Else
+      [L]VALEUR = right$([L]PARAMETRE(I),J+1)
+    Endif
+  Case [L]PARAM
+   When "__REPORT"        : [L]PARAMETRE(I) = "__REPORT="+W_REPORT+".rpt"
+   When "X3ETA"           : [L]ETAT =W_REPORT
+                            [L]PARAMETRE(I) = "X3ETA="+W_REPORT
+   When "__REQUETE"       : [L]NUMREQ = val([L]VALEUR)
+   When "mfgnum"          : [L]CRITERE -= "& MFGNUM>='"+[L]VALEUR+"'"
+   When "numedt"          : [L]PARAMETRE(I) = "numedt="+num$([L]NUMREQ)
+   When "usr"             : [L]PARAMETRE(I) = "usr="+GUSER
+   When "etat"            : [L]PARAMETRE(I) = "etat="+[L]ETAT
+ Endcase
+ Endif
+Next
+Filter [F:MFI] Where evalue([L]CRITERE)
+Gosub TRT_MFI
+
+End
+
+###################################################################
+###################################################################
+$TRT_MFI
+Raz WNUMLIG
+Local Decimal W_NUM
+Local Char W_TSICOD(20)
+Default File [MFM]
+Read [F:MFI]MFI0 First
+
+If !fstat
+   W_NUM=[F:MFI]EXTQTY
+   Read [F:ITM]ITM0=[F:MFI]ITMREF
+   W_TSICOD=[F:ITM]TSICOD(1)
+   #Infbox([F:MFI]ITMREF-W_TSICOD)
+   Filter [ITM] Where TSICOD(1)=W_TSICOD and TCLCOD="LOG"
+   Read [F:ITM]ITM0 First
+   If !fstat
+      Read [F:ZITML]ZITML0=[F:ITM]ITMREF
+      W_NUM=[F:ZITML]QTYETQMOT*GMUL
+      #Infbox("dentro: "-[F:ITM]ITMREF-"cantidad: "-num$([F:ZITML]QTYETQMOT)-"gmul:"-num$(GMUL)-"wnum:"-num$(W_NUM))
+      Gosub TR1
+   Endif
+Endif
+Filter [ITM]
+Filter [MFI]
+Return
+
+##########################################################################
+$TR1
+Trbegin [ARM]
+#Infbox("TR1"-num$(W_NUM))
+
+For WNUMLIG=1 To W_NUM
+  #Infbox("DENTRO:"-num$(W_NUM)-num$(WNUMLIG))
+  Raz [F:ARM]
+  [F:ARM]USR     = GUSER
+  [F:ARM]RPTCOD  = ETAT
+  [F:ARM]NUMREQ  = [L]NUMREQ
+  [F:ARM]NUMLIG  = WNUMLIG
+  [F:ARM]CLEA1   = [F:MFI]MFGNUM
+  [F:ARM]CREDAT  = date$
+  Write [F:ARM]
+  If fstat : GOK = 0 : Call FSTA("ARM") From GLOCK : Goto AB_TR1 : Endif
+Next
+Commit
+Return
+
+$AB_TR1
+Rollback
+Return
+
+$OUVRE
+Local File AREPORTM [ARM], MFGITM [MFI], ZITMLOGO [ZITML], MFGMAT [MFM], ITMMASTER [ITM]
+
+Return
+
+$DECLARE
+Local Char    CRITERE(255), PARAM(30) , VALEUR(30) , ETAT(15)
+Local Integer WNUMLIG, NUMREQ
+Local Date    DATREF
+Return
+
+$DEFREPORT
+
+Local Char W_TSICOD(20)
+Default File [MFI]
+Local Char ORDEN
+If GFONCTION = "GESMFG"
+  ORDEN = [M:MFG0]MFGNUM
+Elsif GFONCTION = "YPRODSANY"
+  ORDEN = [M:YPSA]OF(nolign-1)
+Endif
+
+Filter [F:MFM] Where MFGNUM=ORDEN
+For  [F:MFM]MFM0
+  Read [F:ITM]ITM0=[F:MFM]ITMREF
+   If [F:ITM]TSICOD(2)="MOTOR"
+     W_TSICOD=[F:ITM]TSICOD(2)
+     Filter [ITM] Where TSICOD(2)=W_TSICOD and TCLCOD="LOG"
+     Read [F:ITM]ITM0 First
+     If !fstat
+        Read [F:ZITML]ZITML0=[F:ITM]ITMREF
+        W_REPORT=[F:ZITML]ETQMOTOR
+     Endif
+     Filter [F:ITM]
+  Endif
+Next
+Filter [ITM]
+Filter [MFM]
+W_REPORT = [M]RPTCOD
+
+Return

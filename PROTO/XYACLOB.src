@@ -1,0 +1,22 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-- C.A. ZPR08 Comentarios SOH --> MFG <07/2022>
+$ACTION
+  #--
+  Case ACTION
+    When "INIT"       : Gosub INIT #-- ZPR08
+    When "SORTIE"     : Gosub SORTIE #-- ZPR08
+    When Default
+  Endcase
+Return
+
+#--
+$INIT
+  #--
+   #Call TEMPOFF From GESECRAN
+Return
+
+#--
+$SORTIE
+  #--
+  # Call TEMPON From GESECRAN
+Return
