@@ -1,0 +1,1269 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###########################################################################################################################################
+#
+#@01@: (Y119) NUN14 13-03-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+#@02@ - JLP - 12/07/2024 - Modificación de diferentes campos que escribe el fichero.
+#@03@ - SCD - 26/07/2024 - Modificación de diferentes campos que escribe el fichero.
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+#@05@ - JLP - 22/10/2024 - Incidencia en el envio masivo de INVOICE (22/10/2024)
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero
+#
+###########################################################################################################################################
+
+$ACTION
+Case ACTION
+  When "INIT"         : Gosub INIT              #Al entrar a la función
+  When "AVANT_PAR"    : Gosub AVANT_PAR         #Al entrar a la función
+  When "CONTROLE"     : Gosub CONTROLE          #Al entrar a la función
+  When "AVANT_OUVRE"  : Gosub AVANT_OUVRE       #Al entrar a la función
+  When "OUVRE"        : Gosub OUVRE             #Al entrar a la función
+  When "OUVRE_BOITE"  : Gosub OUVRE_BOITE       #Al entrar a la función
+  When "TITRE"        : Gosub L_TITRE           #Al entrar a la función
+  When "DEBUT"        : Gosub DEBUT             #Al entrar a la función con la ventana abierta
+  When "SETBOUT"      : Gosub SETBOUT           #Al entrar a la función con la ventana abierta y después de cada APRES_MODIF
+  When "AV_CHOIX"     : Gosub AV_CHOIX          #Al entrar a la función con la ventana abierta
+  When "APRES_MODIF"  : Gosub APRES_MODIF       #Después de cada modificación y después de presionar OK
+  When "AP_CHOIX"     : Gosub AP_CHOIX          #Al salir de la función y después de presionar OK
+  When "AVANT_OK"     : Gosub AVANT_OK          #Después de presionar OK
+  When "OK"           : Gosub OK                #Después de presionar OK
+  When "END"          : Gosub L_END             #Al salir de la función
+  When "FIN"          : Gosub FIN               #Al salir de la función y después de presionar OK
+  When "FIN_SAI"      : Gosub FIN_SAI           #Con la ventana ya cerrada, tanto al cerrar como al presionar OK
+  When "EXEC"         : Gosub EXEC              #Con la ventana ya cerrada, tanto al cerrar como al presionar OK
+  When "TERMINE"      : Gosub TERMINE           #Con la ventana ya cerrada, tanto al cerrar como al presionar OK
+  When "SORTIE"       : Gosub SORTIE            #Con la ventana ya cerrada, tanto al cerrar como al presionar OK
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+
+$INIT
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$AVANT_PAR
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$CONTROLE
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$AVANT_OUVRE
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$OUVRE
+    Local Char S_CLIENTE(GLONBPC)
+    Local Char S_DIRCLI(GLONBPA)
+    Local Char C_NOMFIC(30)
+    Local Char C_FICHERO(GDIMFIC)
+    Local Char C_MODELO(10)
+    Local Char C_CARPETA(250)
+    Local Char S_BPCEDICOD(15)
+    Local Char S_BPCGLNCOD(15)
+    Local Char S_BPCEDIFAC(15)
+    Local Char S_CPYEDICOD(15)
+    Local Char S_CRITERE(250)
+    Local Integer WCAL
+    Local Integer I_NDUD
+    Local Integer I_NSVF
+    Local Integer I_NSVAT
+    Local Integer I_FLGSEVDUD
+    Local Integer I_FLGFIELDS
+    Local Decimal LAMTDTO
+    Local Decimal LBASE
+    Local Integer I_OKCAN :
+
+#@01@: (Y119) NUN14 13-03-2024 - INI
+
+    Local Char S_EDICOD_BY(15)
+    Local Char S_EDICOD_DP(15)
+    Local Char S_EDICOD_IV(15)
+    Local Char S_EDICOD_PR(15)
+    Local Char S_EDICOD_BPCINV(15)
+#@01@: (Y119) NUN14 13-03-2024 _ FIN
+
+    If !clalev([F:ZDUD])    : Local File GACCDUDATE [F:ZDUD]   : Endif # Asientos contables
+    If !clalev([F:YEBP])    : Local File EDIBPRPAR  [F:YEBP]   : Endif # Edi por tercero
+    If !clalev([F:YEBP2])    : Local File EDIBPRPAR  [F:YEBP2]   : Endif # Edi por tercero #@01@: (Y119) NUN14 13-03-2024
+    If !clalev([F:YEBP3])    : Local File EDIBPRPAR  [F:YEBP3]   : Endif # Edi por tercero #@02@ -JLP- 16/07/2024
+    If !clalev([F:YEBP4])    : Local File EDIBPRPAR  [F:YEBP4]   : Endif #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+    If !clalev([F:YECP])    : Local File EDICPYPAR  [F:YECP]   : Endif # Edi por tercero
+    If !clalev([F:YSIH])    : Local File SINVOICE   [F:YSIH]   : Endif # Cabecera de facturas de venta
+    If !clalev([F:YSIH2])   : Local File SINVOICE   [F:YSIH2]  : Endif # Cabecera de facturas de venta
+    If !clalev([F:YSIH3])   : Local File SINVOICE   [F:YSIH3]  : Endif # Cabecera de facturas de venta #@02@ -JLP- 18/07/2024
+    If !clalev([F:YSIH4])   : Local File SINVOICE   [F:YSIH4]  : Endif #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+    If !clalev([F:YSIV])    : Local File SINVOICEV  [F:YSIV]   : Endif # Valorización de facturas de venta
+    If !clalev([F:YSID])    : Local File SINVOICED  [F:YSID]   : Endif # Lineas de factura de venta
+    If !clalev([F:YSVF])    : Local File SVCRFOOT   [F:YSVF]   : Endif # Documento ventas - Elt pie
+    If !clalev([F:YSDH])    : Local File SDELIVERY  [F:YSDH]   : Endif # Albarán de venta
+    If !clalev([F:YSOH])    : Local File SORDER     [F:YSOH]   : Endif # Pedido de venta
+    If !clalev([F:YSFI])    : Local File SFOOTINV   [F:YSFI]   : Endif # Elementos facturación
+    If !clalev([F:YSVAT])   : Local File SVCRVAT    [F:YSVAT]  : Endif # Documento ventas - Imp
+    If !clalev([F:YTVAT])   : Local File TABVAT     [F:YTVAT]  : Endif # tipos de impuestos
+    If !clalev([F:YCPY])    : Local File COMPANY    [F:YCPY]   : Endif # Sociedades
+    If !clalev([F:YBPA])    : Local File BPADDRESS  [F:YBPA]   : Endif # Direcciones
+    If !clalev([F:YBPC])    : Local File BPCUSTOMER [F:YBPC]   : Endif # Clientes
+    If !clalev([F:YBPR])    : Local File BPARTNER   [F:YBPR]   : Endif # Terceros
+    If !clalev([F:YITM])    : Local File ITMMASTER  [F:YITM]   : Endif # Artículos
+    If !clalev([F:YITC])    : Local File ITMBPC     [F:YITC]   : Endif # Artículo - Cliente
+
+    If !clalev([F:YPAY]): Local File  PAYMENTH    [F:YPAY] : Endif #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+    If !clalev([F:YPAYD]): Local File  PAYMENTD   [F:YPAYD] : Endif #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+    If !clalev([F:YBPR1]): Local File  BPARTNER   [F:YBPR1] : Endif #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+
+    If GTRACE=''
+        If !GSERVEUR : Call OUVRE_TRACE("Creación factura de venta con formato SERES") From LECFIC : Endif
+    Endif
+
+    [L]I_FLGSEVDUD = 0
+    [L]I_NDUD      = 1
+    [L]I_NSVF      = 1
+    [L]I_NSVAT     = 1
+    [L]I_FLGFIELDS = 0
+    [L]I_OKCAN     = 2  #OK
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$OUVRE_BOITE
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$L_TITRE
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$DEBUT
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$SETBOUT
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$AV_CHOIX
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$APRES_MODIF
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$AP_CHOIX
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$AVANT_OK
+    S_CRITERE = '1=1'
+
+    If [M:YED0]NUMDEB <> ''
+        S_CRITERE += '& [F]NUM >= [M:YED0]NUMDEB'
+        [L]I_FLGFIELDS = 1
+    Endif
+
+    If [M:YED0]NUMFIN <> ''
+        S_CRITERE += '& [F]NUM <= [M:YED0]NUMFIN'
+        [L]I_FLGFIELDS = 1
+    Endif
+
+    If [M:YED0]BPCDEB <> ''
+        S_CRITERE += '& [F]BPR >= [M:YED0]BPCDEB'
+        [L]I_FLGFIELDS = 1
+    Endif
+
+    If [M:YED0]BPCFIN <> ''
+        S_CRITERE += '& [F]BPR <= [M:YED0]BPCFIN'
+        [L]I_FLGFIELDS = 1
+    Endif
+
+    If [M:YED0]DATDEB <> [0/0/0]
+        S_CRITERE += '& [F]ACCDAT >= [M:YED0]DATDEB'
+        [L]I_FLGFIELDS = 1
+    Endif
+
+     If [M:YED0]DATFIN <> [0/0/0]
+        S_CRITERE += '& [F]ACCDAT <= [M:YED0]DATFIN'
+        [L]I_FLGFIELDS = 1
+    Endif
+
+#@01@: (Y119) NUN14 13-03-2024 - INI
+        S_CRITERE += '& [F]SIVTYP <> "RPP"'
+#@01@: (Y119) NUN14 13-03-2024 - FIN
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$OK
+
+    Call ECR_TRACE("#---------------------------------------------CRITERIOS---------------------------------------------#",0) From GESECRAN
+    Call ECR_TRACE("Factura inicio:"-[M:YED0]NUMDEB-"- Factura fin:"-[M:YED0]NUMFIN,0) From GESECRAN
+    Call ECR_TRACE("Cliente inicio:"-[M:YED0]BPCDEB-"- Cliente fin:"-[M:YED0]BPCFIN,0) From GESECRAN
+    Call ECR_TRACE("Fecha inicio  :"-[M:YED0]DATDEB-"- Fecha fin  :"-[M:YED0]DATFIN,0) From GESECRAN
+    Call ECR_TRACE("#---------------------------------------------------------------------------------------------------#",0) From GESECRAN
+
+    If [L]I_FLGFIELDS = 1
+        Filter [F:YSIH2] Where evalue([L]S_CRITERE)
+        For [F:YSIH2]
+            Call ECR_TRACE("Generando fichero SERES para la factura"-[F:YSIH2]NUM,0) From GESECRAN
+            Call FICHERO_SERES([F:YSIH2]NUM)
+            Call ECR_TRACE("#---------------------------------------------------------------------------------------------------#",0) From GESECRAN
+        Next
+    Else
+        Call AVERTIR("Aviso! No se va a tratar ninguna factura", I_OKCAN) From GESECRAN
+        If [L]I_OKCAN = 1
+            FIN = 0
+        Endif
+    Endif
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$L_END
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$FIN
+    If !GSERVEUR
+        Call LEC_TRACE   From LECFIC
+        Call FERME_TRACE From LECFIC
+    Endif
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$FIN_SAI
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$EXEC
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$TERMINE
+Return
+
+
+
+$SORTIE
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$DEFINE_FIC
+    #-- variables de fichero, inicializacion
+    adxifs = ""                      #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+
+    C_CARPETA = "EDI\SINVOICESERES"
+    C_NOMFIC  = PS_NUMFACT
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+    Openo C_FICHERO,0 Using[ZCRE]
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_RECTL
+  Wrseq format$("K:6X","RECTL");                                  Using [ZCRE] #1  Identificador cabecera fichero
+  Wrseq format$("K:6X","INVOIC");                                 Using [ZCRE] #2  Tipo de documento
+
+  Read [F:YECP]ECP0=[F:YSIH]CPY
+  If !fstat
+      [L]S_CPYEDICOD = [F:YECP]EXCEDICOD
+      If [L]S_CPYEDICOD = ''
+          Call ECR_TRACE("La sociedad"-[F:YSIH]CPY-"no esta parametrizada en 'Partners EDI por Sociedad'",0) From GESECRAN
+      Endif
+
+  Endif
+
+  Read [F:YEBP]EBP0 = 1;[F:YSIV]BPCORD;[F:YSIV]BPAADD;"EDICOM"
+  If !fstat
+      [L]S_BPCEDICOD = [F:YEBP]EXCEDICOD
+      [L]S_BPCGLNCOD = [F:YEBP]GLN
+      [L]S_BPCEDIFAC = [F:YEBP]EDIINVCOD
+      [L]S_CLIENTE   = [F:YEBP]BPANUM
+      [L]S_DIRCLI    = [F:YEBP]BPAADD
+      If [L]S_BPCEDICOD = ''
+          Call ECR_TRACE("El tercero"-[F:YSIV]BPCORD-"no esta parametrizada en 'Partners EDI por tercero'",0) From GESECRAN
+      Endif
+
+ #@01@: (Y119) NUN14 13-03-2024 - INI
+
+Call ECR_TRACE (S_BPCEDICOD - S_CLIENTE,0) From GESECRAN
+#      Read [F:YBPC]BPC0 = [L]S_CLIENTE
+#      If !fstat
+#        Read [F:YEBP2]EBP0 = 1;[F:YBPC]BPCINV;[F:YBPC]BPAINV;"EDICOM"
+#        If !fstat
+#          S_EDICOD_BPCINV = [F:YEBP2]EXCEDICOD
+#        Endif
+#        Case [F:YBPC]YINVFORM
+#          When 1:
+#            [L]S_EDICOD_BY = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_DP = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_IV = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_PR = S_EDICOD_BPCINV
+#          When 2:
+#            [L]S_EDICOD_BY = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_DP = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_IV = S_EDICOD_BPCINV
+#            [L]S_EDICOD_PR = S_EDICOD_BPCINV
+#          When 3:
+#            [L]S_EDICOD_BY = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_DP = [F:YEBP]EXCEDICOD
+#            [L]S_EDICOD_IV = S_EDICOD_BPCINV
+#            [L]S_EDICOD_PR = S_EDICOD_BPCINV
+#        Endcase
+#       Endif
+
+      Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+      If !fstat
+        Case [F:YBPC]YINVFORM
+          When 1:
+            Gosub LM_ESPANA
+
+          When 2:
+            Gosub LM_ITALIA
+
+          When 3:
+            Gosub LM_OBI
+        Endcase
+       Endif
+ #@01@: (Y119) NUN14 13-03-2024
+  Endif
+
+#@05@ - JLP - 22/10/2024 - Incidencia en el envio masivo de INVOICE (22/10/2024) - INI
+   Local Char YGLN(30)
+   YGLN = ''
+
+    Read [F:YSIH4]SIH0 = [F:YSIV]NUM
+    Read [F:YEBP]EBP0 = 1;[F:YSIH4]BPR;"001";"EDICOM"
+    If !fstat
+      YGLN = [F:YEBP]GLN
+    Endif
+#@05@ - JLP - 22/10/2024 - Incidencia en el envio masivo de INVOICE (22/10/2024) - FIN
+
+  Wrseq format$("K:35X",[L]S_CPYEDICOD);                          Using [ZCRE] #3 Código EDi del emisor
+#  Wrseq format$("K:35X",[L]S_BPCGLNCOD);                          Using [ZCRE] #4 Código EDI del receptor
+  Wrseq format$("K:35X",YGLN);                          Using [ZCRE] #4 Código EDI del receptor
+  Wrseq format$("K:40X",[F:YSIH]NUM);                             Using [ZCRE] #5 Número de factura
+  Wrseq format$("K:12X",format$("YYYYMMDDhhmm",[F:YSIH]ACCDAT))   Using [ZCRE] #6 Fecha contable de la factura
+#  Wrseq format$("K:4X","0000");                               Using [ZCRE] #--
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCC
+  #--
+  Wrseq format$("K:6X","SINCC");                                  Using [ZCRE] #1 Tipo de registro “SINCC”
+#@01@: (Y119) NUN14 13-03-2024 - INI
+
+ #@01@ VEG - INI
+#  If [F:YSIH]AMTATI >= 0
+#      Wrseq format$("K:6X","380");                                Using [ZCRE] #2 380 factura comercial
+#  Else
+#      Wrseq format$("K:6X","381");                                Using [ZCRE] #2 381 abono
+#  Endif
+  #@01@ VEG - FIN
+
+  Case [F:YSIH]INVTYP
+    When 1 : Wrseq format$("K:6X","380");                                Using [ZCRE] #2 380 Factura Comercial
+    When 2 : Wrseq format$("K:6X","381");                                Using [ZCRE] #2 381 Nota e abono
+    When 3 : Wrseq format$("K:6X","383");                                Using [ZCRE] #2 380 Nota de cargo
+    When 4 : Wrseq format$("K:6X","381");                                Using [ZCRE] #2 381 Nota e abono
+    When 5 : Wrseq format$("K:6X","325");                                Using [ZCRE] #2 325 Factura Pro-Forma
+  Endcase
+#@01@: (Y119) NUN14 13-03-2024 - FIN
+
+
+
+  Wrseq format$("K:17X",[F:YSIH]NUM);                             Using [ZCRE] #3 Número de factura
+#  Wrseq format$("K:6X","9");                                      Using [ZCRE] #4 Función del mensaje (7, 31, 5,43) #@01@: (Y119) NUN14 13-03-2024
+#  Wrseq format$("K:6X","");                                      Using [ZCRE] #4 Función del mensaje (7, 31, 5,43) #@01@: (Y119) NUN14 13-03-2024
+
+# @02@ - JLP - 18/07/2024 - INI - Modificamos el campo segun la version que seleccionan (original/duplicado)
+  If ([F:YSIH3]YSTAEDI = 2) or ([F:YSIH3]YSTAEDI = 1)
+      Wrseq format$("K:6X","9");                                      Using [ZCRE] #4 Función del mensaje (7, 31, 5,43)
+  Else
+      Wrseq format$("K:6X","7");                                      Using [ZCRE] #4 Función del mensaje (7, 31, 5,43)
+  Endif
+# @02@ - JLP - 18/07/2024 - FIN - Modificamos el campo segun la version que seleccionan (original/duplicado)
+
+  Wrseq format$("K:8X",format$("YYYYMMDD",[F:YSIH]ACCDAT));       Using [ZCRE] #5 Fecha de factura
+  Wrseq format$("K:16X","");                                      Using [ZCRE] #6 Fecha de albarán
+  Wrseq format$("K:6X","");                                       Using [ZCRE] #7 Modo de pago                  ¡No debe contener ningún valor (Cambio solicitado por Espe el 20/11/23)!
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+  Wrseq format$("K:3X","");                                       Using [ZCRE] #8 Motivo Abono
+#  Wrseq format$("K:3X",[F:YSIV]CNOREN);                           Using [ZCRE] #8 Motivo Abono
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
+  Wrseq format$("K:3X","");                                       Using [ZCRE] #9 Criterio de modificación
+
+  Read [F:YSID]SID0=[F:YSIH]NUM
+  Read [F:YSIV]SIV0=[F:YSIH]NUM
+
+  Wrseq format$("K:17X",[F:YSIV]INVREF);                          Using [ZCRE] #10 Número pedido del cliente
+
+  #@01@: (Y119) NUN14 13-03-2024 - INI
+#  Wrseq format$("K:17X",[F:YSID]SDHNUM);                          Using [ZCRE] #11 Número de la entrega
+  If [F:YSIV]SIHORI = 3
+    Wrseq format$("K:17X",[F:YSIV]SIHORINUM);                     Using [ZCRE] #11 Número de la entrega
+  Else
+    Wrseq format$("K:17X","");                                    Using [ZCRE] #11 Número de la entrega
+  Endif
+  #@01@: (Y119) NUN14 13-03-2024 - FIN
+
+
+  Wrseq format$("K:3X","");                                       Using [ZCRE] #12 Calificador documento rectificado /sustituido
+  Wrseq format$("K:17X","");                                      Using [ZCRE] #13 Documento rectificado / sustituido
+  Wrseq format$("K:17X","");                                      Using [ZCRE] #14 Número de contrato/acuerdo (CT)
+  Wrseq format$("K:17X","");                                      Using [ZCRE] #15 Número de relación de entrega (REN)
+  Wrseq format$("K:6X",[F:YSIH]CUR);                              Using [ZCRE] #16 Código de moneda
+
+  Filter [F:ZDUD] Where NUM = [F:YSIH]NUM
+  [L]I_FLGSEVDUD = rowcount([F:ZDUD])
+  Filter [F:ZDUD]
+
+  If [L]I_FLGSEVDUD = 1
+      Wrseq format$("K:8X",format$("YYYYMMDD",[F:ZDUD]DUDDAT));   Using [ZCRE] #17 Fecha de vencimiento único
+  Else
+      Wrseq format$("K:8X","");                                   Using [ZCRE] #17 Si existe más de un vencimiento se dejará a cero y los vencimientos se indicarán en el registro SINCV
+  Endif
+
+
+#  Wrseq ctrans(format$("N0:14.3",[F:YSIH]AMTATI),",",".");                      Using [ZCRE] #18 Base bruta
+  Wrseq ctrans(format$("N0:14.3",func GET_CALCULOS([F:YSIH]NUM,18)),",",".");                      Using [ZCRE] #18 Base bruta # @02@ - JLP - Modificacion para que muestre la base bruta de la factura
+# Wrseq ctrans(format$("N0:14.3",[F:YSIH]AMTNOT),",",".");                      Using [ZCRE] #19 Base neta
+  Wrseq ctrans(format$("N0:14.3",func GET_CALCULOS([F:YSIH]NUM,19)),",",".");                      Using [ZCRE] #19 Base neta # @02@ - JLP - Modificacion (base bruta - elem. fact)
+  Wrseq ctrans(format$("N0:14.3",func SUM_GROPRI_DETAIL([F:YSIH]NUM)),",","."); Using [ZCRE] #20 Suma de cantidad * precio de la línea sin aplicar descuentos de línea
+#  Wrseq ctrans(format$("N0:14.3",[F:YSIH]AMTTAX),",",".");                      Using [ZCRE] #21 IVA neto #@01@: (Y119) NUN14 13-03-2024
+#  Wrseq ctrans(format$("N0:14.3",func SUM_SVCRVAT([F:YSIH]NUM)),",",".");       Using [ZCRE] #21 IVA neto #@01@: (Y119) NUN14 13-03-2024
+  Wrseq ctrans(format$("N0:14.3",func GET_CALCULOS([F:YSIH]NUM,21)),",",".");       Using [ZCRE] #21 IVA neto #@02@ -JLP - Modificacion Calculo
+#  Wrseq ctrans(format$("N0:14.3",[F:YSIH]AMTATI),",",".");                      Using [ZCRE] #22 Importe total a pagar ( Base Imponible + Importe Total de Impuestos) #@01@: (Y119) NUN14 13-03-2024
+#  Wrseq ctrans(format$("N0:14.3",-1*func SUM_SVCRFOOT([F:YSIH]NUM)),",",".");                      Using [ZCRE] #22 Importe total a pagar ( Base Imponible + Importe Total de Impuestos) #@01@: (Y119)
+# NUN14 13-03-2024
+  Wrseq ctrans(format$("N0:14.3",func GET_CALCULOS([F:YSIH]NUM,22)),",",".");                      Using [ZCRE] #22 Importe total a pagar ( Base Imponible + Importe Total de Impuestos) #@02@: - JLP-
+# 12/07/24
+
+  Wrseq ctrans(format$("N0:14.3","0"),",",".");                                 Using [ZCRE] #23 Subvenciones vinculadas al precio
+#  Wrseq ctrans(format$("N0:14.3","0"),",",".");                                 Using [ZCRE] #24 Total incrementos del importe bruto
+  Wrseq ctrans(format$("N0:14.3",func SUM_CARGO([F:YSIH]NUM)),",",".");                                 Using [ZCRE] #24 Total incrementos del importe bruto # @02@-JLP-Suma los cargos de la factura
+#  Wrseq ctrans(format$("N0:14.3","0"),",",".");                                 Using [ZCRE] #25 Importe descuentos cabecera
+  Wrseq ctrans(format$("N0:14.3",-1*func SUM_SVCRFOOT([F:YSIH]NUM)),",",".");                                 Using [ZCRE] #25 Importe descuentos cabecera # @02@ -JLP- Modificacion para que muestre el
+# dato en el fichero
+  Wrseq format$("K:16X","");                                                    Using [ZCRE] #26 Periodo imposiciones factura
+
+  Read [F:YSOH]SOH0 = [F:YSID]SOHNUM
+  If !fstat
+      Wrseq format$("K:8X",format$("YYYYMMDD",[F:YSOH]ORDDAT));   Using [ZCRE] #27 Fecha Pedido     ?¿ Estamos usando la fecha contable de la factura... ¿esto estaría bien?
+  Else
+      Wrseq format$("K:8X",format$("YYYYMMDD",[F:YSIH]ACCDAT));   Using [ZCRE] #27 Si no existe Pedido Estamos usando la fecha contable de la factura... ¿esto estaría bien?
+  Endif
+
+  Read [F:YSDH]SDH0 = [F:YSID]SDHNUM
+  If !fstat
+      Wrseq format$("K:12X",format$("YYYYMMDD",[F:YSDH]SHIDAT));  Using [ZCRE] #28 Fecha/hora efectiva del servicio
+  Else
+      Wrseq format$("K:12X","");                                  Using [ZCRE] #28 Fecha/hora efectiva del servicio
+  Endif
+
+  Wrseq format$("K:17X","");                                      Using [ZCRE] #29 Número Confirmación de entrega
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #30
+  Wrseq ctrans(format$("N0:14.3","0"),",",".");                   Using [ZCRE] #31
+  Wrseq format$("K:3X","");                                       Using [ZCRE] #32
+  Wrseq format$("K:8X","");                                       Using [ZCRE] #33
+  Wrseq format$("K:8X","")                                        Using [ZCRE] #34
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCP
+  #--
+  Wrseq format$("K:6X","SINCP");                                  Using [ZCRE] # 1 Tipo de Registro “SINCP”
+  Case WCAL
+    When 1 :
+      Wrseq format$("K:3X","BY");                                 Using [ZCRE] # 2 Calificador del Interlocutor (BY - Comprador)
+      Wrseq format$("K:17X",[L]S_EDICOD_BY);                            Using [ZCRE] # 3 Código Interlocutor #@01@: (Y119) NUN14 13-03-2024
+
+      Read [F:YBPC]BPC0 = [F:YSIV]BPCORD
+      Read [F:YBPR]BPR0 = [F:YSIV]BPCORD
+
+    When 2 :
+      Wrseq format$("K:3X","DP");                                 Using [ZCRE] # 2 Calificador del Interlocutor (DP - Punto destino de la mercancía)
+      Wrseq format$("K:17X",[L]S_EDICOD_DP);                         Using [ZCRE] # 3 Código Interlocutor #@01@: (Y119) NUN14 13-03-2024
+    When 3 :
+      Wrseq format$("K:3X","IV");                                 Using [ZCRE] # 2 Calificador del Interlocutor (IV - A quien se factura)
+      Wrseq format$("K:17X",[L]S_EDICOD_IV);                         Using [ZCRE] # 3 Código Interlocutor #@01@: (Y119) NUN14 13-03-2024
+
+      Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+      Read [F:YBPR]BPR0 = [F:YSIV]BPCINV
+
+    When Default
+  Endcase
+
+  Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;[F:YBPC]BPAADD
+  Read [F:YBPR1]BPR0 = [F:YBPC]BPCNUM  #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+
+  Wrseq format$("K:3X","9");                                      Using [ZCRE] # 4 Tipo Interlocutor (J- Persa. Jurídica / F – Persa. Física / 9 -EDI)
+  Wrseq format$("K:35X",[F:YBPC]BPCNAM);                          Using [ZCRE] # 5 Nombre 1
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 6 Nombre 2
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 7 Nombre 3
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 8 Nombre 4
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 9 Nombre 5
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(0));                    Using [ZCRE] # 10 Dirección 1 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(1));                    Using [ZCRE] # 11 Dirección 2 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(2));                    Using [ZCRE] # 12 Dirección 3 (Calle + Número)
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 13 Dirección 4 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]CTY);                             Using [ZCRE] # 14 Ciudad
+  Wrseq format$("K:9X","");                                       Using [ZCRE] # 15 Provincia
+  Wrseq format$("K:9X",[F:YBPA]POSCOD);                           Using [ZCRE] # 16 Código postal
+  Wrseq format$("K:3X","");                          Using [ZCRE] # 17 Código País #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - INI
+  Wrseq format$("K:35X",[F:YBPR1]EECNUM);                             Using [ZCRE] # 18 NIF
+#  Wrseq format$("K:35X",[F:YBPR]CRN);                             Using [ZCRE] # 18 NIF
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 19 Código Adicional
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 20 Función de contacto
+  Wrseq format$("K:17X","");                                      Using [ZCRE] # 21 Código departamento o empleado
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 22 Nombre departamento o empleado
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 23 Teléfono
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 24 Fax
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 25 Número de cuenta bancaria (IBAN)
+  Wrseq format$("K:70X","");                                      Using [ZCRE] # 26 Registro Mercantil del emisor
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 27 Capital Social
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 28 Calificador referencia adicional
+  Wrseq format$("K:35X","")                                       Using [ZCRE] # 29 Referencia adicional
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCP_PR
+
+  Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+  If !fstat
+    Case [F:YBPC]YINVFORM
+      When 1:
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - INI
+        Read [F:YEBP4]EBP1 = "EDICOM";1;[F:YSIV]BPCINV;"001"
+          [L]S_EDICOD_PR = [F:YEBP4]GLN
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - FIN
+      When 2:
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - INI
+        Read [F:YEBP4]EBP1 = "EDICOM";1;[F:YSIV]BPCINV;"001"
+          [L]S_EDICOD_PR = [F:YEBP4]GLN
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - FIN
+      When 3:
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - INI
+        Read [F:YEBP4]EBP1 = "EDICOM";1;[F:YSIV]BPCINV;"001"
+          [L]S_EDICOD_PR = [F:YEBP4]GLN
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - FIN
+    Endcase
+   Endif
+
+
+  Wrseq format$("K:6X","SINCP");                                  Using [ZCRE] # 1 Tipo de Registro “SINCP”
+  Wrseq format$("K:3X","PR");                                     Using [ZCRE] # 2 Calificador del Interlocutor (PR - Pagador (Quien Paga))
+#  Wrseq format$("K:17X",[L]S_BPCEDIFAC);                          Using [ZCRE] # 3 Código Interlocutor  #@01@: (Y119) NUN14 13-03-2024
+  Wrseq format$("K:17X",[L]S_EDICOD_PR);                          Using [ZCRE] # 3 Código Interlocutor  #@01@: (Y119) NUN14 13-03-2024
+
+  Read [F:YBPC]BPC0 = [F:YSIH]BPRPAY
+  Read [F:YBPR]BPR0 = [F:YSIH]BPRPAY
+  Read [F:YBPA]BPA0 = 1;[F:YBPC]BPCNUM;[F:YBPC]BPAADD
+
+  Wrseq format$("K:3X","9");                                      Using [ZCRE] # 4 Tipo Interlocutor (J- Persa. Jurídica / F – Persa. Física / 9 -EDI)
+  Wrseq format$("K:35X",[F:YBPC]BPCNAM);                          Using [ZCRE] # 5 Nombre 1
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 6 Nombre 2
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 7 Nombre 3
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 8 Nombre 4
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 9 Nombre 5
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(0));                    Using [ZCRE] # 10 Dirección 1 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(1));                    Using [ZCRE] # 11 Dirección 2 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(2));                    Using [ZCRE] # 12 Dirección 3 (Calle + Número)
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 13 Dirección 4 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]CTY);                             Using [ZCRE] # 14 Ciudad
+  Wrseq format$("K:9X","");                                       Using [ZCRE] # 15 Provincia
+  Wrseq format$("K:9X",[F:YBPA]POSCOD);                           Using [ZCRE] # 16 Código postal
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 17 Código País #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - INI
+  Wrseq format$("K:35X",[F:YBPR]EECNUM);                             Using [ZCRE] # 18 NIF
+#  Wrseq format$("K:35X",[F:YBPR]CRN);                             Using [ZCRE] # 18 NIF
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 19 Código Adicional
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 20 Función de contacto
+  Wrseq format$("K:17X","");                                      Using [ZCRE] # 21 Código departamento o empleado
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 22 Nombre departamento o empleado
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 23 Teléfono
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 24 Fax
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 25 Número de cuenta bancaria (IBAN)
+  Wrseq format$("K:70X","");                                      Using [ZCRE] # 26 Registro Mercantil del emisor
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 27 Capital Social
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 28 Calificador referencia adicional
+  Wrseq format$("K:35X","")                                       Using [ZCRE] # 29 Referencia adicional
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCP_SU
+  Wrseq format$("K:6X","SINCP");                                  Using [ZCRE] # 1 Tipo de Registro “SINCP”
+  Wrseq format$("K:3X","SU");                                     Using [ZCRE] # 2 Calificador del Interlocutor (SU - Proveedor)
+  Wrseq format$("K:17X",[L]S_CPYEDICOD);                          Using [ZCRE] # 3 Código Interlocutor
+  Wrseq format$("K:3X","9");                                       Using [ZCRE] # 4 Tipo Interlocutor (J- Persa. Jurídica / F – Persa. Física / 9 -EDI)
+  Wrseq format$("K:35X",[F:YCPY]CPYNAM);                          Using [ZCRE] # 5 Nombre 1
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 6 Nombre 2
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 7 Nombre 3
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 8 Nombre 4
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 9 Nombre 5
+
+  Read [F:YBPA]BPA0 = 2;[F:YCPY]CPY;[F:YCPY]BPAADD
+  Read [F:YBPR1]BPR0 = [F:YSIV]BPCORD  #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(0));                    Using [ZCRE] # 10 Dirección 1 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(1));                    Using [ZCRE] # 11 Dirección 2 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]BPAADDLIG(2));                    Using [ZCRE] # 12 Dirección 3 (Calle + Número)
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 13 Dirección 4 (Calle + Número)
+  Wrseq format$("K:35X",[F:YBPA]CTY);                             Using [ZCRE] # 14 Ciudad
+  Wrseq format$("K:9X","");                                       Using [ZCRE] # 15 Provincia
+  Wrseq format$("K:9X",[F:YBPA]POSCOD);                           Using [ZCRE] # 16 Código postal
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 17 Código País #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit - INI
+  Wrseq format$("K:35X",[F:YCPY]EECNUM);                             Using [ZCRE] # 18 NIF
+#  Wrseq format$("K:35X",[F:YCPY]CRN);                             Using [ZCRE] # 18 NIF
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 19 Código Adicional
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 20 Función de contacto
+  Wrseq format$("K:17X","");                                      Using [ZCRE] # 21 Código departamento o empleado
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 22 Nombre departamento o empleado
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 23 Teléfono
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 24 Fax
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 25 Número de cuenta bancaria (IBAN)
+  Wrseq format$("K:70X","");                                      Using [ZCRE] # 26 Registro Mercantil del emisor
+  Wrseq format$("K:35X","");                                      Using [ZCRE] # 27 Capital Social
+  Wrseq format$("K:3X","");                                       Using [ZCRE] # 28 Calificador referencia adicional
+  Wrseq format$("K:35X","")                                       Using [ZCRE] # 29 Referencia adicional
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCV
+
+  Filter [F:ZDUD] Where NUM = [F:YSIH]NUM
+  For[F:ZDUD]
+      Wrseq format$("K:6X","SINCV");                             Using [ZCRE] # 1 Tipo de Registro “SINCV”
+      Wrseq format$("N0:6",[L]I_NDUD);                           Using [ZCRE] # 2 Número de vencimientos
+      Wrseq format$("K:8X",format$("YYYYMMDDhhmm",[F:ZDUD]DUDDAT));                      Using [ZCRE] # 3 Fecha de vencimiento
+#      Wrseq format$("K:8X",FECH_V);                              Using [ZCRE] # 3 Fecha de vencimiento
+      Wrseq ctrans(format$("N0:14.3",[F:ZDUD]AMTCUR),",",".")    Using [ZCRE] # 4 Importe sujeto al vencimiento
+      Gosub ECR_SINCD
+
+      [L]I_NDUD += 1
+  Next
+  Filter [F:ZDUD]
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCD
+
+  Filter [F:YSVF] Where VCRNUM = [F:YSIH]NUM and VCRTYP = 4
+  For [F:YSVF]
+      Wrseq format$("K:6X","SINCD");                             Using [ZCRE] # 1 Tipo de Registro “SINCD”
+      Wrseq format$("K:2X",num$([L]I_NSVF));                     Using [ZCRE] # 2 Número Descuento/Cargo
+
+      Read [F:YSFI]SFI0 = [F:YSVF]DTA
+      If !fstat
+          If [F:YSFI]INCDCR = 1    #Cargo = 1
+              Wrseq format$("K:1X","C");                         Using [ZCRE] # 3 Indicador Descuento/Cargo (A descuento / C cargo)
+          Else                    #Descuento = 2
+              Wrseq format$("K:1X","A");                         Using [ZCRE] # 3 Indicador Descuento/Cargo (A descuento / C cargo)
+          Endif
+      Endif
+
+      Wrseq format$("K:3X","1");                                 Using [ZCRE] # 4 Indicador Secuencia de cálculo (Tendrá valor “1” si aplicamos el descuento sobre la primera base imponible.
+                                                                                       #   Si sobre la base resultante se aplica otro descuento se grabaran con valor “2” y así sucesivamente.)
+      Wrseq ctrans(format$("N0:4.4",[F:YSVF]DTAAMT),",",".");    Using [ZCRE] # 5 Porcentaje Descuento/Cargo
+# @06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+      Wrseq ctrans(format$("N0:14.3",abs([F:YSVF]DTANOT)),",",".");   Using [ZCRE] # 6 Importe Descuento/Cargo
+#      Wrseq ctrans(format$("N0:14.3",[F:YSVF]DTANOT),",",".");   Using [ZCRE] # 6 Importe Descuento/Cargo
+# @06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
+      Wrseq ctrans(format$("N0:14.3",0),",",".");                Using [ZCRE] # 7 Importe Total Sujeto a Aplicación
+      Wrseq ctrans(format$("N0:12.3",0),",",".");                Using [ZCRE] # 8 Cantidad de Unidades que se descuentan por Línea
+      Wrseq format$("K:6X","");                                  Using [ZCRE] # 9 Tipo Descuento (EAB,TD,FC,PC,SH)                         ?¿¿?¿?De donde lo saco??
+      Wrseq ctrans(format$("N0:15.3",0),",",".");                Using [ZCRE] # 10 Descuentos Monetarios por Unidad
+      Wrseq format$("K:6X","");                                  Using [ZCRE] # 11 Unidad de Medida
+      Wrseq format$("K:35X","")                                  Using [ZCRE] # 12 Descripción de Descuento/Cargo
+
+      [L]I_NSVF += 1
+  Next
+  Filter [F:YSVF]
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCL
+
+  Read [F:YITM]ITM0 = [F:YSID]ITMREF
+  If !fstat
+      Wrseq format$("K:6X","SINCL");                             Using [ZCRE] # 1  Tipo de Registro “SINCL”
+#      Wrseq format$("N:6",num$([F:YSID]SIDLIN/1000));            Using [ZCRE] # 2  Número de línea
+      Wrseq format$("K:6",num$([F:YSID]SIDLIN/1000));            Using [ZCRE] # 2  Número de línea # @02@ - JLP - Modificación para que muestre el numero de linea
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+  If left$([F:YITM]ITMREF,2) = 'T_'
+      Wrseq format$("K:15X",func EAN_ARTICULO_T_([F:YITM]ITMREF));Using [ZCRE] # 3  Código Artículo
+  Else
+      Wrseq format$("K:15X",[F:YITM]EANCOD);                     Using [ZCRE] # 3  Código Artículo
+  Endif
+#      Wrseq format$("K:15X",[F:YITM]EANCOD);                     Using [ZCRE] # 3  Código Artículo
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
+      Wrseq format$("K:35X",[F:YSID]ITMDES);                     Using [ZCRE] # 4  Descripción del Articulo
+      Wrseq format$("K:1X","M");                                 Using [ZCRE] # 5  Tipo Articulo (Corresponde al elemento 7081. Valores posibles: M-Mercancía,S-Servicio,C-Material Consignado)
+# ?¿?¿??¿?¿?¿
+      Wrseq format$("K:15X","");                                 Using [ZCRE] # 6  Código Interno Articulo Proveedor (SA)
+
+      Read [F:YITC]ITU0 = [F:YITM]ITMREF;[F:YSID]BPCINV
+      If !fstat
+          Wrseq format$("K:15X",[F:YITC]ITMREFBPC);              Using [ZCRE] # 7  Código Interno Articulo Cliente (IN)
+      Else
+          Call ECR_TRACE("No existe el artículo-cliente",0) From GESECRAN
+          Wrseq format$("K:15X","");                             Using [ZCRE] # 7  Código Interno Articulo Cliente (IN)
+      Endif
+
+      Wrseq format$("K:15X","");                                 Using [ZCRE] # 8  Código Variable Promocional (PV)
+      Wrseq format$("K:15X","");                                 Using [ZCRE] # 9  Código Unidad de Expedición (EN)
+      Wrseq format$("K:15X","");                                 Using [ZCRE] # 10 Número de Lote (BN)
+      Wrseq ctrans(format$("N0:12.3",[F:YSID]QTY),",",".");      Using [ZCRE] # 11 Cantidad Facturada (47)
+      Wrseq ctrans(format$("N0:12.3",0),",",".");                Using [ZCRE] # 12 Cantidad Bonificada (15E)
+      Wrseq format$("K:6X","");                                  Using [ZCRE] # 13 Unidad de Medida
+#      Wrseq ctrans(format$("N0:12.3",0),",",".");                Using [ZCRE] # 14 Unidades Entregadas
+      Wrseq ctrans(format$("N0:12.3",num$(func GET_UENTREGADA([F:YSID]SDHNUM,[F:YSID]ITMREF))),",",".");                Using [ZCRE] # 14 Unidades Entregadas # @02@ - JLP - Modificación para que
+# muestre la cantidad entregada
+      Wrseq ctrans(format$("N0:12.3",0),",",".");                Using [ZCRE] # 15 Número Unidades de Consumo en U. Expedición
+      Wrseq ctrans(format$("N0:14.3",[F:YSID]AMTNOTLIN),",",".");Using [ZCRE] # 16 Importe Total Neto de la Línea de Articulo
+      Wrseq ctrans(format$("N0:11.4",[F:YSID]GROPRI),",",".");   Using [ZCRE] # 17 Precio Bruto Unitario
+      Wrseq ctrans(format$("N0:11.4",[F:YSID]NETPRI),",",".");   Using [ZCRE] # 18 Precio Neto Unitario
+      Wrseq format$("K:6X","");                                  Using [ZCRE] # 19 Unidad de Medida del Precio
+      If [F:YSID]VACITM(0) = 'NOR' Then
+        Wrseq format$("K:6X","VAT");                             Using [ZCRE] # 20 Calificador IVA/IGIG
+      Elsif [F:YSID]VACITM(0) = "CAN" Then
+        Wrseq format$("K:6X","IGI");                             Using [ZCRE] # 20 Calificador IVA/IGIG
+      Endif
+
+      Wrseq ctrans(format$("N0:3.2",[F:YSID]RATTAXLIN),",","."); Using [ZCRE] # 21 % Impuesto IVA/IGIG
+#      Wrseq ctrans(format$("N0:14.3",0),",",".");                Using [ZCRE] # 22 Importe Impuesto IVA/IGIG
+      Wrseq format$("K:18X","");                                 Using [ZCRE] # 22 Importe Impuesto IVA/IGIG
+      Wrseq ctrans(format$("N0:3.2",0),",",".");                 Using [ZCRE] # 23 % recergo equivalencia
+#      Wrseq ctrans(format$("N0:14.3",0),",",".");                Using [ZCRE] # 24 Importe Recargo de Equivalencia
+      Wrseq format$("K:18X","");                                 Using [ZCRE] # 24 Importe Recargo de Equivalencia
+      Wrseq format$("K:6X","");                                  Using [ZCRE] # 25 Calificador Otro Tipo de Impuesto
+      Wrseq ctrans(format$("N0:3.2",0),",",".");                 Using [ZCRE] # 26 % Otro Tipo de Impuesto
+      Wrseq ctrans(format$("N0:14.3",0),",",".");                Using [ZCRE] # 27 Importe Otro Tipo de Impuesto
+      Wrseq format$("K:17X","");                                 Using [ZCRE] # 28 Número Pedido (ON) -- debe estar en blanco dado que no hacemos facturas “recapitulativas”
+      Wrseq format$("K:17X","");                                 Using [ZCRE] # 29 Número de Albarán (DQ)
+      Wrseq ctrans(format$("N0:8",0),",",".");                   Using [ZCRE] # 30 Número de Embalajes
+      Wrseq format$("K:7X","");                                  Using [ZCRE] # 31 Tipo de Embalaje
+#      Wrseq ctrans(format$("N0:14.3",[F:YSID]BASTAXLIN),",",".");Using [ZCRE] # 32 Importe total bruto de la línea de detalle
+      Wrseq ctrans(format$("N0:14.3",[F:YSID]GROPRI*[F:YSID]QTY),",",".");Using [ZCRE] # 32 Importe total bruto de la línea de detalle # @02@-JLP-Modificacion (Peso bruto * cant)
+      Wrseq ctrans(format$("N0:6",""),",",".");                  Using [ZCRE] # 33 numero de linea superior
+      Wrseq ctrans(format$("N0:6",""),",",".");                  Using [ZCRE] # 34 Número de línea del pedido (ON)
+      Wrseq ctrans(format$("N0:6.3",""),",",".");                Using [ZCRE] # 35 Unidad base precio
+      Wrseq format$("K:15X","");                                 Using [ZCRE] # 36 Identificador producto/línea pedido (MP)
+      Wrseq format$("K:15X","");                                 Using [ZCRE] # 37 Categoría Producto (GB)
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+  If left$([F:YITM]ITMREF, 2) = 'T_'
+      Wrseq format$("K:35X",func EAN_ARTICULO_T_([F:YITM]ITMREF));Using [ZCRE] # 38 Número artículo fabricante (MF)
+  Else
+      Wrseq format$("K:35X",[F:YITM]EANCOD);                     Using [ZCRE] # 38 Número artículo fabricante (MF)
+  Endif
+#      Wrseq format$("K:35X",[F:YITM]EANCOD);                     Using [ZCRE] # 38 Número artículo fabricante (MF)
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
+      Wrseq format$("K:17X","");                                 Using [ZCRE] # 39
+      Wrseq ctrans(format$("N0:6",0),",",".");                   Using [ZCRE] # 40
+      Wrseq format$("K:8X","");                                  Using [ZCRE] # 41
+      Wrseq format$("K:8X","");                                  Using [ZCRE] # 42
+      Wrseq ctrans(format$("N0:14.3",0),",",".");                Using [ZCRE] # 43
+      Wrseq ctrans(format$("N0:14.3",0),",",".");                Using [ZCRE] # 44
+      Wrseq format$("K:140X","");                                Using [ZCRE] # 45
+      Wrseq format$("K:18X","");                                 Using [ZCRE] # 47
+      Wrseq format$("K:3X","")                                   Using [ZCRE] # 48
+  Else
+      Call ECR_TRACE("El artículo"-[F:YSID]ITMREF-"no se ha encontrado y no se ha podido procesar la línea",1) From GESECRAN
+  Endif
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCE
+  LBASE = [F:YSID]QTYSTU*[F:YSID]GROPRI
+
+  For WCAL = 1 To 4
+    If evalue("[F:YSID]DISCRGVAL"+num$(WCAL)) <> 0 Then
+      Wrseq format$("K:6X","SINCE");                                                    Using [ZCRE] #1 TIPO DE REGISTRO “SINCE”  C 6 1 M
+      Wrseq format$("K:2",num$(WCAL));                                                  Using [ZCRE] #2 NÚMERO DE DESCUENTO/CARGO N 2 7 M
+      Wrseq format$("K:1X","A");                                                        Using [ZCRE] #3 INDICADOR DE DESCUENTO/CARGO  C 1 9 M
+#      Wrseq format$("K:3X","1");                                                        Using [ZCRE] #4 INDICADOR SECUENCIA DE CALCULO  C 3 10  M
+      Wrseq format$("K:3X",num$(WCAL));                                                 Using [ZCRE] #4 INDICADOR SECUENCIA DE CALCULO  C 3 10  M # @02@-JLP-MODIFICACION (SECUENCIA CALCULO)
+      Wrseq ctrans(format$("N0:4.4",evalue("[F:YSID]DISCRGVAL"+num$(WCAL))),",",".");   Using [ZCRE] #5 PORCENTAJE DESCUENTO/CARGO  N(4,4)  9 13  O
+      LAMTDTO = LBASE - (LBASE * evalue("[F:YSID]DISCRGVAL"+num$(WCAL))/100)
+
+      Wrseq ctrans(format$("N0:14.3",LBASE - LAMTDTO),",",".");                         Using [ZCRE] #6 IMPORTE DESCUENTO/CARGO N(14,3) 18  22  O
+#      Wrseq ctrans(format$("N0:14.3",ar2(LAMTDTO)),",",".")                             Using [ZCRE] #7 IMPORTE TOTAL SUJETO A APLICACIÓN N(14,3) 18  40  O
+      Wrseq ctrans(format$("N0:14.3",ar2(LBASE)),",",".")                               Using [ZCRE] #7 IMPORTE TOTAL SUJETO A APLICACIÓN N(14,3) 18  40  O # @02@-JLP-MUESTRA IMPORTE AL QUE APLICAR
+# DESC
+      LBASE = LAMTDTO
+    Endif
+
+  Next
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$ECR_SINCI
+  Filter [F:YSVAT] Where VCRNUM = [F:YSIH]NUM
+  For [F:YSVAT]
+      Wrseq format$("K:6X","SINCI");                                                    Using [ZCRE]     #1  Tipo de Registro “SINCI”
+#      Wrseq format$("N0:2",num$(I_NSVAT));                                              Using [ZCRE]     #2  Número de línea de impuesto #@01@: (Y119) NUN14 13-03-2024
+#      Wrseq format$("N:2",num$(I_NSVAT));                                              Using [ZCRE]     #2  Número de línea de impuesto #@01@: (Y119) NUN14 13-03-2024
+      Wrseq format$("K:2",num$(I_NSVAT));                                              Using [ZCRE]     #2  Número de línea de impuesto #@02@-JLP-Modificacion para que el campo aparezca en su posicion
+
+      Read [F:YTVAT]TVT1=[F:YSVAT]VAT
+      If !fstat
+#@01@: (Y119) NUN14 13-03-2024 - INI
+#          If [F:YTVAT]VATVAC = 'CAN' or [F:YTVAT]VATVAC = 'CAI'
+#              Wrseq ctrans(format$("K:6X","IGI"),",",".");                              Using [ZCRE]     #3  Calificador Tipo de Impuesto
+#          Elsif [F:YTVAT]VATVAC = ''
+#              Wrseq ctrans(format$("K:6X","VAT"),",",".");                              Using [ZCRE]     #3  Calificador Tipo de Impuesto
+#          Endif
+        Case [F:YTVAT]VATVAC
+          When 'CAN' Then Wrseq format$("K:6X","IGI");                                     Using [ZCRE]
+          When 'CAI' Then Wrseq format$("K:6X","IGI");                                     Using [ZCRE]
+          When 'CEE' Then Wrseq format$("K:6X","VAT");                                     Using [ZCRE]
+          When 'EXE' Then Wrseq format$("K:6X","EXT");                                     Using [ZCRE]
+          When 'EXP' Then Wrseq format$("K:6X","VAT");                                     Using [ZCRE]
+          When 'ISP' Then Wrseq format$("K:6X","IPS");                                     Using [ZCRE]
+          When 'NAC' Then Wrseq format$("K:6X","VAT");                                     Using [ZCRE]
+          When 'REQ' Then Wrseq format$("K:6X","RE");                                     Using [ZCRE]
+          When Default Then Wrseq format$("K:6X","VAT");                                     Using [ZCRE]
+        Endcase
+#@01@: (Y119) NUN14 13-03-2024 - FIN
+
+      Else
+          Call ECR_TRACE("No existe el impuesto"-[F:YSVAT]VAT-"en la tabla de impuestos",0) From GESECRAN
+          Wrseq ctrans(format$("K:6X",""),",",".");                                     Using [ZCRE]     #3  Calificador Tipo de Impuesto
+      Endif
+
+      Wrseq ctrans(format$("N0:3.2",[F:YSVAT]VATRAT),",",".");                          Using [ZCRE]     #4  % Tipo de Impuesto
+      Wrseq ctrans(format$("N0:14.3",[F:YSVAT]AMTTAX),",",".");                         Using [ZCRE]     #5  Importe Tipo de Impuesto
+      Wrseq ctrans(format$("N0:14.3",[F:YSVAT]BASTAX),",",".")                          Using [ZCRE]     #6  Base Imponible
+
+      I_NSVAT += 1
+  Next
+  Filter [F:YSVAT]
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           SUBPROG                                                 #
+#---------------------------------------------------------------------------------------------------#
+
+Subprog FICHERO_SERES(PS_NUMFACT)
+Value Char PS_NUMFACT
+
+    Gosub OUVRE
+
+    Read [F:YSIH]SIH0=PS_NUMFACT
+    If fstat
+        Call ECR_TRACE("La factura"-PS_NUMFACT-"no se ha encontrado en facturas de venta",1) From GESECRAN
+        Goto ERROR
+#@01@: (Y119) NUN14 13-03-2024 - INI
+    Else
+      If [F:YSIH]SIVTYP = 'RPP' or  [F:YSIH]SIVTYP = 'ABR'
+        Call ECR_TRACE("La factura "-PS_NUMFACT-" es de tipo RPP" - [F:YSIH]SIVTYP,1) From GESECRAN
+        Goto ERROR
+      Endif
+#@01@: (Y119) NUN14 13-03-2024 - FIN
+    Endif
+
+    Read [F:YSIV]SIV0 = [F:YSIH]NUM
+    If fstat
+        Call ECR_TRACE("La tabla de valorización de la factura"-PS_NUMFACT-"está vacía",1) From GESECRAN
+        Goto ERROR
+    Endif
+
+    Read [F:YCPY]CPY0 = [F:YSIH]CPY
+    If fstat
+        Call ECR_TRACE("La sociedad"-[F:YSIH]CPY-"no existe",1) From GESECRAN
+        Goto ERROR
+    Endif
+
+# @02@ - JLP - INI - Control para ver si el tercero gestiona EDI
+    Read [F:YSIH3]SIH0 = PS_NUMFACT
+    Read [F:YEBP3]EBP0 = 1;[F:YSIH3]BPR;[F:YSIH3]BPAINV;"EDICOM"
+    If fstat
+      Call ECR_TRACE("El cliente facturado "-[F:YSID]BPCINV-" no gestiona EDI",1) From GESECRAN
+      Goto ERROR
+    Endif
+# @02@ - JLP - FIN - Control para ver si el tercero gestiona EDI
+
+# @02@ - JLP - 18/07/2024 - INI - CONTROL PARA ENVIAR LA FACTURA
+    Read [F:YSIH3]SIH0 = PS_NUMFACT
+    If ([F:YSIH3]YSTAEDI = 2 or [F:YSIH3]YSTAEDI = 3)
+        Local Integer YN : YN = 2
+        Local Integer OPC
+        Call OUINON("Factura "+PS_NUMFACT+" ya enviada, ¿desea enviarla de nuevo?", YN) From GESECRAN
+            If (YN = 2)
+              Selbox "Original","Duplicado" Titled "¿Cual desea enviar?" Using OPC
+                Case OPC
+                    When 1
+                        [F:YSIH3]YSTAEDI = 2
+                        Rewrite [F:YSIH3]
+                    When 2
+                        [F:YSIH3]YSTAEDI = 3
+                        Rewrite [F:YSIH3]
+                    When Default
+                        End
+                Endcase
+            Else
+              End # FINALIZO
+            Endif
+    Else
+      [F:YSIH3]YSTAEDI = 2
+      Rewrite [F:YSIH3]
+    Endif
+# @02@ - JLP - 18/07/2024 - FIN - CONTROL PARA ENVIAR LA FACTURA
+
+    Call ECR_TRACE("Procesando factura:"-PS_NUMFACT,0) From GESECRAN
+    Gosub DEFINE_FIC
+    Gosub ECR_RECTL             #-- identificacion del mensaje
+    Gosub ECR_SINCC             #-- cabecera
+    For WCAL = 1 To 3
+        Gosub ECR_SINCP         #-- informacion sobre las partes de la factura
+    Next
+    Gosub ECR_SINCP_PR
+    Gosub ECR_SINCP_SU
+#    If [L]I_FLGSEVDUD > 1
+    If [L]I_FLGSEVDUD > 0
+        Gosub ECR_SINCV
+    Endif
+
+#-- lineas
+    Filter [F:YSID] Where NUM = [F:YSIH]NUM
+#    For [F:YSID]
+    For [F:YSID] Where [F:YSID]LINTYP <> 3 and [F:YSID]LINTYP <> 6 #@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3)
+        Gosub ECR_SINCL
+        Gosub ECR_SINCE         #-- descuentos o cargos a nivel de linea
+    Next
+    Filter [F:YSID]
+
+    Gosub ECR_SINCI
+
+    Openo Using[ZCRE]
+    Call ECR_TRACE("Factura"-PS_NUMFACT-"generada correctamente",0) From GESECRAN
+
+    $ERROR
+    If [V]GFONCTION<>'YFACTSERES'
+        Gosub FIN
+    Endif
+
+End
+
+#---------------------------------------------------------------------------------------------------#
+#                                           FUNCTION                                                #
+#---------------------------------------------------------------------------------------------------#
+
+Funprog SUM_GROPRI_DETAIL(PS_NUM)
+Value Char PS_NUM()
+Local Decimal RF_SUM_GROPRI : [L]RF_SUM_GROPRI = 0
+
+If clalev([F:YSIDE])=0 : Local File SINVOICED [YSIDE] : Endif
+
+Filter [F:YSIDE] Where NUM = PS_NUM
+For [F:YSIDE]
+  [L]RF_SUM_GROPRI += [F:YSIDE]QTYSTU*[F:YSIDE]GROPRI
+Next
+Filter [F:YSIDE]
+
+End RF_SUM_GROPRI
+
+
+
+#@01@: (Y119) NUN14 13-03-2024 - INI
+Funprog SUM_SVCRVAT(PS_NUM)
+  Value Char PS_NUM()
+  Local Decimal SV_SUM : [L]SV_SUM = 0
+  If clalev([F:YSVC])=0 : Local File SVCRVAT [YSVC] : Endif
+  For [F:YSVC] Where [F:YSVC]VCRNUM = PS_NUM
+    [L]SV_SUM += [F:YSVC]VATAMT
+  Next
+
+End [L]SV_SUM
+
+Funprog SUM_SVCRFOOT(PS_NUM)
+  Value Char PS_NUM()
+  Local Decimal SV_SUM : [L]SV_SUM = 0
+  If clalev([F:YSVF])=0 : Local File SVCRFOOT [YSVF] : Endif
+#@03@ - SCD - 26/07/2024 - INI
+  If clalev([F:YSFT])=0 : Local File SFOOTINV [YSFT] : Endif
+
+  For [F:YSVF] Where [F:YSVF]VCRNUM = PS_NUM
+    Read [F:YSFT]SFI0 = [F:YSVF]DTA
+    If !fstat
+      If [F:YSFT]AMTCOD = 1 and [F:YSFT]INCDCR = 2
+        [L]SV_SUM += [F:YSVF]DTANOT
+      Endif
+    Endif
+  Next
+#@03@ - SCD - 26/07/2024 - FIN
+End [L]SV_SUM
+
+Funprog GET_REF_SOH(PS_NUM, PI_TYP, PS_ORINUM)
+  Value Char PS_NUM()
+  Value Integer PI_TYP()
+  Value Char PS_ORINUM()
+
+  Local Char SDH_NUM :  [L]SDH_NUM=''
+
+  Local Char REF : [L]REF = ''
+  If PI_TYP = 1
+    If clalev([F:YSOH])=0 : Local File SORDER [YSOH] : Endif
+    If !fstat
+      Read [F:YSOH]SOH0 = PS_ORINUM
+      If !fstat
+        [L]REF = [F:YSOH]CUSORDREF
+      Endif
+    Endif
+  Else
+    If PI_TYP = 6
+      Read [F:YSRE]SRH0 = PS_ORINUM
+      If !fstat
+        SDH_NUM = [F:YSRE]SDHNUM
+      Endif
+    Elsif PI_TYP = 3
+        SDH_NUM = PS_ORINUM
+    Endif
+
+    If clalev([F:YSOQ])=0 : Local File SORDERQ [YSOQ] : Endif
+    If clalev([F:YSOH])=0 : Local File SORDER [YSOH] : Endif
+    If clalev([F:YSRE])=0 : Local File SRETURN [YSRE] : Endif
+
+    Filter [F:YSOQ] Where [F:YSOQ]SDHNUM = SDH_NUM
+      Read [F:YSOQ] First
+      If !fstat
+        Read [F:YSOH]SOH0 = [F:YSOQ]SOHNUM
+        If !fstat
+            [L]REF = [F:YSOH]CUSORDREF
+        Endif
+      Endif
+    Filter [F:YSOQ]
+  Endif
+
+End [L]REF
+
+#@01@: (Y119) NUN14 13-03-2024 - FIN
+
+# @02@ - JLP - 12/07/2024 - INI
+# Calcula la base imponible de la factura, y el importe total de impuestos, y devuelve el total a pagar
+Funprog GET_CALCULOS(PS_NUM, OPC)
+  Value Char PS_NUM
+  Value Integer OPC # CAMPO DEL FICHERO
+  Local Decimal YBIMP : YBIMP = 0
+  Local Decimal YIMPUES : YIMPUES = 0
+  Local Decimal YTOT : YTOT = 0
+  Local Decimal C22_1,C22_2
+
+  If !clalev([F:YSIHD]): Local File SINVOICED [YSIHD]  : Endif
+
+      For [F:YSIHD] Where [F:YSIHD]NUM = PS_NUM
+        YBIMP += [F:YSIHD]BASTAXLIN
+        YIMPUES +=  [F:YSIHD]AMTTAXLIN
+      Next
+
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+   Read [YSIH]SIH0 = PS_NUM
+      If !fstat
+        Local Decimal YIMP : YIMP = (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))
+        If ((YIMPUES-YIMP)-[YSIH]AMTTAX) = 0.01
+          YIMPUES = [YSIH]AMTTAX + YIMP
+        Endif
+      Endif
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
+
+    C22_1= YBIMP - (-1*func SUM_SVCRFOOT(PS_NUM))
+    C22_2= YIMPUES - (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))
+
+  Case OPC
+    When 18 : YTOT = YBIMP                                            # CAMPO 18
+    When 19 : YTOT = YBIMP - (-1*func SUM_SVCRFOOT(PS_NUM))           # CAMPO 19
+    When 21 : YTOT = YIMPUES - (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))  # CAMPO 21
+    When 22 : YTOT = C22_1+C22_2                                      # CAMPO 22
+  Endcase
+
+End YTOT
+
+# Devuevle las cantidades entregadas de cada articulo.
+Funprog GET_UENTREGADA(PS_NUM,ITM)
+Value Char PS_NUM, ITM
+Local Integer YCANT : YCANT = 0
+
+  If !clalev([F:YSDD]): Local File SDELIVERYD [YSDD]  : Endif
+
+    Filter [F:YSDD] Where [F:YSDD]SDHNUM = PS_NUM and [F:YSDD]ITMREF = ITM
+    Read First
+      YCANT = [F:YSDD]QTY
+
+  Close Local File [YSDD]
+End YCANT
+
+# Devuelve el importe de impuestos
+Funprog GET_TOTAL_IMPUESTOS(PS_NUM)
+Value Char PS_NUM
+
+  Local Decimal SV_SUM : [L]SV_SUM = 0
+  If clalev([F:YSVF])=0 : Local File SVCRFOOT [YSVF] : Endif
+  For [F:YSVF] Where [F:YSVF]VCRNUM = PS_NUM
+    [L]SV_SUM += [F:YSVF]DTAVATAMT
+  Next
+
+End [L]SV_SUM
+
+Funprog SUM_CARGO(PS_NUM)
+  Value Char PS_NUM()
+  Local Decimal SV_SUM : [L]SV_SUM = 0
+  If clalev([F:YSVF])=0 : Local File SVCRFOOT [YSVF] : Endif
+  For [F:YSVF] Where [F:YSVF]VCRNUM = PS_NUM
+    If [F:YSVF]AMTCOD = 2
+      [L]SV_SUM += [F:YSVF]DTANOT
+    Endif
+  Next
+
+End [L]SV_SUM
+
+################################################################################################
+# @02@ - JLP - 12/07/2024 - INI
+
+$LM_ESPANA
+
+  Read [F:YEBP]EBP0 = 1;[F:YSIV]BPCORD;[F:YSIV]BPAADD;"EDICOM"
+  If !fstat
+      [L]S_EDICOD_BY = [F:YEBP]EXCEDICOD
+      [L]S_EDICOD_DP = [F:YEBP]EXCEDICOD
+      [L]S_EDICOD_IV = [F:YEBP]EXCEDICOD
+      Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+      If !fstat
+        Read [F:YEBP2]EBP0 = 1;[F:YBPC]BPCINV;[F:YBPC]BPAINV;"EDICOM"
+        If !fstat
+          S_EDICOD_BPCINV = [F:YEBP2]EXCEDICOD
+        Endif
+      Endif
+      [L]S_EDICOD_PR = S_EDICOD_BPCINV
+  Endif
+
+Return
+
+################################################################################################
+
+$LM_ITALIA
+
+# By --> CÓDIGO PARTNER Edi-TERCERO DEL CLIENTE PEDIDO (TIENDA)
+  Read [F:YEBP]EBP0 = 1;[F:YSIV]BPCORD;[F:YSIV]BPAADD;"EDICOM"
+  If !fstat
+      [L]S_EDICOD_BY = [F:YEBP]EXCEDICOD
+# DP --> CÓDIGO PARTNER Edi-TERCERO DEL TRANSPORTISTA DE LA ENTREGA
+      [L]S_EDICOD_DP = [F:YEBP]EXCEDICOD
+  Endif
+
+
+
+
+
+# IV --> CÓDIGO PARTNER Edi-TERCERO DEL CLIENTE FACTURADO (LM-IT)
+  Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+  If !fstat
+    Read [F:YEBP]EBP0 = 1;[F:YBPC]BPCNUM;[F:YBPC]BPAADD;"EDICOM"
+    If !fstat
+      [L]S_EDICOD_IV = [F:YEBP]EXCEDICOD
+    Endif
+  Endif
+
+Return
+
+################################################################################################
+
+$LM_OBI
+
+# By --> CÓDIGO PARTNER Edi-TERCERO DEL CLIENTE PEDIDO (TIENDA)   /  DP --> CÓDIGO PARTNER Edi-TERCERO DEL TRANSPORTISTA DE LA ENTREGA
+
+  Read [F:YEBP]EBP0 = 1;[F:YSIV]BPCORD;[F:YSIV]BPAADD;"EDICOM"
+  If !fstat
+      [L]S_EDICOD_BY = [F:YEBP]EXCEDICOD
+      [L]S_EDICOD_DP = [F:YEBP]EXCEDICOD
+
+  Endif
+
+# IV --> CÓDIGO PARTNER Edi-TERCERO DEL CLIENTE FACTURADO (LM-IT)
+  Read [F:YBPC]BPC0 = [F:YSIV]BPCINV
+  If !fstat
+    Read [F:YEBP]EBP0 = 1;[F:YBPC]BPCNUM;[F:YBPC]BPAADD;"EDICOM"
+    If !fstat
+      [L]S_EDICOD_IV = [F:YEBP]EXCEDICOD
+    Endif
+  Endif
+
+Return
+# @02@ - JLP - 12/07/2024 - FIN
+
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3) - INI
+Funprog GET_VENCI(FACT)
+Value Char FACT
+Local Char FECH_VEN(25) : FECH_VEN(25) = ''
+
+    If !clalev([F:YPAY]): Local File  PAYMENTH    [F:YPAY] : Endif
+    If !clalev([F:YPAYD]): Local File  PAYMENTD    [F:YPAYD] : Endif
+
+
+
+   Filter [F:YPAYD] Where VCRNUM = FACT
+    For [F:YPAYD]
+      Filter [F:YPAY] Where NUM = [F:YPAYD]NUM
+        For [F:YPAY]
+          FECH_VEN = [F:YPAY]DUDDAT
+        Next
+    Next
+
+
+End FECH_VEN
+#@04@ - JLP - 25/09/2024 - Ajuste para que el fichero no muestre los articulo de Componentes Kit (LINTYP = 3) - FIN
+#////////////////////////////////////////////////////////////////////////////////////////////////#
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+Funprog EAN_ARTICULO_T_(YARTICULO)
+Value Char YARTICULO
+Local Char EAN_T_(50)
+
+If !clalev([F:YITM])    : Local File ITMMASTER  [F:YITM]   : Endif
+If !clalev([F:YITM1])    : Local File ITMMASTER  [F:YITM1]   : Endif
+
+  Read [F:YITM]ITM0 = YARTICULO
+    If !fstat
+      Read [F:YITM1]ITM0 = [F:YITM]SEAKEY
+        If !fstat
+          EAN_T_ = [F:YITM1]EANCOD
+        Endif
+    Endif
+
+End EAN_T_
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
+#////////////////////////////////////////////////////////////////////////////////////////////////#

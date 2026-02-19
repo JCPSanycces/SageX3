@@ -1,0 +1,18 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# JMF - 18/07/2024
+$ACTION
+  Case ACTION
+    When "PARAM" : Gosub PARAM
+  Endcase
+Return
+
+$PARAM
+  If GUSER = "NUN21"
+    Local Char YNOMFIC(255) : YNOMFIC = chr$(1) + filpath("FILES/SDH","preparacion_sanycces_" + YGUSERI3, "pdf")
+    Local Char XVAL(50)
+    Call GETPARAM("__DESTINATION",NBPAR,PARAMETRE,XVAL) From ETAT
+    If XVAL = "3" Then
+      Call SETPARAM("_ExportFile",NBPAR,PARAMETRE,YNOMFIC) From ETAT
+    Endif
+  Endif
+Return

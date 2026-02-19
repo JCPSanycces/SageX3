@@ -1,0 +1,42 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char PS_NUM(20)(5)
+PS_NUM(0) = 'FAC11250900707'
+PS_NUM(1)='FAC11250900703'
+PS_NUM(2)='FAC11250900659'
+PS_NUM(3)='FAC11250900669'
+PS_NUM(4)='FAC11250900673'
+
+For I = 0 To len(PS_NUM)-1
+#Infbox PS_NUM(I)
+  Infbox num$(func GET_CALCULOS(PS_NUM(I),18)) - num$(func GET_CALCULOS(PS_NUM(I),19)) - num$(func GET_CALCULOS(PS_NUM(I),21)) - num$(func GET_CALCULOS(PS_NUM(I),22))
+Next
+
+End
+
+
+Funprog GET_CALCULOS(PS_NUM, OPC)
+  Value Char PS_NUM
+  Value Integer OPC # CAMPO DEL FICHERO
+  Local Decimal YBIMP : YBIMP = 0
+  Local Decimal YIMPUES : YIMPUES = 0
+  Local Decimal YTOT : YTOT = 0
+  Local Decimal C22_1,C22_2
+
+  If !clalev([F:YSIHD]): Local File SINVOICED [YSIHD]  : Endif
+
+      For [F:YSIHD] Where [F:YSIHD]NUM = PS_NUM
+        YBIMP += [F:YSIHD]BASTAXLIN
+        YIMPUES +=  [F:YSIHD]AMTTAXLIN
+      Next
+
+    C22_1= YBIMP - (-1*func YFACTSERES.SUM_SVCRFOOT(PS_NUM))
+    C22_2= YIMPUES - (-1*func YFACTSERES.GET_TOTAL_IMPUESTOS(PS_NUM))
+
+  Case OPC
+    When 18 : YTOT = YBIMP                                            # CAMPO 18
+    When 19 : YTOT = YBIMP - (-1*func YFACTSERES.SUM_SVCRFOOT(PS_NUM))           # CAMPO 19
+    When 21 : YTOT = YIMPUES - (-1*func YFACTSERES.GET_TOTAL_IMPUESTOS(PS_NUM))  # CAMPO 21
+    When 22 : YTOT = C22_1+C22_2                                      # CAMPO 22
+  Endcase
+
+End YTOT

@@ -1,0 +1,122 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+If !clalev([F:ZOC1P2]) : Local File ZOCERE1P  [F:ZOC1P2]  : Endif
+
+Filter [F:ZOC1P2] Where CONTADOR="EDI-2400000054" and vireblc(C2,4)='BY'
+Read [F:ZOC1P2] First
+If !fstat
+  Infbox "Encuentra registro"
+Else
+  Infbox "No encuentra"
+Endif
+#Local Decimal Z_GRO_PRICE
+#Local Decimal Z_NET_PRICE
+#
+#Local Decimal AF_DESC(3)
+#
+#Call CALCULO_TARIFA_DESCUENTOS("NA002585","FALREC160","11","11","EUR",gdat$(28,02,2024),1,"UN",Z_GRO_PRICE,Z_NET_PRICE,AF_DESC)
+#
+#Infbox num$(AF_DESC(0))
+#Infbox num$(AF_DESC(1))
+#Infbox num$(AF_DESC(2))
+#Infbox num$(Z_GRO_PRICE)
+#Infbox num$(Z_NET_PRICE)
+
+End
+#Local Char DOSSIER(GLONADS), MACHINE(GDIMFIC), APPLI(GDIMFIC), ORDSYS(250), FILELIST(250)(1..100)
+#Local Integer LNGTH
+#
+#DOSSIER = nomap
+#Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+##--
+#
+##ORDSYS = "lsadx -a " + APPLI + " EDI\RECEIPTEDICOM\tmp"
+##Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que importar
+#
+#ORDSYS = "dir " + filpath("EDI\RECEIPTEDICOM","","") + "\. /a-d /b" #
+#Call SYSTEME2 (adxmac(0),ORDSYS,"",LNGTH,FILELIST) From ORDSYS
+#
+#Infbox num$(LNGTH)
+#
+#For ZZ=1 To LNGTH
+#    Infbox "Fichero importado"-FILELIST(ZZ)
+#Next
+
+Subprog CALCULO_TARIFA_DESCUENTOS(PS_BPC,PS_ITM,PS_SALFCY,PS_STOFCY,PS_CUR,PD_DAT,PF_QTY,PS_UOM,PRF_GROPRI,PRF_NETPRI,PRAF_DESC)
+Value     Char    PS_BPC ()
+Value     Char    PS_ITM ()
+Value     Char    PS_SALFCY ()
+Value     Char    PS_STOFCY ()
+Value     Char    PS_CUR ()
+Value     Date    PD_DAT
+Value     Decimal PF_QTY
+Value     Char    PS_UOM ()
+Variable  Decimal PRF_GROPRI
+Variable  Decimal PRF_NETPRI
+Variable  Decimal PRAF_DESC
+
+Local   Integer AFF, NOL
+
+#--- pas d'appel du s/p si les on est dans les commandes
+If GFONCTION="GESSOH" : End : Endif
+
+NOL=nolign
+
+Gosub SIM_SPC_FILE From TRTPRICE
+Gosub SIM_SPC_GLOB From TRTPRICE
+Call TARIFCHGT(5)  From TRTPRICE
+
+If clalev([F:REP])=0 : Local File SALESREP [REP] : Endif
+
+
+If clalev([M:SOH0])=0 : Local Mask SOH0      [SOH0] : Raz [M:SOH0] : Endif
+If clalev([M:SOH1])=0 : Local Mask SOH1      [SOH1] : Raz [M:SOH1] : Endif
+If clalev([M:SOH2])=0 : Local Mask SOH2      [SOH2] : Raz [M:SOH2] : Endif
+If clalev([M:SOH3])=0 : Local Mask SOH3      [SOH3] : Raz [M:SOH3] : Endif
+If clalev([M:SOH4])=0 : Local Mask SOH4      [SOH4] : Raz [M:SOH4] : Endif
+
+Default Mask [SOH4]
+Default Mask [SOH3]
+Default Mask [SOH2]
+Default Mask [SOH1]
+Default Mask [SOH0]
+
+# Issue 74556 - 2011-07-04 by VPO : lecture ssi besoin
+If [F:BPC]BPCNUM<>[L]PS_BPC
+Read [BPC]BPC0=[L]PS_BPC : #Call LECTURE ("BPC",[L]BPC,"") From CONTOBJ
+Endif
+If [F:ITS]ITMREF<>[L]PS_ITM
+Read [ITS]ITS0=[L]PS_ITM : #Call LECTURE ("ITS",[L]ITM,"") From CONTOBJ
+Endif
+If [F:ITM]ITMREF<>[L]PS_ITM
+Read [ITM]ITM0=[L]PS_ITM : #Call LECTURE ("ITM",[L]ITM,"") From CONTOBJ
+Endif
+
+[M]BPCORD=[L]PS_BPC : [M]ORDDAT=[L]PD_DAT
+
+If [L]PS_SALFCY = "" [M]SALFCY=GFCYDEF(5) Else [M]SALFCY=[L]PS_SALFCY Endif
+If [L]PS_STOFCY = "" [M]STOFCY=GFCYDEF(7) Else [M]STOFCY=[L]PS_STOFCY Endif
+
+nolign=1
+[M:SOH4]ITMREF(0)=[L]PS_ITM
+[M:SOH4]SAU(0)=[L]PS_UOM
+[M:SOH4]QTY(0)=[L]PF_QTY
+
+Call ALICDE(1,"C",[M]BPCORD) From TRTVENCDE
+[M]CUR=[L]PS_CUR
+Call INIT_SOH(1,AFF) From SUBSOHB
+Call INIT_ITM (1,[M:SOH4]ITMREF(0)) From SUBSOHB
+
+Raz [L]PRF_GROPRI, [L]PRF_NETPRI
+Call RECH_TARIF (1,[M:SOH4]ITMREF(0),0,[M:SOH4]QTY(0),"SOH",[M:SOH4]GROPRI(0)) From TRTVENTAR
+[L]PRF_GROPRI=[M:SOH4]GROPRI(0)
+Call CLCNETPRI([M]QTY(0),[M:SOH0]CUR,0) From TRTVENPRI
+[L]PRF_NETPRI=[M]NETPRI(0)
+
+nolign=NOL
+
+PRAF_DESC(0) = [M:SOH4]DISCRGVAL1
+PRAF_DESC(1) = [M:SOH4]DISCRGVAL2
+PRAF_DESC(2) = [M:SOH4]DISCRGVAL3
+
+End

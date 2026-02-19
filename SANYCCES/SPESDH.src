@@ -1,0 +1,259 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###########################################################################
+# @01@ - SCD - 11/08/2023 - Cuadno se borra una linea , liberamos stock
+# @02@ - NUN22 11-01-2024 (Y058) Desactivamos el desarrollo de envío de DESADV a SERES para moverlo a citas de transporte
+# @03@ - EQM - 10/07/2024 - Modificación datos con entrega validada
+# @04@ - JLP - 26/08/2024 - Incidencia que no carga correctamente la informacion del transporte
+# @05@ - DSR - 23/12/2024 - Actualización de la cantidad preparada en la línea del pedido de las entregas generadas con el SPE
+###########################################################################
+$ACTION
+
+    Case ACTION
+      When "MODIF"     : Gosub MODIF     # @01@ - SCD - 11/08/2023 - IN
+      When "OUVRE"     : Gosub OUVRE     # @01@ - JLP - 09/07/2024
+      When "AVANT_MOD" : Gosub AVANT_MOD # @03@ - EQM - 10/07/2024
+      When "LIENS"     : Gosub LIENS     # @04@ - JLP - 26/08/2024
+    # When "EXEBOUT"   : Gosub EXEBOUT    # @02@ NUN22
+      When "APRES_CRE" : Gosub APRES_CRE # # @05@ - DSR - 23/12/2024
+    Endcase
+
+Return
+
+
+#########################################################################
+$APRES_CRE
+# Si la entrega ha sido creada con la lanzadera SPE (en PJT me guardo el número del vale de preparación, verifico si tengo que actualizar la cantidad preparada del pedido
+Local Integer SIGO_MAJ
+
+If [M:SDH2]PJT <> ""
+  # Es un vale de preparación
+  Read [YY1]PRH0 = [M:SDH2]PJT
+  If fstat = 0
+    [L]SIGO_MAJ = 2
+  Endif
+
+  # Las líneas de la entrega deben tener en este momento el vale de preparación en blanco (el SPE lo carga más tarde)
+  If [L]SIGO_MAJ = 2
+    Filter [YY2] Where [YY2]SDHNUM = [M:SDH0]SDHNUM
+      For [YY2]
+        If [YY2]PRHNUM <> ""
+          [L]SIGO_MAJ = 0
+          Break
+        Endif
+      Next
+    Filter [YY2]
+  Endif
+Endif
+
+If [L]SIGO_MAJ = 2
+    Filter [YY2] Where [YY2]SDHNUM = [M:SDH0]SDHNUM
+      For [YY2]
+        Read [YY3]SOQ0 = [YY2]SOHNUM;[YY2]SOPLIN;[YY2]SOQSEQ
+        If fstat = 0
+          If [YY3]PREQTY>=[YY2]QTY and [YY3]PREQTYSTU>=[YY2]QTYSTU
+            [YY3]PREQTY    -= [YY2]QTY
+            [YY3]PREQTYSTU -= [YY2]QTYSTU
+            Rewrite [YY3]
+          Endif
+        Endif
+      Next
+    Filter [YY2]
+Endif
+
+Return
+
+
+#############################################################################
+
+# @02@ NUN22 Inicio desactivación desarrollo
+#############################################################################
+#$EXEBOUT
+#  Case BOUT
+#      When '8'      :  Gosub ENVIO_SERES
+#  Endcase
+#
+#Return
+#############################################################################
+#$ENVIO_SERES
+#
+#  Local Tinyint LREP
+#  Qstbox "¿Desea generar el fichero DESADV para SERES?" - nomap Using [L]LREP
+#  Case [L]LREP
+#     When 1: Call ZCREINVSERES([M:SDH0]SDHNUM, '','','','',[0/0/0],[0/0/0],0) From YCRESDHSERES
+#  Endcase
+#
+#Return
+#############################################################################
+# @02@ NUN22 Fin
+#############################################################################
+$OUVRE
+  If !clalev([F:YBP]) : Local File BPARTNER    [F:YBP] : Endif
+  If !clalev([F:YBPAD]) : Local File BPADDRESS    [F:YBPAD] : Endif
+Return
+
+# @04@ - JLP - 26/08/2024 - Incidencia que no carga correctamente la informacion del transporte - INI
+# Si el campo de la tabla esta vacio se rellena con los datos, y si esta escrito se guarda la info que este
+$LIENS
+
+    If [SDH]YBPCNAM = ''
+
+          If !clalev([F:YBP])   : Local File BPARTNER     [F:YBP]   : Endif
+          If !clalev([F:YBPAD]) : Local File BPADDRESS    [F:YBPAD] : Endif
+          Read [F:YBP]BPR0 = [M:SDH2]BPTNUM
+          If !fstat
+              [M:SDH3]YBPCNAM = [F:YBP]BPRNAM
+              [M:SDH3]YNIF    = [F:YBP]CRN
+          Endif
+          Affzo [M:SDH3]YBPCNAM, YNIF
+          Read [F:YBPAD]BPA0 = 1;[M:SDH2]BPTNUM;[F:YBP]BPAADD
+          If !fstat
+
+              [M:SDH3]YBPAADD = [F:YBPAD]BPAADDLIG
+              [M:SDH3]YCP     = [F:YBPAD]POSCOD
+              [M:SDH3]YBPDCTY = [F:YBPAD]CTY
+              [M:SDH3]YCRY    = [F:YBPAD]CRY
+              Affzo [M:SDH3]YBPAADD,YCP,YBPDCTY,YCRY
+
+          Endif
+
+    Endif
+Return
+# @04@ - JLP - 26/08/2024 - Incidencia que no carga correctamente la informacion del transporte - FIN
+
+#############################################################################
+# @01@ - SCD - 11/08/2023 - INI
+$MODIF
+  Local Integer FLG
+  Gosub OPEN
+
+  For [F:SDD] Where SDHNUM = [M:SDH0]SDHNUM
+    For I = 0 To NBLIG-1
+      FLG = 1
+      If [F:SDD]SDDLIN = [M:SDH1]SDDLIN(I)
+        FLG = 2
+        Break
+      Endif
+    Next
+    If FLG = 1
+      Gosub UPD_LINES
+    Endif
+  Next
+Return
+
+#############################################################################
+
+$UPD_LINES
+  Read [F:STD]PRE0 = [F:SDD]PRHNUM;[F:SDD]PRELIN
+  If !fstat
+
+    [F:STD]ALLQTY = 0
+
+    Lock = 'PRH'+[F:SDD]PRHNUM
+    If !fstat
+      Rewrite [F:STD]
+      Read [F:SOQ]SOQ0 = [F:STD]ORINUM;[F:STD]ORILIN;[F:STD]ORISEQ
+      If !fstat
+        [F:SOQ]PREQTY = 0
+        [F:SOQ]PREQTYSTU = 0
+        Lock = 'SOH'+[F:SOQ]SOHNUM
+        If !fstat
+          Rewrite [F:SOQ]
+        Endif
+      Endif
+    Endif
+    Unlock = 'PRH'+[F:SDD]PRHNUM
+    Unlock = 'SOH'+[F:SOQ]SOHNUM
+
+
+  Endif
+Return
+
+
+#############################################################################
+
+$OPEN
+If !clalev([F:SDD]) : Local File SDELIVERYD    [F:SDD] : Endif
+If !clalev([F:SOQ]) : Local File SORDERQ    [F:SOQ] : Endif
+If !clalev([F:STD]) : Local File STOPRED    [F:STD] : Endif
+
+Return
+
+#############################################################################
+
+# @01@ - SCD - 11/08/2023 - FIN
+
+#############################################################################
+$AVANT_MOD
+    ## No lanzamos el STD si es un campo SPE y la Entrega ya está validada
+    If [M]CFMFLG=2
+        If left$(COUZON,1) = "Y"
+            ## Cancelamos el STD para que permita los cambios
+            GPE = 1
+        Endif
+    Endif
+Return
+#############################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SDH2) 10/07/2024 11:06:04 (NUN12)
+######################################################################################
+Subprog AM_BPTNUM(VALEUR)
+Variable Char    VALEUR()
+
+    If VALEUR<>''
+
+          If !clalev([F:YBP])   : Local File BPARTNER     [F:YBP]   : Endif
+          If !clalev([F:YBPAD]) : Local File BPADDRESS    [F:YBPAD] : Endif
+          Read [F:YBP]BPR0 = VALEUR
+          If !fstat
+              [M:SDH3]YBPCNAM = [F:YBP]BPRNAM
+              [M:SDH3]YNIF    = [F:YBP]CRN
+          Endif
+          Affzo [M:SDH3]YBPCNAM, YNIF
+          Read [F:YBPAD]BPA0 = 1;VALEUR;[F:YBP]BPAADD
+          If !fstat
+
+              [M:SDH3]YBPAADD = [F:YBPAD]BPAADDLIG
+              [M:SDH3]YCP     = [F:YBPAD]POSCOD
+              [M:SDH3]YBPDCTY = [F:YBPAD]CTY
+              [M:SDH3]YCRY    = [F:YBPAD]CRY
+              Affzo [M:SDH3]YBPAADD,YCP,YBPDCTY,YCRY
+
+          Endif
+
+    Endif
+
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SDH0) 10/07/2024 11:44:23 (NUN12)
+######################################################################################
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+    If [M:SDH2]BPTNUM<>''
+
+          If !clalev([F:YBP])   : Local File BPARTNER     [F:YBP]   : Endif
+          If !clalev([F:YBPAD]) : Local File BPADDRESS    [F:YBPAD] : Endif
+          Read [F:YBP]BPR0 = [M:SDH2]BPTNUM
+          If !fstat
+              [M:SDH3]YBPCNAM = [F:YBP]BPRNAM
+              [M:SDH3]YNIF    = [F:YBP]CRN
+          Endif
+          Affzo [M:SDH3]YBPCNAM, YNIF
+          Read [F:YBPAD]BPA0 = 1;VALEUR;[F:YBP]BPAADD
+          If !fstat
+
+              [M:SDH3]YBPAADD = [F:YBPAD]BPAADDLIG
+              [M:SDH3]YCP     = [F:YBPAD]POSCOD
+              [M:SDH3]YBPDCTY = [F:YBPAD]CTY
+              [M:SDH3]YCRY    = [F:YBPAD]CRY
+              Affzo [M:SDH3]YBPAADD,YCP,YBPDCTY,YCRY
+
+          Endif
+
+    Endif
+End
+
+
+######################################################################################

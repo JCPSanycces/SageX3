@@ -1,0 +1,55 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @01@ - JLP - 12-02-2026 - Añadir campo servicio en el pedido de venta
+$ACTION
+  Case ACTION
+    When "SEL_TABLE" : Gosub SEL_TABLE
+  Endcase
+Return
+######################################################################################
+$SEL_TABLE
+  Case TABLE
+    When 'YSELSERVIC' Gosub YSERVDEF
+    When 'YTERMSERV' Gosub YTERMDEF
+  Endcase
+Return
+######################################################################################
+$YSERVDEF
+    Local File YTRASERV [YTRA]
+    Filter [YTRA] Where [YTRA]YTRANS = [M:SOH2]BPTNUM Order By [YTRA]YCODSERV Asc
+    Default File [YTRA]
+
+    ORDRE = "YCODSERV"
+    START = "YCODSERV"
+    SENS  = 1
+
+    NBCOL = 0
+    TIT(NBCOL) = "Selección servicio"
+    NBCOL += 1
+    TIT(NBCOL) = "Código servicio"
+    COL(NBCOL) = "YCODSERV"
+
+    NBCOL += 1
+    TIT(NBCOL) = "Descripción servicio"
+    COL(NBCOL) = "YDESCSERV"
+Return
+######################################################################################
+$YTERMDEF
+    Local File YTERMSERV [YTERM]
+    Filter [YTERM] Where [YTERM]YTRANS = [M:SOH2]BPTNUM Order By [YTERM]YCODTERMINO Asc
+    Default File [YTERM]
+
+    ORDRE = "YCODTERMINO"
+    START = "YCODTERMINO"
+    SENS  = 1
+
+    NBCOL = 0
+    TIT(NBCOL) = "Selección termino"
+    NBCOL += 1
+    TIT(NBCOL) = "Código termino"
+    COL(NBCOL) = "YCODTERMINO"
+
+    NBCOL += 1
+    TIT(NBCOL) = "Descripción termino"
+    COL(NBCOL) = "YDESTERM"
+Return
+######################################################################################

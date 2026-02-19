@@ -1,0 +1,13 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+ When "IMPRIME"   :   Gosub IMPRIME
+Endcase
+Return
+
+$IMPRIME
+# Impresiones directas desde la función SPE de Producción Sanycces
+If GFONCTION = "YPRODSANY"
+  PARAM(4) = "2"
+Endif
+Return

@@ -1,0 +1,402 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#**
+#* Devuelve las línea de pedido compra pendientes por proveedor
+#*
+#* @param COD_PROVEEDOR
+#* @param COD_PLANTA
+#* @param IDIOMA
+#* @param COD_PEDIDO
+#* @param NUM_LINEA
+#* @param COD_ARTICULO
+#* @param ARTICULO
+#* @param CANTIDAD_RECIBIDA
+#* @param CANTIDAD_PEDIDA
+#* @param FECHA_RECEPCION
+#*!
+Subprog GETLINEASPTESPEDIDOCOMPRA(PCOD_PROVEEDOR, COD_PLANTA, PCOD_PEDIDO, IDIOMA, DESDE_FECHA, HASTA_FECHA, COD_PEDIDO, NUM_LINEA, COD_ARTICULO, ARTICULO, CANTIDAD_RECIBIDA, CANTIDAD_PEDIDA,
+& UNIDAD_COMPRA, FECHA_RECEPCION, COD_PROVEEDOR, NOMBRE_PROVEEDOR)
+  # Entrada
+  Value Char PCOD_PROVEEDOR
+  Value Char COD_PLANTA
+  Value Char PCOD_PEDIDO
+  Value Char IDIOMA
+  Value Char DESDE_FECHA
+  Value Char HASTA_FECHA
+  # Salida
+  Variable Char COD_PEDIDO()()
+  Variable Integer NUM_LINEA()
+  Variable Char COD_ARTICULO()()
+  Variable Char ARTICULO()()
+  Variable Decimal CANTIDAD_RECIBIDA()
+  Variable Decimal CANTIDAD_PEDIDA()
+  Variable Char UNIDAD_COMPRA()()
+  Variable Char FECHA_RECEPCION()()
+  Variable Char COD_PROVEEDOR()()
+  Variable Char NOMBRE_PROVEEDOR()()
+
+  Local Char LREQ(250)(0..4) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ(0) = "SELECT L.POHNUM_0, L.POPLIN_0, L.ITMREF_0, ISNULL((SELECT TEXTE_0 FROM " + nomap + ".ATEXTRA WHERE CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA +
+& "' AND IDENT1_0 = L.ITMREF_0), P.ITMDES1_0) AS ITMDES1_0, "
+  LREQ(1) = "L.RCPQTYSTU_0, L.QTYSTU_0, L.EXTRCPDAT_0, C.BPRNAM_0, L.PUU_0, L.BPSNUM_0 FROM " + nomap + ".PORDERQ L INNER JOIN " + nomap + ".PORDER C ON L.POHNUM_0 = C.POHNUM_0 INNER JOIN "
+  LREQ(2) = nomap + ".PORDERP P ON L.POHNUM_0 = P.POHNUM_0 AND L.POPLIN_0 = P.POPLIN_0 AND L.POQSEQ_0 = P.POPSEQ_0 "
+  LREQ(3) = "WHERE L.POHFCY_0 = '" + COD_PLANTA + "' AND C.CLEFLG_0 = 1 AND L.LINSTA_0 <> 3 AND L.EXTRCPDAT_0 <> '01/01/1753'  "
+  If PCOD_PROVEEDOR <> ""
+    LREQ(3) += "AND L.BPSNUM_0 = '" + PCOD_PROVEEDOR + "' "
+  Endif
+  If PCOD_PEDIDO <> ""
+    LREQ(3) = "AND L.POHNUM_0 = '" + PCOD_PEDIDO + "' "
+  Endif
+  If DESDE_FECHA <> "" and HASTA_FECHA <> ""
+    LREQ(3) += "AND  L.EXTRCPDAT_0 BETWEEN '" + DESDE_FECHA + "' AND '" + HASTA_FECHA + "' "
+  Endif
+  LREQ(3) += "ORDER BY L.EXTRCPDAT_0, L.POHNUM_0, L.POPLIN_0"
+
+  For(Char POHNUM, Integer POPLIN, Char ITMREF, Char ITMDES, Decimal RCPQTYSTU, Decimal QTYSTU, Date EXTRCPDAT, Char BPRNAM, Char PUU, Char BPSNUM) From "5" Sql LREQ As [YPOQ]
+    COD_PEDIDO(I) = [YPOQ]POHNUM
+    NUM_LINEA(I) = [YPOQ]POPLIN
+    COD_ARTICULO(I) = [YPOQ]ITMREF
+    ARTICULO(I) = [YPOQ]ITMDES
+    CANTIDAD_RECIBIDA(I) = [YPOQ]RCPQTYSTU
+    CANTIDAD_PEDIDA(I) = [YPOQ]QTYSTU
+    UNIDAD_COMPRA(I) = [YPOQ]PUU
+    FECHA_RECEPCION(I) = num$([YPOQ]EXTRCPDAT)
+    COD_PROVEEDOR(I) = [YPOQ]BPSNUM
+    NOMBRE_PROVEEDOR(I) = [YPOQ]BPRNAM
+
+    I += 1
+  Next
+End
+
+Subprog GETPROVEEDORPEDIDOCOMPRA(COD_PEDIDO, COD_PROVEEDOR, NOMBRE_PROVEEDOR)
+  # Entrada
+  Value Char COD_PEDIDO
+  # Salida
+  Variable Char COD_PROVEEDOR
+  Variable Char NOMBRE_PROVEEDOR
+
+  If !clalev([YPOR]) : Local File PORDER [YPOR] : Endif
+
+  Read [YPOR]POH0 = COD_PEDIDO
+
+  If fstat = 0
+    COD_PROVEEDOR = [YPOR]BPSNUM
+    NOMBRE_PROVEEDOR = [YPOR]BPRNAM
+  Endif
+
+  Close Local File [YPOR]
+End
+
+Subprog GETUBICACIONES(COD_PLANTA, TIPO_UBICACION, UBICACION)
+  # Entrada
+  Value Char COD_PLANTA
+  # Salida
+  Variable Char TIPO_UBICACION()()
+  Variable Char UBICACION()()
+
+  Local Char LREQ(250) : Raz LREQ
+  Local Integer I : I = 0
+
+  LREQ = "SELECT LOCTYP_0, LOC_0 FROM " + nomap + ".STOLOC WHERE STOFCY_0 = '" + COD_PLANTA + "' AND LOCCAT_0 = 1 ORDER BY LOC_0"
+
+  For (Char LOCTYP, Char LOC) From "5" Sql LREQ As [YLOC]
+    TIPO_UBICACION(I) = LOCTYP
+    UBICACION(I) = LOC
+
+    I += 1
+  Next
+End
+
+Subprog GETULTIMAENTRADAVARIA(COD_EMPLEADO, COD_ENTRADA)
+  # Entrada
+  Value Char COD_EMPLEADO
+  # Salida
+  Variable Char COD_ENTRADA
+
+  Local Char LREQ(250)
+
+  LREQ = "SELECT TOP(1) VCRNUM_0 FROM " + nomap + ".SMVTH WHERE VCRDES_0 LIKE '%" + COD_EMPLEADO + "%' ORDER BY CREDATTIM_0 DESC"
+
+  For(Char VCRNUM) From "5" Sql LREQ As [YMVT]
+    COD_ENTRADA = [YMVT]VCRNUM
+  Next
+End
+
+Subprog GETULTIMARECEPCION(COD_RECEPCION)
+  # Salida
+  Variable Char COD_RECEPCION
+
+  Local Char LREQ(250)
+
+  LREQ = "SELECT TOP(1) PTHNUM_0 FROM " + nomap + ".PRECEIPT ORDER BY CREDATTIM_0 DESC"
+
+  For(Char PTHNUM) From "5" Sql LREQ As [YPUR]
+    COD_RECEPCION = [YPUR]PTHNUM
+  Next
+End
+
+Subprog GETSTOCK(COD_PLANTA, PCOD_ARTICULO, PUBICACION, PCOD_CONTENEDOR, COD_CONTENEDOR, COD_ARTICULO, UNIDAD_MEDIDA, UNIDAD_MEDIDA_STOCK, UBICACION, LOTE, SERIE, ESTADO, CANTIDAD, CANTIDAD_STOCK)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char PCOD_ARTICULO
+  Value Char PUBICACION
+  Value Char PCOD_CONTENEDOR
+  # Salida
+  Variable Char COD_CONTENEDOR()()
+  Variable Char COD_ARTICULO()()
+  Variable Char UNIDAD_MEDIDA()()
+  Variable Char UNIDAD_MEDIDA_STOCK()()
+  Variable Char UBICACION()()
+  Variable Char LOTE()()
+  Variable Char SERIE()()
+  Variable Char ESTADO()()
+  Variable Decimal CANTIDAD()
+  Variable Decimal CANTIDAD_STOCK()
+
+  Local Char LREQ(250)(0..3) : Raz LREQ
+  Local Integer I : Raz I
+
+  LREQ(0) = "SELECT S.LPNNUM_0, S.ITMREF_0, S.PCU_0, I.STU_0, LOC_0, LOT_0, S.STA_0, S.SERNUM_0, S.QTYPCU_0, S.QTYSTU_0 FROM " + nomap + ".STOCK S "
+  LREQ(1) = "INNER JOIN " + nomap + ".ITMMASTER I ON  S.ITMREF_0 = I.ITMREF_0 "
+  LREQ(2) = "WHERE S.STOFCY_0 = '" + COD_PLANTA + "' AND S.ITMREF_0 = '" + PCOD_ARTICULO + "' "
+  If PUBICACION <> ''
+    LREQ(2) += "AND S.LOC_0 = '" + PUBICACION + "' "
+  Endif
+  If PCOD_CONTENEDOR <> ''
+    LREQ(2) += "AND S.LPNNUM_0 = '" + PCOD_CONTENEDOR + "' "
+  Endif
+  LREQ(3) = "ORDER BY S.LOC_0, S.LOT_0, S.SERNUM_0, S.STA_0"
+
+  For(Char LPNNUM, Char ITMREF, Char PCU, Char STU, Char LOC, Char LOT, Char STA, Char SERNUM, Decimal QTYPCU, Decimal QTYSTU) From "5" Sql LREQ As [YSTO]
+    COD_CONTENEDOR(I) = [YSTO]LPNNUM
+    COD_ARTICULO(I) = [YSTO]ITMREF
+    UNIDAD_MEDIDA(I) = [YSTO]PCU
+    UNIDAD_MEDIDA_STOCK(I) = [YSTO]STU
+    UBICACION(I) = [YSTO]LOC
+    LOTE(I) = [YSTO]LOT
+    SERIE(I) = [YSTO]SERNUM
+    ESTADO(I) = [YSTO]STA
+    CANTIDAD(I) = [YSTO]QTYPCU
+    CANTIDAD_STOCK(I) = [YSTO]QTYSTU
+
+    I += 1
+  Next
+End
+
+Subprog GETSTOCKUBICACION(COD_PLANTA, UBICACION, IDIOMA, COD_CONTENEDOR, COD_ARTICULO, DESCRIPCION_ARTICULO, STOCK_INTERNO_A, STOCK_INTERNO_Q, STOCK_INTERNO_R)
+  # Entrada
+  Value Char COD_PLANTA
+  Value Char UBICACION
+  Value Char IDIOMA
+  # Salida
+  Variable Char COD_CONTENEDOR()()
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION_ARTICULO()()
+  Variable Decimal STOCK_INTERNO_A()
+  Variable Decimal STOCK_INTERNO_Q()
+  Variable Decimal STOCK_INTERNO_R()
+
+  Local Integer I : Raz I
+
+  If !clalev([YSTO]) : Local File STOCK [YSTO] : Endif
+
+  Local Char LREQ(250)(0..2)
+
+  LREQ(0) = "SELECT DISTINCT S.LPNNUM_0, S.ITMREF_0, ISNULL(TEXTE_0, ITMDES1_0) AS ITMDES1_0 FROM " + nomap + ".STOCK S INNER JOIN " + nomap + ".ITMMASTER I ON S.ITMREF_0 = I.ITMREF_0 "
+  LREQ(1) = "LEFT OUTER JOIN " + nomap + ".ATEXTRA E ON CODFIC_0 = 'ITMMASTER' AND ZONE_0 = 'DES1AXX' AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = S.ITMREF_0 "
+  LREQ(2) = "WHERE STOFCY_0 = '" + COD_PLANTA + "' AND LOC_0 = '" + UBICACION + "'"
+
+  For (Char PLPNNUM, Char PITMREF, Char ITMDES1) From "5" Sql LREQ As [YITM]
+    COD_CONTENEDOR(I) = [YITM]PLPNNUM
+    COD_ARTICULO(I) = [YITM]PITMREF
+    DESCRIPCION_ARTICULO(I) = [YITM]ITMDES1
+
+    Filter [YSTO] Where STOFCY = COD_PLANTA and ITMREF = PITMREF and LOC = UBICACION and LPNNUM = PLPNNUM
+    For [YSTO]
+      Case [YSTO]STA
+        When "A" : STOCK_INTERNO_A(I) += [YSTO]QTYSTUACT
+        When "Q" : STOCK_INTERNO_Q(I) += [YSTO]QTYSTUACT
+        When "R" : STOCK_INTERNO_R(I) += [YSTO]QTYSTUACT
+      Endcase
+    Next
+    Filter [YSTO]
+
+    I += 1
+  Next
+
+  Close Local File [YSTO]
+End
+
+Subprog GETINFOCONTENEDOR(COD_CONTENEDOR, IDIOMA, MONO_ARTICULO, MONO_LOTE, ACTIVO, TIPO, DESCRIPCION_TIPO, COD_ARTICULO, DESCRIPCION_ARTICULO, LOTE, ESTADO, NUMERO_SERIE, CANTIDAD, UNIDAD_MEDIDA)
+  # Entrada
+  Value Char COD_CONTENEDOR
+  Value Char IDIOMA
+  # Salida
+  Variable Integer MONO_ARTICULO
+  Variable Integer MONO_LOTE
+  Variable Integer ACTIVO
+  Variable Char TIPO
+  Variable Char DESCRIPCION_TIPO
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION_ARTICULO()()
+  Variable Char LOTE()()
+  Variable Char ESTADO()()
+  Variable Char NUMERO_SERIE()()
+  Variable Decimal CANTIDAD()
+  Variable Char UNIDAD_MEDIDA()()
+
+  If !clalev([YLPN]) : Local File LPN [YLPN] : Endif
+  If !clalev([YATE]) : Local File ATEXTRA [YATE] : Endif
+  If !clalev([YSTO]) : Local File STOCK [YSTO] : Endif
+  If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
+
+  Local Integer I : Raz I
+
+  Read [YLPN]LPN0 = COD_CONTENEDOR
+  If fstat = 0
+    MONO_ARTICULO = [YLPN]MONITMFLG
+    MONO_LOTE = [YLPN]MONLOTFLG
+    ACTIVO = [YLPN]ENAFLG
+    TIPO = [YLPN]TCTRNUM
+    Read [YATE]AXX0 = 'TABCONTAINER';'DESAXX';IDIOMA;[YLPN]TCTRNUM;''
+    If fstat = 0
+      DESCRIPCION_TIPO = [YATE]TEXTE
+    Else
+      DESCRIPCION_TIPO = 'N/A'
+    Endif
+    Filter [YATE]
+    # Lectura de líneas en el contenedor
+    Filter [YSTO] Where LPNNUM = COD_CONTENEDOR
+    For [YSTO]
+      COD_ARTICULO(I) = [YSTO]ITMREF
+      Read [YATE]AXX0 = 'ITMMASTER';'DES1AXX';IDIOMA;[YSTO]ITMREF;''
+      If fstat = 0
+        DESCRIPCION_ARTICULO(I) = [YATE]TEXTE
+      Else
+        Read [YITM]ITM0 = [YSTO]ITMREF
+        If fstat = 0
+          DESCRIPCION_ARTICULO(I) = [YITM]ITMDES1
+        Endif
+      Endif
+      LOTE(I) = [YSTO]LOT
+      ESTADO(I) = [YSTO]STA
+      NUMERO_SERIE(I) = [YSTO]SERNUM
+      CANTIDAD(I) = [YSTO]QTYSTU
+      UNIDAD_MEDIDA(I) = [YSTO]PCU
+
+      I += 1
+    Next
+    Filter [YSTO]
+
+  Endif
+  Filter [YLPN]
+
+  Close Local File [YLPN]
+  Close Local File [YATE]
+  Close Local File [YSTO]
+  Close Local File [YITM]
+End
+
+Subprog GETUBICACIONCONTENEDOR(COD_CONTENEDOR, UBICACION, TIPO_UBICACION)
+  # Entrada
+  Value Char COD_CONTENEDOR
+  # Salida
+  Variable Char UBICACION
+  Variable Char TIPO_UBICACION
+
+  If !clalev([YLPN]) : Local File LPN [YLPN] : Endif
+
+  Read [YLPN]LPN0 = COD_CONTENEDOR
+  If fstat = 0
+    UBICACION = [YLPN]LOC
+    TIPO_UBICACION = [YLPN]LOCTYP
+  Endif
+
+  Close Local File [YLPN]
+End
+
+Subprog GETESTADOUBICACIONCOMPRA(PCOD_PLANTA, PCOD_PROVEEDOR, PCOD_ARTICULO, ESTADO, UBICACION)
+  # Entrada
+  Value Char PCOD_PLANTA
+  Value Char PCOD_PROVEEDOR
+  Value Char PCOD_ARTICULO
+  # Salida
+  Variable Char ESTADO
+  Variable Char UBICACION
+
+  # Apertura tablas
+  If !clalev([F:PTR]) : Local File PURTRS [PTR] : Endif
+  If !clalev([F:TCA]) : Local File TABCOUAFF [TCA] : Endif
+  If !clalev([F:ITM]) : Local File ITMMASTER [ITM] : Endif
+  If !clalev([F:ITF]) : Local File ITMFACILIT [ITF] : Endif
+  If !clalev([F:BPR]) : Local File BPARTNER [BPR] : Endif
+  If !clalev([F:ITG]) : Local File ITMCATEG [ITG] : Endif
+  If !clalev([F:ITV]) : Local File ITMMVT [ITV] : Endif
+  If !clalev([F:ITP]) : Local File ITMBPS [ITP] : Endif
+  If !clalev([F:FCY]) : Local File FACILITY [FCY] : Endif
+  If !clalev([F:BPS]) : Local File BPSUPPLIER [BPS] : Endif
+  If !clalev([F:BPA]) : Local File BPADDRESS [BPA] : Endif
+  If !clalev([F:STCF]) : Local File COSTSTCF [STCF] : Endif
+  If !clalev([F:POP]) : Local File PORDERP [POP] : Endif
+  If !clalev([F:SDD]) : Local File SDELIVERYD [SDD] : Endif
+  If !clalev([F:SRU]) : Local File TABSTORUL [SRU] : Endif
+
+  # Apertura pantallas
+  If !clalev([M:PTH0]) : Local Mask PTH0 [PTH0] : Endif
+  If !clalev([M:PTH1]) : Local Mask PTH1 [PTH1] : Endif
+  If !clalev([M:PTH2]) : Local Mask PTH2 [PTH2] : Endif
+  If !clalev([M:PTHC])   Local Mask PTH9 [PTHC]  : Endif
+  If !clalev([M:ENTW]) : Local Mask STOENTW [ENTW] : Endif
+
+  Default Mask [M:PTH0]
+  Default Mask [M:PTH1]
+  Default Mask [M:PTH2]
+  Default Mask [M:ENTW]
+
+  GFONCTION  = 'GESPTH2'
+
+  [M:PTH1]NBLIG = 0
+  nolign = 1
+  [M:PTH0]STOFCY = PCOD_PLANTA
+  [M:PTH0]PRHFCY = PCOD_PLANTA
+  [M:PTH0]BPSNUM = PCOD_PROVEEDOR
+  [M:PTH0]RCPDAT = date$
+  [M:PTH1]ITMREF(0) = PCOD_ARTICULO
+  [M:PTH1]QTYUOM(0) = 1
+
+  Read [F:ITM]ITM0 = PCOD_ARTICULO
+  Read [F:ITF]ITF1 = PCOD_PLANTA;PCOD_ARTICULO
+  Read [F:ITP]ITP0 = PCOD_ARTICULO;PCOD_PROVEEDOR
+  Read [F:FCY]FCY0 = PCOD_PLANTA
+  Read [F:BPS]BPS0 = PCOD_PROVEEDOR
+  Read [F:BPR]BPR0 = PCOD_PROVEEDOR
+  Read [F:BPA]BPA0 = 1;PCOD_PROVEEDOR;[F:BPS]BPAADD
+  Read [F:STCF]STCF1 = PCOD_ARTICULO;PCOD_PLANTA;PCOD_PROVEEDOR
+
+  Call AM_ITMREF(PCOD_ARTICULO) From SUBPTH
+
+  Infbox([M:PTH1]STA)
+
+  Close Local Mask [M:PTH0]
+  Close Local Mask [M:PTH1]
+  Close Local Mask [M:PTH2]
+  Close Local Mask [M:PTHC]
+  Close Local Mask [M:ENTW]
+
+  Close Local File [F:PTR]
+  Close Local File [F:TCA]
+  Close Local File [F:ITM]
+  Close Local File [F:ITF]
+  Close Local File [F:BPR]
+  Close Local File [F:ITG]
+  Close Local File [F:ITV]
+  Close Local File [F:ITP]
+  Close Local File [F:FCY]
+  Close Local File [F:BPS]
+  Close Local File [F:BPA]
+  Close Local File [F:STCF]
+  Close Local File [F:POP]
+  Close Local File [F:SDD]
+  Close Local File [F:SRU]
+End

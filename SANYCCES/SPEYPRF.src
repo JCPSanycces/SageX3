@@ -1,0 +1,255 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara YPRODFECHA (Especifico)
+$ACTION
+Case ACTION
+  When "DEBUT"    :   Gosub DEBUT
+  When "OK"       :   Gosub OK
+Endcase
+Return
+
+
+###################################################
+$DEBUT
+# Pongo valor al campo texto
+[M:YPRF]TEXTO = "******** MODIFICACION FECHA DE OFs ********" + chr$(10) +
+& " Introduzca la nueva Fecha de Inicio"
+Affzo [M:YPRF]TEXTO
+Return
+
+
+###################################################
+$OK
+# Realizo la modificación de la fecha de inicio
+Call OUVRE_TRACE("Modificación fecha de inicio de OFs") From LECFIC
+
+# Apertura de tablas
+If clalev([F:ORD])  = 0 : Local File ORDERS      [ORD]  : Endif
+If clalev([F:MFG])  = 0 : Local File MFGHEAD     [MFG]  : Endif
+If clalev([F:MFI])  = 0 : Local File MFGITM      [MFI]  : Endif
+If clalev([F:MFM])  = 0 : Local File MFGMAT      [MFM]  : Endif
+If clalev([F:MFO])  = 0 : Local File MFGOPE      [MFO]  : Endif
+If clalev([F:OPS])  = 0 : Local File OPERATIONS  [OPS]  : Endif
+If clalev([F:SCH])  = 0 : Local File SCHEDULING  [SCH]  : Endif
+If clalev([F:ITM])  = 0 : Local File ITMMASTER   [ITM]  : Endif
+If clalev([F:ITV])  = 0 : Local File ITMMVT      [ITV]  : Endif
+If clalev([F:ITF])  = 0 : Local File ITMFACILIT  [ITF]  : Endif
+If clalev([F:FCY])  = 0 : Local File FACILITY    [FCY]  : Endif
+If clalev([F:TFO])  = 0 : Local File TABFOR      [TFO]  : Endif
+If clalev([F:ROS])   = 0 : Local File ROUSCD     [ROS]   : Endif
+If clalev ([F:MTS])  = 0 : Local File MFGTRS     [MTS]   : Endif
+If clalev ([F:MFIW]) = 0 : Local File MFGITM     [MFIW]  : Endif
+If clalev([F:XX1])   = 0 : Local File MFGHEAD    [XX1]  : Endif
+
+# Apertura de pantallas
+Local Mask ORDK    [ORDK]
+Local Mask MFGK    [MFGK]
+If clalev([M:OPSK])  = 0 : Local Mask OPSK       [OPSK]  : Endif
+If clalev([M:JALK])  = 0 : Local Mask JALK       [JALK]  : Endif
+If clalev([M:MFGX])  = 0 : Local Mask MFG2       [MFGX]  : Endif
+
+
+# Definición de variables
+Local Integer  OK
+Local Integer  NBOF
+Local Integer  LINE
+Local Char     WITMREF
+Local Char     WMFGFCY
+Local Char     WMFGNUM
+Local Integer  WMFGLIN
+Local Date     WSTRDAT
+Local Date     WENDDAT
+Local Integer  WSTA
+Local Date     WORIDAT
+Local Char     WORIFCY
+Local Integer  WLTI
+Local Char     WART
+Local Date     WMEMDAT
+Local Integer  WRET
+Local Integer  WMAX
+Local Decimal  XLTI
+Local Integer  ILTI
+Local Decimal  WRMD
+Local Decimal  WQTY
+Local Integer  WPSP
+Local Char     WMESS(85)
+Local Char     WMESS1(85)
+Local Char     WMESS2(85)
+Local Char     LMESS (250),LMERR(250)
+Local Integer  LTAM
+
+
+# Bucle sobre las OFs seleccionadas en la pantalla
+For LINE = 0 To [M:YPSA]PIE-1
+  If [M:YPSA]SEL(LINE) = 2
+    For [MFI] Where [MFI]MFGNUM = [M:YPSA]OF(LINE)
+      WITMREF = [F:MFI]ITMREF
+      WMFGFCY = [F:MFI]MFGFCY
+      If [F:MFI]MFGNUM = WMFGNUM : Goto NXT1 : Endif
+      WMFGNUM = [F:MFI]MFGNUM
+      WMFGLIN = [F:MFI]MFGLIN
+      WSTRDAT = [F:MFI]STRDAT
+      WENDDAT = [F:MFI]ENDDAT
+      WSTA    = [F:MFI]MFGSTA
+      Read [MFG]MFG0=[F:MFI]MFGNUM
+      If fstat : Goto NXT1 : Endif
+      If [F:MFG]SCDMOD   <> 2  : Goto NXT1 : Endif     # Solamente contemplo modo de escalonamiento hacia delante
+      If [F:MFG]OPTFLG    = 2  : Goto NXT1 : Endif
+      Gosub MODIFICA_FECHA
+      $NXT1
+    Next
+  Endif
+Next
+
+# Cierre y lectura de trazas
+Call FERME_TRACE From LECFIC
+Call LEC_TRACE From LECFIC
+Return
+
+###################################################
+$MODIFICA_FECHA
+      Gosub BLOQUEA
+      If !OK : Return : Endif
+      Call DEBTRANS From GLOCK
+      GOK = 1
+      Gosub CAMBIA
+      Gosub DESBLOQUEA
+Return
+
+
+###################################################
+$BLOQUEA
+SYMBOLE = "MFG"+[F:MFG]MFGNUM
+Lock = SYMBOLE With lockwait = 0
+OK = 1
+If fstat
+    LMESS = [F:MFI]MFGNUM + " " + mess(10,100,1)
+    Call ECR_TRACE(LMESS,1) From GESECRAN
+    OK = 0
+Endif
+Return
+
+
+###################################################
+$CAMBIA
+#
+Trbegin [MFG]
+    Raz [MFGK]
+    [M:MFGK]CODMAJ    = "M"
+    [M:MFGK]CODTRS    = 0
+    [M:MFGK]CALCST    = 1
+    [M:MFGK]MFGNUM    = [F:MFG]MFGNUM
+    [M:MFGK]MFGLIN    = [F:MFI]MFGLIN
+    [M:MFGK]MFGFCY    = [F:MFG]MFGFCY
+    [M:MFGK]MFGSTA    = [F:MFG]MFGSTA
+    [M:MFGK]ITMREF    = [F:MFI]ITMREF
+    [M:MFGK]PRVQTY    = [F:MFI]EXTQTY
+    [M:MFGK]EXTQTY    = [F:MFI]EXTQTY
+    [M:MFGK]STRDAT    = [M:YPRF]NEWDATE    # Esta es la nueva fecha que quiero poner
+    [M:MFGK]ENDDAT    = [F:MFG]ENDDAT
+    [M:MFGK]ECCVALMAJ = [F:MFI]ECCVALMAJ
+    [M:MFGK]ECCVALMIN = [F:MFI]ECCVALMIN
+    [M:MFGK]VCRNUMORI = [F:MFI]VCRNUMORI
+    [M:MFGK]VCRLINORI = [F:MFI]VCRLINORI
+    [M:MFGK]VCRSEQORI = [F:MFI]VCRSEQORI
+
+   # antériorité par rapport à la date du jour ?
+   Call CHECK_PAST([M:MFGK]STRDAT, 0)  From MFGLIB
+   If mkstat
+       WMESS  = mess(156,197,1)-mess(WSTA,317,1)-WMFGNUM+":"
+       WMESS1 = "          "+mess(60,193,1)
+       Goto FIN_TRACE
+   Endif
+
+   # révision calendriers (llc 06.00)
+   Call CONTROL_DATE_PLN([M:MFGK]STRDAT, [M:MFGK]MFGFCY) From MFGLIB
+   If mkstat = 2
+       If ([M:YPRF]NEWDATE - [F:MFI]STRDAT) > 0
+           # révision calendriers (llc 06.00)
+           Call CALCUL_DATE_PLN([M:MFGK]STRDAT, 1, [M:MFGK]MFGFCY, 0,
+&                               [M:MFGK]STRDAT) From MFGLIB
+       Else
+           # révision calendriers (llc 06.00)
+           Call CALCUL_DATE_PLN([M:MFGK]STRDAT, 1, [M:MFGK]MFGFCY, 1,
+&                               [M:MFGK]STRDAT) From MFGLIB
+       Endif
+       mkstat = 0
+   Endif
+
+   WORIDAT = [M:MFGK]STRDAT
+   WORIFCY = [M:MFGK]MFGFCY
+   WLTI=0
+
+   # lecture article site
+   Read [ITF]ITF0=[M:MFGK]ITMREF;[M:MFGK]MFGFCY
+   If fstat : Goto AB_TRTPSP : Endif
+   WQTY = [F:MFG]EXTQTY
+   Call CALCUL_DELAI([F:ITF]MFGLTI, WQTY, XLTI) From MFGLIB
+   ILTI    = int(XLTI)
+   WRMD    = XLTI - ILTI
+   If WRMD <> 0 : ILTI += 1 : Endif
+   WLTI=ILTI
+
+   # calcul date
+   WMEMDAT = [M:MFGK]ENDDAT
+
+   # révision calendriers (llc 06.00)
+   Call CALCUL_DATE_PLN(WORIDAT, WLTI, WORIFCY, 0, [M:MFGK]ENDDAT)
+&                       From MFGLIB
+
+  [M:MFGK]BOMALT = [F:MFI]BOMALT
+  [M:MFGK]ROUNUM = [F:MFG]ROUNUM
+  [M:MFGK]ROUALT = [F:MFG]ROUALT
+  [M:MFGK]PJT    = [F:MFI]PJT
+  [M:MFGK]LOT    = [F:MFI]LOT
+
+
+  Call MAJ_OF From MFGAUTLIB
+
+
+  If [M:MFGK]CODRET <> 0 : Goto AB_TRTPSP : Endif
+  WMESS   = mess(156,197,1)-mess(WSTA,317,1)-WMFGNUM-mess(204,197,1)+"."
+  WMESS1  = "          "+"("+mess(205,197,1)-"="-format$(GFMD,WSTRDAT)-mess(38,197,1)-
+&             format$(GFMD,WENDDAT)-mess(206,197,1)-"="-format$(GFMD,[M:MFGK]STRDAT)-
+&             mess(38,197,1)-format$(GFMD,[M:MFGK]ENDDAT)+")"
+
+  Read [XX1]MFG0 = WMFGNUM
+  If fstat = 0
+    [XX1]YMFECHA = 2
+    Rewrite [XX1]
+  Endif
+
+$FIN_TRACE
+    #No escribo trazas 09/04/2024
+    #Call ECR_TRACE(WMESS,0)  From GESECRAN
+    #Call ECR_TRACE(WMESS1,0) From GESECRAN
+    Raz WMESS, WMESS1, WMESS2
+    NBOF += 1
+Commit
+Return
+
+
+###################################################
+$DESBLOQUEA
+Unlock=SYMBOLE
+Return
+
+
+###################################################
+$AB_TRTPSP
+Rollback
+Call ECR_TRACE(mess(17,107,1),1) From GESECRAN
+Return
+
+
+######################################################################################
+Subprog C_NEWDATE(VALEUR)
+Variable Date    VALEUR
+# La fecha no puede ser anterior a la de hoy
+If VALEUR < date$
+  Errbox "Nueva fecha de inicio no puede ser anterior a hoy"
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################

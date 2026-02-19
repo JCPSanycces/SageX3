@@ -1,0 +1,253 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#@01@: JLP  10-07-2024 - Modificación del proceso que escribe las lineas del Fichero2, para que muestre el codigo de Articulo - Cliente del pedido
+
+Local Char WZCITANUM
+WZCITANUM = "CITA"
+Call FICHERO1(WZCITANUM) From ZCITASEXCEL
+End
+
+
+#------------------------------------------------------------------------------------
+Subprog FICHERO1(WZCITANUM)
+  #--
+  Value    Char    WZCITANUM()
+  #--
+  Gosub OUVRE
+  Gosub DEFINE_FIC_F1
+  Gosub CARGAR_MATRIZ_BULTOS
+  Gosub ECR_EXCEL_CAB
+  Gosub TRT_LECTURA
+  #--
+  Openo Using[ZCRE]
+End
+
+
+#------------------------------------------------------------------------------------
+Subprog FICHERO2(WZCITANUM)
+  #--
+  Value    Char    WZCITANUM()
+  #--
+  Gosub OUVRE
+  Gosub DEFINE_FIC_F2
+  Gosub CABECERA_F2
+  Gosub LINEAS_F2
+  #--
+  Openo Using[ZCRE]
+End
+
+
+#------------------------------------------------------------------------------------
+$OUVRE
+  #--
+  Local Char WDESAXX(GLONDES)
+  Local Char MATRIZ_BULTOS_X3(GLONDES)(1..20)
+  Local Char MATRIZ_BULTOS_LM(GLONDES)(1..20)
+  Local Integer WC
+  #--
+  If !clalev([F:ZZCITL]) : Local File ZCITASTL       [ZZCITL]: Endif
+  If !clalev([F:ZSPD])   : Local File YSPACKD        [ZSPD]  : Endif
+  If !clalev([F:ZSPH])   : Local File YSPACK         [ZSPH]  : Endif
+  If !clalev([F:ZSDD])   : Local File SDELIVERYD     [ZSDD]  : Endif
+  If !clalev([F:ZSOQ])   : Local File SORDERQ        [ZSOQ]  : Endif
+  If !clalev([F:ZSOH])   : Local File SORDER         [ZSOH]  : Endif
+  If !clalev([F:ZTPA])   : Local File TABPACKAGE     [ZTPA]  : Endif
+  If !clalev([F:YPRE])   : Local File STOPRED        [YPRE]  : Endif
+Return
+
+#------------------------------------------------------------------------------------
+$DEFINE_FIC_F1
+    #-- variables de fichero, inicializacion
+    adxifs = ";"                     #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+    #--
+    C_CARPETA = "CITAS"
+    #--
+    C_NOMFIC  = "F1_"+WZCITANUM+"_"+num$(adxuid(1))+num$(time)
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"csv","","","")
+    Openo C_FICHERO,0 Using[ZCRE]
+Return
+
+
+#------------------------------------------------------------------------------------
+$DEFINE_FIC_F2
+    #-- variables de fichero, inicializacion
+    adxifs = ";"                     #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+    #--
+    C_CARPETA = "CITAS"
+    #--
+    C_NOMFIC  = "F2_"+WZCITANUM+"_"+num$(adxuid(1))+num$(time)
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"csv","","","")
+    Openo C_FICHERO,0 Using[ZCRE]
+Return
+
+
+#------------------------------------------------------------------------------------
+$CARGAR_MATRIZ_BULTOS
+  #--
+  MATRIZ_BULTOS_LM(1)          = "PEDIDO"
+  MATRIZ_BULTOS_LM(2)          = "PESO"
+  WC = 3
+  Filter [F:ZTPA] Where ZEMBLM <> "" Order By YORDENLM
+  For [F:ZTPA]
+      Raz WDESAXX
+      Call LECTEXTRA(WDESAXX,"TABPACKAGE","DESAXX",[F:ZTPA]PCK,"") From ATEXTRA
+      MATRIZ_BULTOS_X3(WC)          = [F:ZTPA]ZEMBLM                  #valores de la tabla
+      MATRIZ_BULTOS_LM(WC)          = [F:ZTPA]ZEMBLM+"("+WDESAXX+")"  #para escribir en el excel
+      WC += 1
+  Next
+   Filter [F:ZTPA]
+
+Return
+
+$ECR_EXCEL_CAB
+  #--
+  For I = 1 To 20
+    If  MATRIZ_BULTOS_LM(I)<>""
+      Wrseq MATRIZ_BULTOS_LM(I); Using [ZCRE]
+    Endif
+  Next
+  Wrseq "OBSERVACION"                           Using [ZCRE]
+Return
+
+
+#------------------------------------------------------------------------------------
+$CABECERA_F2
+Wrseq "Tienda";          Using [ZCRE]
+Wrseq "Pedido";          Using [ZCRE]
+Wrseq "Referencia";      Using [ZCRE]
+Wrseq "EAN";             Using [ZCRE]
+Wrseq "Cantidad"         Using [ZCRE]
+Return
+
+
+#------------------------------------------------------------------------------------
+$TRT_LECTURA
+  #--
+
+   Local Char LREQSQL(250)(10)
+   Raz LREQSQL
+   LREQSQL(0)=" SELECT D.ORINUM_0, O.CUSORDREF_0  From " + nomap + ".YSPACKD P "
+   LREQSQL(1)=" INNER JOIN " + nomap + ".ZCITASTL Z ON Z.PACNUM_0=P.PACNUM_0 and Z.PRHNUM_0=P.VCRNUM_0"
+   LREQSQL(2)=" INNER JOIN " + nomap + ".STOPRED D  ON D.PRHNUM_0=P.VCRNUM_0 and D.PRELIN_0=P.VCRLIN_0 "
+   LREQSQL(3)=" INNER JOIN " + nomap + ".SORDER O ON O.SOHNUM_0=D.ORINUM_0 "
+   LREQSQL(4)=" Where Z.ZCITANUM_0 ='" + [M:ZCIT0]ZCITANUM  + "'"
+   LREQSQL(5)=" GROUP By D.ORINUM_0, O.CUSORDREF_0 "
+
+   For (Char SOHNUM, Char CUSORDREF ) From '5' Sql LREQSQL(0..9) As [YAPP]
+      LREQSQL(0)=" SELECT sum(H.YBRWEI_0) As PESO, E.ZEMBLM_0, COUNT(*) PAQUETES  From " + nomap + ".YSPACK H "
+      LREQSQL(1)="INNER JOIN " + nomap + ".TABPACKAGE E ON H.PCK_0=E.PCK_0 Where H.PACNUM_0 IN "
+      LREQSQL(2)=" ( SELECT P.PACNUM_0 From " + nomap + ".YSPACKD P "
+      LREQSQL(3)=" INNER JOIN " + nomap + ".ZCITASTL Z ON Z.PACNUM_0=P.PACNUM_0 and Z.PRHNUM_0=P.VCRNUM_0"
+      LREQSQL(4)=" INNER JOIN " + nomap + ".STOPRED D ON D.PRHNUM_0=P.VCRNUM_0 and D.PRELIN_0=P.VCRLIN_0"
+      LREQSQL(5)="  Where Z.ZCITANUM_0 ='" + [M:ZCIT0]ZCITANUM  + "' and D.ORINUM_0='" +[YAPP]SOHNUM +"' "
+      LREQSQL(6)=" GROUP By P.PACNUM_0)"
+      LREQSQL(7)=" GROUP By E.ZEMBLM_0"
+      For (Decimal PESO, Char ZEMBLM, Integer PAQUETES) From '5' Sql LREQSQL(0..9) As [YAPP2]
+        Gosub ECR_EXCEL_LIN_F1
+      Next
+   Next
+
+Return
+
+
+#------------------------------------------------------------------------------------
+$LINEAS_F2
+  #--
+Local Char LF2SQL(250)(10)
+Raz LF2SQL
+
+# @01@ JLP - 10/07/2024 - INI - Escribimos el codigo ARTICULO - CLIENTE del pedido
+
+#LF2SQL(0) = "SELECT C.YTIENDA_0,O.CUSORDREF_0,D.ITMREF_0,A.EANCOD_0,sum(P.QTYPCU_0)"
+#LF2SQL(1) = "From  " + nomap + ".YSPACKD P"
+#LF2SQL(2) = " INNER JOIN " + nomap + ".ZCITASTL Z  ON Z.PACNUM_0=P.PACNUM_0 and Z.PRHNUM_0=P.VCRNUM_0"
+#LF2SQL(3) = " INNER JOIN " + nomap + ".STOPRED D   ON D.PRHNUM_0=P.VCRNUM_0 and D.PRELIN_0=P.VCRLIN_0"
+#LF2SQL(4) = " INNER JOIN " + nomap + ".ITMMASTER A ON A.ITMREF_0=D.ITMREF_0"
+#LF2SQL(5) = " INNER JOIN " + nomap + ".SORDER O ON O.SOHNUM_0=D.ORINUM_0"
+#LF2SQL(6) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON O.BPCORD_0 = C.BPCNUM_0"
+#LF2SQL(7) = " Where Z.ZCITANUM_0='" + [M:ZCIT0]ZCITANUM  + "'"
+#LF2SQL(8) = " GROUP By C.YTIENDA_0, O.CUSORDREF_0,D.ITMREF_0,A.EANCOD_0"
+
+LF2SQL(0) = "SELECT C.YTIENDA_0,O.CUSORDREF_0,S.ITMREFBPC_0,A.EANCOD_0,sum(P.QTYPCU_0)"
+LF2SQL(1) = "From  " + nomap + ".YSPACKD P"
+LF2SQL(2) = " INNER JOIN " + nomap + ".ZCITASTL Z  ON Z.PACNUM_0=P.PACNUM_0 and Z.PRHNUM_0=P.VCRNUM_0"
+LF2SQL(3) = " INNER JOIN " + nomap + ".STOPRED D   ON D.PRHNUM_0=P.VCRNUM_0 and D.PRELIN_0=P.VCRLIN_0"
+LF2SQL(4) = " INNER JOIN " + nomap + ".ITMMASTER A ON A.ITMREF_0=D.ITMREF_0 "
+LF2SQL(5) = " INNER JOIN " + nomap + ".SORDER O ON O.SOHNUM_0=D.ORINUM_0"
+LF2SQL(6) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON O.BPCORD_0 = C.BPCNUM_0"
+LF2SQL(7) = " INNER JOIN " + nomap + ".ITMBPC S ON D.ITMREF_0 = S.ITMREF_0 AND O.BPCINV_0 = S.BPCNUM_0"
+LF2SQL(8) = " Where Z.ZCITANUM_0='" + [M:ZCIT0]ZCITANUM + "'"
+LF2SQL(9) = " GROUP By C.YTIENDA_0, O.CUSORDREF_0,S.ITMREFBPC_0,A.EANCOD_0"
+# @01@ JLP - 10/07/2024 - FIN - Escribimos el codigo ARTICULO - CLIENTE del pedido
+
+For (
+& Char TIENDA,
+& Char PEDCLI,
+& Char ART,
+& Char EAN,
+& Decimal CANTIDAD ) From '5' Sql LF2SQL(0..9) As [ZAPP]
+  Wrseq [ZAPP]TIENDA;                             Using [ZCRE]
+  Wrseq [ZAPP]PEDCLI;                             Using [ZCRE]
+  Wrseq [ZAPP]ART;                                Using [ZCRE]
+  Wrseq [ZAPP]EAN;                                Using [ZCRE]
+  Wrseq ctrans(num$(CANTIDAD),",",".")            Using [ZCRE]
+Next
+
+Return
+
+
+##########################################################
+#**
+#* Traigo el artículo - cliente del cliente factura del pedido
+#*
+#*!
+Funprog TARTICULO(PVALE,PLINEA)
+Value Char    PVALE
+Value Integer PLINEA
+
+Local Char ZARTICULO
+
+If !clalev([YS01]) Then : Local File STOPRED  [YS01] : Endif
+If !clalev([YS02]) Then : Local File SORDER   [YS02] : Endif
+If !clalev([YS03]) Then : Local File ITMBPC   [YS03] : Endif
+
+Read [YS01]PRE0 = PVALE;PLINEA
+If fstat = 0
+  Read [YS02]SOH0 = [YS01]ORINUM
+  If fstat = 0
+    Read [YS03]ITU0 = [YS01]ITMREF;[YS02]BPCINV
+    If fstat = 0
+      [L]ZARTICULO = [YS03]ITMREFBPC
+    Endif
+  Endif
+Endif
+
+Close Local File [YS01]
+Close Local File [YS02]
+Close Local File [YS03]
+
+End ZARTICULO
+
+
+#------------------------------------------------------------------------------------
+$ECR_EXCEL_LIN_F1
+Local Char LPESO(10)
+  #--
+  Wrseq [YAPP]CUSORDREF;                             Using [ZCRE] #--
+  Wrseq ctrans(num$([YAPP2]PESO),".",",");           Using [ZCRE] #--
+  For I = 3 To 20
+    If [YAPP2]ZEMBLM = MATRIZ_BULTOS_X3(I)
+      Wrseq [YAPP2]PAQUETES;                    Using [ZCRE] #--
+    Else
+      If MATRIZ_BULTOS_X3(I)<>""
+        Wrseq "0"   ;                           Using [ZCRE] #--
+      Else
+        Wrseq ""                                Using [ZCRE] #--
+        Break
+      Endif
+    Endif
+  Next
+Return

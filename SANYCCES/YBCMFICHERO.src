@@ -1,0 +1,314 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#######################################################################################
+
+#@01@: NUN14  22/07/2024 - Nuevo boton y fichero BCM
+
+#@02@: RAP  19/09/2024 - Rellenar campo observaciones y modificar estructura del fichero
+#@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
+
+#######################################################################################
+
+Subprog FICHERO_BCM(YCITA)
+  Value Char YCITA
+
+  Gosub OUVRE
+  Gosub OK
+
+End
+
+#######################################################################################
+
+$OUVRE
+
+  Local Char TEXTO_CAB(GLONDES)(1..18)
+  Local Char TEXTO_LIN(GLONDES)(1..18)
+  Local Char SDHNUM(GLONSDH)
+  #@02@: RAP  19/09/2024 - INI
+  Local Integer YCAB :YCAB = 0
+  #@02@: RAP  19/09/2024 - FIN
+
+
+  If !clalev([F:YSOH]) Then: Local File SORDER     [F:YSOH] : Endif # CABECERA EMPAQUETADO
+  If !clalev([F:YSDH]) Then: Local File SDELIVERY  [F:YSDH] : Endif
+  If !clalev([F:YBPD]) Then: Local File BPDLVCUST  [F:YBPD] : Endif
+  If !clalev([F:YBCM1]) Then: Local File YBCM1    [F:YBCM1] : Endif # VISTA ENTREGA/DOC. PREPARACION/CITA
+  If !clalev([F:YBCM2]) Then: Local File YBCM2    [F:YBCM2] : Endif # VISTA ENTREGA/DOC. PREPARACION/CITA
+  If !clalev([F:YBCM3]) Then: Local File YBCM3    [F:YBCM3] : Endif # VISTA CALCULO "00,01,02,90,91,92,BRUTO,NETO"
+
+
+Return
+
+#######################################################################################
+
+$OK
+  If !GSERVEUR : Call OUVRE_TRACE("Generación del fichero excel para BCM") From LECFIC : Endif
+  Call ECR_TRACE ("",0) From GESECRAN
+  Gosub OPEN_FIC
+  Filter [F:YBCM1] Where [F:YBCM1]ZCITANUM = YCITA
+    For  [F:YBCM1]
+      SDHNUM = [F:YBCM1]SDHNUM
+#      Gosub OPEN_FIC
+      #@02@: RAP  19/09/2024 - Hacemos IF YCAB para solo hacer la cabecera 1 vez por cita
+      If YCAB = 0
+      Gosub ECR_EXCEL_CAB
+      YCAB = 1
+      Endif
+
+      Gosub ECR_EXCEL_LINES #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
+#      Gosub ECR_EXCEL_LINES_OLD #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
+
+      #@02@: RAP  19/09/2024 - INI
+#      Gosub CLOSE_FIC
+#      Call ECR_TRACE ("Fichero generado para la entrega: " - SDHNUM,0) From GESECRAN
+    Next
+      Gosub CLOSE_FIC
+      Call ECR_TRACE ("Fichero generado para la cita: " - YCITA,0) From GESECRAN
+      #@02@: RAP  19/09/2024 - FIN
+  Filter [F:YBCM1]
+  If !GSERVEUR : Call FERME_TRACE() From LECFIC : Endif
+  Call LEC_TRACE From LECFIC
+Return
+
+#######################################################################################
+$OPEN_FIC
+
+    adxifs = ";"                     #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+
+    C_CARPETA = "CITAS"
+    C_NOMFIC  = "BCM_" + YCITA #+ num$(adxuid(1))+num$(time)
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"csv","","","")
+
+    If filinfo(C_FICHERO, 7) > 0 Then
+      System "ae_rm " + C_FICHERO
+    Endif
+
+    Sleep 3  # Nos esperamos unos segundos por el borrado
+
+
+    Openo C_FICHERO,-1 Using [ZCRE]
+
+Return
+
+#######################################################################################
+
+# Cierre fichero escritura
+$CLOSE_FIC
+  Openo Using [ZCRE]
+Return
+#######################################################################################
+
+$ECR_EXCEL_CAB
+
+  TEXTO_CAB(1)  = "ARMAZEN"
+  TEXTO_CAB(2)  = "OC_GUIA"
+  TEXTO_CAB(3)  = "PEDIDO"
+  TEXTO_CAB(4)  = "PEDIDO"
+  TEXTO_CAB(5)  = "EAD"
+  TEXTO_CAB(6)  = "LOJA ENCOMENDA 2"
+  TEXTO_CAB(7)  = "DATA ENTREGA LOJA"
+  TEXTO_CAB(8)  = "PESO"
+  TEXTO_CAB(9)  = "1/4 PALETE"
+  TEXTO_CAB(10) = "1/2 PALETE"
+  TEXTO_CAB(11) = "PALETE EURO"
+  TEXTO_CAB(12) = "PALETE AMERICANA"
+  TEXTO_CAB(13) = "PALETE DUPLA 240x80"
+  TEXTO_CAB(14) = "PALETE DUPLA 160x120"
+  TEXTO_CAB(15) = "PALETE DUPLA 240x240"
+  TEXTO_CAB(16) = "VOLUME STD"
+  TEXTO_CAB(17) = "VOLUME > 25 KG"
+  TEXTO_CAB(18) = "VOLUME LARGO"
+
+
+   Wrseq    TEXTO_CAB(1);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(2);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(3);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(4);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(5);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(6);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(7);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(8);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(9);    Using [ZCRE]
+   Wrseq    TEXTO_CAB(10);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(11);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(12);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(13);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(14);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(15);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(16);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(17);   Using [ZCRE]
+   Wrseq    TEXTO_CAB(18)    Using [ZCRE]
+
+Return
+
+#######################################################################################
+
+$ECR_EXCEL_LINES_OLD
+
+
+
+  Filter [F:YBCM2] Where [F:YBCM2]PRHNUM = [F:YBCM1]PRHNUM
+    Read [F:YBCM2] First
+    If !fstat
+      Read [F:YSOH]SOH0 = [F:YBCM2]SOHNUM
+      If !fstat
+        TEXTO_LIN(1)  = ""        # a. ARMAZEN: Columna vacía
+        TEXTO_LIN(2)  = ""        # b. OC_GUIA: Columna vací
+        TEXTO_LIN(3)  = [F:YSOH]CUSORDREF        # c. PEDIDO: Campo Referencia del pedido de venta.
+        TEXTO_LIN(4)  = [F:YSOH]CUSORDREF        # d. PEDIDO: Campo Referencia del pedido de venta.
+
+        TEXTO_LIN(5)  = ""        # e. EAD: Columna vacía
+
+        TEXTO_LIN(6)  = ""        # f. LOJA ENCOMENDA 2: Campo Observaciones del apartado Clientes Destinatarios de la ficha del cliente (XYOBSERVA) del cliente pedido de la entrega.
+
+        Read [F:YSDH]SDH0 = [F:YBCM1]SDHNUM
+        If !fstat
+          TEXTO_LIN(7)  = num$([F:YSDH]DLVDAT)       # g. DATA ENTREGA LOJA: Fecha de la entrega.
+          #@02@: RAP  19/09/2024 - INI
+          Read [F:YBPD]BPD0 = [F:YSDH]BPCORD;[F:YSDH]BPAADD
+          If !fstat
+          TEXTO_LIN(6)  = [F:YBPD]YOBSERVA
+          Endif
+          #@02@: RAP  19/09/2024 - FIN
+
+        Else
+          TEXTO_LIN(7)  =''       # g. DATA ENTREGA LOJA: Fecha de la entrega.
+        Endif
+
+        Filter [F:YBCM3] Where [F:YBCM3]PRHNUM = [F:YBCM2]PRHNUM and [F:YBCM3]SOHNUM = [F:YBCM2]SOHNUM
+          Read [F:YBCM3] First
+          If !fstat
+
+            TEXTO_LIN(8)  = num$([F:YBCM3]BRUTO)        # h. PESO: Peso bruto de los palets/bultos de cada pedido.
+
+            TEXTO_LIN(9)  = "0"                   # i. ¼ PALETE: No hay correspondencia con Sage, por ende la columna se rellena con 0
+
+            TEXTO_LIN(10) = num$([F:YBCM3]PCK02)        # j. ½ PALETE: Cantidad de embalajes 02 en dicho pedido de venta
+            TEXTO_LIN(11) = num$([F:YBCM3]PCK00)        # k. PALETE EURO: Cantidad de embalajes 00 en dicho pedido de venta
+            TEXTO_LIN(12) = num$([F:YBCM3]PCK01)        # l. PALETE AMERICANA: Cantidad de embalajes 01 en dicho pedido de venta
+
+            TEXTO_LIN(13) = "0"        # m. PALETE DUPLA 240x80: No hay correspondencia con Sage, por ende la columna se rellena con 0
+            TEXTO_LIN(14) = "0"        # n. PALETE DUPLA 160x120: No hay correspondencia con Sage, por ende la columna se rellena con 0
+            TEXTO_LIN(15) = "0"        # o. PALETE DUPLA 240x240:No hay correspondencia con Sage, por ende la columna se rellena con 0
+
+            TEXTO_LIN(16) = num$([F:YBCM3]PCK90)        # p. VOLUME STD: Cantidad de embalajes 90 en dicho pedido de venta
+            TEXTO_LIN(17) = num$([F:YBCM3]PCK91)        # q. VOLUME > 25 KG: Cantidad de embalajes 91 en dicho pedido de venta
+            TEXTO_LIN(18) = num$([F:YBCM3]PCK92)        # r. VOLUME LARGO: Cantidad de embalajes 92 en dicho pedido de venta
+
+          Endif
+        Filter [F:YBCM3]
+
+      Endif
+    Endif
+  Filter [F:YBCM2]
+
+
+   Wrseq    TEXTO_LIN(1);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(2);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(3);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(4);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(5);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(6);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(7);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(8);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(9);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(10);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(11);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(12);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(13);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(14);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(15);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(16);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(17);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(18)    Using [ZCRE]
+
+Return
+
+#######################################################################################
+#@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos -INI
+$ECR_EXCEL_LINES
+
+
+
+  Filter [F:YBCM2] Where [F:YBCM2]PRHNUM = [F:YBCM1]PRHNUM and [F:YBCM2]SDHNUM = [F:YBCM1]SDHNUM #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
+    Read [F:YBCM2] First
+#    For [F:YBCM2] #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos -INI
+    If !fstat
+      Read [F:YSOH]SOH0 = [F:YBCM2]SOHNUM
+      If !fstat
+        TEXTO_LIN(1)  = ""        # a. ARMAZEN: Columna vacía
+        TEXTO_LIN(2)  = ""        # b. OC_GUIA: Columna vací
+        TEXTO_LIN(3)  = [F:YSOH]CUSORDREF        # c. PEDIDO: Campo Referencia del pedido de venta.
+        TEXTO_LIN(4)  = [F:YSOH]CUSORDREF        # d. PEDIDO: Campo Referencia del pedido de venta.
+
+        TEXTO_LIN(5)  = ""        # e. EAD: Columna vacía
+
+        TEXTO_LIN(6)  = ""        # f. LOJA ENCOMENDA 2: Campo Observaciones del apartado Clientes Destinatarios de la ficha del cliente (XYOBSERVA) del cliente pedido de la entrega.
+
+        Read [F:YSDH]SDH0 = [F:YBCM1]SDHNUM
+        If !fstat
+          TEXTO_LIN(7)  = num$([F:YSDH]DLVDAT)       # g. DATA ENTREGA LOJA: Fecha de la entrega.
+          #@02@: RAP  19/09/2024 - INI
+          Read [F:YBPD]BPD0 = [F:YSDH]BPCORD;[F:YSDH]BPAADD
+          If !fstat
+          TEXTO_LIN(6)  = [F:YBPD]YOBSERVA
+          Endif
+          #@02@: RAP  19/09/2024 - FIN
+
+        Else
+          TEXTO_LIN(7)  =''       # g. DATA ENTREGA LOJA: Fecha de la entrega.
+        Endif
+
+        Filter [F:YBCM3] Where [F:YBCM3]PRHNUM = [F:YBCM2]PRHNUM and [F:YBCM3]SOHNUM = [F:YBCM2]SOHNUM
+          Read [F:YBCM3] First
+          If !fstat
+
+            TEXTO_LIN(8)  = num$([F:YBCM3]BRUTO)        # h. PESO: Peso bruto de los palets/bultos de cada pedido.
+
+            TEXTO_LIN(9)  = "0"                   # i. ¼ PALETE: No hay correspondencia con Sage, por ende la columna se rellena con 0
+
+            TEXTO_LIN(10) = num$([F:YBCM3]PCK02)        # j. ½ PALETE: Cantidad de embalajes 02 en dicho pedido de venta
+            TEXTO_LIN(11) = num$([F:YBCM3]PCK00)        # k. PALETE EURO: Cantidad de embalajes 00 en dicho pedido de venta
+            TEXTO_LIN(12) = num$([F:YBCM3]PCK01)        # l. PALETE AMERICANA: Cantidad de embalajes 01 en dicho pedido de venta
+
+#            TEXTO_LIN(13) = "0"        # m. PALETE DUPLA 240x80: No hay correspondencia con Sage, por ende la columna se rellena con 0
+            TEXTO_LIN(13) = num$([F:YBCM3]PCK03)        # m. PALETE DUPLA 240x80: No hay correspondencia con Sage, por ende la columna se rellena con 0  #@03@: JLP  16/10/2024 - Incidencia con las
+# referencias de los pedidos
+            TEXTO_LIN(14) = "0"        # n. PALETE DUPLA 160x120: No hay correspondencia con Sage, por ende la columna se rellena con 0
+            TEXTO_LIN(15) = "0"        # o. PALETE DUPLA 240x240:No hay correspondencia con Sage, por ende la columna se rellena con 0
+
+            TEXTO_LIN(16) = num$([F:YBCM3]PCK90)        # p. VOLUME STD: Cantidad de embalajes 90 en dicho pedido de venta
+            TEXTO_LIN(17) = num$([F:YBCM3]PCK91)        # q. VOLUME > 25 KG: Cantidad de embalajes 91 en dicho pedido de venta
+            TEXTO_LIN(18) = num$([F:YBCM3]PCK92)        # r. VOLUME LARGO: Cantidad de embalajes 92 en dicho pedido de venta
+
+          Endif
+        Filter [F:YBCM3]
+
+      Endif
+    Endif
+#    Next #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos -INI
+  Filter [F:YBCM2]
+
+
+   Wrseq    TEXTO_LIN(1);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(2);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(3);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(4);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(5);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(6);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(7);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(8);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(9);    Using [ZCRE]
+   Wrseq    TEXTO_LIN(10);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(11);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(12);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(13);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(14);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(15);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(16);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(17);   Using [ZCRE]
+   Wrseq    TEXTO_LIN(18)    Using [ZCRE]
+
+Return
+#@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos - FIN

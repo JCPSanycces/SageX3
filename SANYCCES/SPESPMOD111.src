@@ -1,0 +1,15 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+# Gestión de la máscara SPAMOD111 (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SPAMOD111) 11/10/2021 13:18:50 (NUN02)
+######################################################################################
+Subprog CL_YIMPRIME(VALEUR)
+Variable Char    VALEUR()
+Local Char TBVAL(20)(20)
+Local Char TBPAR(20)(20)
+TBPAR(0) = "anyo"
+TBPAR(1) = "periodo"
+TBVAL(0) = [M:SPM111]FIY
+TBVAL(1) = [M:SPM111]PER
+Call ETAT("Y-MOD111","",TBPAR,TBVAL) From ETAT

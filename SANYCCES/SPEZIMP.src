@@ -1,0 +1,86 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "OK":  Gosub OK
+Endcase
+Return
+
+$OK
+If clalev([F:AOX])=0 : Local File AOBJTXT [AOX]  : Endif
+If clalev([F:AIM])=0 : Local File APRINTER [AIM]  : Endif
+Local Char W_FILE(200)
+Local Char W_IMPRESORA(100)
+Local Char S_ORDSYS(250)
+Local Integer I_STAT
+Local Char PAS_RESPUESTA(250)(250)
+
+Filter [F:AOX] Where ABREV="MFG" and IDENT1=[M:MFG0]MFGNUM and find("PLANO",MOTCLE())
+For [F:AOX]AOX0
+  Raz W_IMPRESORA, W_FILE
+  I=instr(1,[F:AOX]NAM,"/")
+  J=instr(1,[F:AOX]NAM,".")
+  If I & J
+     W_FILE=filpath(seg$([F:AOX]NAM,2,I-2),seg$([F:AOX]NAM,I+1,J-1),right$([F:AOX]NAM,J+1))
+     Infbox W_FILE
+  Endif
+  Read [F:AIM]AIM0=[M:ZIMP]COD
+  If !fstat
+    W_IMPRESORA=[F:AIM]PRTNAM
+    Infbox W_IMPRESORA
+  Endif
+  If W_FILE<>"" & W_IMPRESORA<>""
+    Openo filpath("ATT","Impplano","bat"),0 Using [BAT]
+    Wrseq "@echo off"                                    Using [BAT]
+    Wrseq "set CURRENT_DIR=C:\Sage\V11\folders\SEED\ATT" Using [BAT]
+    Wrseq "chdir %CURRENT_DIR%"                          Using [BAT]
+    Wrseq '"C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRD32.exe" /n /s /h /t'; Using [BAT]
+    Wrseq ' "'+W_FILE+'" ';                              Using [BAT]
+    Wrseq '"'+W_IMPRESORA+'"'                            Using [BAT]
+    Openo Using [BAT]
+    [L]S_ORDSYS = filpath("ATT","Impplano","bat")
+    Call SYSTEME2(adxmac(0),[L]S_ORDSYS,"",[L]I_STAT,[L]PAS_RESPUESTA) From ORDSYS
+  Endif
+Next
+Filter [F:AOX] Where ABREV="SOH" and IDENT1=[M:MFG1]VCRNUMORI(0) and find("PLANO",MOTCLE())
+For [F:AOX]AOX0
+  Raz W_IMPRESORA, W_FILE
+  I=instr(1,[F:AOX]NAM,"/")
+  J=instr(1,[F:AOX]NAM,".")
+  If I & J
+     W_FILE=filpath(seg$([F:AOX]NAM,2,I-2),seg$([F:AOX]NAM,I+1,J-1),right$([F:AOX]NAM,J+1))
+     Infbox W_FILE
+  Endif
+  Read [F:AIM]AIM0=[M:ZIMP]COD
+  If !fstat
+    W_IMPRESORA=[F:AIM]PRTNAM
+    Infbox W_IMPRESORA
+  Endif
+  If W_FILE<>"" & W_IMPRESORA<>""
+    Openo filpath("ATT","Impplano","bat"),0 Using [BAT]
+    Wrseq "@echo off"                                    Using [BAT]
+    Wrseq "set CURRENT_DIR=C:\Sage\V11\folders\SEED\ATT" Using [BAT]
+    Wrseq "chdir %CURRENT_DIR%"                          Using [BAT]
+    Wrseq '"C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRD32.exe" /n /s /h /t'; Using [BAT]
+    Wrseq ' "'+W_FILE+'" ';                              Using [BAT]
+    Wrseq '"'+W_IMPRESORA+'"'                            Using [BAT]
+    Openo Using [BAT]
+    [L]S_ORDSYS = filpath("ATT","Impplano","bat")
+    Call SYSTEME2(adxmac(0),[L]S_ORDSYS,"",[L]I_STAT,[L]PAS_RESPUESTA) From ORDSYS
+  Endif
+Next
+Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZIMPPLANO) 03/09/2022 11:05:32 (NUN10)
+######################################################################################
+Subprog C_COD(VALEUR)
+Variable Char    VALEUR()
+If clalev([F:AIM])=0 : Local File APRINTER [AIM]  : Endif
+Read [F:AIM]AIM0=VALEUR
+If [F:AIM]PRTNAM=""
+   GMESSAGE="El destino elegido no tiene impresora asociada"
+   mkstat=2
+Endif
+End
+
+
+######################################################################################

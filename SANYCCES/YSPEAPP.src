@@ -1,0 +1,41 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+####################################################################
+#**
+#* Subprograma para controlar el acceso a la appmovil
+#*
+#* @param PUSR
+#* @param PPASS
+#* @param PACCESO
+#* @param PMESS
+#*!
+Subprog GETACCESO(PUSR, PPASS, PACCESO, PMESS)
+  Value Char PUSR
+  Value Char PPASS
+  Variable Char PACCESO, PMESS
+
+
+  If !clalev([YUSR]) Then : Local File AUTILIS [YUSR] : Endif
+
+  Read [F:YUSR]CODUSR=PUSR
+  If !fstat Then
+    If [F:YUSR]YUSRAPP = 2 Then
+      If [F:YUSR]YPASSAPP = PPASS Then
+        PACCESO = "1" # acceso correcto
+        PMESS = "Acceso correcto"
+      Else
+        PACCESO = "2" # pass incorrecta
+        PMESS = "Password incorrecta"
+      Endif
+    Else
+      PACCESO = "0" # usuario sin acceso a la app
+      PMESS = "Usuario sin acceso a la App"
+    Endif
+ Else
+  PACCESO = "3" # usuario no encontrado
+  PMESS = "Usuario no encontrado"
+ Endif
+
+  Close Local File [YUSR]
+
+
+End

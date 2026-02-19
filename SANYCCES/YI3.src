@@ -1,0 +1,11 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+Local Char     LITM
+Local Char     LNUM
+Local Integer  LRET
+
+
+
+Call NUMERO_SSCC("","",LNUM,LRET,"18435315524000505") From YCOMUN
+
+Infbox LNUM

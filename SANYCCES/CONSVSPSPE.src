@@ -1,0 +1,38 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara BIS1 (Especifico)
+$ACTION
+#Infbox ACTION
+Case ACTION
+ When "LECTURE" : Gosub LECTURE
+Endcase
+Return
+
+
+$LECTURE
+
+Gosub LECTURE From CONSVSPSTD
+GPE = 1
+
+
+Local Integer FILA
+
+
+If clalev([F:YPIH])=0 : Local File PINVOICE  [YPIH] : Endif
+If clalev([F:YBPA])=0 : Local File BPADDRESS  [YBPA] : Endif
+
+For FILA = 0 To dim([M:VSP2]NUM(FILA))-1
+
+    If [M:VSP2]NUM(FILA) = '': Break:Endif
+
+    Read [F:YPIH]PIH0 = [M:VSP2]NUM(FILA)
+    If !fstat
+      Read [F:YBPA]BPA0 = 1;[F:YPIH]BPR;[F:YPIH]BPAINV
+      If !fstat
+        [M:VSP2]YSAT(FILA) = [F:YBPA]SAT
+        Affzo [M:VSP2]YSAT(FILA)
+      Endif
+    Endif
+
+ Next
+
+Return

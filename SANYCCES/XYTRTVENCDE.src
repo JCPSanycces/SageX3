@@ -1,0 +1,117 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @02@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
+# @03@ - JLP - 05-03-2025 - Incidencia Presupuestos - (No afecte en presupuestos)
+# @04@ - JLP - 16-04-2025 - 16-04-2025 - Bloqueos asociados en PDV - INI
+$ACTION
+Case ACTION
+  When "EXEC" : Gosub EXEC
+Endcase
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$EXEC
+
+  If GFONCTION = 'GESSOH'  # @03@ - JLP - 05-03-2025
+        #  @02@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
+          If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),[M:SOH4]DSHIDAT(nolign-1))) = 1
+              mkstat = 2
+              [V]GERR=1
+              [V]GMESSAGE = "Fecha de expedición bloqueada para "-(func SPESOH.GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", póngase con el responsable de esta sección de prepicking"
+              GPE = 1
+          Endif
+        #  @02@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
+
+        # @04@ - JLP - 16-04-2025 - 16-04-2025 - Bloqueos asociados en PDV - INI
+          For I = 0 To [M:SOH4]NBLIG-1
+            If [M:SOH4]FMINUM(I) <> '' and [M:SOH4]FMI(I) = 5 and [M:SOH4]SOPLIN(I) = [M:SOH4]ZLINASOC(nolign-1) and [M:SOH4]SOQSTA(I) <> 3
+              mkstat=2
+              [V]GERR=1
+              [V]GMESSAGE = "No es posible saldar esta línea de asociado. Producto principal puesto en producción y su línea no está saldada."
+              GPE=1
+            Endif
+          Next
+        # @04@ - JLP - 16-04-2025 - 16-04-2025 - Bloqueos asociados en PDV - FIN
+
+
+        If [M:SOH4]FMINUM(nolign-1) <> '' and GACTION ='TRTCLESOQ' and [M:SOH4]FMI(nolign-1) = 5
+          If find([M:SOH4]YSITUACIONOF(nolign-1),1,2,3,4) <>0
+          mkstat=2
+          [V]GERR=1
+          [V]GMESSAGE = "No es posible saldar, esta línea está vinculada con una contramarca"
+          GPE=1
+          Else
+       Local File AUTILIS [YYAUT]
+       Local Integer  STA
+       Local Integer  TRACE
+       Local Char      FIC_TRACE(250)
+       Local Char      ISSUERMAIL(250)
+       Local Char      A_USER(250)(1..)
+       Local Char      CC_USER(250)(1..)
+       Local Char      HEADER(250)
+       Local Clbfile   BODY(0)
+       Local Char      ATTACHMENTS(250)(1..)
+       Read [YYAUT]CODUSR =GUSER
+       A_USER(1)="marta.bermejo@nunsys.com"
+       A_USER(2)="raul.arribas@nunsys.com"
+       A_USER(3)="d.pons@sanycces.es"
+       HEADER="Alguna linea con contramarca generada del pedido "+[M:SOH0]SOHNUM+" se ha intentado saldar"
+       ISSUERMAIL="admin_sanycces@sanycces.com"
+       TRACE = 2
+
+
+       Append BODY , 'La linea '+num$(nolign)                        +chr$(10)
+       Append BODY ,"Artículo " +[M:SOH4]ITMREF(nolign-1)            +chr$(10)
+       Append BODY ,"Cantidad " +num$([M:SOH4]QTY(nolign-1))         +chr$(10)
+       Append BODY ,"Contramarca " +[M:SOH4]FMINUM(nolign-1)         +chr$(10)
+       Append BODY ,"se ha intentado saldar por el usuario "+[YYAUT]NOMUSR+ "."                +chr$(10)
+       Append BODY , 'Revise el pedido ' +[M:SOH0]SOHNUM+"."  +chr$(10)
+       STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+       Close File [YYAUT]
+          Endif
+        Else
+          If GACTION = "TRTCLESOH"
+          For I=0 To [M:SOH4]NBLIG
+              If [M:SOH4]FMINUM(I) <> '' and [M:SOH4]FMI(I) = 5
+                    If find([M:SOH4]YSITUACIONOF(I),1,2,3,4) <>0
+                      mkstat=2
+                      [V]GERR=1
+                      [V]GMESSAGE = "No es posible saldar, línea"-num$([M:SOH4]SOPLIN)-"vinculada con una contramarca"
+                      GPE=1
+                      Break
+                    Else
+
+       Local File AUTILIS [YYAUT]
+       Local Integer  STA
+       Local Integer  TRACE
+       Local Char      FIC_TRACE(250)
+       Local Char      ISSUERMAIL(250)
+       Local Char      A_USER(250)(1..)
+       Local Char      CC_USER(250)(1..)
+       Local Char      HEADER(250)
+       Local Clbfile   BODY(0)
+       Local Char      ATTACHMENTS(250)(1..)
+         Read [YYAUT]CODUSR =GUSER
+       A_USER(1)="marta.bermejo@nunsys.com"
+       A_USER(2)="raul.arribas@nunsys.com"
+       A_USER(3)="d.pons@sanycces.es"
+       HEADER="Alguna linea con contramarca generada del pedido "+[M:SOH0]SOHNUM+" se ha intentado saldar"
+       ISSUERMAIL="admin_sanycces@sanycces.com"
+       TRACE = 2
+
+
+       Append BODY , 'La linea '+num$(I+1)                    +chr$(10)
+       Append BODY ,"Artículo " +[M:SOH4]ITMREF(I)            +chr$(10)
+       Append BODY ,"Cantidad " +num$([M:SOH4]QTY(I))         +chr$(10)
+       Append BODY ,"Contramarca " +[M:SOH4]FMINUM(I)         +chr$(10)
+       Append BODY ,"se ha intentado saldar por el usuario "+[YYAUT]NOMUSR+ "."                +chr$(10)
+       Append BODY , 'Revise el pedido ' +[M:SOH0]SOHNUM+"."  +chr$(10)
+       STA =func ASYRMAIL.ASEND_MAIL(GACTX,ISSUERMAIL,A_USER,CC_USER,HEADER,BODY,ATTACHMENTS,TRACE)
+       Close File [YYAUT]
+                    Endif
+              Endif
+          Next
+          Endif
+        Endif
+  Endif # @03@ - JLP - 05-03-2025
+Return

@@ -1,0 +1,322 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+### Desarrollo para alimentar los campos asociado
+# @01@ - SCD - 09/08/2023 - Modificacion para que los variantes no sean asociados
+# @02@ - DSR - 21/08/2023 - Si la línea es Variante (5) / Componente KIT (3), permito la creación de contramarca (por STD solo permite si es Variante / Componente ESTRUCTURA)
+# @03@ - EQM - 16/09/2024 - Modificación fecha expedición
+# @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+
+$ACTION
+
+  Case ACTION
+     When "ALILIG": Gosub ALILIG
+      When "MODLIG":Gosub MODLIG # @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+  Endcase
+Return
+
+# @04@ - SCD - 23/04/2025 - INI
+
+$MODLIG
+Infbox "FUNCTION - " - num$(FUNCTION)
+  If FUNCTION=2
+    Gosub UPD_GRO_SOH
+  Elsif FUNCTION=1
+    Gosub UPD_GRO_SQH
+  Endif
+
+Return
+# @04@ - SCD - 23/04/2025 - FIN
+
+
+$ALILIG
+# Actúo cuando cargo los componentes de una estructura comercial en un pedido de venta (FUNCTION=2) o presupuestos de venta (FUNCTION=1)
+# Si no es pedido o si es gratuito, cierro proceso
+#If FUNCTION<>2 or TYPINS<>"N": Return: Endif
+If TYPINS<>"N": Return: Endif
+If FUNCTION=2  #* PEDIDOS DE VENTA
+  # Todos los componentes que traigo de la estructura comercial y sean origen de artículo = normal, los marco como asociados, les indico la línea y marco como sin gestión de stock
+  # 16/05/2023: el artículo que se selecciona y es de Tipo “Variante” dentro de la estructura, es el que debe no marcarse el check de asociado y respetar el campo “Origen artículo”
+  #           : comento gestión anterior con else de 1=1
+  # 01/08/2023: NUN01: Solo son asociados por defecto
+  # 4 Opción kit
+  # 5 Variante kit
+  # 8 OPCIÓN ESTRUCTURA
+  # 9 Variante estructura
+  #
+
+
+  # @01@ - SCD - 09/08/2023 - INI
+  #**@deprecated
+  #*
+  #* If [M:SOH4]LINTYP(NL)=4 or  [M:SOH4]LINTYP(NL)=5 or [M:SOH4]LINTYP(NL)=8 or [M:SOH4]LINTYP(NL)=9
+  #*
+  #*!
+  If [M:SOH4]LINTYP(NL)=4 or [M:SOH4]LINTYP(NL)=8
+  # @01@ - SCD - 09/08/2023 - FIN
+
+      Local Integer LINE
+
+      If NL>0
+        If [M:SOH4]ZLINASOC(NL-1) <> 0
+          [M:SOH4]ZLINASOC(NL) = [M:SOH4]ZLINASOC(NL-1)
+        Elsif [M:SOH4]FMI(NL-1) = 5
+          [M:SOH4]ZLINASOC(NL)  = [M:SOH4]SOPLIN(NL-1)
+        Endif
+      Endif
+
+      [M:SOH4]WALLQTY(NL)   = 0
+      [M:SOH4]WALLQTYSTU(NL)= 0
+      [M:SOH4]ZASOCIADO(NL) = 2
+      [M:SOH4]STOMGTCOD(NL) = 1
+      [M:SOH4]FMI(NL)       = 1
+
+# @04@ - SCD - 23/04/2025 - INI
+
+      Gosub UPD_GRO_SOH
+
+# @04@ - SCD - 23/04/2025 - FIN
+
+      Affzo [M:SOH4]ZLINASOC(NL)
+      Affzo  [M:SOH4]ZASOCIADO(NL)
+      Affzo  [M:SOH4]FMI(NL)
+      Affzo  [M:SOH4]WALLQTY(NL)
+      Affzo  [M:SOH4]WALLQTYSTU(NL)
+  # @02@ - DSR - 21/08/2023 - INI
+  Elsif [M:SOH4]LINTYP(NL)=5 or [M:SOH4]LINTYP(NL)=3
+      If !clalev([F:ZITM]): Local File ITMMASTER [F:ZITM]: Endif
+      If !clalev([F:ZITS]): Local File ITMSALES  [F:ZITS]: Endif
+      If !clalev([F:ZITG]): Local File ITMCATEG [F:ZITG]: Endif
+      Read [F:ZITM]ITM0=[M:SOH4]ITMREF(NL)
+      Read [F:ZITS]ITS0=[M:SOH4]ITMREF(NL)
+      If !fstat
+        If [F:ZITS]CTMFLG = 2
+          Read [F:ZITG]ITG0="";[F:ZITM]TCLCOD
+          If !fstat
+            If [F:ZITG]MFGFLG=2 & [F:ZITG]PURFLG<>2
+              [M:SOH4]WALLQTY(NL)   = 0
+              [M:SOH4]WALLQTYSTU(NL)= 0
+              Affzo  [M:SOH4]WALLQTY(NL)
+              Affzo  [M:SOH4]WALLQTYSTU(NL)
+              [M:SOH4]FMI(NL)=5:    Affzo [M:SOH4]FMI(NL)
+            Endif
+          Endif
+        Endif
+      Endif
+  # @02@ - DSR - 21/08/2023 - FIN
+  Else
+    If [M:SOH4]LINTYP(NL)>=2 and [M:SOH4]LINTYP(NL)<=9 and [M:SOH4]FMI(NL) = 1
+      Local Integer LINE
+      If NL>0
+        If [M:SOH4]ZLINASOC(NL-1) <> 0
+          [M:SOH4]ZLINASOC(NL) = [M:SOH4]ZLINASOC(NL-1)
+        Elsif [M:SOH4]FMI(NL-1) = 5
+          [M:SOH4]ZLINASOC(NL)  = [M:SOH4]SOPLIN(NL-1)
+        Endif
+      Endif
+
+      [M:SOH4]ZASOCIADO(NL) = 2
+      [M:SOH4]STOMGTCOD(NL) = 1
+      Affzo [M:SOH4]ZLINASOC(NL)
+      Affzo  [M:SOH4]ZASOCIADO(NL)
+    Endif
+  Endif
+
+
+ # @03@ - EQM - INI
+ If !clalev([PP1]) : Local File ITMFACILIT [PP1] : Endif
+ If !clalev([PP2]) : Local File FACILITY   [PP2] : Endif
+
+ Local Date YEXP : YEXP = [M:SOH0]ORDDAT
+ Local Date YDSTDAT
+
+   If [M:SOH4]LINTYP(NL)=4 or [M:SOH4]LINTYP(NL)=8 or [M:SOH4]LINTYP(NL)=7
+       For YX =0 To [M:SOH4]NBLIG-1
+       If ([M:SOH4]ZLINASOC(NL)=[M:SOH4]SOPLIN(YX)) and [M:SOH4]LINTYP(YX)=9
+           Read [PP1]ITF0 = [M:SOH4]ITMREF(YX);[M:SOH0]SALFCY
+           If fstat = 0
+              YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+              Call CTL_JOU(YDSTDAT, [PP2]UVYDAY, [PP2]UVYCOD, 1) From CONTX3
+              [M:SOH4]DSHIDAT(NL)   = YDSTDAT
+              [M:SOH4]EXTDLVDAT(NL) = YDSTDAT
+              Break
+           Endif
+       Endif
+       Next
+   Endif
+  If [M:SOH4]LINTYP(NL)=9
+      Read [PP1]ITF0 = [M:SOH4]ITMREF(NL);[M:SOH0]SALFCY
+      If !fstat
+          YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+          Call CTL_JOU(YDSTDAT, [PP2]UVYDAY, [PP2]UVYCOD, 1) From CONTX3
+          [M:SOH4]DSHIDAT(NL)   = YDSTDAT
+          [M:SOH4]EXTDLVDAT(NL) = YDSTDAT
+          If [M:SOH4]LINTYP(NL-1)=6
+              [M:SOH4]DSHIDAT(NL-1)   = YDSTDAT
+              [M:SOH4]EXTDLVDAT(NL-1) = YDSTDAT
+          Endif
+      Endif
+  Endif
+
+  # @03@ - EQM - FIN
+
+
+
+
+
+
+Elsif FUNCTION=1  #* PRESUPUESTOS DE VENTA (mantengo la misma estructura de código que para el caso del pedido de venta)
+  # Todos los componentes que traigo de la estructura comercial y sean origen de artículo = normal, los marco como asociados, les indico la línea y marco como sin gestión de stock
+  # 16/05/2023: el artículo que se selecciona y es de Tipo “Variante” dentro de la estructura, es el que debe no marcarse el check de asociado y respetar el campo “Origen artículo”
+  #           : comento gestión anterior con else de 1=1
+  # 01/08/2023: NUN01: Solo son asociados por defecto
+  # 4 Opción kit
+  # 5 Variante kit
+  # 8 OPCIÓN ESTRUCTURA
+  # 9 Variante estructura
+  #
+
+  # @01@ - SCD - 09/08/2023 - INI
+  #**@deprecated
+  #*
+  #* If [M:SOH4]LINTYP(NL)=4 or  [M:SOH4]LINTYP(NL)=5 or [M:SOH4]LINTYP(NL)=8 or [M:SOH4]LINTYP(NL)=9
+  #*
+  #*!
+  If [M:SQH2]LINTYP(NL)=4 or [M:SQH2]LINTYP(NL)=8
+  # @01@ - SCD - 09/08/2023 - FIN
+
+      Local Integer LINE
+
+      If NL>0
+        If [M:SQH2]ZLINASOC(NL-1) <> 0
+          [M:SQH2]ZLINASOC(NL) = [M:SQH2]ZLINASOC(NL-1)
+        Else
+          [M:SQH2]ZLINASOC(NL) = [M:SQH2]SQDLIN(NL-1)
+        Endif
+      Endif
+
+      [M:SQH2]ZASOCIADO(NL) = 2
+      [M:SQH2]STOMGTCOD(NL) = 1
+
+      Affzo  [M:SQH2]ZLINASOC(NL)
+      Affzo  [M:SQH2]ZASOCIADO(NL)
+      Affzo  [M:SQH2]STOMGTCOD(NL)
+
+# @04@ - SCD - 23/04/2025 - INI
+
+      Gosub UPD_GRO_SQH
+
+# @04@ - SCD - 23/04/2025 - FIN
+
+
+  # @02@ - DSR - 21/08/2023 - INI
+  Elsif [M:SQH2]LINTYP(NL)=5 or [M:SQH2]LINTYP(NL)=3
+
+  # @02@ - DSR - 21/08/2023 - FIN
+  Else
+    If [M:SQH2]LINTYP(NL)>=2 and [M:SQH2]LINTYP(NL)<9
+      # Compruebo si el artículo es contramarca. Si lo es, NO es un asociado
+      If !clalev([YP1]) : Local File ITMSALES [YP1] : Endif
+
+      Local Integer CONTRAMARCA
+If 1=2
+      Read [YP1]ITS0 = [M:SQH2]ITMREF(NL)
+      If fstat = 0
+        If [YP1]CTMFLG = 2
+          [L]CONTRAMARCA = 2
+        Endif
+      Endif
+      Close Local File [YP1]
+Endif
+     # If [L]CONTRAMARCA <> 2
+        Local Integer LINE
+        If NL>0
+          If [M:SQH2]ZLINASOC(NL-1) <> 0
+            [M:SQH2]ZLINASOC(NL) = [M:SQH2]ZLINASOC(NL-1)
+          Else
+            [M:SQH2]ZLINASOC(NL) = [M:SQH2]SQDLIN(NL-1)
+          Endif
+     #   Endif
+
+        [M:SQH2]ZASOCIADO(NL) = 2
+        [M:SQH2]STOMGTCOD(NL) = 1
+        Affzo [M:SQH2]ZLINASOC(NL)
+        Affzo  [M:SQH2]ZASOCIADO(NL)
+      Endif
+    Endif
+  Endif
+
+Endif
+
+Return
+
+############################################################################################################################
+# @04@ - SCD - 23/04/2025 - INI
+
+$UPD_GRO_SOH
+  If func YCONFIG.CHECK_CONFIG([M:SOH4]ITMREF(NL)) = 2
+
+    If NL>0
+      If [M:SOH4]ZLINASOC(NL-1) <> 0
+        [M:SOH4]GROPRI(NL) = [M:SOH4]NETPRI(([M:SOH4]ZLINASOC(NL)/1000)-1)
+        [M:SOH4]REPCOE(NL) = [M:SOH4]REPCOE(([M:SOH4]ZLINASOC(NL)/1000)-1)
+
+        Local Integer NOL
+        NOL = NL
+        Call CLCNETPRI([M]QTY(NOL), [M:SOH0]CUR, NOL) From TRTVENPRI
+        Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 1) From TRTVENPRI
+        [M:SOH4]UPDFLG(NL) = 2
+
+      Elsif [M:SOH4]FMI(NL-1) = 5
+
+        [M:SOH4]GROPRI(NL)  = [M:SOH4]NETPRI(([M:SOH4]ZLINASOC(NL)/1000)-1)
+        [M:SOH4]REPCOE(NL) = [M:SOH4]REPCOE(([M:SOH4]ZLINASOC(NL)/1000)-1)
+
+        Local Integer NOL
+        NOL = NL
+        Call CLCNETPRI([M]QTY(NOL), [M:SOH0]CUR, NOL) From TRTVENPRI
+        Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 1) From TRTVENPRI
+        [M:SOH4]UPDFLG(NL) = 2
+
+      Endif
+    Endif
+
+    Affzo  [M:SOH4]UPDFLG(NL)
+    Affzo  [M:SOH4]GROPRI(NL)
+    Affzo  [M:SOH4]NETPRI(NL)
+    Affzo  [M:SOH4]REPCOE(NL)
+
+  Endif
+Return
+############################################################################################################################
+$UPD_GRO_SQH
+
+  If func YCONFIG.CHECK_CONFIG([M:SQH2]ITMREF(NL)) = 2
+      If [M:SQH2]ZLINASOC(NL-1) <> 0
+          [M:SQH2]GROPRI(NL)  = [M:SQH2]NETPRI(([M:SQH2]ZLINASOC(NL)/1000)-1)
+          [M:SQH2]REPCOE(NL) = [M:SQH2]REPCOE(([M:SQH2]ZLINASOC(NL)/1000)-1)
+
+          Local Integer NOL
+          NOL = NL
+          Call CLCNETPRI([M]QTY(NOL), [M:SQH0]CUR, NOL) From TRTVENPRI
+          Call CLCPFM([M]DSTOFCY(NOL), [M:SQH1]PRITYP, [M]CHGTYP, [M:SQH0]QUODAT, [M:SQH0]CUR, NOL, 1) From TRTVENPRI
+          [M:SQH2]UPDFLG(NL) = 2
+
+      Else
+          [M:SQH2]GROPRI(NL)  = [M:SQH2]NETPRI(([M:SQH2]ZLINASOC(NL)/1000)-1)
+          [M:SQH2]REPCOE(NL) = [M:SQH2]REPCOE(([M:SQH2]ZLINASOC(NL)/1000)-1 )
+
+          Local Integer NOL
+          NOL = NL
+          Call CLCNETPRI([M]QTY(NOL), [M:SQH0]CUR, NOL) From TRTVENPRI
+          Call CLCPFM([M]DSTOFCY(NOL), [M:SQH1]PRITYP, [M]CHGTYP, [M:SQH0]QUODAT, [M:SQH0]CUR, NOL, 1) From TRTVENPRI
+          [M:SQH2]UPDFLG(NL) = 2
+
+      Endif
+
+    Affzo  [M:SQH2]UPDFLG(NL)
+    Affzo  [M:SQH2]GROPRI(NL)
+    Affzo  [M:SQH2]NETPRI(NL)
+    Affzo  [M:SQH2]REPCOE(NL)
+
+  Endif
+Return
+# @04@ - SCD - 23/04/2025 - FIN

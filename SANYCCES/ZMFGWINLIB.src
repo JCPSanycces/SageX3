@@ -1,0 +1,261 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-------------------------------------------------
+$OK_MFMFICH
+nolign = WLIG + 1
+
+# GH 19/06/13 bug 90478 Chgt d'article => recalcul de la qté dispo de la ligne composant de l'OF
+If [M:MFG2]ITMREF(WLIG)<>[M:MFMW]ITMREF
+   If [F:ITF]STOMGTCOD=2
+      Local Decimal WDIS
+      Local Integer WRET
+      #--- Issue 115110 & 120426 : Added LECCVAL parameter in 10th position
+      #Call STODISALL([M:MFG0]MFGFCY,[M:MFMW]ITMREF,10,1,2,1,2,"","",WDIS,WRET) From STKALL
+      Call STODISALL([M:MFG0]MFGFCY,[M:MFMW]ITMREF,func TRTX3FNC.VALFLD_C("[M:MFMW]ECCVALMAJ"),WDIS) From MFGLIBM
+      [M:MFG2]AVAQTY(WLIG) = WDIS
+   Else
+      [M:MFG2]AVAQTY(WLIG) = 0
+   Endif
+Endif
+
+Case WNEW
+    When 0,2,3,4,5: [M:MFG2] = [M:MFMW]
+                    If GMODMAT = 2 : [M:MFG2]WIPNUM(WLIG) = "" : Endif
+                    Boxclr [MFMW]
+                    Affzo [M:MFG2]10
+                    If MMODIF = 1 :
+                        # 107513 : to do before setting mkstat=4
+                        Call HIGHLIGHT("MFG2", WLIG) From ECCLIB
+                        mkstat = 4
+                    Endif : # pour passer en mode Modif
+                    # Issue X3-48941 - 2017-08-25 by JUSYN : Set revision reason and revision code
+                    If dim([M:MFG1]ECCVALMAJ) > 0 # Issue X3-55832
+                      If (GMFGREV=2 & [M:MFMW]CPNTYP = 1 & [M:MFMW]REVREASON<>"")
+                        [M:MFG2]REVREASON(WLIG) = [M:MFMW]REVREASON
+                        [M:MFG2]REVCOD(WLIG)    = 2  # = Modify
+                      Endif
+                    Endif # Issue X3-55832
+
+    When 1        : [M:MFG2]CPNTYP(WLIG)    = [M:MFMW]CPNTYP
+                    [M:MFG2]ITMREF(WLIG)    = [M:MFMW]ITMREF
+                    # Issue 119212 GH 28/10/2016 - if screen field not exists, dim(screen field) returns -1
+                    #If dim([M:MFMW]ECCVALMAJ)    # 107513
+                    If dim([M:MFMW]ECCVALMAJ)>0
+                        [M:MFG2]ECCVALMAJ(WLIG)    = [M:MFMW]ECCVALMAJ
+                        [M:MFG2]ECCVALMIN(WLIG)    = [M:MFMW]ECCVALMIN
+                        [M:MFG2]ECCERRCOD(WLIG)    = [M:MFMW]ECCERRCOD
+                        [M:MFG2]ECCERRMSG(WLIG)    = [M:MFMW]ECCERRMSG
+                    Endif
+                    # Issue 110957 - 2015-09-30 by CCC : add CRID
+                    #If dim([M:MFMW]CRID) : [M:MFG2]CRID(WLIG) = [M:MFMW]CRID : Endif
+                    #If dim([M:MFMW]CRFLG) : [M:MFG2]CRFLG(WLIG) = [M:MFMW]CRFLG : Endif
+                    # Issue 119212 GH 28/10/2016 - if screen field not exists, dim(screen field) returns -1
+                    If dim([M:MFMW]CRID)>0 : [M:MFG2]CRID(WLIG) = [M:MFMW]CRID : Endif
+                    If dim([M:MFMW]CRFLG)>0 : [M:MFG2]CRFLG(WLIG) = [M:MFMW]CRFLG : Endif
+                    [M:MFG2]ITMDES1(WLIG)   = [M:MFMW]ITMDES1
+                    [M:MFG2]MFGLIN(WLIG)    = [M:MFMW]MFGLIN
+                    [M:MFG2]MFGLINK(WLIG)   = [M:MFMW]MFGLINK
+                    [M:MFG2]QTYCOD(WLIG)    = [M:MFMW]QTYCOD
+                    [M:MFG2]CUMFLG(WLIG)    = 1
+                    [M:MFG2]CUMFXDQTY(WLIG) = [M:MFMW]CUMFXDQTY
+                    [M:MFG2]BASQTY(WLIG)    = [M:MFMW]BASQTY
+                    [M:MFG2]BOMOPE(WLIG)    = [M:MFMW]BOMOPE
+                    [M:MFG2]BOMOFS(WLIG)    = [M:MFMW]BOMOFS
+                    [M:MFG2]STU(WLIG)       = [M:MFMW]STU
+                    If dim([M:MFMW]BOMUOM)>0
+                        [M:MFG2]BOMUOM(WLIG)    = [M:MFMW]BOMUOM
+                        [M:MFG2]BOMSTUCOE(WLIG) = [M:MFMW]BOMSTUCOE
+                        [M:MFG2]BOMQTY(WLIG)    = [M:MFMW]BOMQTY
+                    Endif
+                    [M:MFG2]LIKQTY(WLIG)    = [M:MFMW]LIKQTY
+                    [M:MFG2]LIKQTYCOD(WLIG) = [M:MFMW]LIKQTYCOD
+                    [M:MFG2]QTYRND(WLIG)    = [M:MFMW]QTYRND
+                    [M:MFG2]SCA(WLIG)       = [M:MFMW]SCA
+                    [M:MFG2]BOMSHO(WLIG)    = [M:MFMW]BOMSHO
+                    [M:MFG2]PICPRN(WLIG)    = [M:MFMW]PICPRN
+                    [M:MFG2]RETQTY(WLIG)    = [M:MFMW]RETQTY
+                    [M:MFG2]RETDAT(WLIG)    = [M:MFMW]RETDAT
+                    [M:MFG2]USEQTY(WLIG)    = 0
+                    [M:MFG2]ALLQTY(WLIG)    = 0
+                    [M:MFG2]ALLSTA(WLIG)    = 1
+                    [M:MFG2]SHTQTY(WLIG)    = 0
+#                    [M:MFG2]AVAQTY(WLIG)    = 0 : # GH 19/06/13 bug 90478
+                    [M:MFG2]BOMSEQ(WLIG)    = 0
+#                    [M:MFG2]CSTFLG(WLIG)    = [M:MFMW]CSTFLG
+                    [M:MFG2]STOMGTCOD(WLIG) = [M:MFMW]STOMGTCOD
+                    [M:MFG2]PLANNER(WLIG)   = [F:ITF]PLANNER
+                    [M:MFG2]SCOFLG(WLIG)    = [M:MFMW]SCOFLG
+                    [M:MFG2]LOC(WLIG)       = [M:MFMW]LOC
+                    [M:MFG2]RELSCATIA(WLIG) = [M:MFMW]RELSCATIA        # 47579 mm 09.09
+                    If dim([M:MFMW]PKC)>0        # 47226 mm 05.08
+                        [M:MFG2]PKC(WLIG)       = [M:MFMW]PKC    # 43424 mm 01.08
+                    Endif
+                    If [M:MFMW]STOMGTCOD = 3
+                        If dim([M:MFMW]DEFPOT) > 0
+                            If [M:MFMW]DEFPOT <> 0
+                                [M:MFG2]DEFPOT(WLIG) = [M:MFMW]DEFPOT
+                                [M:MFG2]TYPQTY(WLIG) = 1
+                                [M:MFG2]RETQTY2(WLIG) = [M:MFMW]RETQTY2
+                                [M:MFG2]TYPQTY2(WLIG) = 2
+                            Else
+                                [M:MFG2]TYPQTY(WLIG) = 2
+                            Endif
+                        Endif
+                    Else
+                        If dim([M:MFG2]TYPQTY(WLIG)) > 0 : [M:MFG2]TYPQTY(WLIG) = 2 : Endif
+                    Endif
+                    If [M:MFG1]NBLIG = 1
+                        [M:MFG2]PJT(WLIG) = [M:MFG1]PJT(0)
+                    Else
+                        If [M:MFG2]MFGLIN(WLIG) = 0
+                            LITM = [M:MFG1]PJT(0)
+                        Else
+                            For I = 0 To [M:MFG1]NBLIG-1
+                                If [M:MFG1]MFGLIN(I) = [M:MFG2]MFGLIN(WLIG)
+                                    [M:MFG2]PJT(WLIG) = [M:MFG1]PJT(I)
+                                    Break
+                                Endif
+                            Next I
+                        Endif
+                    Endif
+
+                    [M:MFG2]PTOCOD(WLIG) = func ITMLIB.GET_PTOCOD([M:MFG2]ITMREF(WLIG),[M:MFG0]MFGFCY) : # GH 09/01/2015 bug 105215
+                    # Issue X3-25054 - set revision reason
+                    # Issue X3-48941 - check audit parameter
+                    If dim([M:MFG1]ECCVALMAJ) > 0 # Issue X3-55832
+                      If (GMFGREV=2 & [M:MFMW]CPNTYP = 1 & [M:MFMW]REVREASON<>"")
+                        [M:MFG2]REVREASON(WLIG) = [M:MFMW]REVREASON
+                        [M:MFG2]REVCOD(WLIG)    = 1  # = Add
+                      Endif
+                    Endif  # Issue X3-55832
+
+                    #If [F:ITF]PTOCOD <> ""
+                    #   [M:MFG2]PTOCOD(WLIG) = [F:ITF]PTOCOD
+                    #Else
+                    #   Call PARAM([M:MFG0]MFGFCY,"DEFPTO",[M:MFG2]PTOCOD(WLIG)) From ADOVAL : #  GDEFPTO : # GH 20/11/13 bug 94608
+                    #Endif
+
+                    # chargement des sections analytiques
+                    SLIG = nolign
+                    nolign = WLIG + 1
+                    For J = 1 To GNBDIE
+                        Call INISEC(WCCE,"MFM",J) From TRTX3CPT
+                        Assign "[M:MFG2]CCE"+num$(J)+"("+num$(WLIG)+")" With WCCE
+                    Next
+                    nolign = SLIG
+                    [M:MFG2]MATSTA(WLIG)    = 1
+                    [M:MFG2]XMATSTA(WLIG) = mess([M:MFG2]MATSTA(WLIG),363,1)
+                    [M:MFG2]NBLIG     += 1
+                    [M:MFG1]DMATNBR   += 1
+                   # Boxclr [MFMW]
+                    Affzo [M:MFG2]
+                    MMODIF = 1
+
+                    # 107513 : to do before setting mkstat=4
+                    Call HIGHLIGHT("MFG2", WLIG) From ECCLIB
+                    mkstat = 4
+Endcase
+
+Return
+
+########################################
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+Local    Decimal WBES
+Local    Decimal LQTY
+Local    Integer L : L = nolign-1
+
+#
+#[M:MFMW]ITMDES1    = [F:ITM]ITMDES1
+Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[M:MFMW]ITMDES1, "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+[M:MFMW]STU        = [F:ITM]STU
+[M:MFMW]STOMGTCOD  = [F:ITM]STOMGTCOD
+[M:MFMW]CPNTYP     = 1
+MMODIF = 1
+
+# (titres llc v130)
+If dim([M:MFMW]DEFPOT) > 0
+    [M:MFMW]DEFPOT = [F:ITM]DEFPOT
+Endif
+If [M:MFMW]RETQTY <> 0 & [F:ITM]STOMGTCOD = 3
+    If dim([M:MFMW]RETQTY2) > 0
+        [M:MFMW]RETQTY2 = ([M:MFMW]RETQTY * 100) /[M:MFMW]DEFPOT
+        Call QTEARR([M:MFMW]RETQTY2,[M:MFMW]STU) From TRTDIV
+        Affzo [M:MFMW]RETQTY2
+    Endif
+    End
+Endif
+
+# mm 05.12 82100
+# ajout d'un composant non prévu
+If ![M:MFMW]MFGLIN
+    LQTY=[M:MFG1]MFGEXTQTY
+Else
+    # remplacement d'un composant existant
+    Read [MFI]MFI0 = [M:MFG0]MFGNUM;[M:MFMW]MFGLIN
+    # Issue 113368 - 2016-01-07 by BEEBE : after "Replace" of ITMREF is MFGLIN > 0, but row MFI
+    #                                      doesn´t exist, LQTY will be initialized with a correct value
+    If !fstat
+        LQTY=[F:MFI]EXTQTY
+    Else
+        LQTY=[M:MFG1]MFGEXTQTY
+    Endif
+Endif
+If [M:MFMW]LIKQTYCOD = 2 : [M:MFMW]CUMFXDQTY -= [M:MFMW]RETQTY : Endif
+If [M:MFMW]LIKQTY <> 0
+    Call CALCUL_BESOIN([M:MFMW]BASQTY,[M:MFMW]STU,[M:MFMW]LIKQTYCOD,[M:MFMW]LIKQTY,
+&                  [M:MFMW]QTYRND,[M:MFMW]SCA,[M:MFMW]RELSCATIA,WBES,LQTY) From MFGLIBM
+    [M:MFMW]RETQTY = WBES + [M:MFMW]CUMFXDQTY
+Else
+    [M:MFMW]RETQTY = [M:MFMW]CUMFXDQTY
+Endif
+
+If [M:MFMW]LIKQTYCOD = 2 : [M:MFMW]CUMFXDQTY += [M:MFMW]RETQTY : Endif
+
+# (titres llc v130)
+If [F:ITM]STOMGTCOD = 3
+    If dim([M:MFMW]RETQTY2) > 0
+        [M:MFMW]RETQTY2 = ([M:MFMW]RETQTY * 100) /[M:MFMW]DEFPOT
+        Call QTEARR([M:MFMW]RETQTY2,[M:MFMW]STU) From TRTDIV
+    Endif
+Endif
+
+If instr(1,dbgstr(1),"MFMW")
+    Call ANALYSE_LOC("MFMW", [M:MFG0]MFGFCY, [M:MFMW]BOMOPE,
+&                    0, VALEUR) From MFGLIBM
+    # (titres llc v130)
+    If dim([M:MFMW]RETQTY2) > 0        # llc 03.02 13482
+        If [M:MFMW]STOMGTCOD = 3
+            [M:MFMW]XTYPQTY  = mess(1,2311,1)
+            [M:MFMW]XTYPQTY2 = mess(2,2311,1)
+            Affzo [M:MFMW]XTYPQTY
+            Affzo [M:MFMW]XTYPQTY2
+        Else
+            Grizo [M:MFMW]RETQTY2
+            Grizo [M:MFMW]XTYPQTY2
+            [M:MFMW]XTYPQTY  = mess(2,2311,1)
+            Affzo [M:MFMW]XTYPQTY
+        Endif
+    Endif
+Else
+    Call ANALYSE_LOC("MFG2", [M:MFG0]MFGFCY, [M:MFG2]BOMOPE(L),
+&                    L, VALEUR) From MFGLIBM
+Endif
+
+Call AM_ITMREF(VALEUR) From SUBMFG2ECC
+
+If !mkstat & dim([M]CRID)>0 & varmode([M]CRID)<>3 & func ECCLIB.NBRCPN(VALEUR)=0
+    # Issue 110957 - 2015-09-17 by CCC
+#    If maskcou="MFMW" : L=0
+#    Else              : L=nolign-1
+#
+#    Endif
+    L=0
+    [M]CRID(L) = func TRTX3FNC.CCMID(VALEUR, "", "")
+    Affzo [M]CRID(L)
+    If dim([M]CRFLG)>0
+        [M]CRFLG(L) = string$([M]CRID(L)<>"","151")
+        Affzo [M]CRFLG(L)
+    Endif
+Endif
+
+End

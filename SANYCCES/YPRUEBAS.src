@@ -1,0 +1,59 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#Subprog COUNT_PAL_BUL()
+#Local Char CIT : CIT ='CTR2400009'
+#Local Integer P : P = 0
+#Local Integer B : B = 0
+#
+#  If !clalev([F:YSPCK]): Local File YSPACK     [F:YSPCK]  : Endif
+#  If !clalev([F:YTABP]): Local File TABPACKAGE [F:YTABP]  : Endif
+#
+#  Filter [F:YSPCK] Where [F:YSPCK]ZCITANUM = CIT
+#    For [F:YSPCK]
+#      Read [F:YTABP]TPA0 = [F:YSPCK]PCK
+#        If [F:YTABP]YTIPO = 1
+#          P+=1
+#        Else
+#          B+=1
+#        Endif
+#    Next
+#    Infbox "PALET: "-num$(P)- " BULTO: "-num$(B)
+#End
+
+
+#$LINEAS_F2
+#  #--
+#Local Char LF2SQL(250)(10)
+#Raz LF2SQL
+#
+#Local Char PED
+#PED ="CTR2400031"
+#
+#LF2SQL(0) = "SELECT C.YTIENDA_0,O.CUSORDREF_0,S.ITMREFBPC_0,A.EANCOD_0,sum(P.QTYPCU_0)"
+#LF2SQL(1) = "From  " + nomap + ".YSPACKD P"
+#LF2SQL(2) = " INNER JOIN " + nomap + ".ZCITASTL Z  ON Z.PACNUM_0=P.PACNUM_0 and Z.PRHNUM_0=P.VCRNUM_0"
+#LF2SQL(3) = " INNER JOIN " + nomap + ".STOPRED D   ON D.PRHNUM_0=P.VCRNUM_0 and D.PRELIN_0=P.VCRLIN_0"
+#LF2SQL(4) = " INNER JOIN " + nomap + ".ITMMASTER A ON A.ITMREF_0=D.ITMREF_0 "
+#LF2SQL(5) = " INNER JOIN " + nomap + ".SORDER O ON O.SOHNUM_0=D.ORINUM_0"
+#LF2SQL(6) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON O.BPCORD_0 = C.BPCNUM_0"
+#LF2SQL(7) = " INNER JOIN " + nomap + ".ITMBPC S ON D.ITMREF_0 = S.ITMREF_0 AND O.BPCINV_0 = S.BPCNUM_0"
+#LF2SQL(8) = " Where Z.ZCITANUM_0='" + PED + "'"
+#LF2SQL(9) = " GROUP By C.YTIENDA_0, O.CUSORDREF_0,S.ITMREFBPC_0,A.EANCOD_0"
+#
+#
+#For (
+#& Char TIENDA,
+#& Char PEDCLI,
+#& Char ART,
+#& Char EAN,
+#& Decimal CANTIDAD ) From '5' Sql LF2SQL(0..9) As [ZAPP]
+##  Wrseq [ZAPP]TIENDA;                             Using [ZCRE]
+##  Wrseq [ZAPP]PEDCLI;                             Using [ZCRE]
+##  Wrseq [ZAPP]ART;                                Using [ZCRE]
+##  Wrseq [ZAPP]EAN;                                Using [ZCRE]
+##  Wrseq ctrans(num$(CANTIDAD),",",".")            Using [ZCRE]
+#
+#  Infbox("TIENDA "-TIENDA-"PEDCLI "-PEDCLI-"ART "-ART-"EAN "-EAN)
+#
+#Next
+#
+#Return

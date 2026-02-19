@@ -1,0 +1,495 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#####################################################################################
+# Src: ZCHARGESERES
+#-------------------------------------------------------------------------------------
+# (Importación de pedidos EDI)
+#-------------------------------------------------------------------------------------
+# Proyecto: Sanycces
+#-------------------------------------------------------------------------------------
+# Version: v12 2023R1
+#-------------------------------------------------------------------------------------
+# Fecha:07-03-2024
+#-------------------------------------------------------------------------------------
+# Desarrollador: NUN22
+# Codigo Actividad:
+#######################################################################################
+#@01@: (Y119) NUN22	07-03-2024	Modificaciones y correcciones para adaptar el proceso a las necesidades del cliente
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+
+$ACTION
+Case ACTION
+  When "INIT"   :   Gosub INIT
+Endcase
+Return
+
+
+###################################################
+$INIT
+Local Integer OK9
+Call OUINON ("¿Desea importar los pedidos de venta EDI?",OK9) From GESECRAN
+If OK9 = 2
+  #--
+  Gosub OUVRE
+  Gosub FIC_IMPORTACION
+  #--
+  If !GSERVEUR : Call LEC_TRACE From LECFIC : Endif
+Endif
+Return
+
+#------------------------------------------------------------------------------------
+$OUVRE
+  #-- longitud de registro max. 1.135
+  Local Char REGISTRO(250), REGISTRO1(250), REGISTRO2(250), REGISTRO3(250), REGISTRO4(250), WCONTADOR(20)
+  Local Integer STAT, WERE1TLIN, WERE1PLIN, WERE1LLIN, LNGTH
+  Local Integer I_OK : [L]I_OK=1 #@01@
+  #@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  Global Char YC_PED(20)
+  Global Char YC_PED1(20)
+  Global Char YN_PED(20)
+  Global Decimal YIMP_TOT_NET
+  #@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+  #--
+  If !clalev([F:ZOCTL]): Local File ZOCRECTL [F:ZOCTL]   : Endif
+  If !clalev([F:ZOC1C]): Local File ZOCERE1C [F:ZOC1C]   : Endif
+  If !clalev([F:ZOC1T]): Local File ZOCERE1T [F:ZOC1T]   : Endif
+  If !clalev([F:ZOC1P]): Local File ZOCERE1P [F:ZOC1P]   : Endif
+  If !clalev([F:ZOC1L]): Local File ZOCERE1L [F:ZOC1L]   : Endif
+  #--
+  Local Char DOSSIER(GLONADS), MACHINE(GDIMFIC), APPLI(GDIMFIC), ORDSYS(250), FILELIST(250)(1..100)
+  #--
+  If !GSERVEUR : Call OUVRE_TRACE ("Importación EDI - SERES") From LECFIC : Endif
+Return
+
+#------------------------------------------------------------------------------------
+$FIC_IMPORTACION
+  #--
+  DOSSIER = nomap
+  Call MACHINE(DOSSIER, MACHINE, APPLI) From ORDSYS
+  #--
+
+  #@01@ - Modificamos la forma de listar los ficheros para coger cualquier tipo de fichero que no sea una carpeta
+  #  ORDSYS = "lsadx -a " + APPLI + " EDI\RECEIPTEDICOM LM*"
+  #  Call SYSTEME2(MACHINE,ORDSYS,"",LNGTH,FILELIST) From ORDSYS    #-- comprobamos que hay ficheros que importar
+  ORDSYS = "dir " + filpath("EDI\RECEIPTEDICOM","","") + "\. /a-d /b" #
+  Call SYSTEME2 (adxmac(0),ORDSYS,"",LNGTH,FILELIST) From ORDSYS
+  #@01@ - Fin
+
+  If LNGTH<1
+    Call ECR_TRACE("Importación ficheros EDI SERES",0) From GESECRAN
+    Call ECR_TRACE("----------------------------------------------------",0) From GESECRAN : Return
+  Endif
+
+  #-- bucle sobre los ficheros a tratar
+  For ZZ=1 To LNGTH
+#    Infbox FILELIST(ZZ)
+    Call ECR_TRACE("Inicio importación fichero"-FILELIST(ZZ),0) From GESECRAN
+    Call PROCESA_FICHERO(FILELIST(ZZ))
+    Call ECR_TRACE(space$(20),0) From GESECRAN
+  Next
+Return
+#------------------------------------------------------------------------------------
+#@01@ - Creamos label para copiar ficheros en caso que haya ido todo ok
+#$COP_FICHERO @01@
+$COP_FICHERO_OK
+  Local Integer STAT
+  #  Call MOVE (filpath("","","") + "\EDI\RECEIPTEDICOM\" + FILELIST(ZZ) + ".TXT", filpath("","","") + "\EDI\RECEIPTEDICOM\Procesados"  , STAT) From ORDSYS
+  Call MOVE (filpath("","","") + "\EDI\RECEIPTEDICOM\" + PS_FICHERO, filpath("","","") + "\EDI\RECEIPTEDICOM\Procesados"  , STAT) From ORDSYS
+  Call ECR_TRACE("Fichero"-PS_FICHERO-"procesado",0) From GESECRAN
+Return
+#@01@ - Fin
+#------------------------------------------------------------------------------------
+#@01@ - Creamos label para copiar ficheros en caso de error
+$COP_FICHERO_ERR
+  Local Integer STAT
+  Call MOVE (filpath("","","") + "\EDI\RECEIPTEDICOM\" + PS_FICHERO, filpath("","","") + "\EDI\RECEIPTEDICOM\Error"  , STAT) From ORDSYS
+  Call ECR_TRACE("Fichero"-PS_FICHERO-"procesado con error",0) From GESECRAN
+Return
+#@01@ - Fin
+#------------------------------------------------------------------------------------
+$IMP_DATOS
+  #@01@ - Cambiamos la forma de abrir el fichero para que no esté limitado únicamente e extensiones .TXT
+  #  FILELIST(ZZ) = ctrans(FILELIST(ZZ),".TXT","")
+  #  Openi filpath("EDI\RECEIPTEDICOM",FILELIST(ZZ),"TXT","","","") Using [ZSERES]
+  Openi filpath("EDI\RECEIPTEDICOM\"+PS_FICHERO,"","","","","") Using [ZSERES]
+  If fstat
+      [L]I_OK = 0
+      Call ECR_TRACE("Error al abrir fichero",1) From GESECRAN
+      Goto ERR_FICH
+  Endif
+#  @01@ - FIN
+
+  Gosub DEFINE_FIC
+  #--
+  Trbegin [F:ZOCTL]
+  Repeat
+    Rdseq REGISTRO, REGISTRO1, REGISTRO2, REGISTRO3, REGISTRO4  Using [ZSERES]
+
+    Case left$(REGISTRO,5)
+      When "RECTL"
+          Gosub RECTL                 #-- cabecera
+          If ![L]I_OK : Break : Endif #@01@ - Salimos del bucle en caso de que no se hayan registrado correctamente los datos en tabla
+      When "ERE1C"
+          Gosub ERE1C                 #-- linea
+          If ![L]I_OK : Break : Endif #@01@ - Salimos del bucle en caso de que no se hayan registrado correctamente los datos en tabla
+      When "ERE1T"
+          Gosub ERE1T                 #-- textos
+          If ![L]I_OK : Break : Endif #@01@ - Salimos del bucle en caso de que no se hayan registrado correctamente los datos en tabla
+      When "ERE1P"
+          Gosub ERE1P                 #-- direcciones
+          If ![L]I_OK : Break : Endif #@01@ - Salimos del bucle en caso de que no se hayan registrado correctamente los datos en tabla
+      When "ERE1L"
+          Gosub ERE1L                 #-- linea detalle
+          If ![L]I_OK : Break : Endif #@01@ - Salimos del bucle en caso de que no se hayan registrado correctamente los datos en tabla
+      When Default
+    Endcase
+    Raz REGISTRO, REGISTRO1, REGISTRO2, REGISTRO3, REGISTRO4
+  Until fstat = 1
+  Raz fstat
+
+  #@01@ - Si todo ha ido correctamente guardamos los cambios en base de datos
+  If [L]I_OK
+      Commit
+  Else
+      Call ECR_TRACE("Error al importar datos en tabla",1) From GESECRAN
+  Endif
+  #@01@ - Fin
+  #--
+
+  $ERR_FICH
+  Openi Using [ZSERES]
+Return
+
+
+
+#------------------------------------------------------------------------------------
+$DEFINE_FIC
+  #-- variables de fichero, inicializacion
+  Iomode adxifs  ""                   Using [ZSERES]   #-- adxifs, separador de campo
+  Iomode adxirs  chr$(10)             Using [ZSERES]   #-- adxirs, separador de registro
+  Iomode adxium  GASCII               Using [ZSERES]   #-- adxium, ASCII
+Return
+
+$CONTADOR
+  #--
+  Call NUMERO("ZVE06","",date$,"",WCONTADOR,STAT) From SUBANM
+  If !fstat
+    [F:ZOCTL]CONTADOR     = WCONTADOR
+    Call ECR_TRACE("    Contador asignado --> "+WCONTADOR,0) From GESECRAN
+  Else
+    #-- problema durante la recuperaciÃ³n del contador
+    GERR=1 : GMESSAGE = mess(60,199,1) : GOK=0 : Return
+  Endif
+Return
+
+
+#------------------------------------------------------------------------------------
+  #-- cabecera
+$RECTL
+  #--
+  Raz [F:ZOCTL]
+  #--
+  Gosub CONTADOR
+  [F:ZOCTL]CC1     = mid$(REGISTRO,1,6)
+  [F:ZOCTL]CC2     = mid$(REGISTRO,7,6)
+  [F:ZOCTL]CC3     = mid$(REGISTRO,13,35)
+  [F:ZOCTL]CC4     = mid$(REGISTRO,48,35)
+  [F:ZOCTL]CC5     = mid$(REGISTRO,83,40)
+  [F:ZOCTL]CC6     = mid$(REGISTRO,123,12)
+  [F:ZOCTL]YESTADO = 1                       #@01@ - Importamos los datos del ORDER por defecto en estado pendiente
+  [F:ZOCTL]YINCIDENCIA = 1                   #@01@ - Importamos los datos del ORDER por defecto con incidencia ninguna
+  Write [F:ZOCTL]
+
+  #@01@ - Capturamos error en caso de que no se pueda escribir en la tabla
+  If fstat or GERR
+      If GERR :  Call ECR_TRACE(GMESSAGE,1) From GESECRAN : Endif
+      I_OK=0
+      Rollback
+  Endif
+  #@01@ - Fin
+
+Return
+
+  #-- linea
+$ERE1C
+  #--
+  Raz [F:ZOC1C]
+  [F:ZOC1C]CONTADOR = WCONTADOR
+  [F:ZOC1C]C1      = mid$(REGISTRO,1,6)
+  [F:ZOC1C]C2      = mid$(REGISTRO,7,3)
+  [F:ZOC1C]C3      = mid$(REGISTRO,10,17)
+  [F:ZOC1C]C4      = mid$(REGISTRO,27,3)
+  [F:ZOC1C]C5      = mid$(REGISTRO,30,12)
+  [F:ZOC1C]C6      = mid$(REGISTRO,42,3)
+  [F:ZOC1C]C7      = mid$(REGISTRO,45,12)
+  [F:ZOC1C]C8      = mid$(REGISTRO,57,3)
+  [F:ZOC1C]C9      = mid$(REGISTRO,60,12)
+  [F:ZOC1C]C10     = mid$(REGISTRO,72,3)
+  [F:ZOC1C]C11     = mid$(REGISTRO,75,17)
+  [F:ZOC1C]C12     = mid$(REGISTRO,92,17)
+  [F:ZOC1C]C13     = mid$(REGISTRO,109,17)
+  [F:ZOC1C]C14     = mid$(REGISTRO,126,3)
+  [F:ZOC1C]C15     = mid$(REGISTRO,129,17)
+  [F:ZOC1C]C16     = mid$(REGISTRO,146,3)
+  [F:ZOC1C]C17     = mid$(REGISTRO,149,8)
+  [F:ZOC1C]C18     = mid$(REGISTRO,157,3)
+  [F:ZOC1C]C19     = mid$(REGISTRO,160,3)
+  [F:ZOC1C]C20     = val(mid$(REGISTRO,163,18))
+  [F:ZOC1C]C21     = val(mid$(REGISTRO,181,18))
+  [F:ZOC1C]C22     = val(mid$(REGISTRO,199,18))
+  [F:ZOC1C]C23     = val(mid$(REGISTRO,217,18))
+  WNUMERO = val(mid$(REGISTRO,235,15)) + val(mid$(REGISTRO1,1,3))
+  [F:ZOC1C]C24 = WNUMERO
+  #--
+  [F:ZOC1C]C25     = val(mid$(REGISTRO1,4,18))
+  [F:ZOC1C]C26     = mid$(REGISTRO1,22,17)
+  [F:ZOC1C]C27     = mid$(REGISTRO1,39,70)
+  [F:ZOC1C]C28     = mid$(REGISTRO1,109,70)
+  [F:ZOC1C]C29     = mid$(REGISTRO1,179,17)
+  [F:ZOC1C]C30     = mid$(REGISTRO1,196,17)
+  [F:ZOC1C]C31     = mid$(REGISTRO1,213,8)
+  [F:ZOC1C]C32     = mid$(REGISTRO1,221,17)
+  WNOMBRETRANS = mid$(REGISTRO1,238,23) + mid$(REGISTRO2,1,12)
+  [F:ZOC1C]C33     = WNOMBRETRANS
+  [F:ZOC1C]C34     = mid$(REGISTRO2,13,3)
+  [F:ZOC1C]C35     = mid$(REGISTRO2,16,70)
+  Write [F:ZOC1C]
+
+  #@01@ - Capturamos error en caso de que no se pueda escribir en la tabla
+  If fstat
+      I_OK=0
+      Rollback
+  Endif
+  #@01@ - Fin
+
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  YN_PED = vireblc([F:ZOC1C]C3,4)
+  YIMP_TOT_NET = [F:ZOC1C]C20
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
+Return
+
+  #-- textos
+$ERE1T
+  #--
+  WERE1TLIN += 1000
+  #--
+  Raz [F:ZOC1T]
+  [F:ZOC1T]CONTADOR  = WCONTADOR
+  [F:ZOC1T]ERE1TLIN += WERE1TLIN
+  [F:ZOC1T]C1       = mid$(REGISTRO,1,6)
+  [F:ZOC1T]C2       = mid$(REGISTRO,7,6)
+  [F:ZOC1T]C3       = mid$(REGISTRO,13,70)
+  [F:ZOC1T]C4       = mid$(REGISTRO,83,70)
+  [F:ZOC1T]C5       = mid$(REGISTRO,153,70)
+  WTEXTO4 = mid$(REGISTRO,223,27) + mid$(REGISTRO1,1,43)
+  [F:ZOC1T]C6       = WTEXTO4
+  [F:ZOC1T]C7       = mid$(REGISTRO1,44,70)
+  Write [F:ZOC1T]
+  #@01@ - Capturamos error en caso de que no se pueda escribir en la tabla
+  If fstat
+      I_OK=0
+      Rollback
+  Endif
+  #@01@ - Fin
+Return
+
+  #-- direcciones
+$ERE1P
+  #--
+  WERE1PLIN += 1000
+  #--
+  Raz [F:ZOC1P]
+  [F:ZOC1P]CONTADOR = WCONTADOR
+  [F:ZOC1P]ERE1PLIN = WERE1PLIN
+  [F:ZOC1P]C1      = mid$(REGISTRO,1,6)
+  [F:ZOC1P]C2      = mid$(REGISTRO,7,3)
+  [F:ZOC1P]C3      = mid$(REGISTRO,10,17)
+  [F:ZOC1P]C4      = mid$(REGISTRO,27,3)
+  [F:ZOC1P]C5      = mid$(REGISTRO,30,35)
+  [F:ZOC1P]C6      = mid$(REGISTRO,65,35)
+  [F:ZOC1P]C7      = mid$(REGISTRO,100,35)
+  [F:ZOC1P]C8      = mid$(REGISTRO,135,35)
+  [F:ZOC1P]C9      = mid$(REGISTRO,170,35)
+  [F:ZOC1P]C10     = mid$(REGISTRO,205,35)
+  WDIR1 = mid$(REGISTRO,240,10) + mid$(REGISTRO1,1,25)
+  [F:ZOC1P]C11 = WDIR1
+  [F:ZOC1P]C12     = mid$(REGISTRO1,1,25)
+  [F:ZOC1P]C13     = mid$(REGISTRO1,26,35)
+  [F:ZOC1P]C14     = mid$(REGISTRO1,61,35)
+  [F:ZOC1P]C15     = mid$(REGISTRO1,96,9)
+  [F:ZOC1P]C16     = mid$(REGISTRO1,105,9)
+  [F:ZOC1P]C17     = mid$(REGISTRO1,114,3)
+  [F:ZOC1P]C18     = mid$(REGISTRO1,117,3)
+  [F:ZOC1P]C19     = mid$(REGISTRO1,120,35)
+  [F:ZOC1P]C20     = mid$(REGISTRO1,155,3)
+  [F:ZOC1P]C21     = mid$(REGISTRO1,158,17)
+  [F:ZOC1P]C22     = mid$(REGISTRO1,175,35)
+  [F:ZOC1P]C23     = mid$(REGISTRO1,210,3)
+  [F:ZOC1P]C24     = mid$(REGISTRO1,213,17)
+  WDIR2 = mid$(REGISTRO1,230,20) + mid$(REGISTRO2,1,50)
+  [F:ZOC1P]C25 = WDIR2
+  [F:ZOC1P]C26     = mid$(REGISTRO2,50,200) + mid$(REGISTRO3,1,50)
+  Write [F:ZOC1P]
+  #@01@ - Capturamos error en caso de que no se pueda escribir en la tabla
+  If fstat
+      I_OK=0
+      Rollback
+  Endif
+  #@01@ - Fin
+Return
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  If mid$(REGISTRO,7,3) = 'BY ' Then
+    YC_PED1 = mid$(REGISTRO,10,17)
+    If !clalev([F:ZEBP])   : Local File EDIBPRPAR [F:ZEBP]    : Endif
+
+    Filter [F:ZEBP] Where EXCEDICOD = vireblc(YC_PED1,4)
+      For [F:ZEBP]
+        YC_PED = [F:ZEBP]BPANUM
+      Next
+    Filter [F:ZEBP]
+  Endif
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+  #-- linea detalle
+$ERE1L
+  #--
+  WERE1LLIN += 1000
+  #--
+  Raz [F:ZOC1L]
+  [F:ZOC1L]CONTADOR = WCONTADOR
+  [F:ZOC1L]ERE1LLIN = WERE1LLIN   # NUN05.14032023.new - Si no ponemos esto no graba todas las líneas del pedido
+  [F:ZOC1L]C1      = mid$(REGISTRO,1,6)
+  [F:ZOC1L]C2      = val(mid$(REGISTRO,7,6))
+  [F:ZOC1L]C3      = mid$(REGISTRO,13,15)
+  [F:ZOC1L]C4      = mid$(REGISTRO,28,3)
+  [F:ZOC1L]C5      = mid$(REGISTRO,31,17)
+  [F:ZOC1L]C6      = mid$(REGISTRO,48,70)
+  [F:ZOC1L]C7      = mid$(REGISTRO,118,70)
+  [F:ZOC1L]C8      = mid$(REGISTRO,188,1)
+  [F:ZOC1L]C9      = mid$(REGISTRO,189,35)
+  W10  = mid$(REGISTRO,224,26) + mid$(REGISTRO1,1,9)
+  [F:ZOC1L]C10     = W10
+  [F:ZOC1L]C11     = mid$(REGISTRO1,10,35)
+  [F:ZOC1L]C12     = mid$(REGISTRO1,45,35)
+  [F:ZOC1L]C13     = val(mid$(REGISTRO1,80,16))
+  [F:ZOC1L]C14     = val(mid$(REGISTRO1,96,16))
+  [F:ZOC1L]C15     = mid$(REGISTRO1,112,6)
+  [F:ZOC1L]C16     = val(mid$(REGISTRO1,118,16))
+  [F:ZOC1L]C17     = mid$(REGISTRO1,134,3)
+  [F:ZOC1L]C18     = mid$(REGISTRO1,137,12)
+  [F:ZOC1L]C19     = mid$(REGISTRO1,149,3)
+  [F:ZOC1L]C20     = mid$(REGISTRO1,152,12)
+  [F:ZOC1L]C21     = val(mid$(REGISTRO1,164,18))
+  [F:ZOC1L]C22     = val(mid$(REGISTRO1,182,16))
+  [F:ZOC1L]C23     = val(mid$(REGISTRO1,198,16))
+  [F:ZOC1L]C24     = val(mid$(REGISTRO1,214,16))
+  [F:ZOC1L]C25     = mid$(REGISTRO1,230,6)
+  [F:ZOC1L]C26     = mid$(REGISTRO1,236,6)
+  [F:ZOC1L]C27     = val(mid$(REGISTRO1,242,6))
+  WC28  = mid$(REGISTRO1,248,2) + mid$(REGISTRO2,1,4)
+  [F:ZOC1L]C28     = val(WC28)
+  [F:ZOC1L]C29     = val(mid$(REGISTRO2,5,6))
+  [F:ZOC1L]C30     = val(mid$(REGISTRO2,11,18))
+  [F:ZOC1L]C31     = mid$(REGISTRO2,29,6)
+  [F:ZOC1L]C32     = val(mid$(REGISTRO2,35,6))
+  [F:ZOC1L]C33     = val(mid$(REGISTRO2,41,18))
+  [F:ZOC1L]C34     = val(mid$(REGISTRO2,59,18))
+  [F:ZOC1L]C35     = mid$(REGISTRO2,77,6)
+  [F:ZOC1L]C36     = mid$(REGISTRO2,83,35)
+  [F:ZOC1L]C37     = mid$(REGISTRO2,118,35)
+  [F:ZOC1L]C38     = mid$(REGISTRO2,153,35)
+  [F:ZOC1L]C39     = mid$(REGISTRO2,188,16)
+  [F:ZOC1L]C40     = mid$(REGISTRO2,204,16)
+  [F:ZOC1L]C41     = mid$(REGISTRO2,220,6)
+  [F:ZOC1L]C42     = mid$(REGISTRO2,226,16)
+  [F:ZOC1L]C43     = mid$(REGISTRO2,242,3)
+  WC44  = mid$(REGISTRO2,245,5) + mid$(REGISTRO3,1,7)
+  [F:ZOC1L]C44     = WC44
+  [F:ZOC1L]C45     = mid$(REGISTRO3,8,3)
+  [F:ZOC1L]C46     = val(mid$(REGISTRO3,11,12))
+  [F:ZOC1L]C47     = val(mid$(REGISTRO3,23,18))
+  [F:ZOC1L]C48     = val(mid$(REGISTRO3,41,16))
+  [F:ZOC1L]C49     = val(mid$(REGISTRO3,57,16))
+  [F:ZOC1L]C50     = mid$(REGISTRO3,73,16)
+  [F:ZOC1L]C51     = mid$(REGISTRO3,89,6)
+  [F:ZOC1L]C52     = mid$(REGISTRO3,95,6)
+  [F:ZOC1L]C53     = mid$(REGISTRO3,101,6)
+  [F:ZOC1L]C54     = mid$(REGISTRO3,107,18)
+  [F:ZOC1L]C55     = mid$(REGISTRO3,125,6)
+  [F:ZOC1L]C56     = mid$(REGISTRO3,131,18)
+  [F:ZOC1L]C57     = mid$(REGISTRO3,149,6)
+  [F:ZOC1L]C58     = mid$(REGISTRO3,155,6)
+  [F:ZOC1L]C59     = mid$(REGISTRO3,161,18)
+  [F:ZOC1L]C60     = mid$(REGISTRO3,179,18)
+  Write [F:ZOC1L]
+  #@01@ - Capturamos error en caso de que no se pueda escribir en la tabla
+  If fstat
+      I_OK=0
+      Rollback
+  Endif
+  #@01@ - Fin
+
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+        If func PEDIDO_DUPLICADO(YC_PED, YN_PED, YIMP_TOT_NET, WCONTADOR) = 1
+          If !clalev([F:YZTL]): Local File ZOCRECTL [F:YZTL]   : Endif
+            Read [F:YZTL]ZOCTL0 = WCONTADOR
+              If !fstat
+                [F:YZTL]YINCIDENCIA = 5 # DUPLICADO
+                Rewrite [F:YZTL]
+              Endif
+
+        Endif
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#**
+#* #@01@ -Función que procesa un fichero dado para importar sus datos
+#*
+#* @param PS_FICHERO
+#*!
+Subprog PROCESA_FICHERO(PS_FICHERO)
+Value Char PS_FICHERO()
+
+    Local Char REGISTRO(250), REGISTRO1(250), REGISTRO2(250), REGISTRO3(250), REGISTRO4(250), WCONTADOR(20)
+    Local Integer STAT, WERE1TLIN, WERE1PLIN, WERE1LLIN, LNGTH
+    Local Integer I_OK : [L]I_OK=1 #@01@
+
+    Gosub IMP_DATOS    #-- 1
+    #Gosub ESC_MONITOR  #-- 2
+
+
+    #    Gosub COP_FICHERO #@01@
+    #@01@ - Si todo ha ido bien copio el fichero a la carpeta procesados, si no a la carpeta error
+    If [L]I_OK
+        Gosub COP_FICHERO_OK  #-- 3  # NUN05.14032023.NEW
+    Else
+        Gosub COP_FICHERO_ERR
+    Endif
+    #@01@- Fin
+End
+
+####################################################################################
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+Funprog PEDIDO_DUPLICADO(C_PED, N_PED, IMP_TOT_NET, YCONTADOR)
+Value Char C_PED          # CLIENTE PEDIDO
+Value Char N_PED          # NUMERO PEDIDO
+Value Decimal IMP_TOT_NET  # IMPORTE TOTAL NETO
+Value Char YCONTADOR      # Nº CONTADOR EDI
+Local Integer RESULT : RESULT = 0  # 0 = NO ESTA DUPLICADO / 1 = ESTA DUPLICADO
+
+  If !clalev([F:YZOC1C])  : Local File ZOCERE1C  [F:YZOC1C]   : Endif
+  If !clalev([F:YZOC])    : Local File ZOCSOH    [F:YZOC]     : Endif
+
+    Filter [F:YZOC1C] Where vireblc([F:YZOC1C]C3,4) = N_PED and [F:YZOC1C]C20 = IMP_TOT_NET #and [F:YZOC1C]CONTADOR <> YCONTADOR
+      For [F:YZOC1C]
+          Read [F:YZOC]ZOCSOH0 = [F:YZOC1C]CONTADOR
+            If !fstat and [F:YZOC]BPCORD = vireblc(C_PED,4)
+              RESULT = 1
+            Endif
+      Next
+    Filter [F:YZOC1C]
+
+End RESULT
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+#####################################################################################

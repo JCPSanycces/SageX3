@@ -1,0 +1,230 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara SQH2 (Especifico)
+# @01@ - JLP - 14/05/2024 - Rellenar campos con los datos del cliente
+# @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SQH2) 24/08/2023 08:26:19 (NUN04)
+######################################################################################
+$ACTION
+#If GUSER = 'NUN09' Then : Infbox ACTION : Endif
+
+Case ACTION
+ When "LIENS_LIG"   :   Gosub LIENS_LIG
+  When "APRES_MOD"   : Gosub APRES_MOD #  @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+  When "APRES_CRE"   : Gosub APRES_CRE #  @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+Endcase
+Return
+
+
+####################################################################
+$LIENS_LIG
+# Si el artículo es asociado, pongo la gestión de stock a NO. Para ello lanzo el STD, cambio valor y bloqueo
+# Por info, el STD pone el valor de este campo en función del valor indicado en el maestro ([M:SQH2]STOMGTCOD(NOL) = [F:ITM]STOMGTCOD)
+Gosub LIENS_LIG From SUBSQHA
+If [M:SQH2]ZASOCIADO(NOL) = 2 : [M:SQH2]STOMGTCOD(NOL) = 1 : Endif
+GPE=1
+Return
+
+####################################################################
+
+#  @02@ - SCD - 23/04/2025 - INI
+$APRES_MOD
+  Gosub RECALCULA_TOTALES
+Return
+
+$APRES_CRE
+  Gosub RECALCULA_TOTALES
+Return
+#  @02@ - SCD - 23/04/2025 - FIN
+
+######################################################################################
+Subprog AM_ZASOCIADO(VALEUR)
+Variable Integer VALEUR
+If VALEUR<2
+  [M:SQH2]ZLINASOC(nolign-1)=0
+  Affzo [M:SQH2]ZLINASOC(nolign-1)
+Elsif VALEUR = 2   # Si es un asociado, quito la gestión de stock del artículo para esta línea - presupuesto
+  [M:SQH2]STOMGTCOD(nolign-1)=1
+  # Propongo por defecto la línea de asociado
+  If nolign-1>0
+    If [M:SQH2]ZASOCIADO(nolign-2) = 2
+      [M:SQH2]ZLINASOC(nolign-1) = [M:SQH2]ZLINASOC(nolign-2)
+    Else
+      If !clalev([F:YITM]): Local File ITMMASTER [YITM]  : Endif
+      Read [YITM]ITM0 = [M:SQH2]ITMREF(nolign-2)
+      If fstat = 0 and [YITM]TCLCOD = "EXP"
+        [M:SQH2]ZLINASOC(nolign-1)  = [M:SQH2]SOPLIN(nolign-2)
+      Endif
+      Close Local File [YITM]
+    Endif
+    Affzo [M:SQH2]ZLINASOC(nolign-1)
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog AV_ITMREF(VALEUR)
+Variable Char    VALEUR()
+# Pinto la línea que sea Asociado
+If [M:SQH2]ZASOCIADO(nolign-1) = 2
+  Chgstl NBLIG(nolign-1) With "MTC3"  # en azul
+Else
+  Chgstl NBLIG(nolign-1) With ""
+Endif
+End
+
+
+######################################################################################
+Subprog AS_ZALTO(VALEUR)
+Variable Decimal VALEUR
+If !find([M:SQH2]LINTYP(nolign-1),1,3,5,6,9)
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AS_ZANCHO(VALEUR)
+Variable Decimal VALEUR
+If !find([M:SQH2]LINTYP(nolign-1),1,3,5,6,9)
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AS_ZLARGO(VALEUR)
+Variable Decimal VALEUR
+If !find([M:SQH2]LINTYP(nolign-1),1,3,5,6,9)
+  mkstat = 2
+Endif
+End
+######################################################################################
+# @01@ - JLP - INI - Rellenar campos con los datos del cliente
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+# Lanzo STD
+Call AM_BPCORD(VALEUR) From SUBSQH
+
+# Traigo los valores de la pantalla Sanycces de la dirección de entrega
+If !clalev([PP1]) : Local File BPDLVCUST [PP1] : Endif
+If !clalev([PP2]) : Local File BPADDRESS [PP2] : Endif
+
+Read [PP1]BPD0 = VALEUR;[M:SQH1]BPAADD
+If fstat = 0
+  [M:YSQH4]YCONCERTA = [PP1]YCONCERTA
+  [M:YSQH4]YCONTACTO = [PP1]YCONTACTO
+  [M:YSQH4]YOBSERVA  = [PP1]YOBSERVA
+  Affzo [M:YSQH4]YCONCERTA
+  Affzo [M:YSQH4]YCONTACTO
+  Affzo [M:YSQH4]YOBSERVA
+Endif
+
+Read [PP2]BPA0 = 1;VALEUR;[M:SQH1]BPAADD
+If fstat = 0
+  [M:YSQH4]YTELEFONO = [PP2]TEL(0)
+  [M:YSQH4]YMAIL     = [PP2]WEB(3)
+  Affzo [M:YSQH4]YTELEFONO
+  Affzo [M:YSQH4]YMAIL
+Endif
+
+Close Local File [PP1]
+Close Local File [PP2]
+
+# Bloqueo STD
+GPE = 1
+End
+######################################################################################
+Subprog AM_BPAADD(VALEUR)
+Variable Char    VALEUR()
+
+# Traigo los valores de la pantalla Sanycces de la dirección de entrega
+If !clalev([PP1]) : Local File BPDLVCUST [PP1] : Endif
+If !clalev([PP2]) : Local File BPADDRESS [PP2] : Endif
+
+Read [PP1]BPD0 = [M:SQH0]BPCORD;VALEUR
+If fstat = 0
+  [M:YSQH4]YCONCERTA = [PP1]YCONCERTA
+  [M:YSQH4]YCONTACTO = [PP1]YCONTACTO
+  [M:YSQH4]YOBSERVA  = [PP1]YOBSERVA
+  Affzo [M:YSQH4]YCONCERTA
+  Affzo [M:YSQH4]YCONTACTO
+  Affzo [M:YSQH4]YOBSERVA
+Endif
+
+Read [PP2]BPA0 = 1;[M:SQH0]BPCORD;VALEUR
+If fstat = 0
+  [M:YSQH4]YTELEFONO = [PP2]TEL(0)
+  [M:YSQH4]YMAIL     = [PP2]WEB(3)
+Endif
+
+Close Local File [PP1]
+Close Local File [PP2]
+End
+######################################################################################
+# @01@ - JLP - FIN - Rellenar campos con los datos del cliente
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SQH2) 07/05/2025 15:10:35 (NUN50)
+######################################################################################
+
+#  @02@ - SCD - 23/04/2025 - INI
+
+$RECALCULA_TOTALES
+  Gosub ACTION From SUBSQH
+  GPE = 1
+
+    Raz [M]QUONOT,QUOATI,PFMTOT
+    Raz [M:SQH0]DSPTOTQTY,DSPTOTVOL,DSPTOTWEI
+
+  For YLIG = 0  To [M:SQH2]NBLIG-1
+    Call ADD_TOT(YLIG) From SUBSQHB
+    Affzo [M:SQH2]1-99
+  Next
+Return
+
+Subprog AM_GROPRI(VALEUR)
+Variable Decimal VALEUR
+  Gosub ACTUALIZAR_PRECIOS_ASOCIADOS
+End
+
+Subprog AM_DISCRGVAL1(VALEUR)
+Variable Decimal VALEUR
+  Gosub ACTUALIZAR_PRECIOS_ASOCIADOS
+End
+
+Subprog AM_DISCRGVAL2(VALEUR)
+Variable Decimal VALEUR
+  Gosub ACTUALIZAR_PRECIOS_ASOCIADOS
+End
+
+Subprog AM_DISCRGVAL3(VALEUR)
+Variable Decimal VALEUR
+  Gosub ACTUALIZAR_PRECIOS_ASOCIADOS
+End
+
+$ACTUALIZAR_PRECIOS_ASOCIADOS
+  # 07/05/2025 AAS NUN50 - propagar precio del artículo padre a los artículos asociados
+  If [M:SQH2]ZASOCIADO(nolign-1) <> 2
+    # buscar mis líneas asociadas
+    For YI=0 To [M:SQH2]NBLIG-1
+      If [M:SQH2]ZLINASOC(YI) = nolign*1000 and func YCONFIG.CHECK_CONFIG([M:SQH2]ITMREF(YI)) = 2
+
+        [M:SQH2]GROPRI(YI) = [M:SQH2]NETPRI(nolign-1)
+
+        Call CLCNETPRI([M]QTY(YI), [M:SQH0]CUR, YI) From TRTVENPRI
+        Call CLCPFM([M]DSTOFCY(YI), [M:SQH1]PRITYP, [M]CHGTYP, [M:SQH0]QUODAT, [M:SQH0]CUR, YI, 1) From TRTVENPRI
+        [M:SQH2]UPDFLG(YI) = 2
+
+        Affzo [M:SQH2]UPDFLG(YI)
+        Affzo [M:SQH2]GROPRI(YI)
+        Affzo [M:SQH2]NETPRI(YI)
+
+      Endif
+    Next
+  Endif
+Return
+
+#  @02@ - SCD - 23/04/2025 - FIN

@@ -1,0 +1,519 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#################################################################################################################
+#
+# @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+# @02@ - SCD - 12/07/2024 - Ajuste para el campo Y2ENTREGA
+# @03@ - JLP - 06/09/2024 - Ajuste para el campo YTIPENVAGE
+# @04@ - RAP - 120924 - Añado campo Cantidad Empaquetada y lo cargo + Bloqueos de control
+# @05@ - JMF - 150125 - En la función ESTADO_VALE que no tenga en cuenta los asociados
+# @06@ - JMF - 200126 - Gestión nuevos campos servicio y términos servicio
+# @07@ - JMF - 220126 - Añadir botones integración transportistas (Solicitud envío y tracking envío)
+# @08@ - JMF - 220126 - Bloque traza envíos transportistas
+#################################################################################################################
+
+$ACTION
+Case ACTION
+  When "SETBOUT"    :   Gosub SETBOUT
+  When "EXEBOUT"    :   Gosub EXEBOUT
+  When "AVANTBOUT"  :   Gosub AVANTBOUT
+  When "LIENS"      :   Gosub LIENS
+  When "AVANT_MOD"      :   Gosub AVANT_MOD # @02@ - SCD - 12/07/2024 - Ajuste para el campo Y2ENTREGA
+  When "VERIF_MOD"      :   Gosub VERIF_MOD # @02@ - SCD - 12/07/2024 - Ajuste para el campo Y2ENTREGA
+  When "APRES_MODIF"    :   Gosub APRES_MODIF # @04@ - RAP - 120924 - Añado campo Cantidad Empaquetada y lo cargo + Bloqueos de control
+Endcase
+Return
+
+######################################
+$SETBOUT
+# Deshabilito los botones específicos en creación y modificación
+If GREP = "C" or GREP = "M"
+  Call VIREBOUT(CHAINE, "78") From GOBJET
+Endif
+
+######################################
+# @07@ - JMF - 22/01/2026 - INI
+  CHMEN += "mn"
+  Gosub SET_BOUT_SPE From GSAISIE
+
+  Case BOUT
+    When "m":
+      Goto SOL_ENVIO
+    When "n": # @07@ - JMF - 22/01/2026
+      Call MOSTRAR_SEGUIMIENTO() From YINTTRANS
+  Endcase
+# @07@ - JMF - 22/01/2026 - FIN
+######################################
+Return
+
+
+######################################
+$EXEBOUT
+# Ejecución de los botones
+Case BOUT
+  When "8"    :   Gosub DACHSER
+Endcase
+Return
+
+######################################
+# @02@ - SCD - 12/07/2024 - INI
+$AVANT_MOD
+  If find([M:PRH1]DLVFLG,3,4)
+    GPE = 1 # Si esta entregado o cancelado, bloqueamos estandar (error de modificar)
+  Endif
+Return
+
+######################################
+$VERIF_MOD
+  If find([M:PRH1]DLVFLG,3,4)
+    GPE = 1 # Si esta entregado o cancelado, bloqueamos estandar (error de modificar)
+  Endif
+Return
+# @02@ - SCD - 12/07/2024 - FIN
+######################################
+$AVANTBOUT
+# Para el botón de Entregable, lanzo STD + actualizo estado Dachser + bloqueo STD
+Case BOUT
+  When "V"
+    Gosub AVANTBOUT From SUBPRHA
+
+    If [M:PRH1]DLVFLG = 2 # Solamente si el doc de preparación se ha quedado 'Entregable'
+      If [M:YPRHD]YDACESTADO = 2
+        If !clalev([Q03]) : Local File STOPREH [Q03] : Endif
+
+        Read [Q03]PRH0 = [M:PRH0]PRHNUM
+        If fstat = 0
+          [Q03]YDACESTADO = 3
+          Rewrite [Q03]
+          If fstat = 0
+            [M:YPRHD]YDACESTADO = 3
+            Affzo [M:YPRHD]YDACESTADO
+            Call TRAZA_DACHSER([PRH]PRHNUM,3,GUSER,0) From YENVDACH
+          Endif
+        Endif
+        Close Local File [Q03]
+      Endif
+    Endif
+
+    GPE = 1
+Endcase
+Return
+
+
+######################################
+$LIENS
+  # Cargo bloque de trazabilidad Dachser
+  If [M:YPRHD]YDACESTADO > 1
+    If !clalev([Q04]) : Local File YDACTRAZA [Q04] : Endif
+        nolign = 1
+        [M:YPRHD]PIE_D = 0
+        Filter [Q04] Where [Q04]PRHNUM = [M:PRH0]PRHNUM Order By [Q04]ID Asc
+            For [Q04]
+                [M:YPRHD] = [Q04]
+                nolign+=1
+                [M:YPRHD]PIE_D+=1
+            Next
+        Filter [Q04]
+
+        Affzo [M:YPRHD]
+
+    Close Local File [Q04]
+  Endif
+
+  # @08@ - JMF - 22/01/2026 - INI
+  # Cargo el bloque de transportistas
+  If !clalev([YTRK]) : Local File YTRKENVIOS [YTRK] : Endif
+  nolign = 1
+  [M:YPRHTRA]PIE_D = 0
+  Filter [YTRK] Where VCRNUM = [M:PRH0]PRHNUM Order By CREDATTIM
+  For [YTRK]
+    [M:YPRHTRA] = [YTRK]
+    nolign += 1
+    [M:YPRHTRA]PIE_D += 1
+  Next
+  Filter [YTRK]
+
+  Affzo [M:YPRHTRA]
+  Close Local File [YTRK]
+  # @08@ - JMF - 22/01/2026 - FIN
+
+  # Busco el estado de preparación del vale
+  If [M:PRH0]YESTADOPREP = 0
+    [M:PRH0]YESTADOPREP = 1
+  Endif
+  Affzo [M:PRH0]YESTADOPREP
+
+# @02@ - SCD - 12/07/2024 - INI
+  Gosub ACTION From SUBPRH
+    Actzo [M:PRH0]Y2ENTREGA
+    Affzo [M:PRH0]Y2ENTREGA
+    Actzo [M:PRH0]YCAMION
+    Affzo [M:PRH0]YCAMION
+    Actzo [M:PRH0]YSERVICIO
+    Affzo [M:PRH0]YSERVICIO
+    Actzo [M:PRH0]YTERMSRV
+    Affzo [M:PRH0]YTERMSRV
+  GPE = 1
+# @02@ - SCD - 12/07/2024 - FIN
+# @04@ - RAP - 120924 INI
+
+Call LOAD_PCK_QTY
+
+# @04@ - RAP - 120924 FIN
+
+Return
+
+######################################
+# @07@ - JMF - 22/01/2026 - INI
+$SOL_ENVIO
+  Local Integer LRET
+  Call ENVIO_SOLICITUD([M:PRH0]PRHNUM, LRET) From YINTTRANS
+  Affzo [M:YPRHTRA]
+Return
+# @07@ - JMF - 22/01/2026 - FIN
+######################################
+
+######################################
+$DACHSER
+# @03@ - JLP - 06/09/2024 - Ajuste para el campo YTIPENVAGE  - INI
+  If !clalev([YBPC]) Then : Local File BPCARRIER     [YBPC] : Endif
+
+  Read [YBPC]BPT0 = [M:PRH0]BPTNUM
+    If [YBPC]YTIPENVAGE <> 1 # Dejo enviar si en la ficha del trasportista el tipo de envio de DACHSER
+        Errbox "El documento de preparación " + [M:PRH0]PRHNUM + " no tiene gestión de envío de fichero Dachser"
+        Return
+    Endif
+
+# 0 - Controlo que el doc de preparación tenga gestión de envío DACHSER
+#If [M:YPRHD]YDACESTADO < 2
+#  Errbox "El documento de preparación " + [M:PRH0]PRHNUM + " no tiene gestión de envío de fichero Dachser"
+#  Return
+#Endif
+# @03@ - JLP - 06/09/2024 - Ajuste para el campo YTIPENVAGE - FIN
+# 1 - Pido confirmación para seguir
+
+Local Integer OK9
+Call OUINON("¿Desea reenviar el fichero Dachser del documento de preparación " + [M:PRH0]PRHNUM + " ?",OK9) From GESECRAN
+If OK9 = 2
+  If !clalev([YD01]) : Local File STOPREH [YD01] : Endif
+  Read [YD01]PRH0 = [M:PRH0]PRHNUM
+  If fstat = 0
+    [YD01]YDACESTADO  = 3
+    [YD01]YDACFECHA   = "000000"
+    [YD01]YDACHORA    = ""
+    [YD01]YDACUSUARIO = ""
+
+    Rewrite [YD01]
+    If fstat = 0
+      [M:YPRHD]YDACESTADO = 3
+      [M:YPRHD]YDACFECHA   = "000000"
+      [M:YPRHD]YDACHORA    = ""
+      [M:YPRHD]YDACUSUARIO = ""
+      Affzo [M:YPRHD]
+      Call TRAZA_DACHSER([PRH]PRHNUM,3,GUSER,0) From YENVDACH
+      Gosub LIENS
+    Endif
+  Endif
+  Close Local File [YD01]
+  Close Local File [YBPC]
+Endif
+Return
+
+
+
+
+$APRES_MODIF
+
+If status = 65
+
+
+If [M:PRH1]YQTYPAC(nolign-1) <= [M:PRH1]QTYSTU(nolign-1) and [M:PRH1]YQTYPAC(nolign-1) <>0
+Errbox "No puedes borrar una linea ya empaquetada"
+
+mkstat = 1
+Endif
+
+Endif
+
+Return
+
+
+
+
+######################################################################################
+Subprog AV_ACCION(VALEUR)
+Variable Integer VALEUR
+# Pinto la línea en función de la acción
+If [M:YPRHD]ACCION(nolign-1) = 4
+  Chgstl PIE_D(nolign-1) With "MTC1"  # error = en rojo
+Elsif [M:YPRHD]ACCION(nolign-1) = 5
+  Chgstl PIE_D(nolign-1) With "MTC2"  # enviado = en verde
+Else
+  Chgstl PIE_D(nolign-1) With ""
+Endif
+End
+
+######################################################################################
+Subprog AS_ACCION(VALEUR)
+Variable Integer VALEUR
+# No permito la entrada a este campo
+mkstat = 2
+End
+
+
+##########################################################
+#**
+#*Estado de empaquetamiento del vale de preparación
+#*
+#* @param PPRHNUM
+#*!
+Funprog ESTADO_VALE(PPRHNUM)
+Value Char    PPRHNUM
+
+Local Integer ZEST
+Local Integer CONT_TOTAL
+Local Integer EN_CURSO
+
+If !clalev([YP01]) Then : Local File YSPACK     [YP01] : Endif
+If !clalev([YP02]) Then : Local File STOPRED    [YP02] : Endif
+If !clalev([YITM]) Then : Local File ITMMASTER  [YITM] : Endif # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+If !clalev([YSOQ]) Then : Local File SORDERQ    [YSOQ] : Endif # @05@
+
+For [YP01] Where [YP01]VCRNUM = PPRHNUM
+  [L]CONT_TOTAL += 1
+Next
+
+If [L]CONT_TOTAL = 0
+  ZEST = 1 # Estado = En Espera
+Else
+  Filter [YP02] Where [YP02]PRHNUM = PPRHNUM Order By [YP02]PRELIN Asc
+    For [YP02]
+      Read [YITM]ITM0 = [YP02]ITMREF        # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+      If !fstat                             # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+        If find([YITM]TCLCOD,'ECS') = 0     # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+          Read [YSOQ]SOQ0 = [YP02]ORINUM;[YP02]ORILIN;[YP02]ORISEQ # @05@
+          If !fstat # @05@
+            If [YSOQ]ZASOCIADO = 1 # @05@
+              Local Decimal LCANTIDADPCK # @05@
+              [L]LCANTIDADPCK = func YX3MOBPREPARACION.GETCANTIDADEMPAQUETADA([YP02]PRHNUM, [YP02]PRELIN)
+#              If [YP02]YQTYSTU < [YP02]QTYSTU
+              If [L]LCANTIDADPCK < [YP02]QTYSTU # @05@
+                [L]EN_CURSO = 2
+                Break
+              Endif
+            Endif # @05@
+          Endif # @05@
+        Endif                               # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+      Endif                                 # @01@ - SCD - 25/06/2024 - Ajuste para el campo YESTADOPREP
+    Next
+  Filter [YP02]
+
+  If [L]EN_CURSO = 2
+    ZEST = 2 # Estado = En Curso
+  Else
+    ZEST = 3 # Estado = Preparado
+  Endif
+Endif
+
+
+Close Local File [YP01]
+Close Local File [YP02]
+Close Local File [YSOQ]
+End ZEST
+
+
+
+# @04@ - RAP - 120924 INI
+
+Subprog LOAD_PCK_QTY
+
+If !clalev([YYPCK]) Then : Local File YSPACKD     [YYPCK] : Endif
+
+For I=0 To [M:PRH1]NBLIG-1
+  Filter [YYPCK] Where VCRNUM = [M:PRH0]PRHNUM and VCRLIN = [M:PRH1]PRELIN(I)
+    For [YYPCK]
+      [M:PRH1]YQTYPAC(I) += [YYPCK]QTYPCU
+    Next
+  Affzo [M:PRH1]YQTYPAC(I)
+  Filter [YYPCK]
+Next
+
+End
+# @04@ - RAP - 120924 FIN
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla PRH1) 13/09/2024 12:20:23 (NUN11)
+######################################################################################
+Subprog AM_QTYSTU(VALEUR)
+Variable Decimal VALEUR
+
+If VALEUR < [M:PRH1]YQTYPAC(nolign-1)
+
+Errbox "No puedes introducir menos cantidad que la preparada"
+mkstat = 1
+Endif
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla PRH0) 20/01/2026 16:59:59 (NUN21)
+######################################################################################
+# @06@ - JMF - 200126 - Gestión nuevos campos servicio y términos servicio - INI
+Subprog AV_YSERVICIO(VALEUR)
+  Variable Char    VALEUR()
+#
+#  If VALEUR = "" and [M:PRH0]BPTNUM <> "" Then
+#
+#    If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+#    If !clalev([YSTRA]) : Local File YTRASERV [YSTRA] : Endif
+#    If !clalev ([YSTP]) : Local File STOPREH [YSTP] : Endif
+#
+#    Read [YSTP]PRH0 = [M:PRH0]PRHNUM
+#    If !fstat Then
+#
+#
+#      Filter [YTRA] Where [YTRA]YTRANS = [M:PRH0]BPTNUM
+#      Read [YTRA] First
+#
+#      If !fstat and [YTRA]YSERVDEF <> "" Then
+#
+#        [YSTP]YSERVICIO = [YTRA]YSERVDEF
+#        Rewrite[YSTP]
+#        If !fstat
+#          [M:PRH0]YSERVICIO = [YTRA]YSERVDEF
+#          Affzo [M:PRH0]YSERVICIO
+#        Endif
+#
+#      Endif
+#
+#      Filter [YSTRA] Where [YSTRA]YCODSERV = [YTRA]YSERVDEF and [YSTRA]YTRANS = [M:PRH0]BPTNUM
+#
+#
+#      Read [YSTRA] First
+#
+#      If !fstat and [YSTRA]YDESCSERV <> "" Then
+#        [YSTP]YDESCSERV = [YSTRA]YDESCSERV
+#        Rewrite[YSTP]
+#        If !fstat Then
+#          [M:PRH0]YDESCSERV = [YSTRA]YDESCSERV
+#          Affzo [M:PRH0]YDESCSERV
+#      Endif
+#      Endif
+#
+#
+#      Filter [YTRA]
+#      Filter [YSTRA]
+#    Endif
+#
+#  Endif
+End
+
+Subprog C_YSERVICIO(VALEUR)
+  Variable Char    VALEUR()
+
+  If VALEUR <> ""
+    If !clalev([YTSER]) : Local File YTRASERV [YTSER] : Endif
+
+    Filter [YTSER] Where YTRANS = [M:PRH0]BPTNUM and YCODSERV = VALEUR
+    If rowcount([YTSER]) = 0
+      mkstat = 2
+    Endif
+    Filter [YTSER]
+    Close Local File [YTSER]
+  Endif
+End
+
+Subprog AM_YSERVICIO(VALEUR)
+  Variable Char    VALEUR()
+
+  If VALEUR <> "" Then
+    If !clalev([YSTRA]) : Local File YTRASERV [YSTRA] : Endif
+    Filter [YSTRA] Where [YSTRA]YCODSERV = VALEUR and [YSTRA]YTRANS = [M:PRH0]BPTNUM
+    Read [YSTRA] First
+    [M:PRH0]YDESCSERV = [YSTRA]YDESCSERV
+    Affzo [M:PRH0]YDESCSERV
+    Filter [YSTRA]
+  Else
+    [M:PRH0]YDESCSERV = ""
+    Affzo [M:PRH0]YDESCSERV
+  Endif
+End
+
+Subprog AV_YTERMSRV(VALEUR)
+Variable Char    VALEUR()
+#
+#  If VALEUR = "" and [M:PRH0]BPTNUM <> "" Then
+#
+#    If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+#    If !clalev([YTMV]) : Local File YTERMSERV [YTMV] : Endif
+#    If !clalev ([YSTP]) : Local File STOPREH [YSTP] : Endif
+#
+#    Read [YSTP]PRH0 = [M:PRH0]PRHNUM
+#    If !fstat Then
+#      Filter [YTRA] Where [YTRA]YTRANS = [M:PRH0]BPTNUM
+#      Read [YTRA] First
+#
+#      If !fstat and [YTRA]YTERMDEF <> "" Then
+#        [YSTP]YTERMSRV = [YTRA]YTERMDEF
+#        Rewrite[YSTP]
+#        If !fstat
+#          [M:PRH0]YTERMSRV = [YTRA]YTERMDEF
+#          Affzo [M:PRH0]YTERMSRV
+#        Endif
+#      Endif
+#
+#      Filter [YTMV] Where [YTMV]YCODTERMINO = [YTRA]YTERMDEF and [YTMV]YTRANS = [M:PRH0]BPTNUM
+#      Read [YTMV] First
+#
+#      If !fstat and [YTMV]YDESTERM <> "" Then
+#        [YSTP]YDESTERM = [YTMV]YDESTERM
+#        Rewrite[YSTP]
+#        If !fstat Then
+#          [M:PRH0]YDESTERM = [YTMV]YDESTERM
+#          Affzo [M:PRH0]YDESTERM
+#      Endif
+#      Endif
+#
+#      Filter [YTRA]
+#      Filter [YTMV]
+#    Endif
+#
+#  Endif
+End
+
+Subprog C_YTERMSRV(VALEUR)
+Variable Char    VALEUR()
+
+  If VALEUR <> ""
+    If !clalev([YTER]) : Local File YTERMSERV [YTER] : Endif
+
+    Filter [YTER] Where YTRANS = [M:PRH0]BPTNUM and YCODTERMINO = VALEUR
+    If rowcount([YTER]) = 0
+      mkstat = 2
+    Endif
+    Filter [YTER]
+    Close Local File [YTER]
+  Endif
+End
+
+Subprog AM_YTERMSRV(VALEUR)
+Variable Char    VALEUR()
+
+  If VALEUR <> "" and [M:PRH0]BPTNUM <> ""
+    If !clalev([YTSE]) : Local File YTERMSERV [YTSE] : Endif
+
+    Read [YTSE]YTERSV0 = [M:PRH0]BPTNUM;VALEUR
+    If !fstat
+      [M:PRH0]YDESTERM = [YTSE]YDESTERM
+      Affzo [M:PRH0]YDESTERM
+    Endif
+
+    Close Local File [YTSE]
+  Else
+    [M:PRH0]YTERMSRV =""
+    Affzo [M:PRH0]YTERMSRV
+    [M:PRH0]YDESTERM = ""
+    Affzo [M:PRH0]YDESCSERV
+  Endif
+End
+######################################################################################
+# @06@ - JMF - 200126 - Gestión nuevos campos servicio y términos servicio - FIN

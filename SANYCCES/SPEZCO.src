@@ -1,0 +1,24 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara ZOCERESO (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZOCERESO) 22/09/2023 13:37:01 (NUN22)
+######################################################################################
+$ACTION
+Case ACTION
+    When Default
+Endcase
+Return
+
+Subprog IB_BPAADD
+End
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZOCERESO) 12/03/2024 11:40:38 (NUN14)
+######################################################################################
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+######################################################################################
+

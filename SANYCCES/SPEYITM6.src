@@ -1,0 +1,17 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara YITMTECNICO (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YITMTECNICO) 20/02/2023 17:15:02 (NUN04)
+######################################################################################
+Subprog C_VERSION(VALEUR)
+Variable Char    VALEUR()
+# Si pongo valor tienen que ser 3 caracteres
+If VALEUR <> "" and len(VALEUR) <> 3
+  Errbox "Gracias por introducir 3 caracteres"
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################

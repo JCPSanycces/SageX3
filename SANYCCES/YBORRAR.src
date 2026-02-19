@@ -1,0 +1,353 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case [L]ACTION
+ When "EXP_ZONE" : Gosub EXP_ZONE
+Endcase
+Return
+
+
+
+$EXP_ZONE
+    If clalev([F:ZSOH])=0 : Local File SORDER [ZSOH] : Endif
+    If clalev([F:ZSOP])=0 : Local File SORDERP [ZSOP] : Endif
+    If clalev([F:ZREP])=0 : Local File SALESREP [ZREP] : Endif
+    If clalev([F:ZBPA])=0 : Local File BPADDRESS [ZBPA] : Endif
+    If clalev([F:ZBPA2])=0 : Local File BPADDRESS [ZBPA2] : Endif
+    If clalev([F:ZTAB])=0 : Local File TABCOUNTRY [ZTAB] : Endif
+    If clalev([F:ZTAB2])=0 : Local File TABCOUNTRY [ZTAB2] : Endif
+    If clalev([F:ZFCY])=0 : Local File FACILITY [ZFCY] : Endif
+    If clalev([F:ZCMY])=0 : Local File COMPANY [ZCMY] : Endif
+    If clalev([F:ZBCU])=0 : Local File BPCUSTOMER [ZBCU] : Endif
+    If clalev([F:ZITM])=0 : Local File ITMMASTER [ZITM] : Endif
+    If clalev([F:ZBPR])=0 : Local File BPARTNER [ZBPR] : Endif
+    If clalev([F:ZAWT])=0 : Local File AVWTEXTRA [ZAWT] : Endif
+    If clalev([F:ZSVR])=0 : Local File SVCRVAT [ZSVR] : Endif
+    If clalev([F:ZTBV])=0 : Local File TABVAT [ZTBV] : Endif
+
+
+Case EXPFIC
+
+  When "SOH"
+      If EXPZON="GIMP(80)"
+          Read [F:ZREP]REP0 = [F:SOH]REP
+          If !fstat
+              GIMP(80)= [F:ZREP]REPNAM
+          Endif
+      Endif
+      If EXPZON="GIMP(81)"
+          Read [F:ZREP]REP0 = [F:SOH]REP
+          If !fstat
+              Filter [F:ZBPA] Where BPANUM =  [F:ZREP]REPNUM
+                  Read [F:ZBPA] First
+                  If !fstat
+                      Read [F:ZTAB]TCY0 = [F:ZBPA]CRY
+                      If !fstat
+                          If [F:ZBPA]TEL(4) <> ''
+                              GIMP(81)= mid$(num$([F:ZTAB]TELFMT),3,3)+" "+[F:ZBPA]TEL(4)
+                              If [F:ZBPA]TEL(0) <> ''
+                                  GIMP(81) = GIMP(81)+"/"+mid$(num$([F:ZTAB]TELFMT),3,3)+" "+[F:ZBPA]TEL(0)
+                              Endif
+
+                          Else
+                              GIMP(81) = mid$(num$([F:ZTAB]TELFMT),3,3)+" "+[F:ZBPA]TEL(0)
+                          Endif
+
+                      Endif
+
+                  Endif
+
+              Filter [F:ZBPA]
+          Endif
+      Endif
+      If EXPZON="GIMP(82)"
+          Read [F:ZREP]REP0 = [F:SOH]REP
+          If !fstat
+              Filter [F:ZBPA] Where BPANUM =  [F:ZREP]REPNUM
+                  Read [F:ZBPA] First
+                  If !fstat
+#                      If ([F:ZBPA]WEB(0) = '' or [F:ZBPA]WEB(0) = null)
+                      If [F:ZBPA]WEB(0) = ''
+                          Read [F:ZFCY]FCY0 = [F:SOH]SALFCY
+                          If !fstat
+                              Read [F:ZCMY]CPY0 = [F:ZFCY]LEGCPY
+                              If !fstat
+                                  Filter [F:ZBPA2] Where BPANUM = [F:ZCMY]CPY and BPAADD = [F:ZCMY]BPAADD
+                                      Read [F:ZBPA2] First
+                                      If !fstat
+                                          GIMP(82) = [F:ZBPA2]WEB(0)
+                                      Endif
+
+                                  Filter [F:ZBPA2]
+                              Endif
+
+                          Endif
+
+                      Else
+                          GIMP(82) = [F:ZBPA]WEB(0)
+                      Endif
+
+                  Endif
+
+              Filter [F:ZBPA]
+          Endif
+      Endif
+      If EXPZON="GIMP(83)"
+          Read [F:ZREP]REP0 = [F:SOH]REP
+          If !fstat
+              Filter [F:ZBPA] Where BPANUM =  [F:ZREP]REPNUM
+                  Read [F:ZBPA] First
+                  If !fstat
+                      Read [F:ZTAB]TCY0 = [F:ZBPA]CRY
+                      If !fstat
+                          Read [F:ZFCY]FCY0 = [F:SOH]SALFCY
+                          If !fstat
+                              Read [F:ZCMY]CPY0 = [F:ZFCY]LEGCPY
+                              If !fstat
+                                  Filter [F:ZBPA2] Where BPANUM = [F:ZCMY]CPY and BPAADD = [F:ZCMY]BPAADD
+                                      Read [F:ZBPA2] First
+                                      If !fstat
+                                          Read [F:ZTAB2]TCY0 = [F:ZFCY]CRY
+                                          If [F:ZBPA]TEL(0) = ''
+                                              GIMP(83)= mid$(num$([F:ZTAB2]TELFMT),3,3)+" "+[F:ZBPA2]TEL(0)
+                                          Else
+                                              GIMP(83) = mid$(num$([F:ZTAB]TELFMT),3,3)+" "+[F:ZBPA]TEL(0)
+                                          Endif
+                                      Endif
+                                  Filter [F:ZBPA2]
+                              Endif
+
+                          Endif
+
+                      Endif
+
+                  Endif
+
+              Filter [F:ZBPA]
+          Endif
+      Endif
+
+      If EXPZON="GIMP(84)"
+          Read [F:ZFCY]FCY0 = [F:SOH]SALFCY
+          If !fstat
+              Read [F:ZCMY]CPY0 = [F:ZFCY]LEGCPY
+              If !fstat
+                  Filter [F:ZBPA2] Where BPANUM = [F:ZCMY]CPY and BPAADD = [F:ZCMY]BPAADD
+                      Read [F:ZBPA2] First
+                      If !fstat
+                          GIMP(84) = [F:ZCMY]CPYNAM + " " + [F:ZBPA2]BPAADDLIG + " " + [F:ZBPA2]POSCOD  + " " + [F:ZBPA2]CTY  + " " + [F:ZBPA2]CRY
+                      Endif
+                  Filter [F:ZBPA2]
+              Endif
+
+          Endif
+
+      Endif
+
+      If EXPZON="GIMP(85)"
+              GIMP(85)= 'P. IVA: IT10897400965'
+      Endif
+
+      If EXPZON="GIMP(86)"
+          Read [F:ZBCU]BPC0 = [F:SOH]BPCORD
+          If !fstat
+              Filter [F:ZBPA] Where BPANUM = [F:ZBCU]BPCINV and BPAADD = [F:ZBCU]BPAINV
+                Read [F:ZBPA] First
+                If !fstat
+                    If [F:SOH]BPAINV = ''
+                        GIMP(86) = [F:ZBCU]BPCNAM + " | " + [F:ZBPA]BPAADDLIG(0)
+                        If [F:ZBPA]BPAADDLIG(1) <> ''
+                            GIMP(86) = GIMP(86) + " | " + [F:ZBPA]BPAADDLIG(1)
+                        Endif
+                         If [F:ZBPA]BPAADDLIG(2) <> ''
+                            GIMP(86) = GIMP(86) + " | " + [F:ZBPA]BPAADDLIG(2)
+                        Endif
+                        GIMP(86) = GIMP(86) +" | " +  [F:ZBPA]POSCOD + " " + [F:ZBPA]CTY
+                        If [F:ZBPA]SAT <> ''
+                            GIMP(86) = GIMP(86) + " | " + [F:ZBPA]SAT
+                        Endif
+                        GIMP(86) = GIMP(86) + " | " + [F:ZBPA]CRYNAM + " "
+                    Else
+                        GIMP(86) = [F:SOH]BPINAM + " | " + [F:SOH]BPIADDLIG(0)
+                        If [F:SOH]BPIADDLIG(1) <> ''
+                            GIMP(86) = GIMP(86) + " | " + [F:SOH]BPIADDLIG(1)
+                        Endif
+                         If [F:SOH]BPIADDLIG(2) <> ''
+                            GIMP(86) = GIMP(86) + " | " + [F:SOH]BPIADDLIG(2)
+                        Endif
+                        GIMP(86) = GIMP(86) + " | " + [F:SOH]BPIPOSCOD + " " + [F:SOH]BPICTY
+                        If [F:SOH]BPISAT <> ''
+                            GIMP(86) = GIMP(86) + " | " + [F:SOH]BPISAT
+                        Endif
+                        GIMP(86) = GIMP(86) + " | " + [F:SOH]BPICRYNAM + " "
+                    Endif
+
+                Endif
+              Filter [F:ZBPA]
+          Endif
+
+      Endif
+      If EXPZON="GIMP(87)"
+          GIMP(87) = [F:SOH]CUSORDREF
+      Endif
+      If EXPZON="GIMP(88)"
+          Read [F:ZBPR]BPR0 = [F:SOH]BPCORD
+          If !fstat
+              GIMP(88)= [F:ZBPR]EECNUM
+          Endif
+      Endif
+      If EXPZON="GIMP(89)"
+          Read [F:ZBCU]BPC0 = [F:SOH]BPCORD
+          If !fstat
+              Filter [F:ZAWT] Where IDENT2 = [F:ZBCU]YBUYGRP and LAN = 'BRI' and CODFIC = 'ATABDIV' and ZONE = 'LNGDES' and IDENT1 = '12003'
+                  Read [F:ZAWT] First
+                  If !fstat
+                      GIMP(89) = [F:ZAWT]TEXTE
+                  Endif
+              Filter [F:ZAWT]
+          Endif
+
+      Endif
+      If EXPZON="GIMP(90)"
+          Read [F:ZBCU]BPC0 = [F:SOH]BPCORD
+          If !fstat
+              GIMP(90) = [F:ZBCU]YBUYGRPMEMB
+          Endif
+
+      Endif
+    If EXPZON="GIMP(91)"
+          Read [F:ZBCU]BPC0 = [F:SOH]BPCORD
+          If !fstat
+              GIMP(91) = [F:ZBCU]YBUYGRPCNT
+          Endif
+      Endif
+      If EXPZON="GIMP(92)"
+          Filter [F:ZBPA] Where BPANUM = [F:SOH]BPCORD and BPAADD = [F:SOH]BPAADD
+              Read [F:ZBPA] First
+              If !fstat
+                  GIMP(92) = [F:ZBPA]BPADES + ", "
+                  If [F:ZBPA]BPAADDLIG(0)<>''
+                      GIMP(92) = GIMP (92) + [F:ZBPA]BPAADDLIG(0) + ", "
+                  Endif
+                  If [F:ZBPA]BPAADDLIG(1)<>''
+                      GIMP(92) = GIMP (92) + [F:ZBPA]BPAADDLIG(1) + ", "
+                  Endif
+                  If [F:ZBPA]BPAADDLIG(2)<>''
+                      GIMP(92) = GIMP (92) + [F:ZBPA]BPAADDLIG(2) + ", "
+                  Endif
+                  GIMP(92) = GIMP (92) + [F:ZBPA]POSCOD + " " + [F:ZBPA]CTY + ", " + [F:ZBPA]CRY
+
+              Endif
+          Filter [F:ZBPA]
+      Endif
+
+      If EXPZON="GIMP(98)"
+          GIMP(98) = num$([F:SOH]ORDNOT) + " " + [F:SOH]CUR
+
+    Endif
+
+
+
+    If EXPZON="GIMP(20)"
+        Read [F:ZFCY]FCY0 = [F:SOH]SALFCY
+            If !fstat
+                Read [F:ZCMY]CPY0 = [F:ZFCY]LEGCPY
+                If !fstat
+                    Read [F:ZBPR]BPR0 = [F:SOH]BPCORD
+                    If !fstat
+                        Local Char TEXSQL(250)(7)
+
+                        Local Char S_TEXTE
+                        Local Decimal F_VATRAT
+                        Local Decimal F_BASTAX
+                        Local Decimal F_AMTTAX
+
+
+                        TEXSQL(0) = "SELECT AVWTEXTRA.TEXTE_0,SVCRVAT.VATRAT_0, SVCRVAT.BASTAX_0, SVCRVAT.AMTTAX_0 "
+                        TEXSQL(1) =       "FROM AVWTEXTRA AVWTEXTRA "
+                        TEXSQL(2) =           "INNER JOIN TABVAT TABVAT ON(TABVAT.VAT_0 = AVWTEXTRA.IDENT1_0 and TABVAT.LEG_0 = AVWTEXTRA.IDENT2_0) "
+                        TEXSQL(3) =           "INNER JOIN SVCRVAT SVCRVAT ON(SVCRVAT.VAT_0 = TABVAT.VAT_0) "
+                        TEXSQL(4) =        "WHERE AVWTEXTRA.ZONE_0 = 'DESAXX' and AVWTEXTRA.CODFIC_0 = 'TABVAT' and SVCRVAT.VCRTYP_0 IN (10, 11, 12, 13, 20) "
+                        TEXSQL(5) =               "AND AVWTEXTRA.IDENT2_0 IN ('','"+[F:ZCMY]LEG+"') AND AVWTEXTRA.LAN_0 = '"+[F:ZBPR]LAN+"' "
+                        TEXSQL(6) =               "AND SVCRVAT.VCRNUM_0 = '"+[F:SOH]SOHNUM+"' AND TABVAT.LEG_0 = '"+[F:ZCMY]LEG+"'"
+                        For (Char TEXTE, Decimal VATRAT, Decimal BASTAX, Decimal AMTTAX) From num$(GTYPDBA*2+1) Sql TEXSQL(0..6) As [ZSQL]
+                            S_TEXTE = [F:ZSQL]TEXTE
+                            F_VATRAT = [F:ZSQL]VATRAT
+                            F_BASTAX = [F:ZSQL]BASTAX
+                            F_AMTTAX = [F:ZSQL]AMTTAX
+                            Break
+                        Next ZSQL
+
+                      Endif
+
+                      GIMP(20) = S_TEXTE - " | "- num$(F_VATRAT) - " | "- num$(F_BASTAX) - " | "- num$(F_AMTTAX)
+
+                Endif
+
+            Endif
+
+    Endif
+
+    If EXPZON="GIMP(21)"
+          GIMP(21) = num$([F:SOH]ORDATI) + " " + [F:SOH]CUR
+
+    Endif
+
+    If EXPZON="GIMP(22)"
+        Read [F:ZFCY]FCY0 = [F:SOH]SALFCY
+        If !fstat
+            Read [F:ZCMY]CPY0 = [F:ZFCY]LEGCPY
+            If !fstat
+                Local Char TEXSQL(250)(6)
+
+                TEXSQL(0) = "SELECT AVWTEXTRA.TEXTE_0 "
+                TEXSQL(1) =       "FROM AVWTEXTRA AVWTEXTRA "
+                TEXSQL(2) =           "INNER JOIN TABPAYTERM TABPAYTERM ON (TABPAYTERM.PTE_0 = AVWTEXTRA.IDENT1_0 AND TABPAYTERM.LEG_0 = AVWTEXTRA.IDENT2_0 ) "
+                TEXSQL(3) =        "WHERE TABPAYTERM.PTELIN_0 = 1 AND AVWTEXTRA.CODFIC_0 ='TABPAYTERM' AND AVWTEXTRA.ZONE_0='DESAXX' "
+                TEXSQL(4) =        "AND (TABPAYTERM.LEG_0 = '"+[F:ZCMY]LEG+"' or TABPAYTERM.LEG_0 = '') AND AVWTEXTRA.LAN_0 = '"+[F:SOH]LAN+"' "
+                TEXSQL(5) =        "AND (AVWTEXTRA.IDENT2_0 = '"+[F:ZCMY]LEG+"' or AVWTEXTRA.IDENT2_0 = '') AND TABPAYTERM.PTE_0 = '"+[F:SOH]PTE+"'"
+                For (Char TEXTE) From num$(GTYPDBA*2+1) Sql TEXSQL(0..5) As [ZSQL]
+                    S_TEXTE = [F:ZSQL]TEXTE
+                    Break
+                Next ZSQL
+
+              Endif
+
+            GIMP(22) = S_TEXTE
+          Endif
+
+    Endif
+
+
+  When "SOQ" :
+      If EXPZON="GIMP(95)"
+
+          Read [ZSOP]SOP0 = [F:SOQ]SOHNUM; [F:SOQ]SOPLIN; [F:SOQ]SOQSEQ
+          If !fstat
+              GIMP(95)=num$([F:ZSOP]NETPRI * [F:SOQ]QTY)
+          Endif
+    Endif
+    If EXPZON="GIMP(96)"
+        Read [F:ZITM]ITM0 = [F:SOQ]ITMREF
+        If !fstat
+            If [F:ZITM]ITMWEI > 0
+                GIMP(96)= "weight: " + num$([F:ZITM]ITMWEI) + " " + [F:ZITM]WEU + " / " + num$([F:ZITM]ITMWEI * [F:SOQ]QTYSTU) + " " + [F:ZITM]WEU
+            Else
+                GIMP(96)=''
+            Endif
+
+        Endif
+    Endif
+    If EXPZON="GIMP(97)"
+        Read [F:ZITM]ITM0 = [F:SOQ]ITMREF
+        If !fstat
+            GIMP(97)=[F:ZITM]EANCOD
+        Endif
+
+    Endif
+
+  Endcase
+
+
+
+
+Return

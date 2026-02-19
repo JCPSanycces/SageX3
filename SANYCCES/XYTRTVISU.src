@@ -1,0 +1,34 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+#     If GUSER = 'NUN05' Then : Infbox "XYTRTVISU:" + ACTION + " - GFONCTION: " + GFONCTION   + " - GFONCTION1: " + GFONCTION1 : Endif
+
+Case ACTION
+   When "OK": Gosub OK
+Endcase
+Return
+
+
+###################################################################
+$OK
+    Local   File  YSOHCONT [F:YSCT]
+    Global  Char  GID(30) : GID = uuid$
+    For I = 0 To [M:VIS1]NBLIG-1
+      If  [M:VIS1]PECFLG(I) = 2 Then
+        # GLISTASOH(I) = [M:VIS1]VCRNUMORI(I)
+        [F:YSCT]ID=GID
+        [F:YSCT]USER=GUSER
+        [F:YSCT]SOHNUM=[M:VIS1]VCRNUMORI(I)
+        [F:YSCT]SOHLIN=[M:VIS1]VCRLINORI(I)
+        [F:YSCT]SOHSEQ=[M:VIS1]VCRSEQORI(I)
+        Trbegin [F:YSCT]
+        Write
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+      Endif
+      # If GUSER = 'NUN05' Then : Infbox [M:VIS1]VCRLINORI(I) + " - - " + GLISTASOH(I) : Endif
+    Next
+    Close Local File [F:YSCT]
+Return

@@ -1,0 +1,565 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+###################################################################
+#
+# @01@ - JLP - 03-09-2024 - Modificación de los filtros de la columna "A" (TIPO)
+# @02@ - SCD - 27-09-2024 - Modificación campo nuevo Fecha Contable
+#
+###################################################################
+
+$ACTION
+Case ACTION
+ When "INIT"     : Gosub INIT
+ When "DEBUT"    : Gosub DEBUT
+ When "CONTROLE" : Gosub CONTROLE
+ When "EXEC"     : Gosub EXEC
+ When "FIN"      : Gosub FIN
+ When "OK"       : Gosub OK
+Endcase
+Return
+
+###################################################################
+$INIT
+Local Mask ZIMPPLR [ZDIA]
+TMP = 1
+[M:ZDIA]TYPORG=1
+[M:ZDIA]TYPDES=2
+[M:ZDIA]FICDES2="[GSUP]"
+Return
+
+
+###################################################################
+$DEBUT
+#Gosub GRISE_ORG
+#Gosub GRISE_DES
+Affzo
+Return
+
+
+###################################################################
+$CONTROLE
+If GSTATUT=GSTAESC : FIN = 1 : Endif
+Return
+
+
+###################################################################
+$FIN
+Return
+
+
+###################################################################
+$OK
+# Me guardo las fechas
+Global Date D_DUDDAT : [V]D_DUDDAT = [M:ZIPLR]YDUDDAT
+Global Date D_VALDAT : [V]D_VALDAT = [M:ZIPLR]YVALDAT
+Global Date D_ACCDAT : [V]D_ACCDAT = [M:ZIPLR]YACCDAT  # @02@ - SCD - 27-09-2024 - Modificación campo nuevo Fecha Contable
+Return
+
+
+###################################################################
+$EXEC
+Local Integer STAT
+Local Char    FICCLI(GDIMFIC) , FICSRV(GDIMFIC) , URL(GDIMFIC)
+    Local Decimal SUM430 : [L]SUM430 = 0
+    Local Decimal SUM400 : [L]SUM400 = 0
+If FIN = 1 Then : Return : Endif
+
+Case [M:ZDIA]TYPORG
+ When 1
+  Case [M:ZDIA]TYPDES
+   When 1
+    FICCLI = ""
+    Call SET_FICNAM(FICCLI,FICSRV,URL) From ORDSYS
+    Call COPSRV(FICCLI,FICSRV,STAT) From ORDSYS
+    If !STAT
+     Call COPCLI(FICSRV,FICCLI,STAT) From ORDSYS
+    Endif
+   When 2
+    Call SET_NAMCLI(FICCLI) From ORDSYS
+    FICSRV = [M:ZDIA]FICDES2
+    Call COPSRV(FICCLI,FICSRV,STAT) From ORDSYS
+    If STAT=0
+      Gosub TRATAMIENTO
+    Endif
+  Endcase
+ When 2
+  Case [M:ZDIA]TYPDES
+   When 1
+    FICCLI = [M:ZDIA]FICORG
+    Call SET_NAMCLI(FICCLI) From ORDSYS
+    Call COPCLI([M:ZDIA]FICORG,FICCLI,STAT) From ORDSYS
+   When 2
+    Call COPIE([M:ZDIA]FICORG,[M:ZDIA]FICDES,STAT) From ORDSYS
+  Endcase
+Endcase
+If STAT
+ Call ERREUR(mess(12,139,1)) From GESECRAN : # Copie non réalisée
+Endif
+Return
+
+
+###################################################################
+$TRATAMIENTO
+If !clalev([M:DIA]) : Global Mask IMPOBJ2    [M:DIA] : Endif
+If !clalev([M:AOE0]) : Global Mask AOE0       [AOE0] : Endif
+If !clalev([M:AOE1]) : Global Mask AOE1       [AOE1] : Endif
+If !clalev([M:AOE2]) : Global Mask AOE2       [AOE2] : Endif
+
+If !GSERVEUR
+  Call OUVRE_TRACE ("Importación pagos Grandes Superficies") From LECFIC
+Endif
+Local Integer STAT
+Local Integer LNGTH
+Local Char FILELIST(250)(1..100)
+Local Char ZDIR(250) : ZDIR = filpath("GSUP\","","")
+Local Char ZDIRSAL(250) : ZDIRSAL = filpath("GSUP\PROCESADOS\","","")
+Local Char ZDIRERROR(250) : ZDIRERROR = filpath("GSUP\ERRONEOS\","","")
+
+Call SYSTEME2(adxmac(0),"lsadx"-ZDIR,"",LNGTH,FILELIST) From ORDSYS
+For ZZ=3 To LNGTH
+    If toupper(right$(FILELIST(ZZ),len(FILELIST(ZZ))-2))="CSV" : Gosub TRAT_FICHEROS Endif
+Next
+
+If !GSERVEUR
+  Call FERME_TRACE From LECFIC
+  Call LEC_TRACE From LECFIC
+Endif
+Return
+
+
+
+###################################################################
+$TRAT_FICHEROS
+Call ECR_TRACE("Transformación del fichero"-FILELIST(ZZ),0) From GESECRAN
+
+Local Char  REGISTRO(100)(200)
+Local Char  NOMFICH(30): NOMFICH="COB_GS-"+format$("D:DDMMYY", date$)+"-"+num$(time)+".csv"
+
+Openi ZDIR+FILELIST(ZZ) Using [TXT]
+Iomode adxium  50        Using [TXT]
+Iomode adxirs chr$(10)  Using [TXT]
+Iomode adxifs ";"       Using [TXT]
+
+Openo ZDIR+NOMFICH,0 Using [TXT2]
+
+Iomode adxium  0        Using [TXT2]
+Iomode adxirs chr$(10)  Using [TXT2]
+Iomode adxifs ";"       Using [TXT2]
+
+
+
+Rdseq REGISTRO          Using [TXT]
+Gosub ESC_CABECERA
+
+X=0: WSTAT=0
+
+Local Char C_TERCERO : [L]C_TERCERO = REGISTRO(3)
+Local Decimal WIMP   : WIMP=0
+ While fstat=0
+  If val(ctrans(REGISTRO(9),",","."))<>0 and REGISTRO(0)<>""
+    If left$(REGISTRO(0),3) = 'FAV'
+      WIMP+=val(ctrans(REGISTRO(9),",","."))
+    Elsif left$(REGISTRO(0),3) = 'FAC'
+      WIMP+=val(ctrans(REGISTRO(9),",","."))  #-
+    Elsif left$(REGISTRO(0),3) = 'ABV'
+      WIMP+=val(ctrans(REGISTRO(9),",","."))  #-
+    Else
+      If val(ctrans(REGISTRO(9),",",".")) < 0
+        WIMP+=val(ctrans(REGISTRO(9),",","."))  #-
+      Else
+        WIMP+=val(ctrans(REGISTRO(9),",","."))
+      Endif
+    Endif
+    X+=1
+    Gosub ESC_DETALLE
+  Endif
+  Rdseq REGISTRO        Using [TXT]
+Wend
+
+  Gosub ESC_TOTAL
+  Openi Using [TXT]
+  Openo Using [TXT2]
+  If WSTAT=0
+    Gosub IMP_FICHEROS
+
+  Endif
+  Sleep 2
+  If WSTAT=0
+     Call MOVE(ZDIR+FILELIST(ZZ),ZDIRSAL+FILELIST(ZZ),STAT) From ORDSYS
+     #Call MOVE(ZDIR+NOMFICH,ZDIRSAL+NOMFICH,STAT) From ORDSYS
+  Else
+     Call MOVE(ZDIR+FILELIST(ZZ),ZDIRERROR+FILELIST(ZZ),STAT) From ORDSYS
+     # Call MOVE(ZDIR+NOMFICH,ZDIRERROR+NOMFICH,STAT) From ORDSYS
+  Endif
+
+Return
+
+
+###################################################################
+$IMP_FICHEROS
+  Call ECR_TRACE("Fichero correcto",0) From GESECRAN
+  Call ECR_TRACE("Importación del fichero"-NOMFICH,0) From GESECRAN
+  Raz [M:DIA]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+
+
+#If GUSER <> 'NUN14'
+  #--
+  [M:DIA]MODIMP = "ZGAS"
+  [M:DIA]NOMIMP = ZDIR+NOMFICH
+  [M:DIA]TYPIMP = 2
+  #[M:IMP2]AOWSTA = 2
+  Call IMPORTSIL([M:DIA]MODIMP,[M:DIA]NOMIMP) From GIMPOBJ
+#Endif
+Return
+
+
+###################################################################
+$ESC_CABECERA
+Wrseq "G";                                    Using [TXT2]
+Wrseq  GZTIPOASIEN;                           Using [TXT2]
+Wrseq "11";                                   Using [TXT2]
+#Wrseq format$("D:YYYYMMDD",date$);            Using [TXT2]       # @02@ - SCD - 27-09-2024 - Modificación campo nuevo Fecha Contable
+Wrseq format$("D:YYYYMMDD",[V]D_ACCDAT);      Using [TXT2]  # @02@ - SCD - 27-09-2024 - Modificación campo nuevo Fecha Contable
+Wrseq format$("D:YYYYMMDD",[V]D_DUDDAT);      Using [TXT2]
+Wrseq format$("D:YYYYMMDD",[V]D_VALDAT);      Using [TXT2]
+Wrseq "Tesorería grandes superficies"         Using [TXT2]
+Return
+
+
+###################################################################
+$ESC_DETALLE
+# Lógica para sacar la cuenta
+# FAV/ABV/RAP/NC0:
+#   CLIEX: 43000002
+#   CLINA: 43000000
+#   CLIUE: 43000001
+# ABC/FAC/FAS:
+#   ACREX: 41000002
+#   ACRNA: 41000000
+#   ACRUE: 41000001
+#   PROEX: 40000002
+#   PRONA: 40000000
+#   PROUE: 40000001
+
+If !clalev([Z1]) : Local File BPCUSTOMER [Z1] : Endif
+If !clalev([Z2]) : Local File BPSUPPLIER [Z2] : Endif
+
+Local Char CUENTA_DETALLE
+If left$(REGISTRO(0),4)='ZABC' or left$(REGISTRO(0),4)='ZFAC' or left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0),3)='ABR' or left$(REGISTRO(0),2)='LV' or left$(REGISTRO(0
+& ),3)='RPP' # @01@ - JLP - 03-09-2024 - NUEVOS FILTROS
+#If left$(REGISTRO(0),3)='FAV' or left$(REGISTRO(0),3)='ABV' or left$(REGISTRO(0),3)='NC0' or left$(REGISTRO(0),2)='LV' # @01@ - JLP - 03-09-2024 - Filtros anteriores
+  [L]SUM430 += val(ctrans(REGISTRO(9),",","."))
+  Read [Z1]BPC0 = REGISTRO(3)
+  If fstat = 0
+    Case [Z1]BCGCOD
+      When "CLIEX" : [L]CUENTA_DETALLE = "43000002"
+      When "CLINA" : [L]CUENTA_DETALLE = "43000000"
+      When "CLIUE" : [L]CUENTA_DETALLE = "43000001"
+    Endcase
+  Endif
+Elsif left$(REGISTRO(0),3)='FAP' or left$(REGISTRO(0),2)='LC' or left$(REGISTRO(0),3)='ABP' or left$(REGISTRO(0),4)='WFAP' or left$(REGISTRO(0),4)='WABP'# @01@ - JLP - 03-09-2024 - NUEVOS FILTROS
+#Elsif left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='FAS'or left$(REGISTRO(0),2)='LC' or left$(REGISTRO(0),3)='RAP' or left$(REGISTRO(0),3)='ABO'
+# @01@ - JLP - 03-09-2024 - FILTROS ANTERIORES
+
+  [L]SUM400 += val(ctrans(REGISTRO(9),",","."))
+
+  Read [Z2]BPS0 = REGISTRO(3)
+  If fstat = 0
+    Case [Z2]BSGCOD
+      When "ACREX" : [L]CUENTA_DETALLE = "41000002"
+      When "ACRNA" : [L]CUENTA_DETALLE = "41000000"
+      When "ACRUE" : [L]CUENTA_DETALLE = "41000001"
+      When "PROEX" : [L]CUENTA_DETALLE = "40000002"
+      When "PRONA" : [L]CUENTA_DETALLE = "40000000"
+      When "PROUE" : [L]CUENTA_DETALLE = "40000001"
+    Endcase
+  Endif
+Endif
+
+Wrseq "D";                         Using [TXT2]
+Wrseq num$(X);                     Using [TXT2]
+Wrseq "1";                         Using [TXT2]
+Wrseq CUENTA_DETALLE;              Using [TXT2]
+Wrseq  REGISTRO(3);                Using [TXT2]
+Wrseq  REGISTRO(1);                Using [TXT2]
+If val(ctrans(REGISTRO(9),",",".")) < 0
+  Wrseq "1";                         Using [TXT2]
+Else
+  Wrseq "-1";                        Using [TXT2]
+Endif
+If val(ctrans(REGISTRO(9),",",".")) > 0
+  Wrseq num$(val(ctrans(REGISTRO(9),",",".")));                 Using [TXT2]
+Else
+  Wrseq num$((-1)*val(ctrans(REGISTRO(9),",",".")));            Using [TXT2]
+Endif
+Wrseq REGISTRO(0)                  Using [TXT2]
+
+Close Local File [Z1]
+Close Local File [Z2]
+Return
+
+###################################################################
+$ESC_TOTAL
+# Última línea del asiento
+# Si el sumatorio de las líneas del fichero es positivo (es decir a ingresar) -> 43000000 (en el debe 1)
+# Si el sumatorio de las líneas del fichero es negativo (es decir a pagar)->  (en el haber -1)
+  # ACREX-ACRNA-ACRUE-> 41000000
+  # PROEX-PRONA-PROUE-> 40000000
+Local Char CUENTA_TOTAL
+Local Char SENTIDO
+
+
+#If (abs([L]SUM430) > abs([L]SUM400)) and (left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0),3)='ABR' or left$(REGISTRO(0),2)='LV' or left$(REGISTRO(0),3)='RPP')
+If abs([L]SUM430) > abs([L]SUM400)
+  If !clalev([YBPC]) : Local File BPCUSTOMER [YBPC] : Endif
+  Local Char CUENTA_CLIENTE
+
+  Read [YBPC]BPC0 = C_TERCERO
+  If fstat = 0
+    Case [YBPC]BCGCOD
+      When "CLIEX" : [L]CUENTA_CLIENTE = "43000002"
+      When "CLINA" : [L]CUENTA_CLIENTE = "43000000"
+      When "CLIUE" : [L]CUENTA_CLIENTE = "43000001"
+    Endcase
+  Endif
+
+  If [L]WIMP < 0
+    [L]SENTIDO      = "-1"
+  Else
+    [L]SENTIDO      = "1"
+  Endif
+
+  [L]WIMP = abs([L]WIMP)
+  [L]CUENTA_TOTAL = [L]CUENTA_CLIENTE
+
+  Close Local File [YBPC]
+
+#Elsif left$(REGISTRO(0),3)='FAP' or left$(REGISTRO(0),2)='LC' or left$(REGISTRO(0),3)='ABP' # Ajuste total
+Else
+
+  If !clalev([YBPS]) : Local File BPSUPPLIER [YBPS] : Endif
+  Local Char CUENTA_CLIENTE
+
+  Read [YBPS]BPS0 = C_TERCERO
+  If fstat = 0
+    Case [YBPS]BSGCOD
+      When "ACREX" : [L]CUENTA_CLIENTE = "41000000"
+      When "ACRNA" : [L]CUENTA_CLIENTE = "41000000"
+      When "ACRUE" : [L]CUENTA_CLIENTE = "41000000"
+      When "PROEX" : [L]CUENTA_CLIENTE = "40000000"
+      When "PRONA" : [L]CUENTA_CLIENTE = "40000000"
+      When "PROUE" : [L]CUENTA_CLIENTE = "40000000"
+    Endcase
+  Endif
+
+  If [L]WIMP < 0
+    [L]SENTIDO      = "-1"
+  Else
+    [L]SENTIDO      = "1"
+  Endif
+
+  [L]WIMP = abs([L]WIMP)
+  [L]CUENTA_TOTAL = [L]CUENTA_CLIENTE
+
+  Close Local File [YBPS]
+
+Endif
+
+Wrseq "D";                                 Using [TXT2]
+Wrseq num$(X+1);                           Using [TXT2]
+Wrseq "1";                                 Using [TXT2]
+Wrseq CUENTA_TOTAL;                        Using [TXT2]
+Wrseq  C_TERCERO;                          Using [TXT2]
+Wrseq  "Tesorería grandes superficies" ;   Using [TXT2]
+Wrseq SENTIDO;                             Using [TXT2]
+Wrseq num$(WIMP);                          Using [TXT2]
+Wrseq ""                                   Using [TXT2]
+Return
+
+
+###################################################################
+
+
+$ESC_TOTAL2
+# Última línea del asiento
+# Si el sumatorio de las líneas del fichero es positivo (es decir a ingresar) -> 43000000 (en el debe 1)
+# Si el sumatorio de las líneas del fichero es negativo (es decir a pagar)->  (en el haber -1)
+  # ACREX-ACRNA-ACRUE-> 41000000
+  # PROEX-PRONA-PROUE-> 40000000
+Local Char CUENTA_TOTAL
+Local Char SENTIDO
+
+If [L]WIMP > 0
+  If !clalev([Z4]) : Local File BPARTNER [Z4] : Endif
+  Local Char CUENTA_CLIENTE
+
+  Read [Z4]BPR0 = C_TERCERO
+  If fstat = 0
+    Case [Z4]BRGCOD
+      When "CLIEX" : [L]CUENTA_CLIENTE = "43000002"
+      When "CLINA" : [L]CUENTA_CLIENTE = "43000000"
+      When "CLIUE" : [L]CUENTA_CLIENTE = "43000001"
+    Endcase
+  Endif
+
+  [L]CUENTA_TOTAL = [L]CUENTA_CLIENTE
+  [L]SENTIDO      = "1"
+
+  Close Local File [Z4]
+
+Else
+  If !clalev([Z4]) : Local File BPARTNER [Z4] : Endif
+  Local Char CUENTA_CLIENTE
+
+  Read [Z4]BPR0 = C_TERCERO
+  If fstat = 0
+    Case [Z4]BRGCOD
+      When "ACREX" : [L]CUENTA_CLIENTE = "41000000"
+      When "ACRNA" : [L]CUENTA_CLIENTE = "41000000"
+      When "ACRUE" : [L]CUENTA_CLIENTE = "41000000"
+      When "PROEX" : [L]CUENTA_CLIENTE = "40000000"
+      When "PRONA" : [L]CUENTA_CLIENTE = "40000000"
+      When "PROUE" : [L]CUENTA_CLIENTE = "40000000"
+    Endcase
+  Endif
+
+  [L]WIMP = (-1) * [L]WIMP
+  [L]CUENTA_TOTAL = [L]CUENTA_CLIENTE
+  [L]SENTIDO      = "-1"
+
+  Close Local File [Z4]
+Endif
+
+Wrseq "D";                                 Using [TXT2]
+Wrseq num$(X+1);                           Using [TXT2]
+Wrseq "1";                                 Using [TXT2]
+Wrseq CUENTA_TOTAL;                        Using [TXT2]
+Wrseq  C_TERCERO;                        Using [TXT2]
+Wrseq  "Tesorería grandes superficies" ;   Using [TXT2]
+Wrseq SENTIDO;                             Using [TXT2]
+Wrseq num$(WIMP);                          Using [TXT2]
+Wrseq ""                                   Using [TXT2]
+Return
+
+
+###################################################################
+Subprog AM_TYPORG(VALEUR)
+Variable Integer VALEUR
+[M]TYPORG = VALEUR
+Gosub GRISE_ORG
+End
+
+
+###################################################################
+$GRISE_ORG
+Case [M]TYPORG
+ When 2
+  If [M]TYPDES=0 : [M]TYPDES = 1 : Affzo TYPDES : Endif
+  Actzo [M]FICORG2 , TYPDES
+ When Default
+  [M]FICORG = "" : Affzo  [M]FICORG2 : Grizo  [M]FICORG2
+Endcase
+Return
+
+
+###################################################################
+Subprog C_FICORG(VALEUR)
+Variable Char    VALEUR()
+Local Integer STAT
+End
+
+
+###################################################################
+Subprog C_FICORG2(VALEUR)
+Variable Char    VALEUR()
+Gosub ENUM_VOLFIL_TYPE  From ASYRSTO
+mkstat = func ASYRSTO.CTL_VOLFIL([M]TYPORG, VALEUR,[M]FICORG,E_TYPE_FILEREAD,GMESSAGE)
+End
+Subprog AM_TYPDES(VALEUR)
+Variable Integer VALEUR
+[M]TYPDES = VALEUR
+Gosub GRISE_DES
+End
+
+
+
+###################################################################
+$GRISE_DES
+Case [M]TYPDES
+ When 2
+  Actzo  [M]FICDES2
+ When Default
+  [M]FICDES2 = "" : Affzo [M]FICDES2 : Grizo [M]FICDES2
+Endcase
+Return
+
+
+###################################################################
+Subprog C_FICDES(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+###################################################################
+Subprog C_FICDES2(VALEUR)
+Variable Char    VALEUR()
+Gosub ENUM_VOLFIL_TYPE  From ASYRSTO
+
+ASTATUS = func ASYRSTO.CTL_VOLFIL([M]TYPDES,VALEUR,[M]FICDES,E_TYPE_FOLDER,GMESSAGE)
+If ASTATUS<>CST_AOK
+ ASTATUS = func ASYRSTO.CTL_VOLFIL([M]TYPDES,VALEUR,[M]FICDES,E_TYPE_FILEWRITE,GMESSAGE)
+ If ASTATUS<>CST_AOK : mkstat = 1 : End : Endif
+Else
+ Raz GMESSAGE
+Endif
+
+End
+
+
+###################################################################
+$ESC_DETALLE_OLD
+   If !clalev([F:CAC]): Local File GACCCODE : Endif
+   Wrseq "D";                         Using [TXT2]
+   Wrseq num$(X);                     Using [TXT2]
+   Wrseq "1";                         Using [TXT2]
+   Call LECTURE("BPC",REGISTRO(3),"") From CONTOBJ
+   Local Char CODCPT
+   If left$(REGISTRO(0),3) = 'FAV'
+    [L]CODCPT = func FINCAC_SYRA.GET_ACCCOD_BPR(GACTX, "1", REGISTRO(3), "C")
+   Elsif left$(REGISTRO(0),3) = 'FAC'
+    [L]CODCPT = func FINCAC_SYRA.GET_ACCCOD_BPR(GACTX, "1", REGISTRO(3), "F")
+   Elsif left$(REGISTRO(0),3) = 'ABV'
+    [L]CODCPT = func FINCAC_SYRA.GET_ACCCOD_BPR(GACTX, "1", REGISTRO(3), "C")
+   Else
+      If val(ctrans(REGISTRO(9),",",".")) < 0
+        [L]CODCPT = func FINCAC_SYRA.GET_ACCCOD_BPR(GACTX, "1", REGISTRO(3), "C")
+      Else
+        [L]CODCPT = func FINCAC_SYRA.GET_ACCCOD_BPR(GACTX, "1", REGISTRO(3), "C")
+      Endif
+   Endif
+   Call LECTURE("CAC",[L]CODCPT,"2~SPA") From CONTOBJ
+
+   Wrseq [F:CAC]ACC(0);               Using [TXT2]
+   Wrseq  REGISTRO(3);                Using [TXT2]
+   Wrseq  REGISTRO(1);                Using [TXT2]
+   If left$(REGISTRO(0),3) = 'FAV'
+    Wrseq "-1";                        Using [TXT2]
+   Elsif left$(REGISTRO(0),3) = 'FAC'
+    Wrseq "1";                         Using [TXT2]
+   Elsif left$(REGISTRO(0),3) = 'ABV'
+    Wrseq "1";                         Using [TXT2]
+   Else
+      If val(ctrans(REGISTRO(9),",",".")) < 0
+        Wrseq "1";                         Using [TXT2]
+      Else
+        Wrseq "-1";                        Using [TXT2]
+      Endif
+   Endif
+
+   If val(ctrans(REGISTRO(9),",",".")) > 0
+    Wrseq num$(val(ctrans(REGISTRO(9),",",".")));                 Using [TXT2]
+   Else
+    Wrseq num$((-1)*val(ctrans(REGISTRO(9),",",".")));                 Using [TXT2]
+   Endif
+   Wrseq REGISTRO(0)                  Using [TXT2]
+Return

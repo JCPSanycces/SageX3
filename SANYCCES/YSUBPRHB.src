@@ -1,0 +1,97 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "BEFWRIPRH"   :   Gosub BEFWRIPRH  # Antes de la creación de la cabecera del doc de preparación
+  When "CHG_ALLTYP"  :   Gosub CHG_ALLTYP
+Endcase
+Return
+
+##############################################
+$BEFWRIPRH
+# Actualizo el campo estado de envío Dachser (si tengo un pedido de venta para el transportista DACHSER (NA000018) indico 2-En espera preparación)
+Local Integer ES_DACHSER
+
+Call CHK_DACHSER([PRH]PRHNUM,ES_DACHSER)
+
+[PRH]YDACESTADO = [L]ES_DACHSER
+If [L]ES_DACHSER = 2
+  Call TRAZA_DACHSER([PRH]PRHNUM,2,GUSER,0) From YENVDACH
+Endif
+Return
+
+
+
+##############################################
+$CHG_ALLTYP
+# Si el artículo es de pre-picking, la cantidad es la asignada en detalle con número de contenedor
+If !clalev([Z01]) : Local File YITMTECNICO [Z01] : Endif
+If !clalev([Z02]) : Local File STOALL      [Z02] : Endif
+If !clalev([Z03]) : Local File STOCK       [Z03] : Endif
+
+Local Decimal CTD_EMPAQUETADA
+Local Decimal CTD_TEMPORAL
+
+Read [Z01]YITT0 = [F:PRE]ITMREF
+If fstat = 0 and [Z01]PREPICKING = 2
+  [L]CTD_TEMPORAL = [F:PRE]QTYSTU
+  Filter [Z02] Where [Z02]STOFCY = [SOQ]STOFCY and [Z02]VCRNUM = [SOQ]SOHNUM and [Z02]VCRSEQ = [SOQ]SOQSEQ and [Z02]VCRLIN = [SOQ]SOPLIN and [Z02]ALLTYP = 2
+    For [Z02]
+      Read [Z03]STO0 = [Z02]STOFCY;[Z02]STOCOU
+      If fstat = 0 and [Z03]LPNNUM <> ""
+        [L]CTD_EMPAQUETADA += [Z03]QTYSTU
+      Endif
+    Next
+  Filter [Z02]
+
+  # Modificación 16/07/2024. Controlo el estado del prepicking
+  If [L]CTD_EMPAQUETADA = 0
+#De momento quitamos el punto hasta nuevo aviso INI
+    Errbox "No se ha prepickineado nada de la línea " + num$([SOQ]SOPLIN) + " del pedido " + [SOQ]SOHNUM + " artículo " + [SOQ]ITMREF
+    [F:PRE]QTYSTU = 0
+    [F:PRE]ALLQTY = 0
+    GOK=0
+#De momento quitamos el punto hasta nuevo aviso FIN
+
+  Elsif [L]CTD_EMPAQUETADA < [SOQ]QTYSTU
+        Local Integer OK9
+        Local Char TEXTO(120)
+        TEXTO = "Se ha prepickineado parcialmente la línea " + num$([SOQ]SOPLIN) + " del pedido " + [SOQ]SOHNUM + " artículo " + [SOQ]ITMREF +
+&               ".¿Deseas incluir " + num$([L]CTD_EMPAQUETADA) + " cantidad (sí prepickineada) en un doc. de preparación?"
+        Call OUINON(TEXTO,OK9) From GESECRAN
+        If OK9 = 2
+          [F:PRE]QTYSTU = [L]CTD_EMPAQUETADA
+          [F:PRE]ALLQTY = [F:PRE]QTYSTU
+        Else
+          [F:PRE]QTYSTU = 0
+          [F:PRE]ALLQTY = 0
+          GOK=0
+        Endif
+  Endif
+Endif
+
+Close Local File [Z01],[Z02],[Z03]
+Return
+
+
+##############################################
+Subprog CHK_DACHSER(LPRH,LDAC)
+Value Char LPRH
+Variable Integer LDAC
+
+LDAC = 1
+
+If !clalev([Q01]) : Local File STOPRED [Q01] : Endif
+If !clalev([Q02]) : Local File SORDER  [Q02] : Endif
+
+For [Q01] Where [Q01]PRHNUM = LPRH
+  Read [Q02]SOH0 = [Q01]ORINUM
+  If fstat = 0 and [Q02]BPTNUM = "NA000018"
+    LDAC = 2
+    Break
+  Endif
+Next
+
+Close Local File [Q01]
+Close Local File [Q02]
+
+End

@@ -1,0 +1,117 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Artículos
+###
+## ZPR09 - Etiquetas - Acciones para gestion del fichero artículo-logo
+# @01@ - JLP - 13-08-2024 - Control para el borrado de articulos (YITMTECNICO)
+###############################################################################
+$ACTION
+  Case ACTION
+     When "LIENS":    Gosub LIENS
+     When "CREATION": Gosub CREATION
+     When "MODIF"   : Gosub MODIF
+     When "ANNULE"  : Gosub ANNULE
+     When "INICRE"  : Gosub INICRE
+     When "INIMOD"  : Gosub INIMOD
+     When "AV_VERF_ANU"  : Gosub AV_VERF_ANU # @01@ - JLP - 13-08-2024 - Control para el borrado de articulos (YITMTECNICO)
+  Endcase
+Return
+
+$AV_VERF_ANU
+  Gosub ANNULE
+Return
+
+$INIMOD
+If len([M:ZITML]IMGLOG)<>0
+    Readlock [CBB]CBB0="ITMLOG";[F:ITM]ITMREF;""
+    Case fstat
+        When 0 :
+            [F:CBB]BLOB = [M:ZITML]IMGLOG
+            Call REWCBB From TRTX3BLB
+        When 5 :
+            Raz [F:CBB]
+            [F:CBB]CODBLB = "ITMLOG"
+            [F:CBB]IDENT1 = [F:ITM]ITMREF
+            [F:CBB]TYPBLB = 3
+            [F:CBB]BLOB = [M:ZITML]IMGLOG
+            Call ECRCBB From TRTX3BLB
+    Endcase
+Else
+    Delete [CBB] Where CODBLB="ITMLOG" & IDENT1=[F:ITM]ITMREF
+Endif
+Return
+
+$INICRE
+If len([M:ZITML]IMGLOG)<>0
+    Raz [F:CBB]
+    [F:CBB]CODBLB = "ITMLOG"
+    [F:CBB]IDENT1 = [F:ITM]ITMREF
+    [F:CBB]TYPBLB = 3
+    [F:CBB]BLOB = [M:ZITML]IMGLOG
+    Call ECRCBB From TRTX3BLB
+    If fstat
+        GOK=0
+    Endif
+Endif
+Return
+
+$ANNULE
+  If !clalev([F:ZITML]): Local File ZITMLOGO: Endif
+  If !clalev([F:YITT]) : Local File YITMTECNICO: Endif
+  Delete [ZITML] Where ITMREF=[M:ITM0]ITMREF
+  Delete [YITT]  Where ITMREF=[M:ITM0]ITMREF
+Return
+
+$CREATION
+  If !clalev([F:ZITML]): Local File ZITMLOGO: Endif
+  If !clalev([F:YITT]) : Local File YITMTECNICO: Endif
+  Gosub ANNULE
+  [F:ZITML]=[M:ZITML]
+  [F:ZITML]ITMREF=[M:ITM0]ITMREF
+  Write [F:ZITML]
+
+  [F:YITT]=[M:YITM6]
+  [F:YITT]ITMREF=[M:ITM0]ITMREF
+  Write [F:YITT]
+Return
+
+$MODIF
+  If !clalev([F:ZITML]): Local File ZITMLOGO: Endif
+  If !clalev([F:YITT]) : Local File YITMTECNICO: Endif
+  Gosub ANNULE
+  [F:ZITML]=[M:ZITML]
+  [F:ZITML]ITMREF=[M:ITM0]ITMREF
+  Write [F:ZITML]
+
+  [F:YITT]=[M:YITM6]
+  [F:YITT]ITMREF=[M:ITM0]ITMREF
+  Write [F:YITT]
+Return
+
+$LIENS
+  Gosub LIENS From SUBITM
+
+  If !clalev([F:ZITML]): Local File ZITMLOGO: Endif
+  Read [ZITML]ZITML0=[M:ITM0]ITMREF
+  [M:ZITML]=[F:ZITML]
+
+  If !clalev([F:YITT]) : Local File YITMTECNICO: Endif
+  Read [YITT]YITT0 = [M:ITM0]ITMREF
+  If fstat = 0
+    [M:YITM6] = [F:YITT]
+    Affzo [M:YITM6]
+  Endif
+
+  Read [CBB]CBB0="ITMLOG";[F:ITM]ITMREF;""
+  If !fstat
+    [M:ZITML]IMGLOG = [F:CBB]BLOB
+  Endif
+
+  ##- carga pantalla ITU
+  If [M:ITU]NBITU > 0
+      [M:ITU]XZETICLI    = [M:ITU]ZETICLI(0)
+  Endif
+  [M:ITS]ZARTASOC = [F:ITM]ZARTASOC
+  [M:ITS]ZASOCIADO  = [F:ITM]ZASOCIADO
+  [M:ITS]ZARTEQPED = [F:ITM]ZARTEQPED
+
+  GPE=1
+Return

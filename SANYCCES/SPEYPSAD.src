@@ -1,0 +1,759 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#######################################################################################################
+#
+# @01@ - SCD - 30/07/2024 - Ajustes de condiciones
+#
+#######################################################################################################
+
+$ACTION
+Case ACTION
+  When "DEBUT"     :  Gosub DEBUT
+  When "AVANT_OK"  :  Gosub AVANT_OK
+  When "OK"        :  Gosub OK
+  When "SETBOUT"        :  Gosub SETBOUT
+Endcase
+Return
+
+$SETBOUT
+
+
+
+Return
+
+####################################
+$DEBUT
+# Cargo la pantalla
+Raz [M:YPSAD]
+
+# Gestión de ver o no bloque de cantidades parciales / números de serie
+If GL1LLE(0) = "1" # Deshacer global
+  Chgfmt [M:YPSAD]D_QTYA  With "-K:15x"
+  Chgfmt [M:YPSAD]D_QTYAD With "-K:15x"
+  Chgfmt [M:YPSAD]D_QTYI  With "-K:15x"
+  Chgfmt [M:YPSAD]D_QTYID With "-K:15x"
+  Chgfmt [M:YPSAD]D_QTYSA With "-K:15x"
+  Chgfmt [M:YPSAD]D_QTYSI With "-K:15x"
+  Chgfmt [M:YPSAD]PIE_S   With "-K:15x"
+Elsif GL1LLE(0) = "2" # Deshacer parcial
+  Chgfmt [M:YPSAD]D_QTYA With  "+K:15x"
+  Chgfmt [M:YPSAD]D_QTYAD With "+K:15x"
+  Chgfmt [M:YPSAD]D_QTYI  With "+K:15x"
+  Chgfmt [M:YPSAD]D_QTYID With "+K:15x"
+  Chgfmt [M:YPSAD]D_QTYSA With "+K:15x"
+  Chgfmt [M:YPSAD]D_QTYSI With "+K:15x"
+  Chgfmt [M:YPSAD]PIE_S   With "+K:15x"
+Endif
+
+# Pongo valores por defecto en el caso de Deshacer Parcial
+If GL1LLE(0) = "2"
+
+  [M:YPSAD]S_OF       = GL1LLE(3)
+  [M:YPSAD]S_LINEA    = val(GL1LLE(4))
+  [M:YPSAD]D_QTYA     = val(GL1LLE(1))
+  [M:YPSAD]D_QTYI     = val(GL1LLE(2))
+  Affzo [M:YPSAD]D_QTYA
+  Affzo [M:YPSAD]D_QTYI
+
+  If !clalev([K1]) : Local File YMFGSERIE  [K1] : Endif
+
+  nolign = 1
+  Filter [K1] Where [K1]MFGNUM = [M:YPSAD]S_OF and [K1]MFGLIN = [M:YPSAD]S_LINEA Order By [K1]NSERIE Asc
+  For [K1]
+    [M:YPSAD]S_NSERIE(nolign-1)  = [K1]NSERIE
+    [M:YPSAD]S_YAINI(nolign-1)   = [K1]INICIADA
+    [M:YPSAD]S_YAALT(nolign-1)   = [K1]ALTA
+    [M:YPSAD]S_SEGINI(nolign-1)  = [K1]MTKINICIO
+    [M:YPSAD]S_SEGALTA(nolign-1) = [K1]MTKALTA
+    nolign +=1
+  Next
+  Filter [K1]
+
+  [M:YPSAD]PIE_S = nolign-1
+
+  Close Local File [K1]
+  Affzo [M:YPSAD]10
+Endif
+Return
+
+
+####################################
+$AVANT_OK
+# Al menos debo tener una de las dos acciones marcadas
+Local Integer SIGO : SIGO = 2
+If [M:YPSAD]D_ALTA <> 2 and [M:YPSAD]D_INICIO <> 2
+  Errbox "Seleccione al menos una de las dos acciones a realizar (Alta / Inicio)"
+  FOK = 0
+  FIN = 0
+  SIGO = 0
+Endif
+
+# Para el caso parcial, controlo cantidades
+If SIGO = 2 and GL1LLE(0) = "2"
+  If [M:YPSAD]D_ALTA = 2
+    If [M:YPSAD]PIE_S = 0
+      If [M:YPSAD]D_QTYAD = 0
+        Errbox "Indique la cantidad a deshacer de alta"
+        FOK = 0
+        FIN = 0
+        SIGO = 0
+      Endif
+    Else
+      If [M:YPSAD]D_QTYAD = 0 or ([M:YPSAD]D_QTYAD <> [M:YPSAD]D_QTYSA)
+        Errbox "Error en la selección de cantidades a deshacer de alta"
+        FOK = 0
+        FIN = 0
+        SIGO = 0
+      Endif
+    Endif
+  Endif
+
+  If [M:YPSAD]D_INICIO = 2
+    If [M:YPSAD]PIE_S = 0
+      If [M:YPSAD]D_QTYID = 0
+        Errbox "Indique la cantidad a deshacer de inicio"
+        FOK = 0
+        FIN = 0
+        SIGO = 0
+      Endif
+    Else
+      If [M:YPSAD]D_QTYID = 0 or ([M:YPSAD]D_QTYID <> [M:YPSAD]D_QTYSI)
+        Errbox "Error en la selección de cantidades a deshacer de inicio"
+        FOK = 0
+        FIN = 0
+        SIGO = 0
+      Endif
+    Endif
+  Endif
+Endif
+Return
+
+
+####################################
+$OK
+# Si vengo de acciones masivas (GL1LLE(0) = "1",botón deshacer), lanzo la(s) acción(es) para las ordenes seleccionadas previamente
+# Para cada línea (cada OF), debo buscar los seguimientos afectados y lanzar la llamada al borrado del seguimiento
+If GL1LLE(0) = "1"
+  Local Integer LOK
+  Local Decimal QTY_MKI
+  Local Decimal QTY_MKM
+  If !clalev([F:Y1])  Local File MFGHEADTRK     [Y1] : Endif
+  If !clalev([F:Y2])  Local File MFGHEAD        [Y2] : Endif
+  If !clalev([F:Y3])  Local File MFGITMTRK      [Y3] : Endif
+  If !clalev([F:Y4])  Local File YMFGSERIE      [Y4] : Endif
+
+  For I=0 To [M:YPSA]PIE-1
+    If [M:YPSA]SEL(I) = 2
+      # En caso que el usuario marque la opción de borrar seguimientos de Alta...
+      If [M:YPSAD]D_ALTA = 2 and ([M:YPSA]CANTIDADA(I)<> 0 or [M:YPSA]YALTA(I)<> 0)
+        Filter [Y1] Where [Y1]MFGNUM = [M:YPSA]OF(I) and [Y1]ITMTRKFLG = 2
+          For [Y1]
+            # Saco primero la cantidad que voy a dar de baja para restarla luego en la info que presento en Producción Sanycces
+            QTY_MKI = 0
+            Filter [Y3] Where [Y3]MFGTRKNUM = [Y1]MFGTRKNUM and [Y3]MFGNUM = [M:YPSA]OF(I) and [Y3]MFGLIN = [M:YPSA]YLINEA(I)
+              For [Y3]
+                [L]QTY_MKI += [Y3]CPLQTY
+              Next
+            Filter [Y3]
+
+            # Llamo la función de borrado
+            Call DEL_MTK([Y1]MFGTRKNUM,"SAN",LOK)
+
+            # Si es OK, resto cantidad dada de alta para que luego actualice la pantalla de Sanycces
+            If LOK=0
+              Read [Y2]MFG0 = [M:YPSA]OF(I)
+              If fstat = 0
+                [Y2]YQTYALTA -= [L]QTY_MKI
+                # Por si acaso...
+                If [Y2]YQTYALTA <0 : [Y2]YQTYALTA = 0 : Endif
+                # Si la cantidad de alta la dejo a cero, desmarco el flag de Alta
+                If [Y2]YQTYALTA = 0
+                  [Y2]YALTA = 0
+                Endif
+                # Re-escribo tabla
+                Trbegin [Y2]
+                  Rewrite [Y2]
+                Commit
+              Endif
+
+
+              # Descamarco los números de serie
+              Filter [Y4] Where [Y4]MFGNUM = [M:YPSA]OF(I)
+                For [Y4]
+                  [Y4]ALTA    = 0
+                  [Y4]MTKALTA = ""
+                  Trbegin [Y4]
+                    Rewrite [Y4]
+                  Commit
+                Next
+              Filter [Y4]
+
+            Endif
+          Next
+        Filter [Y1]
+      Endif
+
+
+      # En caso que el usuario marque la opción de borrar seguimientos de consumos (inicio OFs)...
+      If [M:YPSAD]D_INICIO = 2 and ([M:YPSA]CANTIDADI(I)<> 0 or [M:YPSA]YINICIADA(I)<> 0)
+
+        If !GSERVEUR : Call OUVRE_TRACE("Desinicio masivo de OF's") From LECFIC : Endif
+        If !clalev([YK1]) : Local File YMFGSERIE  [YK1] : Endif
+        Local Integer ERROR_CHECK : [L]ERROR_CHECK = 1
+        Local Integer ERROR_CHECK_GENERICO : [L]ERROR_CHECK_GENERICO = 1
+
+        Filter [Y1] Where [Y1]MFGNUM = [M:YPSA]OF(I) and [Y1]MATTRKFLG = 2
+          For [Y1]
+
+          [L]ERROR_CHECK = 1
+
+            Filter [YK1] Where [YK1]MFGNUM = [Y1]MFGNUM and [YK1]MTKINICIO = [Y1]MFGTRKNUM Order By [YK1]NSERIE Asc
+            For [YK1]
+                If [YK1]MTKALTA <> ''
+                  Call ECR_TRACE ([YK1]MFGNUM+" : Error, esta línea ("+[YK1]MTKINICIO+") tiene asignado el seguimiento alta: " + [YK1]MTKALTA,1) From GESECRAN
+                  [L]ERROR_CHECK = 2
+                  [L]ERROR_CHECK_GENERICO = 2
+                Endif
+            Next
+            Filter [YK1]
+
+            If [L]ERROR_CHECK <> 2
+
+              # Llamo la función de borrado
+              Call DEL_MTK([Y1]MFGTRKNUM,"SAN",LOK)
+
+              # Si es OK, y como estoy en un Deshacer Global, pongo la cantidad iniciada a cero
+              If LOK=0
+                Read [Y2]MFG0 = [M:YPSA]OF(I)
+                If fstat = 0
+                  [Y2]YQTYINICIADA = 0
+                  [Y2]YINICIADA = 0
+                  # Re-escribo tabla
+                  Trbegin [Y2]
+                    Rewrite [Y2]
+                  Commit
+                Endif
+
+                # Descamarco los números de serie
+                Filter [Y4] Where [Y4]MFGNUM = [M:YPSA]OF(I)
+                  For [Y4]
+                    [Y4]INICIADA  = 0
+                    [Y4]MTKINICIO = ""
+                    Trbegin [Y4]
+                      Rewrite [Y4]
+                    Commit
+                  Next
+                Filter [Y4]
+
+              Endif
+            Endif
+          Next
+        Filter [Y1]
+      Endif
+    Endif
+  Next
+
+  If !GSERVEUR : Call FERME_TRACE() From LECFIC : Endif
+  If dim([L]ERROR_CHECK_GENERICO) > 0
+    If [L]ERROR_CHECK_GENERICO = 2
+      Call LEC_TRACE From LECFIC
+    Endif
+  Endif
+  # Cierro tablas
+  Close Local File [Y1]
+  Close Local File [Y2]
+  Close Local File [Y3]
+  Close Local File [Y4]
+
+
+# Para el borrado parcial
+Elsif GL1LLE(0) = "2"
+
+# @01@ - SCD - 30/07/2024 - INI
+  Gosub ABRE_TABLAS
+# @01@ - SCD - 30/07/2024 - FIN
+
+
+  # Si no hay números de serie
+  If [M:YPSAD]PIE_S = 0
+
+    Local Decimal CTD_MNG_ALTA    :   [L]CTD_MNG_ALTA   = [M:YPSAD]D_QTYAD
+    Local Decimal WIP_ALTA
+    Local Decimal CTD_MNG_INICIO  :   [L]CTD_MNG_INICIO = [M:YPSAD]D_QTYID
+    Local Decimal WIP_INICIO
+
+    If [M:YPSAD]D_ALTA = 2
+      Filter [Y1] Where [Y1]MFGNUM = [M:YPSAD]S_OF and [Y1]ITMTRKFLG = 2 and [Y1]YCANTIDAD = [L]CTD_MNG_ALTA Order By [Y1]MFGTRKNUM Desc
+        For [Y1]
+          [L]WIP_ALTA = [Y1]YCANTIDAD
+          Call DEL_MTK([Y1]MFGTRKNUM,"SAN",LOK)
+          If LOK = 0
+            [L]CTD_MNG_ALTA -= [L]WIP_ALTA
+            # Actualizo OF
+            Read [Y2]MFG0 = [M:YPSAD]S_OF
+            If fstat = 0
+              [Y2]YQTYALTA  = [L]CTD_MNG_ALTA
+              If [Y2]YQTYALTA <= 0
+                [Y2]YQTYALTA = 0
+                [Y2]YALTA    = 0
+              Endif
+              # Re-escribo tabla
+              Trbegin [Y2]
+                Rewrite [Y2]
+              Commit
+            Endif
+          Endif
+          If [L]CTD_MNG_ALTA = 0 : Break : Endif
+        Next
+      Filter [Y1]
+
+      If [L]CTD_MNG_ALTA   = [M:YPSAD]D_QTYAD
+        Errbox "No se ha podido borrar ningún seguimiento de alta de fabricación"
+      Endif
+    Endif
+
+     If [M:YPSAD]D_INICIO = 2
+      Filter [Y1] Where [Y1]MFGNUM = [M:YPSAD]S_OF and [Y1]MATTRKFLG = 2 and [Y1]YCANTIDAD = [L]CTD_MNG_INICIO Order By [Y1]MFGTRKNUM Desc
+        For [Y1]
+          [L]WIP_INICIO = [Y1]YCANTIDAD
+          Call DEL_MTK([Y1]MFGTRKNUM,"SAN",LOK)
+          If LOK = 0
+            [L]CTD_MNG_INICIO -= [L]WIP_INICIO
+            # Actualizo OF
+            Read [Y2]MFG0 = [M:YPSAD]S_OF
+            If fstat = 0
+              [Y2]YQTYINICIADA  = [L]CTD_MNG_INICIO
+              If [Y2]YQTYINICIADA <= 0
+                [Y2]YQTYINICIADA = 0
+                [Y2]YINICIADA    = 0
+              Endif
+              # Re-escribo tabla
+              Trbegin [Y2]
+                Rewrite [Y2]
+              Commit
+            Endif
+          Endif
+          If [L]CTD_MNG_INICIO = 0 : Break : Endif
+        Next
+      Filter [Y1]
+
+      If [L]CTD_MNG_INICIO   = [M:YPSAD]D_QTYID
+        Errbox "No se ha podido borrar ningún seguimiento de consumos de materiales"
+      Endif
+    Endif
+
+
+  # Si hay números de serie
+  Else
+    Local Decimal WIP_ALTA
+    Local Decimal WIP_INICIO
+
+    For I=0 To [M:YPSAD]PIE_S-1
+      If [M:YPSAD]S_SEL(I) = 2
+
+# @01@ - SCD - 30/07/2024 - INI
+       Gosub ALTA
+       Gosub INICIO
+# @01@ - SCD - 30/07/2024 - FIN
+
+      Endif
+    Next
+  Endif
+
+# @01@ - SCD - 30/07/2024 - INI
+  Gosub CIERRA_TABLAS
+# @01@ - SCD - 30/07/2024 - FIN
+
+Endif
+Return
+
+######################################################################
+# @01@ - SCD - 30/07/2024 - INI
+$CIERRA_TABLAS
+  # Cierro tablas
+  Close Local File [Y1]
+  Close Local File [Y2]
+  Close Local File [Y4]
+Return
+
+######################################################################
+$ABRE_TABLAS
+  Local Integer LOK
+
+  If !clalev([F:Y1])  Local File MFGHEADTRK     [Y1] : Endif
+  If !clalev([F:Y2])  Local File MFGHEAD        [Y2] : Endif
+  If !clalev([F:Y4])  Local File YMFGSERIE      [Y4] : Endif
+Return
+
+######################################################################
+$ALTA
+  #** ALTA
+  If [M:YPSAD]D_ALTA = 2 and [M:YPSAD]S_SEGALTA(I) <> ""
+    [L]WIP_ALTA = 0
+
+    Read [Y1]MTK0 = [M:YPSAD]S_SEGALTA(I)
+    If fstat = 0
+      [L]WIP_ALTA = [Y1]YCANTIDAD
+    Endif
+
+    Call DEL_MTK([M:YPSAD]S_SEGALTA(I),"SAN",LOK)
+
+    If LOK = 0
+      # Actualizo OF
+      Read [Y2]MFG0 = [M:YPSAD]S_OF
+      If fstat = 0
+        [Y2]YQTYALTA  -= [L]WIP_ALTA
+        If [Y2]YQTYALTA <= 0
+          [Y2]YQTYALTA = 0
+          [Y2]YALTA    = 0
+        Endif
+        # Re-escribo tabla
+        Trbegin [Y2]
+          Rewrite [Y2]
+        Commit
+      Endif
+
+      # Actualizo la tabla de números de serie
+      Read [Y4]YMSE = [M:YPSAD]S_OF;[M:YPSAD]S_LINEA;[M:YPSAD]S_NSERIE(I)
+      If fstat = 0
+        [Y4]ALTA = 0
+        [Y4]MTKALTA = ""
+        Trbegin [Y4]
+          Rewrite [Y4]
+        Commit
+      Endif
+    Endif
+  Endif
+Return
+
+######################################################################
+
+$INICIO
+  #** INICIO
+  If [M:YPSAD]D_INICIO = 2 and [M:YPSAD]S_SEGINI(I) <> ""
+    [L]WIP_INICIO = 0
+
+    Read [Y1]MTK0 = [M:YPSAD]S_SEGINI(I)
+    If fstat = 0
+      [L]WIP_INICIO = [Y1]YCANTIDAD
+    Endif
+
+    Call DEL_MTK([M:YPSAD]S_SEGINI(I),"SAN",LOK)
+
+    If LOK = 0
+      # Actualizo OF
+      Read [Y2]MFG0 = [M:YPSAD]S_OF
+      If fstat = 0
+        [Y2]YQTYINICIADA  -= [L]WIP_INICIO
+        If [Y2]YQTYINICIADA <= 0
+          [Y2]YQTYINICIADA = 0
+          [Y2]YINICIADA    = 0
+        Endif
+        # Re-escribo tabla
+        Trbegin [Y2]
+          Rewrite [Y2]
+        Commit
+      Endif
+
+      # Actualizo la tabla de números de serie
+      Read [Y4]YMSE = [M:YPSAD]S_OF;[M:YPSAD]S_LINEA;[M:YPSAD]S_NSERIE(I)
+      If fstat = 0
+        [Y4]INICIADA  = 0
+        [Y4]MTKINICIO = ""
+        Trbegin [Y4]
+          Rewrite [Y4]
+        Commit
+      Endif
+    Endif
+
+  Endif
+Return
+
+# @01@ - SCD - 30/07/2024 - FIN
+
+######################################################################
+Subprog DEL_MTK(LMTKNUM,LTRANSAC,LRET)
+Value Char LMTKNUM
+Value Char LTRANSAC
+Variable Integer LRET
+
+# Definición de variables
+Local Char WGREP(2)
+Local Integer WOPECLENBR, WITMCLENBR, WMATCLENBR
+Local Decimal WCPLQTY,WREJQTY,WQUAQTY
+Global Date GWIPTDAT
+Global Shortint GMFGTRACE
+Local Integer OK : OK = 1  # Control de error
+
+# Apertura de tablas por STD
+Gosub OPEN_FILE From MTKLIB
+
+# Apertura de tablas que no abre la llamada anterior
+If !clalev([F:ITF])  Local File ITMFACILIT     [ITF] : Endif
+If !clalev([F:STO])  Local File STOCK          [STO] : Endif
+If !clalev([F:SOQ])  Local File SORDERQ        [SOQ] : Endif
+If !clalev([F:STJ])  Local File STOJOU         [STJ] : Endif
+If !clalev([F:ORD])  Local File ORDERS         [ORD] : Endif
+
+#  Transacción de seguimientos empleada
+GMTKMTSNUM = LTRANSAC
+
+# Verificación de la transacción
+Read [MTS] MTS0 = 2;GMTKMTSNUM
+If fstat : Raz[F:MTS] : LRET = 1 : Return : Endif
+
+# Me posiciono en el seguimiento que quiero borrar
+Readlock [F:MTK]MTK0 = LMTKNUM
+If fstat = 5 : End : Endif
+If fstat GOK=0  : Call RSTA("MTK",[F:MTK]PTHNUM-num$([F:PTD]PTDLIN)) From GLOCK : End
+Endif
+
+# Voy a la OF para lanzar controles de esta
+Read [F:MFG]MFG0 = [F:MTK]MFGNUM
+If fstat : Raz [F:MFG] : Endif
+
+# Fuerzo valor de GTYPGEN para poder hacer el control
+GTYPGEN = 1
+
+# Lanzo controles para ver si se puede o no borrar el seguimiento
+Gosub VERF_ANU From SUBMTKA
+If OK = 0 : LRET = 1 : End : Endif
+
+# Fuerzo GREP para anulación - borrado
+WGREP = GREP
+GREP  = "A"
+
+# Lanzo el borrado del seguimiento (los tres tipos)
+Gosub ANNULE_SUIV From SUBMTKC
+GREP = WGREP
+
+# Si es OK, borro también la cabecera del seguimiento
+If GOK = 1
+   Delete [F:MTK]
+   If fstat :GOK = 0 : GLOCK = "$"+"MFGHEADTRK" : Endif
+Endif
+
+# Si hay problema en el borrado, devuelvo error
+If GOK < 1 : LRET = 1 : End : Endif
+End
+
+
+######################################################################################
+Subprog C_D_QTYAD(VALEUR)
+Variable Decimal VALEUR
+# No se puede deshacer más cantidad de alta que la dada ya de alta
+If VALEUR > [M:YPSAD]D_QTYA
+  Errbox "No se puede deshacer más cantidad que la que ha sido dada de alta"
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog C_D_QTYID(VALEUR)
+Variable Decimal VALEUR
+# No se puede deshacer más cantidad iniciada que la ya iniciada
+If VALEUR > [M:YPSAD]D_QTYI
+  Errbox "No se puede deshacer más cantidad que la que ha sido iniciada"
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AS_D_QTYAD(VALEUR)
+Variable Decimal VALEUR
+# No permito la entrada a este campo si no marco el flag de alta
+If [M:YPSAD]D_ALTA <> 2
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AS_D_QTYID(VALEUR)
+Variable Decimal VALEUR
+# No permito la entrada a este campo si no marco el flag de alta
+If [M:YPSAD]D_INICIO <> 2
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AS_D_ALTA(VALEUR)
+Variable Integer VALEUR
+# No puedo seleccionar esta opción si vengo con opción parcial y no se ha dado cantidad de alta
+If GL1LLE(0) = "2" and [M:YPSAD]D_QTYA = 0
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AS_D_INICIO(VALEUR)
+Variable Integer VALEUR
+# No puedo seleccionar esta opción si vengo con opción parcial y no se ha iniciado cantidad
+If GL1LLE(0) = "2" and [M:YPSAD]D_QTYI = 0
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AM_S_SEL(VALEUR)
+Variable Integer VALEUR
+# Gestiono el valor del campo Ctd seleccionada
+# Para evitar incongruencias, cuando marco/desmarco una línea,marco / desmarco todas las líneas que tengan el mismo seguimiento
+If VALEUR = 2
+  If [M:YPSAD]D_ALTA = 2   and [M:YPSAD]S_YAALT(nolign-1) = 2 and  [M:YPSAD]S_SEGALTA(nolign-1) <> ""
+    [M:YPSAD]D_QTYSA += 1
+    For I=0 To [M:YPSAD]PIE_S-1
+      If I <> nolign-1
+        If [M:YPSAD]S_SEGALTA(I) = [M:YPSAD]S_SEGALTA(nolign-1)
+          [M:YPSAD]S_SEL(I)  = VALEUR
+          Affzo [M:YPSAD]S_SEL(I)
+          [M:YPSAD]D_QTYSA += 1
+        Endif
+      Endif
+    Next
+  Endif
+
+  If [M:YPSAD]D_INICIO = 2 and [M:YPSAD]S_YAINI(nolign-1) = 2 and  [M:YPSAD]S_SEGINI(nolign-1) <> ""
+    # @01@ - SCD - 30/07/2024 - INI
+    If  [M:YPSAD]S_SEGALTA(nolign-1) <> ""
+      Call ERREURT("No se puede desiniciar esta línea porque tiene asignado el seguimiento alta: " - [M:YPSAD]S_SEGALTA(nolign-1), 1) From GESECRAN
+        [M:YPSAD]S_SEL(nolign-1)  = 1
+        Affzo [M:YPSAD]S_SEL(nolign-1)
+        Raz [M:YPSAD]D_QTYSI
+        Affzo [M:YPSAD]D_QTYSI
+        Gosub TERMINA
+    Endif
+    For I=0 To [M:YPSAD]PIE_S-1
+        If I <> nolign-1
+          If [M:YPSAD]S_SEGINI(I) = [M:YPSAD]S_SEGINI(nolign-1)
+            If  [M:YPSAD]S_SEGALTA(I) <> ""
+              Call ERREURT("No se puede desiniciar alguna línea porque tiene asignado el seguimiento alta: " - [M:YPSAD]S_SEGALTA(I), 1) From GESECRAN
+                [M:YPSAD]S_SEL(nolign-1)  = 1
+                Affzo [M:YPSAD]S_SEL(nolign-1)
+                Raz [M:YPSAD]D_QTYSI
+                Affzo [M:YPSAD]D_QTYSI
+                Gosub TERMINA
+            Endif
+          Endif
+        Endif
+      Next
+    # @01@ - SCD - 30/07/2024 - FIN
+    [M:YPSAD]D_QTYSI += 1
+    For I=0 To [M:YPSAD]PIE_S-1
+      If I <> nolign-1
+        If [M:YPSAD]S_SEGINI(I) = [M:YPSAD]S_SEGINI(nolign-1)
+          [M:YPSAD]S_SEL(I)  = VALEUR
+          Affzo [M:YPSAD]S_SEL(I)
+          [M:YPSAD]D_QTYSI += 1
+        Endif
+      Endif
+    Next
+  Endif
+Else
+  If [M:YPSAD]D_ALTA = 2   and [M:YPSAD]S_YAALT(nolign-1) = 2 and  [M:YPSAD]S_SEGALTA(nolign-1) <> ""
+    [M:YPSAD]D_QTYSA -= 1
+    For I=0 To [M:YPSAD]PIE_S-1
+      If I <> nolign-1
+        If [M:YPSAD]S_SEGALTA(I) = [M:YPSAD]S_SEGALTA(nolign-1)
+          [M:YPSAD]S_SEL(I)  = VALEUR
+          Affzo [M:YPSAD]S_SEL(I)
+          [M:YPSAD]D_QTYSA -= 1
+        Endif
+      Endif
+    Next
+  Endif
+  If [M:YPSAD]D_INICIO = 2 and [M:YPSAD]S_YAINI(nolign-1) = 2 and  [M:YPSAD]S_SEGINI(nolign-1) <> ""
+    If [M:YPSAD]D_QTYSI > 0 : [M:YPSAD]D_QTYSI -= 1 : Endif
+    For I=0 To [M:YPSAD]PIE_S-1
+      If I <> nolign-1
+        If [M:YPSAD]S_SEGINI(I) = [M:YPSAD]S_SEGINI(nolign-1)
+          [M:YPSAD]S_SEL(I)  = VALEUR
+          Affzo [M:YPSAD]S_SEL(I)
+          If [M:YPSAD]D_QTYSI > 0 : [M:YPSAD]D_QTYSI -= 1 : Endif
+        Endif
+      Endif
+    Next
+  Endif
+Endif
+Affzo [M:YPSAD]D_QTYSA
+Affzo [M:YPSAD]D_QTYSI
+$TERMINA
+End
+
+
+######################################################################################
+Subprog AS_S_SEL(VALEUR)
+Variable Integer VALEUR
+# Gestiono el acceso a este campo
+If [M:YPSAD]D_ALTA <> 2 and [M:YPSAD]D_INICIO <> 2
+  mkstat = 2
+Elsif [M:YPSAD]D_ALTA = 2 and [M:YPSAD]S_SEGALTA(nolign-1) = ""
+  mkstat = 2
+Elsif [M:YPSAD]D_INICIO = 2 and [M:YPSAD]S_SEGINI(nolign-1) = ""
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################
+Subprog AM_D_ALTA(VALEUR)
+Variable Integer VALEUR
+# Si marco esta opción, desmarco la otra
+If VALEUR = 2
+  [M:YPSAD]D_INICIO = 1
+  Affzo [M:YPSAD]D_INICIO
+Endif
+End
+
+
+######################################################################################
+Subprog AM_D_INICIO(VALEUR)
+Variable Integer VALEUR
+# Si marco esta opción, desmarco la otra
+If VALEUR = 2
+  [M:YPSAD]D_ALTA = 1
+  Affzo [M:YPSAD]D_ALTA
+Endif
+End
+#######################################################################################
+### Etiqueta añadida por el supervisor (pantalla YPRODSANYD) 30/07/2024 11:26:59 (NUN14)
+#######################################################################################
+#Subprog B1_PIE_S
+#  Local Integer I: I = nolign-1
+#  Local Decimal WIP_ALTA
+#  Local Integer VALOR : [L]VALOR = 2
+#
+#  Gosub ABRE_TABLAS
+#  [M:YPSAD]S_SEL(I)  = 2
+#  Affzo [M:YPSAD]S_SEL(I)
+#  Call AM_S_SEL(VALOR)
+#  For I=0 To [M:YPSAD]PIE_S-1
+#    If [M:YPSAD]S_SEL(I) = 2
+#      Gosub ALTA
+#    Endif
+#  Next
+#  Gosub DEBUT
+#
+#  Gosub CIERRA_TABLAS
+#End
+#
+#
+#######################################################################################
+#######################################################################################
+### Etiqueta añadida por el supervisor (pantalla YPRODSANYD) 30/07/2024 13:16:53 (NUN14)
+#######################################################################################
+#Subprog IB_PIE_S
+#  If [M:YPSAD]D_ALTA <> 2
+#    Raz GBOUT1
+#  Else
+#    GBOUT1 = 'Deshacer altas afectadas'
+#  Endif
+#End
+
+
+######################################################################################

@@ -1,0 +1,646 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$
+##########################################################################
+#
+# Librería con los desarrollos para la generación del fichero de  DASHER
+# (empresa de transporte)
+#
+# Código de actividad 076
+#
+# 24/025/2026 GRS NUN01
+##########################################################################
+# @01@ -JLP - 06/09/2024 - Modificación para que los desarrollos que apunten al NA000018a ahora revisen el campo YTIPENVAGE
+# @02@ -RAP - 23/09/2024 - Modificación en la escritura de los campos peso y bultos, ya que el sumatorio de la SQL ejecutada no calcula correctamente.
+#**
+#* Función a la que le pasas un documento de preparación y genera el fichero para el transportista DACHSER
+#*
+#* Destino del fichero: alamcenado en la tabla varia 6001, código 8: DASHERPATH
+#* Nombre del fichero: el documento de preparación
+#*
+#* @param PPRHNUM   Documento de preparación
+#* @param POK       S=OK, N=no OK
+#*!
+Subprog DACHSER_GENERA_FICHERO (PPRHNUM, POK)
+Value Char PPRHNUM
+Variable Char POK
+
+
+# Apertura de tablas
+If !clalev([F:YPRH]) Then : Local File STOPREH [F:YPRH] : Endif
+If !clalev([F:YPRE]) Then : Local File STOPRED [F:YPRE] : Endif
+If !clalev([F:YSOH]) Then : Local File SORDER [F:YSOH] : Endif
+If !clalev([F:YYPCK]) Then : Local File YSPACK [F:YYPCK] : Endif
+
+
+
+# Definición de variables
+Local Char LPATHEXPORT(200)
+Local Char LPATH(250)
+Local Char LPATH_HISTORICO(250)
+Local Char LREQSQL(250)(14)
+Local Integer LSTA
+
+
+# Recueramos path
+Call PARAM_YENVDACH(LPATHEXPORT)
+LPATH = filpath(LPATHEXPORT,PPRHNUM,"csv")
+
+# Borramos el fichero si existe y pasamos copia a HISTORICO
+LSTA = Delfile(LPATH)
+LPATH_HISTORICO=filpath(LPATHEXPORT+"HISTORICO\",PPRHNUM+"_"+format$("YYYYMMDD[_]hhmmss",date$),".csv")
+Openo LPATH Using [R1]
+  Iomode adxifs  '|'  Using [R1]
+  Iomode adxirs  chr$(13)+chr$(10)  Using [R1]
+Openo LPATH_HISTORICO Using [R2]
+  Iomode adxifs  '|'  Using [R2]
+  Iomode adxirs  chr$(13)+chr$(10)  Using [R2]
+
+
+# Controlo que tenga un documento de preparación con el número indicado
+Read [F:YPRH]PRH0=PPRHNUM
+If fstat
+  POK='N'
+  End
+Endif
+
+# Si paso este primer control, defino variables de composición del fichero
+Local Char LID_TRANS(3)
+Local Char LREFERENCIA(24)
+Local Char LREFERENCIA2(24)
+Local Char LNREMITENTE(9)
+Local Char LCNOMBRE(32)
+Local Char LCDIRECCION(100)
+Local Char LCPOBLACION(27)
+Local Char LCPOSTAL(12)
+Local Char LCDPAIS(2)
+Local Char LOBSERVAA(100)
+Local Char LBULTOS(3)
+Local Char LKILOS(5)
+Local Char LVOLUMEN(8)
+Local Char LTMERCANCIA(1)
+Local Char LOBSERVACIONESA(38)
+Local Char LOBSERVACIONESB(38)
+Local Char LPORTES(1)
+Local Char LREEMBOLSO(8)
+Local Char LRCOMISION(1)
+Local Char LVALSEGUR(8)
+Local Char LTXTSEGUR(100)
+Local Char LPRODUCTO(3)
+Local Char LFECHA_EA(8)
+Local Char LTELEFONO(14)
+Local Char LCMAIL(80)
+Local Char LIMPRESCINDIBLECON(1)
+Local Char LPLATAFORMAELEVADORA(1)
+Local Char LCCONTACTO(40)
+Local Integer YBULTO
+Local Decimal YPESO
+Local Decimal YVOLUMEN
+
+# Filtramos los pedidos para ver buscar la información
+LREQSQL(0) = "SELECT S.BPDADDLIG_0, S.BPDADDLIG_1, S.BPDADDLIG_2, S.BPDNAM_0, S.BPDNAM_1, S.BPDPOSCOD_0, S.BPDCTY_0, S.BPDCRY_0,S.YOBSERVA_0, "
+LREQSQL(1) = " COUNT(Y.PACNUM_0) As BULTOS, sum(Y.YBRWEI_0) As PESOBRUTO, sum(Y.VOL_0) As VOLUMEN,sum(S.ORDNOT_0), "
+LREQSQL(2) = " S.YTELEFONO_0 As TEL, S.YMAIL_0 As MAI, S.YCONCERTA_0 As CONCERT, S.YPLATAFORMA_0 As PLATA, S.YCONTACTO_0 AS CONTAC, S.YPARTICULAR_0 AS PARTIC "
+LREQSQL(3) = "FROM " + nomap + ".SORDER S INNER JOIN " + nomap + ".STOPRED P  ON S.SOHNUM_0 = P.ORINUM_0 INNER JOIN " + nomap + ".YSPACK Y ON P.PRHNUM_0 = Y.VCRNUM_0"
+LREQSQL(4) = " WHERE        (P.PRHNUM_0 = '"+PPRHNUM + "')"
+LREQSQL(5) = " GROUP By S.BPDADDLIG_0, S.BPDADDLIG_1, S.BPDADDLIG_2, S.BPDNAM_0, S.BPDNAM_1, S.BPDPOSCOD_0,"
+LREQSQL(6) = " S.BPDCTY_0, S.BPDCRY_0,S.YOBSERVA_0,S.YTELEFONO_0,S.YMAIL_0,S.YCONCERTA_0,S.YPLATAFORMA_0,S.YCONTACTO_0,S.YPARTICULAR_0"
+
+For (Char FBPDADDLIG_0(50),
+& Char FBPDADDLIG_1(50),
+& Char FBPDADDLIG_2(50),
+& Char FBPDNAM_0,
+& Char FBPDNAM_1,
+& Char FBPDPOSCOD_0,
+& Char FBPDCTY_0,
+& Char FBPDCRY_0,
+& Char FOBSERVAA(100),
+& Integer FBULTOS,
+& Decimal FPESOBRUTO,
+& Decimal FVOLUMEN,
+& Decimal FIMPORT,
+& Char FTEL_0,
+& Char FMAI_0,
+& Integer FCONCERTA_0,
+& Integer FPLATA_0,
+& Char FCONTACT_0,
+& Integer FPARTICULA_0)
+& From '5' Sql LREQSQL(0..6) As [YAPP]
+
+  LID_TRANS       = "TRS"                                    # ID_TRANS. Se rellena con un texto fijo: “TRS”
+  LREFERENCIA     = PPRHNUM                                  # REFERENCIA. Es el identificador del envío (nº del doc de preparación)
+  LREFERENCIA2    = ""                                       # REFERENCIA 2. No se rellena
+  LNREMITENTE     = func REMITENTE([F:YPRH]BPCORD)           # REMITENTE. Es el código de Sanycces en Dachser
+  LCNOMBRE        = [F:YAPP]FBPDNAM_0+ [F:YAPP]FBPDNAM_1     # CNOMBRE. Es el nombre indicado en la dirección de entrega
+  LCDIRECCION     = [F:YAPP]FBPDADDLIG_0+[F:YAPP]FBPDADDLIG_1+[F:YAPP]FBPDADDLIG_2  # CDIRECCION. Domicilio del lugar donde se entrega la mercancía
+  LCPOBLACION     = [F:YAPP]FBPDCTY_0                        # CPOBLACIÓN. Población del lugar donde se entrega la mercancía
+  LCPOSTAL        = [F:YAPP]FBPDPOSCOD_0                     # CPOSTAL. Código postal del lugar donde se entrega la mercancía
+  LCDPAIS         = [F:YAPP]FBPDCRY_0                        # CDPAIS. Código ISO de dos dígitos del país del lugar donde se entrega la mercancía
+# @02@ -RAP - 23/09/2024 -INI
+#  LBULTOS         = format$("N0:3",[F:YAPP]FBULTOS)          # BULTOS. Bultos totales del envío
+#  LKILOS          = format$("N0:5",[F:YAPP]FPESOBRUTO)       # KILOS. Peso bruto del envío
+#  LVOLUMEN        = format$("N0:2.3",[F:YAPP]FVOLUMEN)
+#  LVOLUMEN        = ctrans(LVOLUMEN,",",".")
+  YBULTO = 0
+  YPESO = 0
+  YVOLUMEN = 0
+
+  For [F:YYPCK] Where VCRNUM = PPRHNUM
+  YBULTO = YBULTO + 1
+  YPESO = YPESO + [F:YYPCK]YBRWEI
+  YVOLUMEN = YVOLUMEN + [F:YYPCK]VOL
+  Next
+
+  LBULTOS         = format$("N0:3",YBULTO)          # BULTOS. Bultos totales del envío
+  LKILOS          = format$("N0:5",YPESO)           # KILOS. Peso bruto del envío
+
+
+  LVOLUMEN        = format$("N0:2.3",YVOLUMEN)
+  LVOLUMEN        = ctrans(LVOLUMEN,",",".")                 # VOLUMEN. Volumen del envío
+# @02@ -RAP - 23/09/2024 -FIN
+  LTMERCANCIA     = func TMERCANCIA(PPRHNUM)                 # TMERCANCIA: 1=paquete  2=palet
+  LOBSERVACIONESA = [F:YAPP]FOBSERVAA                        # OBSERVACIONES A: las cogemos del pedido de venta
+  LOBSERVACIONESB = func OBSB(PPRHNUM)                       # OBSERVACIONES B: número del pedido cliente si el cliente factura es DASCHER
+  LPORTES         = "P"                                      # PORTES. Se rellena siempre con una “P” - Pagados
+  LREEMBOLSO      = "00000.00"                               # REEMBOLSO. Se rellena siempre con valor 0. En formato “00000.00”
+  LRCOMISION      = "P"                                      # RCOMISION.  Se rellena siempre con una “P” – Pagados
+  LVALSEGUR       = func VALSEGUR(PPRHNUM)                   # VALSEGUR. Indico el importe del pedido
+  LTXTSEGUR       = func ITMSEGUR(PPRHNUM)                   # TXTSEGUR. Indico el código del producto asegurado
+  LPRODUCTO       = func XPRODUCTO(PPRHNUM,FPARTICULA_0)
+  LFECHA_EA       = ""                                       # FECHA_EA. No se rellena
+  LTELEFONO       = [F:YAPP]FTEL_0                           # TELEFONO. Teléfono del lugar/persona donde se entrega la mercancía
+  LCMAIL          = [F:YAPP]FMAI_0                           # CMAIL. E-mail del lugar/persona donde se entrega la mercancía
+  If [F:YAPP]FCONCERTA_0 = 2
+    LIMPRESCINDIBLECON    = "S"                              # IMPRESCINDIBLE CONCERTAR
+  Else
+    LIMPRESCINDIBLECON    = "N"                              # IMPRESCINDIBLE CONCERTAR
+  Endif
+  If [F:YAPP]FPLATA_0 = 2
+    LPLATAFORMAELEVADORA  = "S"                              # PLATAFORMA ELEVADORA
+  Else
+    LPLATAFORMAELEVADORA  = "N"                              # PLATAFORMA ELEVADORA
+  Endif
+  LCCONTACTO      = [F:YAPP]FCONTACT_0                       # CCONTACTO
+
+  Wrseq LID_TRANS,LREFERENCIA,LREFERENCIA2,LNREMITENTE,LCNOMBRE,LCDIRECCION,LCPOBLACION,LCPOSTAL,LCDPAIS,LBULTOS,LKILOS,LVOLUMEN,LTMERCANCIA,LOBSERVACIONESA,LOBSERVACIONESB,LPORTES,LREEMBOLSO,
+& LRCOMISION,LVALSEGUR,LTXTSEGUR,LPRODUCTO,LFECHA_EA,LTELEFONO,LCMAIL,LIMPRESCINDIBLECON,LPLATAFORMAELEVADORA,LCCONTACTO,   Using [R1]
+  Wrseq LID_TRANS,LREFERENCIA,LREFERENCIA2,LNREMITENTE,LCNOMBRE,LCDIRECCION,LCPOBLACION,LCPOSTAL,LCDPAIS,LBULTOS,LKILOS,LVOLUMEN,LTMERCANCIA,LOBSERVACIONESA,LOBSERVACIONESB,LPORTES,LREEMBOLSO,
+& LRCOMISION,LVALSEGUR,LTXTSEGUR,LPRODUCTO,LFECHA_EA,LTELEFONO,LCMAIL,LIMPRESCINDIBLECON,LPLATAFORMAELEVADORA,LCCONTACTO,   Using [R2]
+
+Next
+Openo Using [R1]
+Openo Using [R2]
+
+Close Local File [F:YPRH],[F:YPRE],[F:YSOH]
+LOK="S"
+End
+
+
+################################################################
+#**
+#* Función que devuelve el path donde dejamos el fichero
+#*
+#* @param PPATH
+#*!
+Subprog PARAM_YENVDACH(PPATH)
+Variable Char    PPATH
+
+If !clalev([YTAB]) Then : Local File ATABDIV [YTAB] : Endif
+
+Filter [F:YTAB] Where NUMTAB = 6001
+  For [F:YTAB]
+    Case [F:YTAB]A1
+      When "DACHSERPATH"   :    PPATH=[F:YTAB]A2
+    Endcase
+  Next
+Filter [YTAB]
+
+Close Local File [YTAB]
+End
+
+
+
+##########################################################
+#**
+#* Le pasamos un cliente y devuelve el código de DACHSER según sea nacioal o extranjero. Si es leroy merlin españa se diferencia
+#*
+#* @param PBPCNUM
+#*!
+Funprog REMITENTE(PBPCNUM)
+Value Char    PBPCNUM
+
+# PARA ENVÍOS NACIONALES:                   430416372
+# PARA ENVÍOS NO NACIONALES:                430410563
+# PARA ENVÍOS EN PARTICULAR DE LM-ES (EDP): 430410629
+
+Local Char RREMITENTE(12)
+If !clalev([YBPC]) Then : Local File BPCUSTOMER [YBPC] : Endif
+
+# Si es leroy merlin españa es porque el cliente factura es NA000346
+Read [YBPC]BPC0=PBPCNUM
+If !fstat
+  If [YBPC]BPCINV = "NA000346"
+    RREMITENTE="430410629"
+  Else
+    If [YBPC]BCGCOD = "CLINA"
+      RREMITENTE="430416372"
+    Else
+      RREMITENTE="430410563"
+    Endif
+  Endif
+Endif
+
+Close Local File [F:YBPC]
+End RREMITENTE
+
+
+
+##########################################################
+#**
+#* Tipo de mercancía. Con que haya uno de los bultos que sea palet, ponemos tipo = 2 = palet
+#*
+#* @param PPRHNUM
+#*!
+Funprog TMERCANCIA(PPRHNUM)
+Value Char    PPRHNUM
+
+# PAQUETE : 1
+# PALET   : 2
+
+Local Char TMERCAN
+
+If !clalev([YSPZ]) Then : Local File YSPACK     [YSPZ] : Endif
+If !clalev([YTPC]) Then : Local File TABPACKAGE [YTPC] : Endif
+
+Filter [YSPZ] Where [YSPZ]VCRNUM = PPRHNUM
+  For [YSPZ]
+    Read [YTPC]TPA0 = [YSPZ]PCK
+    If fstat = 0
+      If [YTPC]YTIPO = 1
+        TMERCAN = "2"
+        Break
+      Endif
+    Endif
+  Next
+Filter [YSPZ]
+
+If TMERCAN = "" : TMERCAN = "1" : Endif
+
+Close Local File [YSPZ]
+Close Local File [YTPC]
+End TMERCAN
+
+
+##########################################################
+#**
+#* Le pasamos doc de preparación y devuelve las observaciones de cabecera
+#*
+#* @param PPRHNUM
+#*!
+Funprog OBSERVA_A(PPRHNUM)
+Value Char    PPRHNUM
+
+
+Local Char ROBSERVA(120)
+
+If !clalev([XPRH]) Then : Local File STOPREH [XPRH] : Endif
+If !clalev([XTXC]) Then : Local File TEXCLOB [XTXC] : Endif
+
+Read [XPRH]PRH0 = PPRHNUM
+If fstat = 0 and [XPRH]PRPTEX1 <> ""
+  Read [XTXC]TXC0 = [XPRH]PRPTEX1
+  If fstat = 0
+    ROBSERVA = [XTXC]TEXTE
+  Endif
+Endif
+
+Close Local File [F:XPRH]
+Close Local File [F:XTXC]
+
+End ROBSERVA
+
+
+
+##########################################################
+#**
+#* Le pasamos doc de preparación y devuelve artículo preparado que tenga un precio > 1.500
+#* y/o que la suma de precios de sus asociados > 1.500
+#*
+#* @param PPRHNUM
+#*!
+Funprog ITMSEGUR(PPRHNUM)
+Value Char    PPRHNUM
+
+
+Local Char ARTSEGUR(200)
+Local Integer MUESTRO
+Local Decimal BRUTO_LINEA
+
+If !clalev([XX01]) Then : Local File STOPRED [XX01] : Endif
+If !clalev([XX02]) Then : Local File SORDERP [XX02] : Endif
+If !clalev([XX03]) Then : Local File SORDERQ [XX03] : Endif
+If !clalev([XX04]) Then : Local File SORDERP [XX04] : Endif
+If !clalev([XX05]) Then : Local File SORDERQ [XX05] : Endif
+
+For [XX01] Where [XX01]PRHNUM = PPRHNUM
+  [L]MUESTRO     = 0
+  [L]BRUTO_LINEA = 0
+  For [XX05] Where [XX05]SOHNUM = [XX01]ORINUM and [XX05]SOQSEQ = [XX01]ORISEQ and [XX05]SOPLIN = [XX01]ORILIN and [XX05]ZASOCIADO <> 2
+    Read [XX02]SOP0 = [XX05]SOHNUM;[XX05]SOQSEQ;[XX05]SOPLIN
+    If fstat = 0
+      # Si el importe bruto es superior a 1.500€ lo muestro
+      If [XX02]NETPRINOT > 1500
+        [L]MUESTRO = 2
+      Else
+        [L]BRUTO_LINEA = [XX02]NETPRINOT
+      Endif
+
+      # Si no supera el importe, busco ahora si tiene asociados y entonces sumo importes para ver si entre todo supera los 1.500€
+      If [L]MUESTRO = 0
+        Filter [XX03] Where [XX03]SOHNUM = [XX02]SOHNUM and [XX03]ZASOCIADO = 2 and [XX03]ZLINASOC = [XX02]SOPLIN
+          For [XX03]
+            Read [XX04]SOP0 = [XX03]SOHNUM;[XX03]SOPLIN;[XX03]SOQSEQ
+            If fstat = 0
+              [L]BRUTO_LINEA += [XX04]NETPRINOT
+            Endif
+            If [L]BRUTO_LINEA > 1500
+              [L]MUESTRO = 2
+              Break
+            Endif
+          Next
+        Filter
+      Endif
+
+      If [L]MUESTRO = 2
+        If [L]ARTSEGUR = ""
+          ARTSEGUR += [XX02]ITMREF
+        Else
+          ARTSEGUR += " " + [XX02]ITMREF
+        Endif
+      Endif
+    Endif
+  Next
+Next
+
+Close Local File [XX01]
+Close Local File [XX02]
+Close Local File [XX03]
+Close Local File [XX04]
+
+End ARTSEGUR
+
+
+##########################################################
+#**
+#*Si el cliente es Nacional debe mostrar 001
+#*Si el cliente es No Nacional debe mostrar 003
+#*Si la entrega se realiza en domicilio particular (campo Particular marcado como Sí en Pedido) debe mostrar 017
+#*
+#* @param PPRHNUM
+#*!
+Funprog XPRODUCTO(PPRHNUM,PPARTICULAR)
+Value Char    PPRHNUM
+Value Integer PPARTICULAR
+
+Local Char ZPRODUCTO
+
+If !clalev([QX01]) Then : Local File STOPREH    [QX01] : Endif
+If !clalev([QX02]) Then : Local File BPCUSTOMER [QX02] : Endif
+
+
+If PPARTICULAR = 2
+  ZPRODUCTO       = "017"
+Else
+  Read [QX01]PRH0 = PPRHNUM
+  If fstat = 0
+    Read [QX02]BPC0 = [QX01]BPCORD
+    If fstat = 0
+      If [QX02]BCGCOD = "CLINA"
+        ZPRODUCTO       = "001"
+      Else
+        ZPRODUCTO       = "003"
+      Endif
+    Endif
+  Endif
+Endif
+
+Close Local File [QX01]
+Close Local File [QX02]
+
+End ZPRODUCTO
+
+# @01@ -JLP - 06/09/2024 - Modificación para que los desarrollos que apunten al NA000018a ahora revisen el campo YTIPENVAGE - INI
+##########################################################
+#**
+#*Si el cliente factura es NA000018 - DACHSER envío la referencia del pedido; sino lo dejo en blanco
+#*
+#* @param PPRHNUM
+#*!
+Funprog OBSB(PPRHNUM)
+Value Char    PPRHNUM
+
+Local Char ZOBSB
+
+If !clalev([YS01]) Then : Local File STOPRED  [YS01] : Endif
+If !clalev([YS02]) Then : Local File SORDER   [YS02] : Endif
+If !clalev([YBPC]) Then : Local File BPCARRIER   [YBPC] : Endif
+
+For [YS01] Where [YS01]PRHNUM = PPRHNUM
+  For [YS02] Where [YS02]SOHNUM = [YS01]ORINUM
+    Read [YBPC]BPT0 = [YS02]BPCINV
+    If fstat and [YBPC]YTIPENVAGE = 1
+      ZOBSB = [YS02]CUSORDREF
+      Break
+    Endif
+  Next
+Next
+
+Close Local File [YS01]
+Close Local File [YS02]
+Close Local File [YBPC]
+End ZOBSB
+
+
+###########################################################
+##**
+##*Si el cliente factura es NA000018 - DACHSER envío la referencia del pedido; sino lo dejo en blanco
+##*
+##* @param PPRHNUM
+##*!
+#Funprog OBSB(PPRHNUM)
+#Value Char    PPRHNUM
+#
+#Local Char ZOBSB
+#
+#If !clalev([YS01]) Then : Local File STOPRED  [YS01] : Endif
+#If !clalev([YS02]) Then : Local File SORDER   [YS02] : Endif
+#
+#For [YS01] Where [YS01]PRHNUM = PPRHNUM
+#  For [YS02] Where [YS02]SOHNUM = [YS01]ORINUM
+#    If [YS02]BPCINV = 'NA000018'
+#      ZOBSB = [YS02]CUSORDREF
+#      Break
+#    Endif
+#  Next
+#Next
+#
+#Close Local File [YS01]
+#Close Local File [YS02]
+#End ZOBSB
+# @01@ -JLP - 06/09/2024 - Modificación para que los desarrollos que apunten al NA000018a ahora revisen el campo YTIPENVAGE - FIN
+
+##########################################################
+#**
+#* Le pasamos doc de preparación y devuelve importe preparado que tenga un precio > 1.500
+#* y/o que la suma de precios de sus asociados > 1.500
+#*
+#* @param PPRHNUM
+#*!
+Funprog VALSEGUR(PPRHNUM)
+Value Char    PPRHNUM
+
+
+Local Char IMPSEGUR(200)
+Local Integer MUESTRO
+Local Decimal BRUTO_LINEA
+Local Decimal BRUTO_TOTAL
+
+If !clalev([XX01]) Then : Local File STOPRED [XX01] : Endif
+If !clalev([XX02]) Then : Local File SORDERP [XX02] : Endif
+If !clalev([XX03]) Then : Local File SORDERQ [XX03] : Endif
+If !clalev([XX04]) Then : Local File SORDERP [XX04] : Endif
+
+For [XX01] Where [XX01]PRHNUM = PPRHNUM
+  [L]MUESTRO     = 0
+  [L]BRUTO_LINEA = 0
+  For [XX02] Where [XX02]SOHNUM = [XX01]ORINUM and [XX02]SOPSEQ = [XX01]ORISEQ and [XX02]SOPLIN = [XX01]ORILIN
+    # Si el importe bruto es superior a 1.500€ lo muestro
+    [L]BRUTO_LINEA = [XX02]NETPRINOT
+    If [XX02]NETPRINOT > 1500
+      [L]MUESTRO = 2
+      [L]BRUTO_TOTAL += [L]BRUTO_LINEA
+    Endif
+
+    # Si no supera el importe, busco ahora si tiene asociados y entonces sumo importes para ver si entre todo supera los 1.500€
+    If [L]MUESTRO = 0
+      Filter [XX03] Where [XX03]SOHNUM = [XX02]SOHNUM and [XX03]ZASOCIADO = 2 and [XX03]ZLINASOC = [XX02]SOPLIN
+        For [XX03]
+          Read [XX04]SOP0 = [XX03]SOHNUM;[XX03]SOPLIN;[XX03]SOQSEQ
+          If fstat = 0
+            [L]BRUTO_LINEA += [XX04]NETPRINOT
+          Endif
+        Next
+      Filter
+      If [L]BRUTO_LINEA > 1500
+        [L]MUESTRO = 2
+        [L]BRUTO_TOTAL += [L]BRUTO_LINEA
+      Endif
+    Endif
+
+    If [L]MUESTRO = 2
+      IMPSEGUR = format$("N0:8.2",[L]BRUTO_TOTAL)
+      IMPSEGUR = ctrans(IMPSEGUR,",",".")
+    Endif
+  Next
+Next
+
+Close Local File [XX01]
+Close Local File [XX02]
+Close Local File [XX03]
+Close Local File [XX04]
+
+End IMPSEGUR
+
+
+
+##########################################################
+Subprog TRAZA_DACHSER(VPRE,VSTA,VUSE,VERR)
+Value Char VPRE
+Value Integer VSTA
+Value Char VUSE
+Value Integer VERR
+
+If !clalev([YQ01]) : Local File YDACTRAZA [YQ01] : Endif
+
+Local Integer ULTIMO
+Filter [YQ01] Where [YQ01]PRHNUM = VPRE
+  [L]ULTIMO = rowcount([YQ01]) + 1
+Filter [YQ01]
+
+Raz [YQ01]
+[YQ01]PRHNUM    =   VPRE
+[YQ01]ID        =   [L]ULTIMO
+[YQ01]ACCION    =   VSTA
+[YQ01]USUARIO   =   VUSE
+[YQ01]FECHA     =   date$
+[YQ01]HORA      =   time$
+[YQ01]ERROR     =   VERR
+Write [YQ01]
+
+Close Local File [YQ01]
+End
+
+
+##########################################################
+Subprog DACHSER_CHECK(VPRE,VERR)
+Value Char VPRE
+Variable Integer VERR
+
+# Control de errores del documento de prepararción antes de enviar el fichero DACHSER
+If !clalev([YE01]) : Local File YSPACK  [YE01] : Endif
+If !clalev([YE02]) : Local File STOPREH [YE02] : Endif
+
+# Error 1: no se ha realizado paquetizado
+Filter [YE01] Where [YE01]VCRNUM = VPRE
+  If rowcount([YE01]) = 0
+    VERR = 2
+    Read [YE02]PRH0 = VPRE
+    If fstat = 0
+      [YE02]YDACESTADO = 4
+      Rewrite [YE02]
+      Call TRAZA_DACHSER([YE02]PRHNUM,4,GUSER,1) From YENVDACH
+    Endif
+  Endif
+Filter [YE01]
+
+# Error 3: peso bruto <= 0
+If VERR <> 2
+  Local Decimal PESO
+  Filter [YE01] Where [YE01]VCRNUM = VPRE
+    For [YE01]
+      [L]PESO += [YE01]YBRWEI
+    Next
+  Filter [YE01]
+
+  If [L]PESO <= 0
+    VERR = 2
+    Read [YE02]PRH0 = VPRE
+    If fstat = 0
+      [YE02]YDACESTADO = 4
+      Rewrite [YE02]
+      Call TRAZA_DACHSER([YE02]PRHNUM,4,GUSER,3) From YENVDACH
+    Endif
+  Endif
+Endif
+
+# Error 4: volumen <= 0
+If VERR <> 2
+  Local Decimal VOLUMEN
+  Filter [YE01] Where [YE01]VCRNUM = VPRE
+    For [YE01]
+      [L]VOLUMEN += [YE01]VOL
+    Next
+  Filter [YE01]
+
+  If [L]VOLUMEN <= 0
+    VERR = 2
+    Read [YE02]PRH0 = VPRE
+    If fstat = 0
+      [YE02]YDACESTADO = 4
+      Rewrite [YE02]
+      Call TRAZA_DACHSER([YE02]PRHNUM,4,GUSER,4) From YENVDACH
+    Endif
+  Endif
+Endif
+
+Close Local File [YE01]
+End

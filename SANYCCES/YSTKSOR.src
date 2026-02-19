@@ -1,0 +1,57 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#@01@ - EQM - Subimos YSTOCOU de 50 a 200
+$ACTION
+#Return #De momento quitamos el punto hasta nuevo aviso
+
+  #--
+
+  Case ACTION
+    When "NEWFILSTA"        : Gosub NEWFILSTA
+
+Endcase
+Return
+
+
+$NEWFILSTA
+
+If GFONCTION = 'FUNPREP2'
+  GPE=1
+  If clalev([F:YYSTA])=0  Local File STOALL [YYSTA]  Endif
+  If clalev([F:YYITF])=0  Local File ITMFACILIT [YYITF]  Endif
+  If clalev([F:YYITMT])=0  Local File YITMTECNICO [YYITMT]  Endif
+  Local Char YSTOCOU(30)(200)  #Subimos de 10 a 50 límite contenedores #@01@ - EQM 
+  Local Integer YNBLIG: YNBLIG = 0
+  Local Char YWFILSTA(60)
+
+  Filter [YYSTA] Where VCRTYP=[M:ALP]VCRTYP & VCRNUM=[M:ALP]VCRNUM & VCRLIN=[M:ALP]VCRLIN & VCRSEQ=[M:ALP]VCRSEQ & ITMREF=[M:ALP]ITMREF
+
+  For [YYSTA]
+    Read [F:STO1]STO0 = [YYSTA]STOFCY;[YYSTA]STOCOU
+    Read [F:YYITF]ITF0 = [YYSTA]ITMREF;[YYSTA]STOFCY
+    Read [F:YYITMT]YITT0 = [YYSTA]ITMREF
+    If [F:YYITF]LPNMGTCOD = 2 and [F:YYITMT]PREPICKING = 2
+      If [F:STO1]LPNNUM <>''
+        YSTOCOU(YNBLIG) = num$([F:STO1]STOCOU)
+        YNBLIG +=1
+        GPE=1
+      Endif
+      GPE = 1
+    Else
+      GPE =0
+      Break
+    Endif
+  Next
+
+  Filter [YYSTA]
+  If GPE =0
+    Return
+  Endif
+
+  YWFILSTA = 'find(num$([STA]STOCOU),YSTOCOU(0..YNBLIG-1))'
+
+
+  Filter [STA] Where VCRTYP=[M:ALP]VCRTYP & VCRNUM=[M:ALP]VCRNUM & VCRLIN=[M:ALP]VCRLIN & VCRSEQ=[M:ALP]VCRSEQ & ITMREF=[M:ALP]ITMREF & evalue(YWFILSTA)
+
+Endif
+
+Return

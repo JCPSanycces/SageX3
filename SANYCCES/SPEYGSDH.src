@@ -1,0 +1,885 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$
+##############################################################
+#
+# @01@ - SCD - 05/09/2023 - Cambios para el tipo factura, cliente factura y stock pillado.
+# @02@ - SCD - 06/06/2024 - Cambios en la forma de llamar a generar la entrega.
+# @04@: RAP    07-10-2024 - PRELIN solo coge la ultima linea, corrigo para que coja la linea correcta
+# @05@: EQM    18-11-2024 - Añadimos filtros transportista
+# @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error
+# @07@: DSR    24-12-2024 - Ajuste de la cantidad asignada en la línea del vale de preparación
+#
+##############################################################
+$ACTION
+Case ACTION
+  When "DEBUT"    :   Gosub DEBUT
+  When "OK"      :   Gosub OK
+  When "EXEC"   :   Gosub TEST_SDH
+  When "INIT"   :   Gosub INIT
+Endcase
+Return
+##############################################################
+# @05@: EQM    18-11-2024 - Añadimos filtros transportista - INI
+$DEBUT
+
+  If GFONCTION1='YGENSDH'
+      Affzo [M:YGSDH]
+      # Pongo valores por defecto
+      [M:YGSDH]SOCIEDAD = "1"
+      Affzo [M:YGSDH]SOCIEDAD
+      [M:YGSDH]PLANTA   = "11"
+      Affzo [M:YGSDH]PLANTA
+      [M:YGSDH]TIPOSDH  = "SDH"
+      Affzo [M:YGSDH]TIPOSDH
+      # @05@: EQM -
+      [M:YGSDH]YDOCUMENTA = 2
+      Affzo [M:YGSDH]YDOCUMENTA
+      [M:YGSDH]YMODENTREGA = 1
+      Affzo [M:YGSDH]YMODENTREGA
+
+      zonsui = "[M:YGSDH]FECHAEXP"
+  Endif
+
+Return
+# @05@: EQM    18-11-2024 - Añadimos filtros transportista - FIN
+
+##############################################################
+$INIT
+
+  If GSERVEUR=1
+      Local Mask    YGENSDH  [M:YGSDH]
+      Default Mask  [M:YGSDH]
+  Endif
+
+Return
+
+##############################################################
+#$DEBUT
+## Pongo valores por defecto
+#[M:YGSDH]SOCIEDAD = "1"
+#Affzo [M:YGSDH]SOCIEDAD
+#[M:YGSDH]PLANTA   = "11"
+#Affzo [M:YGSDH]PLANTA
+#[M:YGSDH]TIPOSDH  = "SDH"
+#Affzo [M:YGSDH]TIPOSDH
+#
+#zonsui = "[M:YGSDH]FECHAEXP"
+#Return
+
+
+####################################################
+$OPEN_TABLES
+If !clalev([Y01]) : Local File STOPREH    [Y01] : Endif
+If !clalev([Y02]) : Local File STOPRED    [Y02] : Endif
+If !clalev([Y03]) : Local File STOALL     [Y03] : Endif
+If !clalev([Y04]) : Local File SDELIVERY  [Y04] : Endif
+If !clalev([Y05]) : Local File STOCK      [Y05] : Endif
+If !clalev([Y06]) : Local File SDELIVERYD [Y06] : Endif
+If !clalev([Y07]) : Local File STOPREH    [Y07] : Endif
+# @01@ - SCD - 05/09/2023 - INI
+If !clalev([Y08]) : Local File STOPRED    [Y08] : Endif
+If !clalev([Y09]) : Local File SORDER     [Y09] : Endif
+If !clalev([Y10]) : Local File YCREALL    [Y10] : Endif
+# @01@ - SCD - 05/09/2023 - FIN
+If !clalev([Y11]) : Local File BPCUSTOMER [Y11] : Endif
+If !clalev([Y12]) : Local File BPCARRIER  [Y12] : Endif # @05@: EQM
+Return
+
+
+####################################################
+$CLOSE_TABLES
+Close Local File [Y01]
+Close Local File [Y02]
+Close Local File [Y03]
+Close Local File [Y04]
+Close Local File [Y05]
+Close Local File [Y06]
+Close Local File [Y07]
+# @01@ - SCD - 05/09/2023 - INI
+Close Local File [Y08]
+Close Local File [Y09]
+Close Local File [Y10]
+# @01@ - SCD - 05/09/2023 - FIN
+Close Local File [Y11]
+Close Local File [Y12] # @05@: EQM
+Return
+
+
+
+##############################################
+$OK
+  # @02@ - SCD - 06/06/2024 - INI
+  # @05@ -
+  If GFONCTION1='YGENSDH'
+      Local Integer TRACE : TRACE = 2 # 1 = No Traza --- 2 = Si Traza
+      Local Char VACIO : VACIO = '' # 1 = No Traza --- 2 = Si Traza
+      #Llamamos a la funcion de generar entregas
+      Call GEN_SDH([L]TRACE,VACIO)
+
+      # @02@ - SCD - 06/06/2024 - FIN
+    Endif
+    # @05@ -
+Return
+
+
+##############################################
+$GEN_LINEAS
+# ** PARA LINEAS DE LA PREPARACION **#
+# LLIN(1,) -> Indice
+# LLIN(2,) -> Pedido
+# LLIN(3,) -> Pedido línea
+# LLIN(4,) -> Artículo
+# LLIN(5,) -> Unidad de venta
+# LLIN(6,) -> Cantidad entregada
+
+
+# ** PARA DETALLE DE STOCK POR LINEA **#
+# LLIN(1,) -> Indice
+# LLIN(2,) -> Pedido
+# LLIN(3,) -> Unidad
+# LLIN(4,) -> Cantidad
+# LLIN(5,) -> Contenedor
+# LLIN(6,) -> Ubicación
+# LLIN(7,) -> Lote
+# LLIN(8,) -> Serie
+
+Local Char CRITERIOL(250) : CRITERIOL="[Y02]PRHNUM = [Y01]PRHNUM"
+
+If CUANTOS = 1  # solamente 1 entrega para todo el vale
+  CRITERIOL += " & 1=1"
+Else
+  CRITERIOL += " & [Y02]ORINUM = LPEDIDO(LINE)"
+Endif
+
+LLIT = 0
+
+Filter [Y02] Where evalue(CRITERIOL) Order By [Y02]PRELIN Asc
+  For [Y02]
+    LLIN(1,LLIT)   = "L"
+    LLIN(2,LLIT)   = [Y02]ORINUM
+    LLIN(3,LLIT)   = num$([Y02]ORISEQ)
+    LLIN(4,LLIT)   = [Y02]ITMREF
+    #LLIN(5,LLIT)   = [Y02]ITMDES1
+    LLIN(5,LLIT)   = [Y02]STU
+    LLIN(6,LLIT)   = num$([Y02]QTYSTU)
+    LLIT += 1
+
+    Filter [Y03] Where [Y03]VCRNUM = [Y02]PRHNUM and [Y03]VCRLIN = [Y02]PRELIN
+      For [Y03]
+        Read [Y05]STO0 = [Y03]STOFCY;[Y03]STOCOU
+        If fstat = 0
+          LLIN(1,LLIT)   = "S"
+          LLIN(2,LLIT)   = [Y05]STA
+          LLIN(3,LLIT)   = [Y05]PCU
+          LLIN(4,LLIT)   = num$([Y03]QTYSTU)
+          LLIN(5,LLIT)   = [Y05]LPNNUM
+          LLIN(6,LLIT)   = [Y05]LOC
+          LLIN(7,LLIT)   = [Y05]LOT
+          LLIN(8,LLIT)   = [Y05]SERNUM
+          LLIT += 1
+        # @01@ - SCD - 05/09/2023 - INI
+          [Y10]STOFCY = [Y03]STOFCY
+          [Y10]ITM = [Y03]ITMREF
+          [Y10]COU = [Y03]STOCOU
+          [Y10]QTY = [Y03]QTYSTU
+          [Y10]VCRNUM = [Y03]VCRNUM
+          [Y10]LIN = [Y03]VCRLIN
+          [Y10]TYP = [Y03]ALLTYP
+          [Y10]ALLDAT = [Y03]ALLDAT
+          Trbegin [Y10]
+            Write [Y10]
+          Commit
+          #Call LIBERA_STOCK([Y05]STOFCY,[Y05]ITMREF, [Y05]STOCOU, [Y03]SEQ)
+          Call LIBERA_STOCK([Y05]STOFCY,[Y05]ITMREF, [Y05]STOCOU, [Y03]SEQ,[Y02]PRHNUM,[Y02]PRELIN) # @07@ #
+        # @01@ - SCD - 05/09/2023 - FIN
+        Endif
+      Next
+#      Trbegin [Y03]
+#        Delete [Y03]
+#      Commit
+    Filter [Y03]
+
+  Next
+Filter [Y02]
+
+# Genero cabecera
+If LLIT > 0
+  Gosub GEN_CAB
+
+  # Lanzo importación
+  Gosub IMPORT
+Endif
+
+Return
+
+
+
+##############################################
+$GEN_CAB
+# Generación de los datos de cabecera..
+Local Char LCAB(30)(1..20)
+
+# LCAB(1,) -> Planta de venta
+# LCAB(2,) -> Planta de expedición
+# LCAB(3,) -> Nº de entrega
+# LCAB(4,) -> Cliente pedido
+# LCAB(5,) -> Dirección de entrega
+# LCAB(6,) -> Divisa
+# LCAB(7,) -> Fecha de expedición
+# LCAB(8,) -> Transportista
+# LCAB(9,) -> Vale de prepración (Proyecto)
+# LCAB(10,) -> Pedido
+# @01@ - SCD - 05/09/2023 - INI
+# LCAB(11,) -> Tipo
+# @01@ - SCD - 05/09/2023 - FIN
+
+LCAB(1)   = [Y01]STOFCY
+LCAB(2)   = [Y01]STOFCY
+LCAB(3)   = ""
+LCAB(4)   = [Y01]BPCORD
+LCAB(5)   = [Y01]BPAADD
+LCAB(6)   = "EUR"
+LCAB(7)   = [M:YGSDH]FECHAEXP
+LCAB(8)   = [Y01]BPTNUM
+LCAB(9)   = [Y01]PRHNUM
+If CUANTOS = 1
+  LCAB(10)  = ""
+Else
+  LCAB(10)  = LPEDIDO(LINE)
+Endif
+# @01@ - SCD - 05/09/2023 - INI
+LCAB(11)  = [M:YGSDH]TIPOSDH
+# @01@ - SCD - 05/09/2023 - FIN
+
+Return
+
+
+
+##########################################################################################
+$IMPORT
+# Genero el fichero
+Local Char  ZDIR(250)   : ZDIR = filpath("IMPORT\ENTREGAS\","","")
+Local Char  NOMFICH(60) : NOMFICH="F_" + [Y01]PRHNUM + " - " + format$("D:DDMMYY", date$)+"-"+num$(time)+".csv"
+Local Char  LFILE(250)  : LFILE = ZDIR + NOMFICH
+Local Integer LRTN
+Local Char LCTR
+Local Integer LNER
+
+adxifs = ","
+adxirs = chr$(13)+chr$(10)
+
+######
+# Generación de los datos de cabecera
+######
+
+Local Integer I
+
+Openo LFILE
+# @01@ - SCD - 05/09/2023 - INI
+    Wrseq '"H"','"'+LCAB(1) +'"','"'+LCAB(2) +'"','"'+LCAB(3) +'"','"'+LCAB(4) +'"','"'+LCAB(5) +'"',
+&               '"'+LCAB(6) +'"','"'+LCAB(7) +'"','"'+LCAB(8) +'"','"'+LCAB(9) +'"','"'+LCAB(10) +'"','"'+LCAB(11) +'",'
+# @01@ - SCD - 05/09/2023 - FIN
+
+    For I=0 To LLIT-1
+      Wrseq     '"'+LLIN(1,I)+'"','"'+LLIN(2,I)+'"','"'+LLIN(3,I)+'"',
+&               '"'+LLIN(4,I)+'"','"'+LLIN(5,I)+'"','"'+LLIN(6,I)+'"',
+&               '"'+LLIN(7,I)+'"','"'+LLIN(8,I)+'"','"'+LLIN(9,I)+'"',
+&               '"'+LLIN(10,I)+'"','"'+LLIN(11,I)+'"','"'+LLIN(12,I)+'"','"'+LLIN(13,I)+'"','"'+ LLIN(14,I)+'"',
+&               '"'+LLIN(15,I)+'"','"'+LLIN(16,I)+'"','"'+LLIN(17,I)+'"','"'+LLIN(18,I)+'"',
+&               '"'+LLIN(19,I)+'"','"'+LLIN(20,I)+'"','"'+LLIN(21,I)+'"','"'+LLIN(22,I)+'"',
+&               '"'+LLIN(23,I)+'"','"'+LLIN(24,I)+'"','"'+LLIN(25,I)+'"','"'+LLIN(26,I)+'"',
+&               '"'+LLIN(27,I)+'"','"'+LLIN(28,I)+'"','"'+LLIN(29,I)+'"','"'+LLIN(30,I)+'",'
+    Next
+
+Openo
+
+# Lanzo la importación
+Call IMP_MODEL("no read","YSDH2",LFILE,LRTN,LCTR,LNER)
+If LRTN <> 0
+  Call REGENERA_STOCK([Y01]PRHNUM)
+Endif
+
+Return
+
+
+
+#############################################
+Subprog IMP_MODEL(PTRA,PMOD,PFILE,PRTN,PCTR,PNER)
+Value Char PTRA
+Value Char PMOD
+Value Char PFILE
+Variable Integer PRTN
+Variable Char PCTR
+Variable Integer PNER
+
+#####
+# Proceso encargado de integrar un registro a traves de un modelo de datos..
+#####
+# PTRA  = indica si hay lectura de traza "read".- lee traza, "no read".- no lee traza
+# PMOD  = modelo a tratar
+# PFILE = el fichero a importar..
+
+Local File AOBJEXT    [AOE]
+Local File AOBJEXTD   [AOD]
+Local File AOBJET     [ZAOB]
+Local File ADOVAL     [ADW]
+Local File ATYPE      [ZATY]
+Local File AMSK       [ZAMK]
+Local File AMSKZON    [ZAMZ]
+Local File ATABLE     [ZATB]
+Local File ATABZON    [ZATZ]
+Local File ATABIND    [ZATI]
+Local File AFONCTION  [ZAFC]
+Local File APARIMPEXP [APX]
+Local Mask AOE0       [AOE0]
+Local Mask AOE1       [AOE1]
+Local Mask AOE2       [AOE2]
+Local Mask IMPTEST    [IEX]
+Local Mask IMPENCH    [DIA]
+Local Mask IMPOBJ2    [IMP2]
+
+
+PRTN = 0
+mkstat = 0 : fstat = 0 : GERRTRACE = 0
+# Lanzamiento de la importación silenciosa
+If GSERVEUR<>1 # @05@ -
+Call OUVRE_TRACE("Importación silenciosa") From LECFIC
+Endif # @05@ -
+Call IMPORTSIL(PMOD,PFILE) From GIMPOBJ
+
+# @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error - INI
+If GSERVEUR = 1 and ((fstat <> 0 and fstat <> 4) or GERRTRACE <> 0) Then
+  Call WORKFLOW(1, "YGS", "", GUSER) From AWRK
+Endif
+# @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error - FIN
+
+If GSERVEUR<>1 # @05@ -
+Call FERME_TRACE From LECFIC
+Endif # @05@ -
+
+# En caso de error...
+If (fstat <> 0 and fstat <> 4) or GERRTRACE <> 0 Then
+    PCTR = GTRACE
+    PNER = GERRTRACE
+    PRTN = 1
+Endif
+
+# Busco la entrega
+Global Char NENTREGA
+If CUANTOS = 1
+  Filter [Y04] Where [Y04]PJT = [Y01]PRHNUM
+Else
+  Filter [Y04] Where [Y04]PJT = [Y01]PRHNUM and [Y04]SOHNUM = [Y02]ORINUM
+Endif
+Read [Y04] First
+If fstat = 0
+  NENTREGA = [Y04]SDHNUM
+  # Actualizo las líneas de la entrega
+  For [Y06] Where [Y06]SDHNUM = [Y04]SDHNUM
+    [Y06]PRHNUM = [Y01]PRHNUM
+    #@04@: RAP    07-10-2024
+    #[Y06]PRELIN = [Y02]PRELIN
+    [Y06]PRELIN = func LINEA_VALE([Y06]SOHNUM,[Y06]SOPLIN,[Y01]PRHNUM)
+    #@04@: RAP    07-10-2024
+
+    Trbegin [Y06]
+      Rewrite [Y06]
+    Commit
+  Next
+Endif
+Filter [Y04]
+
+
+# Actualizo el vale de preparación
+If NENTREGA <> ""
+  Read [Y07]PRH0 =[Y01]PRHNUM
+  If fstat = 0
+    [Y07]DLVFLG = 3
+    [Y07]SDHNUM = NENTREGA
+    Trbegin [Y07]
+      Rewrite [Y07]
+    Commit
+  Endif
+Endif
+
+
+If NENTREGA <> ""
+  LMTR(LTOTAL) = "Entrega generada " + NENTREGA + " para el vale de preparación " + [Y01]PRHNUM
+  LMER(LTOTAL) = 0
+  LTOTAL += 1
+Else
+  LMTR(LTOTAL) = "Error en la generación de la entrega.Vale:" + [Y01]PRHNUM +". Acceda a la lectura de seguimientos para ver la traza"
+  LMER(LTOTAL) = 1
+  LTOTAL += 1
+Endif
+
+
+If PTRA = "read" Then
+    Call LEC_TRACE From LECFIC
+Endif
+
+mkstat = 0 : fstat = 0 : GERRTRACE = 0 : GOK = 1
+
+Close Local File [AOE],[AOD],[ZAOB],[ADW],[ZATY],[ZAMK],[ZAMZ],[ZATB],[ZATZ],[ZATI],[ZAFC],[APX]
+Close Local Mask [AOE0],[AOE1],[AOE2],[IEX],[DIA],[IMP2]
+
+End
+
+
+#################################################################
+
+# @01@ - SCD - 05/09/2023 - INI
+
+#Subprog LIBERA_STOCK(PS_STOFCY,PS_ITM, PF_COU, PI_SEQ)
+# @07@ # - Añado VVAL y VLIN
+Subprog LIBERA_STOCK(PS_STOFCY,PS_ITM, PF_COU, PI_SEQ, VVAL,VLIN)
+
+  Value Char PS_STOFCY
+  Value Char PS_ITM
+  Value Decimal PF_COU
+  Value Integer PI_SEQ
+  Local Integer LRET
+
+  Call SUPALL(PS_STOFCY,PS_ITM,PF_COU,PI_SEQ,LRET) From STKALL
+
+   # @07@ #
+   # Si todo ha ido bien, recalculo la cantidad asignada en la línea del vale
+   If LRET = 0
+    Call MAJ_LIN_PREP(VVAL,VLIN)
+   Endif
+
+End
+
+#################################################################
+
+Subprog REGENERA_STOCK(PS_VCRNUM)
+  Value Char PS_VCRNUM
+  Local Integer LRET2
+
+  Filter [Y10] Where [Y10]VCRNUM = PS_VCRNUM
+  For [Y10]
+    Call CREALL(2,[Y10]STOFCY,[Y10]ITM,[Y10]COU,[Y10]ALLDAT,[Y10]QTY,[Y10]QTY,3,[Y10]VCRNUM,[Y10]LIN,0,"",date$,"","","","","","",0.00,0.00,"","","","",1,"",LRET2) From STKALL
+     # @07@ #
+     # Si todo ha ido bien, recalculo la cantidad asignada en la línea del vale
+     If LRET2 = 0
+      Call MAJ_LIN_PREP([Y10]VCRNUM,[Y10]LIN)
+     Endif
+  Next
+  Filter [Y10]
+
+#  Value Char PS_STOFCY
+#  Value Char PS_ITM
+#  Value Decimal PF_COU
+#  Value Decimal PF_QTY
+#  Value Char PS_VCRNUM
+#  Value Char PI_LIN
+#
+#  Call CREALL(2,PS_STOFCY,PS_ITM,PF_COU,date$,PF_QTY,PF_QTY,3,PS_VCRNUM,PI_LIN,0,"",date$,"","","","","","",0.00,0.00,"","","","",1,"",LRET) From STKALL
+
+End
+
+# @01@ - SCD - 05/09/2023 - END
+
+
+
+#################################################################
+Subprog MAJ_LIN_PREP(PVAL,PLIN)
+Value Char PVAL
+Value Integer PLIN
+# @07@ #
+
+Local Integer QTY_ASIGNA
+If !clalev([MM1]) : Local File STOALL    [MM1] : Endif
+If !clalev([MM2]) : Local File STOPRED   [MM2] : Endif
+
+Filter [MM1] Where [MM1]VCRNUM = PVAL and [MM1]VCRLIN = PLIN
+  For [MM1]
+    [L]QTY_ASIGNA += [MM1]QTYSTU
+  Next
+Filter [MM1]
+
+Read [MM2]PRE0 = PVAL;PLIN
+If fstat = 0
+  [MM2]ALLQTY = [L]QTY_ASIGNA
+  Trbegin [MM2]
+    Rewrite [MM2]
+  Commit
+Endif
+
+Close Local File [MM1]
+Close Local File [MM2]
+End
+
+
+################################################################
+# @02@ - SCD - 06/06/2024 - INI
+
+
+#**
+#*
+#*
+#* @param PI_TRACE
+#* @param PS_NUM
+#*!
+Subprog GEN_SDH(PI_TRACE, PS_NUM)
+  Value Integer PI_TRACE  # 1 = No Traza --- 2 = Si Traza
+  Variable Char PS_NUM    # Guardamos y devovlemos la entrega generada
+
+  # Función que se encarga de generar las entregas a partir de los vales de preparación en estado 'Entregable'
+
+  # Abro pantalla de proceso en curso
+  If PI_TRACE=2 : Call TEMPON("Generación entregas Sanycces") From GESECRAN : Endif
+
+  # Apertura de tablas
+  Gosub OPEN_TABLES
+
+  # Definición de variables
+  Local Integer LLIT
+  Local Char LLIN(80)(1..40,500)
+  Global Char    LMTR(250)(500)   # mensaje para la traza
+  Global Integer LMER(500)        # color para la traza
+  Global Integer LTOTAL           # num. total de vales procesadas
+  Local Char CRITERIOS1(250) : CRITERIOS1="1=1"
+  Global Integer CUANTOS
+  Global Integer LINE
+  Global Char LPEDIDO(40)(1..500)
+
+  CRITERIOS1 += " & [Y01]DLVFLG=2"                  # Estado del vale = entregable
+  CRITERIOS1 += " & [Y01]STOFCY=[M:YGSDH]PLANTA"    # Planta
+
+  # Rango de clientes
+  If [M:YGSDH]CLIENTEINI <> ""
+    CRITERIOS1 += " & [Y01]BPCORD>=[M:YGSDH]CLIENTEINI"
+  Endif
+  If [M:YGSDH]CLIENTEFIN <> ""
+    CRITERIOS1 += " & [Y01]BPCORD<=[M:YGSDH]CLIENTEFIN"
+  Endif
+
+  # Rango de vales
+  If [M:YGSDH]PREPARAINI <> ""
+    CRITERIOS1 += " & [Y01]PRHNUM>=[M:YGSDH]PREPARAINI"
+  Endif
+  If [M:YGSDH]PREPARAFIN <> ""
+    CRITERIOS1 += " & [Y01]PRHNUM<=[M:YGSDH]PREPARAFIN"
+  Endif
+
+  # Rango de fechas
+  If [M:YGSDH]FECHAINI <> "000000"
+    CRITERIOS1 += " & [Y01]SHIDAT>=[M:YGSDH]FECHAINI"
+  Endif
+  If [M:YGSDH]FECHAFIN <> "000000"
+    CRITERIOS1 += " & [Y01]SHIDAT<=[M:YGSDH]FECHAFIN"
+  Endif
+
+  # Rango de transportistas
+  If [M:YGSDH]TRANSINI <> ""
+    CRITERIOS1 += " & [Y01]BPTNUM>=[M:YGSDH]TRANSINI"
+  Endif
+  If [M:YGSDH]TRANSFIN <> ""
+    CRITERIOS1 += " & [Y01]BPTNUM<=[M:YGSDH]TRANSFIN"
+  Endif
+
+  # Camión
+  If [M:YGSDH]YCAMION <> 0
+    CRITERIOS1 += " & [Y01]YCAMION=[M:YGSDH]YCAMION"
+  Endif
+
+
+  Local Integer FLG
+  Local Integer M_ENT
+
+#Infbox CRITERIOS1
+
+  Filter [Y01] Where evalue(CRITERIOS1) Order By [Y01]PRHNUM Asc
+    For [Y01]
+  # @01@ - SCD - 05/09/2023 - INI
+       [L]FLG   = 0
+       [L]M_ENT = 0
+
+       # Si el cliente no tiene valor en el campo 'Modo de entrega SANYCCES', salto a siguiente
+       Read [Y11]BPC0 = [Y01]BPCORD
+       If fstat = 0
+        If [Y11]YMODENT = 0
+          FLG = 1
+        Else
+          [L]M_ENT = [Y11]YMODENT
+        Endif
+       Endif
+        # @05@: EQM - INI
+       Read [Y12]BPT0=[Y01]BPTNUM
+       If !fstat
+              If [Y12]YMODENTREGA<>[M:YGSDH]YMODENTREGA
+                   FLG = 1
+              Endif
+              If [Y12]YDOCUMENTA<>[M:YGSDH]YDOCUMENTA
+                  FLG = 1
+              Endif
+       Endif
+       # @05@: EQM - FIN
+
+       If FLG = 0
+         For [Y08] Where [Y08]PRHNUM = [Y01]PRHNUM
+            Read [Y09]SOH0 = [Y08]ORINUM
+            If !fstat
+              If ([M:YGSDH]CLIFACINI <> '' and [Y09]BPCINV < [M:YGSDH]CLIFACINI) or ([M:YGSDH]CLIFACFIN <> '' and [Y09]BPCINV > [M:YGSDH]CLIFACFIN)
+                FLG = 1
+              Endif
+            Endif
+          Next
+       Endif
+
+        If FLG=0
+        # @01@ - SCD - 05/09/2023 - FIN
+            # Si tengo el flag de 1 entrega por pedido, saco el número de pedidos del vale (entregas a generar)
+            #If [M:YGSDH]ROTURA = 2
+            If [L]M_ENT = 1
+              CUANTOS = 0
+
+              Local Integer REPETIDO
+
+              Filter [Y02] Where [Y02]PRHNUM = [Y01]PRHNUM
+                For [Y02]
+                  CUANTOS +=1
+                  If CUANTOS = 1
+                    LPEDIDO(CUANTOS) = [Y02]ORINUM
+                  Else
+                    REPETIDO = 1
+                    For KK=1 To CUANTOS-1
+                      If LPEDIDO(KK) = [Y02]ORINUM
+                        REPETIDO = 2
+                        Break
+                      Endif
+                    Next
+                    If REPETIDO = 1
+                     LPEDIDO(CUANTOS) = [Y02]ORINUM
+                    Endif
+                  Endif
+                Next
+              Filter [Y02]
+            Else
+              CUANTOS = 1  # Hago solamente una entrega para todo el vale
+            Endif
+
+            For LINE=1 To CUANTOS
+              # Genero líneas
+              Gosub GEN_LINEAS
+
+            Next
+
+             # @01@ - SCD - 05/09/2023 - INI
+        Endif# @01@ - SCD - 05/09/2023 - FIN
+    Next
+  Filter [Y01]
+
+
+  # Cierre de tablas
+  Gosub CLOSE_TABLES
+
+  # Cierro pantalla de proceso en curso
+  If PI_TRACE=2 : Call TEMPOFF From GESECRAN  : Endif
+
+  # Lectura de la traza
+  If PI_TRACE=2 : Call OUVRE_TRACE(mess(8,1706,1)) From LECFIC : Endif
+  Local Integer LCON
+  If LTOTAL = 0
+      Errbox "Ninguna entrega a generar para los criterios introducidos"
+  Else
+      For LCON = 0 To LTOTAL-1
+          If PI_TRACE=2 : Call ECR_TRACE(LMTR(LCON),LMER(LCON)) From GESECRAN : Endif
+      Next
+  Endif
+  If PI_TRACE=2 : Call FERME_TRACE From LECFIC : Endif
+  If PI_TRACE=2 : Call LEC_TRACE From LECFIC : Endif
+
+  If dim(NENTREGA)>0
+    PS_NUM = NENTREGA
+  Endif
+End
+# @02@ - SCD - 06/06/2024 - FIN
+
+Funprog LINEA_VALE(PVENTA, PVENTALIN, VALE)
+    Value Char PVENTA
+    Value Char VALE
+    Value Integer PVENTALIN
+    Local Integer LINEAVALE
+    Local File STOPRED [YYPRE]
+
+    # Filtro y lectura de la tabla STOPRED
+    Filter [YYPRE] Where PRHNUM = VALE and ORINUM = PVENTA and ORILIN = PVENTALIN
+    Read [YYPRE] First
+
+    # Asignación de valor a LINEAVALE
+    LINEAVALE = [YYPRE]PRELIN
+
+    # Finalización del filtro y cierre del archivo
+    Filter [YYPRE]
+    Close File [YYPRE]
+
+End LINEAVALE
+
+$TEST_SDH
+  If GSERVEUR=1
+      # Función que se encarga de generar las entregas a partir de los vales de preparación en estado 'Entregable'
+
+      # Abro pantalla de proceso en curso
+      # Apertura de tablas
+      Gosub OPEN_TABLES
+
+      # Definición de variables
+      Local Integer LLIT
+      Local Char LLIN(80)(1..40,500)
+      Global Char    LMTR(250)(500)   # mensaje para la traza
+      Global Integer LMER(500)        # color para la traza
+      Global Integer LTOTAL           # num. total de vales procesadas
+      Local Char CRITERIOS1(250) : CRITERIOS1="1=1"
+      Global Integer CUANTOS
+      Global Integer LINE
+      Global Char LPEDIDO(30)(1..30)
+
+      CRITERIOS1 += " & [Y01]DLVFLG=2"                  # Estado del vale = entregable
+      CRITERIOS1 += " & [Y01]STOFCY=[M:YGSDH]PLANTA"    # Planta
+      # Rango de clientes
+      If [M:YGSDH]CLIENTEINI <> ""
+        CRITERIOS1 += " & [Y01]BPCORD>=[M:YGSDH]CLIENTEINI"
+      Endif
+      If [M:YGSDH]CLIENTEFIN <> ""
+        CRITERIOS1 += " & [Y01]BPCORD<=[M:YGSDH]CLIENTEFIN"
+      Endif
+
+      # Rango de vales
+      If [M:YGSDH]PREPARAINI <> ""
+        CRITERIOS1 += " & [Y01]PRHNUM>=[M:YGSDH]PREPARAINI"
+      Endif
+      If [M:YGSDH]PREPARAFIN <> ""
+        CRITERIOS1 += " & [Y01]PRHNUM<=[M:YGSDH]PREPARAFIN"
+      Endif
+
+      # Rango de fechas
+      If [M:YGSDH]FECHAINI <> "000000"
+        CRITERIOS1 += " & [Y01]SHIDAT>=[M:YGSDH]FECHAINI"
+      Endif
+      If [M:YGSDH]FECHAFIN <> "000000"
+        CRITERIOS1 += " & [Y01]SHIDAT<=[M:YGSDH]FECHAFIN"
+      Endif
+
+      # Rango de transportistas
+      If [M:YGSDH]TRANSINI <> ""
+        CRITERIOS1 += " & [Y01]BPTNUM>=[M:YGSDH]TRANSINI"
+      Endif
+      If [M:YGSDH]TRANSFIN <> ""
+        CRITERIOS1 += " & [Y01]BPTNUM<=[M:YGSDH]TRANSFIN"
+      Endif
+
+      # Camión
+      If [M:YGSDH]YCAMION <> 0
+        CRITERIOS1 += " & [Y01]YCAMION=[M:YGSDH]YCAMION"
+      Endif
+
+
+      Local Integer FLG
+      Local Integer M_ENT
+
+
+      Filter [Y01] Where evalue(CRITERIOS1) Order By [Y01]PRHNUM Asc
+        For [Y01]
+      # @01@ - SCD - 05/09/2023 - INI
+           [L]FLG   = 0
+           [L]M_ENT = 0
+
+           # Si el cliente no tiene valor en el campo 'Modo de entrega SANYCCES', salto a siguiente
+           Read [Y11]BPC0 = [Y01]BPCORD
+           If fstat = 0
+            If [Y11]YMODENT = 0
+              FLG = 1
+            Else
+              [L]M_ENT = [Y11]YMODENT
+            Endif
+           Endif
+           # @05@: EQM - INI
+           Read [Y12]BPT0=[Y01]BPTNUM
+           If !fstat
+                  If [Y12]YMODENTREGA<>[M:YGSDH]YMODENTREGA
+                       FLG = 1
+                  Endif
+                  If [Y12]YDOCUMENTA<>[M:YGSDH]YDOCUMENTA
+                      FLG = 1
+                  Endif
+           Endif
+           # @05@: EQM - FIN
+
+           If FLG = 0
+             For [Y08] Where [Y08]PRHNUM = [Y01]PRHNUM
+                Read [Y09]SOH0 = [Y08]ORINUM
+                If !fstat
+                  If ([M:YGSDH]CLIFACINI <> '' and [Y09]BPCINV < [M:YGSDH]CLIFACINI) or ([M:YGSDH]CLIFACFIN <> '' and [Y09]BPCINV > [M:YGSDH]CLIFACFIN)
+                    FLG = 1
+                  Endif
+                Endif
+              Next
+           Endif
+
+            If FLG=0
+            # @01@ - SCD - 05/09/2023 - FIN
+                # Si tengo el flag de 1 entrega por pedido, saco el número de pedidos del vale (entregas a generar)
+                #If [M:YGSDH]ROTURA = 2
+                If [L]M_ENT = 1
+                  CUANTOS = 0
+
+                  Local Integer REPETIDO
+
+                  Filter [Y02] Where [Y02]PRHNUM = [Y01]PRHNUM
+                    For [Y02]
+                      CUANTOS +=1
+                      If CUANTOS = 1
+                        LPEDIDO(CUANTOS) = [Y02]ORINUM
+                      Else
+                        REPETIDO = 1
+                        For KK=1 To CUANTOS-1
+                          If LPEDIDO(KK) = [Y02]ORINUM
+                            REPETIDO = 2
+                            Break
+                          Endif
+                        Next
+                        If REPETIDO = 1
+                         LPEDIDO(CUANTOS) = [Y02]ORINUM
+                        Endif
+                      Endif
+                    Next
+                  Filter [Y02]
+                Else
+                  CUANTOS = 1  # Hago solamente una entrega para todo el vale
+                Endif
+
+                For LINE=1 To CUANTOS
+                  # Genero líneas
+                  Gosub GEN_LINEAS
+                Next
+
+                 # @01@ - SCD - 05/09/2023 - INI
+            Endif# @01@ - SCD - 05/09/2023 - FIN
+        Next
+      Filter [Y01]
+
+
+      # Cierre de tablas
+      Gosub CLOSE_TABLES
+
+      # Cierro pantalla de proceso en curso
+
+      # Lectura de la traza
+    #  Local Integer LCON
+    #  If LTOTAL = 0
+    #      Errbox "Ninguna entrega a generar para los criterios introducidos"
+    #  Else
+    #      For LCON = 0 To LTOTAL-1
+    #      Next
+    #  Endif
+
+
+      #@01 - EQM - Comentado
+    #  If dim(NENTREGA)>0
+    #    Call ECR_TRACE ("Control: linea 832 " - [V]NENTREGA,0) From GESECRAN
+    #  Endif
+  Endif
+
+Return

@@ -1,0 +1,71 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+#If GUSER='NUN48' : Infbox ACTION : Endif
+Case ACTION
+  When "APRES_CRE"    :   Gosub APRES_CRE
+  When "APRES_MOD"    :   Gosub APRES_MOD
+  When "ANNULE"       :   Gosub ANNULE
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+$APRES_CRE
+  If !func COMPROBAR_CONTENEDORES([M:PTH0]PTHNUM)
+  Else
+  Endif
+Return
+#---------------------------------------------------------------------------------------------------#
+$APRES_MOD
+  If !func COMPROBAR_CONTENEDORES([M:PTH0]PTHNUM)
+  Else
+  Endif
+Return
+#---------------------------------------------------------------------------------------------------#
+$ANNULE
+  #Aquí todavía está la RECEPCIÓN en base de datos, justo antes del COMMIT
+  #If !clalev([YDCTR]) : Local File YVCTR [YDCTR] : Endif
+  If dim([M:PTH0]PTHNUM) > 0
+    If func DESMARCAR_CONTENEDORES([M:PTH0]PTHNUM) = 0
+#      Infbox "CONTENEDORES DESMARCADOS"
+    Else
+#      Infbox "NO SE HAN PODIDO DESMARCAR LOS CONTENEDORES"
+    Endif
+  Endif
+Return
+#---------------------------------------------------------------------------------------------------#
+#                                           SUBPROGS                                                #
+#---------------------------------------------------------------------------------------------------#
+Funprog COMPROBAR_CONTENEDORES(YPTHNUM)
+Value Char YPTHNUM
+Local Integer I_RES : I_RES = 0
+
+If !clalev([YCRT]) : Local File YVCTR [YCRT] : Endif
+Filter [YCRT] Where [YCRT]PTHNUM = YPTHNUM
+For [YCRT]
+  If !func SPESHIP.MARCAR_CONTENEDOR([YCRT]CTRNUM, 3)
+#    Infbox "Contenedor NO marcado"
+  Else
+#     Infbox "Contenedor marcado"
+  Endif
+Next
+
+End I_RES
+#---------------------------------------------------------------------------------------------------#
+Funprog DESMARCAR_CONTENEDORES(YPTHNUM)
+Value Char YPTHNUM
+Local Integer I_RES : I_RES = 0
+
+If !clalev([YCRT]) : Local File YVCTR [YCRT] : Endif
+Filter [YCRT] Where [YCRT]PTHNUM = YPTHNUM
+For [YCRT]
+  If !func SPESHIP.MARCAR_CONTENEDOR([YCRT]CTRNUM, 2)
+#    Infbox "Contenedor NO marcado"
+  Else
+#     Infbox "Contenedor marcado"
+  Endif
+Next
+
+End I_RES

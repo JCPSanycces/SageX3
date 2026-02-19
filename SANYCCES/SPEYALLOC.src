@@ -1,0 +1,70 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+#Infbox ACTION
+Case ACTION
+When "OK": Gosub OK
+Endcase
+Return
+
+$OK
+If !GSERVEUR : Call OUVRE_TRACE("Borrado DEBUG ASIGNACIONES") From LECFIC : Endif
+Local File STOPRED [YPRE]
+Local File STOPREH [YPRH]
+Local Char L_SQL (255)
+If [M:YALLOC]LINFLG = 2
+Gosub BORROLINEA
+Else
+Gosub BORROVALE
+Endif
+
+Close File [YPRE]
+Close File [YPRH]
+If !GSERVEUR : Call FERME_TRACE() From LECFIC : Endif
+Call LEC_TRACE From LECFIC
+Return
+
+
+$BORROLINEA
+
+
+Read [YPRE]PRE0=[M:YALLOC]VALE;[M:YALLOC]LINEA
+If !fstat
+[YPRE]ALLQTY =0
+Rewrite [YPRE]
+Call ECR_TRACE ("Cantidad Asignada = 0 en el VALE "+[M:YALLOC]VALE +" Linea " + num$([M:YALLOC]LINEA) + " Articulo "+[YPRE]ITMREF,0) From GESECRAN
+Call ECR_TRACE ("Ejecuto borrado por tabla",0) From GESECRAN
+L_SQL = "DELETE FROM "+nomap+".STOALL  WHERE VCRNUM_0='"+[M:YALLOC]VALE+"' and VCRLIN_0="+num$([M:YALLOC]LINEA)
+Execsql From "5" Sql L_SQL
+Call ECR_TRACE ("Sentencia ejecutandose " +L_SQL,0) From GESECRAN
+Call ECR_TRACE ("Borrado ejecutado, recuerde sincronizar stocks",0) From GESECRAN
+Else
+Errbox "Ese vale con esa linea no existe"
+mkstat = 2
+Endif
+
+
+Return
+
+$BORROVALE
+
+Read [YPRH]PRH0=[M:YALLOC]VALE
+If !fstat
+  Filter [YPRE] Where PRHNUM = [M:YALLOC]VALE
+  For [YPRE]
+  [YPRE]ALLQTY =0
+  Rewrite [YPRE]
+  Call ECR_TRACE ("Cantidad Asignada = 0 en el VALE "+[YPRE]PRHNUM +" Linea " + num$([YPRE]PRELIN) + " Articulo "+[YPRE]ITMREF,0) From GESECRAN
+
+  Next
+  Call ECR_TRACE ("Ejecuto borrado por tabla",0) From GESECRAN
+  L_SQL = "DELETE FROM "+nomap+".STOALL  WHERE VCRNUM_0="+"'"+[M:YALLOC]VALE+"'"
+  Call ECR_TRACE ("Sentencia ejecutandose " +L_SQL,0) From GESECRAN
+  Execsql From "5" Sql L_SQL
+  Call ECR_TRACE ("Borrado ejecutado, recuerde sincronizar stocks",0) From GESECRAN
+  Filter [YPRE]
+Else
+Errbox "Ese vale no existe"
+mkstat = 2
+Endif
+
+Return

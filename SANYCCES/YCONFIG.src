@@ -1,0 +1,33 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#------------------------------------------------------------------------------
+# Descripción     : Script para gestionar controles y ajustes del CONFIGURADOR
+#                   de pedidos y presupuestos de venta.
+# Autor           : [NUNSYS]
+# Fecha           : 23/04/2025
+# Modificaciones  :
+#   - 23/04/2025 - NUN14 - Inicio desarrollo
+#------------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------------
+# Función que comprueba si un artículo tiene activo un control específico del CONFIGURADOR
+# en función de su categoría (TCLCOD) y el centro/almacén indicado (PS_STOFCY).
+# Devuelve el valor del campo YCONFIG (0 por defecto si no encuentra coincidencia).
+Funprog CHECK_CONFIG(PS_ITMREF)
+  Value Char PS_ITMREF
+
+  Local Integer CHECK : CHECK = 0
+
+  If !clalev([F:YITM])    : Local File ITMMASTER    [F:YITM]   : Endif
+  If !clalev([F:YITG])    : Local File ITMCATEG     [F:YITG]   : Endif
+
+  Read [F:YITM]ITM0 = PS_ITMREF
+  If !fstat
+    Read [F:YITG]ITG0 =  '';[F:YITM]TCLCOD
+    If !fstat
+      [L]CHECK = [F:YITG]YCONFIG
+    Endif
+  Endif
+
+End [L]CHECK
+#------------------------------------------------------------------------------

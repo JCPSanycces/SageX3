@@ -1,0 +1,148 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "DEBUT"     :  Gosub DEBUT
+  When "AVANT_OK"  :  Gosub AVANT_OK
+  When "OK"        :  Gosub OK
+Endcase
+Return
+
+####################################
+$DEBUT
+# Cargo la pantalla
+Raz [M:YSPK3]
+
+If !clalev([SK1])  : Local File YSPACKD    [SK1]  : Endif
+If !clalev([SK2])  : Local File STOPRED    [SK2]  : Endif
+If !clalev([SK3])  : Local File SORDER     [SK3]  : Endif
+
+Local Decimal QTY_YA_PRE
+Local Decimal QTY_PDTE
+
+nolign = 1
+Filter [SK2] Where [SK2]PRHNUM = GL1LLE(0)
+For [SK2]
+  QTY_YA_PRE = 0
+  QTY_PDTE   = 0
+  # Cantidad pendiente de preparar = cantidad a preparar - cantidad en YSPACKD (ya preparada)
+  Filter [SK1] Where [SK1]VCRNUM = [SK2]PRHNUM and [SK1]VCRLIN = [SK2]PRELIN
+    For [SK1]
+      QTY_YA_PRE += [SK1]QTYPCU
+    Next
+  Filter [SK1]
+  QTY_PDTE = [SK2]QTYSTU - QTY_YA_PRE
+  [M:YSPK3]S_QTY(nolign-1) = QTY_PDTE
+  ##
+
+  # Solo cargo línea si hay cantidad pendiente de preparar
+  If QTY_PDTE > 0
+    [M:YSPK3]S_PEDIDO(nolign-1) = [SK2]ORINUM
+    # Referencia del pedido
+    If [SK3]CUSORDREF <> ""
+      [M:YSPK3]S_REFERENCIA(nolign-1) = [SK3]CUSORDREF
+    Else
+      [M:YSPK3]S_REFERENCIA(nolign-1) = "S/R"
+    Endif
+    ##
+    [M:YSPK3]S_ARTICULO(nolign-1)  = [SK2]ITMREF
+    Call LECTEXTRA([M:YSPK3]S_ARTICULOD(nolign-1),"ITMMASTER","DES1AXX",[SK2]ITMREF,"") From ATEXTRA
+    [M:YSPK3]S_LINEAPRE(nolign-1)  = [SK2]PRELIN
+    [M:YSPK3]S_PEDIDOSEQ(nolign-1) = [SK2]ORISEQ
+
+    nolign +=1
+  Endif
+Next
+Filter [SK2]
+
+[M:YSPK3]PIE_S = nolign-1
+
+Affzo [M:YSPK3]
+
+If [M:YSPK3]PIE_S = 0 : Errbox "No hay contenido para añadir" : FIN=1 : Endif
+
+Close Local File [SK1]
+Close Local File [SK2]
+Close Local File [SK3]
+Return
+
+
+####################################
+$AVANT_OK
+# Controlo que haya al menos una línea seleccionada
+Local Integer HAY_SEL
+For LINE = 0 To [M:YSPK3]PIE_S-1
+  If [M:YSPK3]S_SEL(LINE) = 2
+    [L]HAY_SEL = 2
+    Break
+  Endif
+Next
+
+If [L]HAY_SEL <> 2
+  Errbox "Seleccione al menos una línea para añadir contenido"
+  FOK = 0
+  FIN = 0
+Endif
+Return
+
+
+####################################
+$OK
+# Añado contenido
+If !clalev([SK1])  : Local File YSPACKD    [SK1]  : Endif
+
+For LINE = 0 To [M:YSPK3]PIE_S-1
+  If [M:YSPK3]S_SEL(LINE) = 2
+    # 1 - Escribo en tabla
+    Local Integer S_PSEK
+    Filter [SK1] Where [SK1]VCRNUM = GL1LLE(0) and [SK1]PACNUM = GL1LLE(1) Order By [SK1]PACIND Desc
+    For [SK1]
+      S_PSEK = max(S_PSEK,[SK1]PACIND)+1
+    Next
+    Filter [SK1]
+    If [L]S_PSEK = 0 : [L]S_PSEK = 1 : Endif
+
+    Raz [SK1]
+    [SK1]STOFCY   =   "11"
+    [SK1]CPY      =   "1"
+    [SK1]VCRTYP   =   3
+    [SK1]VCRNUM   =   GL1LLE(0)
+    [SK1]VCRLIN   =   [M:YSPK3]S_LINEAPRE(LINE)
+    [SK1]VCRSEQ   =   [M:YSPK3]S_PEDIDOSEQ(LINE)
+    [SK1]PACSEQ   =   1
+    [SK1]PACNUM   =   GL1LLE(1)
+    [SK1]PACIND   =   S_PSEK
+    [SK1]ITMREF   =   [M:YSPK3]S_ARTICULO(LINE)
+    [SK1]ITMDES1  =   [M:YSPK3]S_ARTICULOD(LINE)
+    [SK1]QTYPCU   =   [M:YSPK3]S_QTY(LINE)
+    Trbegin [SK1]
+      Write [SK1]
+    Commit
+    If fstat = 0
+      [M:YSPK2]PEDIDO([M:YSPK2]NBLIG2)     = [M:YSPK3]S_PEDIDO(LINE)
+      [M:YSPK2]REFERENCIA([M:YSPK2]NBLIG2) = [M:YSPK3]S_REFERENCIA(LINE)
+      [M:YSPK2]ITMREF([M:YSPK2]NBLIG2)     = [M:YSPK3]S_ARTICULO(LINE)
+      [M:YSPK2]ITMDES1([M:YSPK2]NBLIG2)    = [M:YSPK3]S_ARTICULOD(LINE)
+      [M:YSPK2]PACNUM([M:YSPK2]NBLIG2)     = GL1LLE(1)
+      [M:YSPK2]PACIND([M:YSPK2]NBLIG2)     = S_PSEK
+      [M:YSPK2]PACSEQ([M:YSPK2]NBLIG2)     = 1
+      [M:YSPK2]VCRLIN([M:YSPK2]NBLIG2)     = [M:YSPK3]S_LINEAPRE(LINE)
+      [M:YSPK2]VCRSEQ([M:YSPK2]NBLIG2)     = [M:YSPK3]S_PEDIDOSEQ(LINE)
+      [M:YSPK2]QTY([M:YSPK2]NBLIG2)        = [M:YSPK3]S_QTY(LINE)
+
+      Chgstl [M:YSPK2]PEDIDO([M:YSPK2]NBLIG2)     With "MTC2"
+      Chgstl [M:YSPK2]REFERENCIA([M:YSPK2]NBLIG2) With "MTC2"
+      Chgstl [M:YSPK2]ITMREF([M:YSPK2]NBLIG2)     With "MTC2"
+      Chgstl [M:YSPK2]ITMDES1([M:YSPK2]NBLIG2)    With "MTC2"
+      Chgstl [M:YSPK2]PACNUM([M:YSPK2]NBLIG2)     With "MTC2"
+      Chgstl [M:YSPK2]QTY([M:YSPK2]NBLIG2)        With "MTC2"
+
+      [M:YSPK2]NBLIG2 += 1
+      Affzo [M:YSPK2]
+    Else
+      Errbox "Problemas al añadir el contenido en el bulto"
+    Endif
+  Endif
+Next
+
+Close Local File [SK1]
+Return

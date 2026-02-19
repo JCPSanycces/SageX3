@@ -1,0 +1,237 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# @001@ - EQM - 10/09/2024 - Añadimos campos específicos
+# @002@ - RAP - 13/09/2024 - Añadimos funcionalidad del filtro cantidades asignadas
+# @003@ - JLP - 30/09/2024 - Incidencia en el campo Situación PRE - Picking
+# @004@ - JMF - 27/01/2026 - Inicializar servicio y términos servicio
+# @005@ - JLP - 12/02/2026 - Añadir condiciones de agrupacion DPR, y arrastrar termino y servicio del PDV
+$ACTION
+
+Case ACTION
+  When "ALIM_WDATA2"    :   Gosub ALIM_WDATA2
+  When "CRIT_SOQ"       :   Gosub CRIT_SOQ
+  When "ALI-PREP-SOQ"   :   Gosub ALIPREPSOQ
+  When "ORD_PREP"       :   Gosub ORD_PREP
+  When "BEFWRIPRH"      :   Gosub BEFWRIPRH
+Endcase
+Return
+
+###################################################
+$ALIM_WDATA2
+# Tengo en cuenta estos tres valores para agrupar o no docs de preparación
+[F:PRW]WDATA2 += toupper(vireblc([F:SOH]YCONTACTO,4))
+[F:PRW]WDATA2 += toupper(vireblc(num$([F:SOH]YPARTICULAR),4))
+[F:PRW]WDATA2 += toupper(vireblc(num$([F:SOH]YPLATAFORMA),4))
+# @005@ - JLP - 12/02/2026 - Añadir condiciones de agrupacion DPR, y arrastrar termino y servicio del PDV - INI
+[F:PRW]WDATA2 += toupper(vireblc(num$([F:SOH]YSERVDEF),4))
+[F:PRW]WDATA2 += toupper(vireblc(num$([F:SOH]YTERMDEF),4))
+# @005@ - JLP - 12/02/2026 - Añadir condiciones de agrupacion DPR, y arrastrar termino y servicio del PDV - FIN
+
+Local Integer ES_DACHSER
+Call CHK_DACHSER([F:PRW]ORI1,ES_DACHSER)
+[F:PRW]YDACESTADO = ES_DACHSER
+
+Return
+
+
+###################################################
+$CRIT_SOQ
+# Descarto los pedidos que estén bloqueados o tengan el crédito excedido
+CRITSOQ += "[F:SOH]HLDSTA<2"  # No bloqueado
+CRITSOQ += " & [F:SOH]CDTSTA<2"  # Estado de crédido OK
+# @002@ - RAP - 13/09/2024 -
+If [M:PREP]ALLFLG = 2
+CRITSOQ += " & [F:SOQ]ALLQTY<>0"
+Endif
+# @002@ - RAP - 13/09/2024 -
+
+###################################################
+$ALIPREPSOQ
+# Alimento los campos específicos en el resultado de la búsqueda (bloque stock a preparar)
+If clalev([F:X1]) = 0 : Local File SORDER       [X1] : Endif
+If clalev([F:X2]) = 0 : Local File SORDERQ      [X2] : Endif
+If clalev([F:X3]) = 0 : Local File MFGHEAD      [X3] : Endif # @001@ - EQM
+If clalev([F:X4]) = 0 : Local File YITMTECNICO  [X4] : Endif # @001@ - EQM
+
+Read [X1]SOH0 = [M:PREP]ORINUM(NOL)
+If fstat = 0
+  [M:PREP]YCOMCARGA(NOL)   = [X1]YCOMCARGA
+  [M:PREP]YCOMPREPARA(NOL) = [X1]YCOMPREPARA
+Endif
+ # @001@ - EQM - INI
+Read [X4]YITT0=[M:PREP]ITMREF(NOL)
+If !fstat
+    [M:PREP]YARTPICK(NOL)=[X4]PREPICKING
+
+
+Endif
+ # @001@ - EQM - FIN
+Read [X2]SOQ0 = [M:PREP]ORINUM(NOL);[M:PREP]ORILIN(NOL);[M:PREP]ORISEQ(NOL)
+If fstat = 0
+  [M:PREP]ZASOCIADO(NOL) = [X2]ZASOCIADO
+  # @001@ - EQM - INI
+  [M:PREP]YFMI(NOL) = [X2]FMI
+  [M:PREP]YFMINUM(NOL) = [X2]FMINUM
+  If [X2]FMINUM<>''
+      Read [X3]MFG0 = [X2]FMINUM
+      If fstat = 0
+          [M:PREP]YSITUACIONOF(NOL) = [X3]MFGTRKFLG
+      Else
+          [M:PREP]YSITUACIONOF(NOL)=0
+      Endif
+  Endif
+  If [M:PREP]YARTPICK(NOL)=2
+      If [X2]ALLTYP=2
+          [M:PREP]YSITPPICK(NOL)=func ESTADO_PREPICKING([X2]SOHNUM,([X2]QTYSTU-[X2]ODLQTYSTU-[X2]DLVQTYSTU),[X2]SOPLIN,[X2]SOQSEQ)
+      Else
+#          [M:PREP]YSITPPICK(NOL)=0 # @003@ - JLP - 30/09/2024 - Incidencia en el campo Situación PRE - Picking
+          [M:PREP]YSITPPICK(NOL)=1 # @003@ - JLP - 30/09/2024 - Incidencia en el campo Situación PRE - Picking
+      Endif
+  Else
+      [M:PREP]YSITPPICK(NOL)=0
+  Endif
+Else
+  [M:PREP]YSITPPICK(NOL)=0
+Endif
+
+  # @001@ - EQM - FIN
+Close Local File [X1]
+Close Local File [X2]
+Close Local File [X3] # @001@ - EQM
+Close Local File [X4] # @001@ - EQM
+
+Return
+
+
+###################################################
+$ORD_PREP
+# Pinto la línea que sea Asociado
+
+
+#Sorta [M:PREP]NBLIG [M:PREP]NBLIG Order By [M:PREP]BPCORD(indice),[M:PREP]ORINUM(indice),[M:PREP]ORILIN(indice) Desc
+#
+#Affzo [M:PREP]40
+
+For LINE=0 To [M:PREP]NBLIG-1
+  If [M:PREP]ZASOCIADO(LINE) = 2
+    Chgstl NBLIG(LINE) With "MTC3"  # en azul
+  Else
+    Chgstl NBLIG(LINE) With ""
+  Endif
+Next
+
+Return
+
+# @004@ - JMF - 27/01/2026 - INI
+# @005@ - JLP - 12/02/2026 - Añadir condiciones de agrupacion DPR, y arrastrar termino y servicio del PDV - INI
+$BEFWRIPRH
+  If !clalev([YTRA]) : Local File YTRAN [YTRA]     : Endif
+  If !clalev([YSER]) : Local File YTRASERV [YSER]  : Endif
+  If !clalev([YTER]) : Local File YTERMSERV [YTER] : Endif
+
+#  Read [YTRA]YTRAN0 = [F:PRH]BPTNUM
+#  If !fstat
+#    If [YTRA]YSERVDEF <> ""
+#      Read [YSER]YTRAN0 = [F:PRH]BPTNUM;[YTRA]YSERVDEF
+#      If !fstat
+#        [F:PRH]YSERVICIO = [YTRA]YSERVDEF
+#        [F:PRH]YDESCSERV = [YSER]YDESCSERV
+#      Endif
+#    Endif
+#    If [YTRA]YTERMDEF <> ""
+#      Read [YTER]YTERSV0 = [F:PRH]BPTNUM;[YTRA]YTERMDEF
+#      If !fstat
+#        [F:PRH]YTERMSRV = [YTRA]YTERMDEF
+#        [F:PRH]YDESTERM = [YTER]YDESTERM
+#      Endif
+#    Endif
+#  Endif
+
+    If !clalev([YSOH1]) : Local File SORDER [YSOH1] : Endif
+    If !clalev([YSTD2]) : Local File STOPRED [YSTD2] : Endif
+
+    Read [YSTD2]PRE0 = [F:PRH]PRHNUM;1
+      If !fstat
+        Read [YSOH1]SOH0 = [YSTD2]ORINUM
+          If !fstat
+            Read [YSER]YTRAN0 = [YSOH1]BPTNUM;[YSOH1]YSERVDEF
+              If !fstat
+                [F:PRH]YSERVICIO = [YSOH1]YSERVDEF
+                [F:PRH]YDESCSERV = [YSER]YDESCSERV
+              Endif
+
+            Read [YTER]YTERSV0 = [YSOH1]BPTNUM;[YSOH1]YTERMDEF
+              If !fstat
+                [F:PRH]YTERMSRV = [YSOH1]YTERMDEF
+                [F:PRH]YDESTERM = [YTER]YDESTERM
+              Endif
+          Endif
+      Endif
+  Close Local File [YTRA],[YSER],[YTER],[YSOH1]
+
+Return
+# @005@ - JLP - 12/02/2026 - Añadir condiciones de agrupacion DPR, y arrastrar termino y servicio del PDV - FIN
+# @004@ - JMF - 27/01/2026 - FIN
+
+##############################################
+Subprog CHK_DACHSER(LSOH,LDAC)
+Value Char LSOH
+Variable Integer LDAC
+
+LDAC = 1
+
+If !clalev([Q02]) : Local File SORDER  [Q02] : Endif
+
+Read [Q02]SOH0 = LSOH
+If fstat = 0 and [Q02]BPTNUM = "NA000018"
+  LDAC = 2
+Endif
+
+Close Local File [Q02]
+
+End
+##############################################
+ # @001@ - EQM
+Funprog ESTADO_PREPICKING(YSOH,YQTY,YLIN,YSEQ)
+
+Value Char YSOH
+Value Decimal YQTY
+Value Integer YLIN
+Value Integer YSEQ
+Local Integer YSTA  : YSTA  = 0
+Local Decimal YQTY2 : YQTY2 = 0
+Local Integer YCONT : YCONT = 2
+Local Integer YOK   : YOK = 0
+
+If clalev([F:X5]) = 0 : Local File STOALL  [X5] : Endif # @001@ - EQM
+If clalev([F:X6]) = 0 : Local File STOCK   [X6] : Endif # @001@ - EQM
+
+Filter [X5] Where [X5]VCRTYP=2 and [X5]VCRNUM=YSOH and [X5]VCRLIN=YLIN and [X5]VCRSEQ= YSEQ   #Buscamos registro en STOALL
+For[X5]
+  Read[X5]
+  YOK=2
+  If !fstat
+      YQTY2=YQTY2+[X5]QTYSTU                  #Sumamos cantidades asignadas
+      Read [X6]STO0=[M:PREP]STOFCY;[X5]STOCOU #Buscamos registro en STOCK
+      If !fstat
+          If  [X6]LPNNUM=''                   #Comprobamos si tiene contenedor
+              YCONT=1
+          Endif
+      Endif
+  Endif
+
+Next
+Filter [X5]
+
+  If YCONT=2 and (YQTY2-YQTY=0) and YOK=2                  #Toda la cantidad asignada y con contenedor  COMPLETO
+      YSTA=3
+  Elsif ((YQTY2-YQTY<>0) or YCONT=1) and YOK=2             #Alguna cantidad asignada y con contenedor  PARCIAL
+      YSTA=2
+  Else
+      YSTA=1                                               #Toda la cantidad pendiente de asignar PENDIENTE
+  Endif
+
+Close Local File [X5] # @001@ - EQM
+Close Local File [X6] # @001@ - EQM
+
+End YSTA
+##############################################

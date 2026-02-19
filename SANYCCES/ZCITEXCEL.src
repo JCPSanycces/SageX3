@@ -1,0 +1,106 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char WZCITANUM
+WZCITANUM = "1"
+Call ZCITEXCEL(WZCITANUM) From ZCITEXCEL
+End
+
+Subprog ZCITEXCEL(WZCITANUM)
+  #--
+  Value    Char    WZCITANUM()
+  #--
+  Gosub OUVRE
+  Gosub DEFINE_FIC
+  Gosub CARGAR_MATRIZ_BULTOS
+  Gosub ECR_EXCEL_CAB
+  Gosub TRT_LECTURA
+    #--
+  Openo Using[ZCRE]
+End
+
+#------------------------------------------------------------------------------------
+$OUVRE
+  #--
+  Local Char WDESAXX(GLONDES)
+  Local Char MATRIZ_BULTOS(GLONDES)(1..20)
+  Local Integer WC
+  #--
+  If !clalev([F:ZZCITL]) : Local File ZCITASTL       [ZZCITL]: Endif
+  If !clalev([F:ZSPD])   : Local File SPACKD         [ZSPD]  : Endif
+  If !clalev([F:ZSDD])   : Local File SDELIVERYD     [ZSDD]  : Endif
+  If !clalev([F:ZSOQ])   : Local File SORDERQ        [ZSOQ]  : Endif
+  If !clalev([F:ZSOH])   : Local File SORDER         [ZSOH]  : Endif
+  If !clalev([F:ZTPA])   : Local File TABPACKAGE     [ZTPA]  : Endif
+Return
+
+#------------------------------------------------------------------------------------
+$DEFINE_FIC
+    #-- variables de fichero, inicializacion
+    adxifs = ";"                     #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+    #--
+    C_CARPETA = "BQE"
+    #--
+    C_NOMFIC  = "_"+WZCITANUM+"_"+num$(adxuid(1))+num$(time)
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+    Openo C_FICHERO,0 Using[ZCRE]
+Return
+
+#------------------------------------------------------------------------------------
+$CARGAR_MATRIZ_BULTOS
+  #--
+  MATRIZ_BULTOS(1)          = "PEDIDO"
+  MATRIZ_BULTOS(2)          = "PESO"
+  WC = 3
+  For [F:ZTPA] Where ZEMBLM <> ""
+      Raz WDESAXX
+      Call LECTEXTRA(WDESAXX,"TABPACKAGE","DESAXX",[F:ZTPA]PCK,"") From ATEXTRA
+      MATRIZ_BULTOS(WC)          = [F:ZTPA]PCK+"("+WDESAXX+")"
+      WC += 1
+  Next
+Return
+
+$ECR_EXCEL_CAB
+  #--
+  For I = 1 To 20 : Wrseq MATRIZ_BULTOS(I); Using [ZCRE] : Next
+  Wrseq ""                                  Using [ZCRE] #--
+Return
+
+#------------------------------------------------------------------------------------
+$TRT_LECTURA
+  #--
+  Filter [F:ZZCITL] Where ZCITANUM = WZCITANUM
+  For [F:ZZCITL]
+    Read
+  Next
+  Filter [F:ZZCITL]
+
+
+
+
+Return
+
+  Filter [F:ZZCITL] Where ZCITANUM = WZCITANUM
+  For [F:ZZCITL]
+    Filter [F:ZSPD] Where PACNUM = [F:ZZCITL]PACNUM
+    For [F:ZSPD]
+      Read [F:ZSDD]SDD0 = [F:ZSPD]VCRNUM;[F:ZSPD]VCRLIN
+      If !fstat
+        Read [F:ZSOQ]SOQ0 = [F:ZSDD]SOHNUM;[F:ZSDD]SOPLIN;[F:ZSDD]SOPLIN
+        If !fstat
+          Read [F:ZSOH]SOH0 = [F:ZSOQ]SOHNUM
+          Gosub ECR_EXCEL_LIN
+        Endif
+      Endif
+    Next
+    Filter [F:ZSPD]
+  Next
+  Filter [F:ZZCITL]
+Return
+
+#------------------------------------------------------------------------------------
+$ECR_EXCEL_LIN
+  #--
+  Wrseq [F:ZSOH]CUSORDREF;                        Using [ZCRE] #--
+  Wrseq [F:ZSOH]DSPTOTWEI;                        Using [ZCRE] #--
+Return

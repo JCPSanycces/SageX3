@@ -1,0 +1,26 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#**
+#* Función que nos devuelve el correo del tercero.
+#* Se usa en el wf de envío de pedidos de compra.
+#*
+#* @param PBPR
+#* @param PDIR
+#* @param PINDMAIL
+#*!
+Funprog GET_MAILBPA(PBPR, PDIR,  PINDMAIL)
+  Value Char PBPR, PDIR
+  Value Integer PINDMAIL
+  Local Char LRES(50)
+
+  Local File BPADDRESS [YBPA]
+
+  Read [F:YBPA]BPA0=1;PBPR;PDIR
+  If !fstat Then
+    LRES = [F:YBPA]WEB(PINDMAIL)
+  Else
+    LRES = ''
+  Endif
+
+  Close Local File [YBPA]
+
+End LRES

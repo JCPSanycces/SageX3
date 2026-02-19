@@ -1,0 +1,1650 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+# @01@ - EQM - 05/09/2024 - Mostramos ZANCHO,ZALTO,ZLARGO del pedido de venta
+# @02@ - EQM - 05/09/2024 - Ocultamos opciones en menú situación
+# @03@ - EQM - 11/09/2024 - Añado acceso botón ped. venta
+# @04@ - EQM - 11/09/2024 - Añadimos filtro fecha entrega ini y fin
+# @05@ - EQM - 11/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
+# @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+$ACTION
+Case ACTION
+  When "DEBUT"      :  Gosub DEBUT
+  When "BOUTON"     :  Gosub BOUTON
+  When "SEL_TABLE"  :  Gosub SEL_TABLE
+Endcase
+Return
+
+
+##############################################
+$DEBUT
+# Limpio la pantalla
+Raz [M:YPSA]
+[M:YPSA]PIE = 0
+Affzo [M:YPSA]
+Return
+
+
+######################################################
+$SEL_TABLE
+  Case COUZON
+    When "CLIPAG": Gosub S_CLIPAG
+  Endcase
+Return
+
+
+######################################################
+$S_CLIPAG
+# Selección de clientes pagadores
+If !clalev([F:YPA]) Then: Local File YCLIPA     [YPA] : Endif
+
+TIT(0) = "Selección de clientes pagadores"
+
+ORDRE = "CODIGO"
+START = "CODIGO"
+SENS  = 1
+DEFPAGE = 5
+
+SIZCOL = 600
+SIZLIG = 150
+
+Default File [YPA]
+
+CRITERE = "1=1"
+GSELFAC = 1
+NBCOL = 0
+NBCOL +=1 : COL(NBCOL) = "[YPA]CODIGO" : TIT(NBCOL) = "Cliente"
+NBCOL +=1 : COL(NBCOL) = "[YPA]RAZON"  : TIT(NBCOL) = "Razón social"
+
+Return
+
+
+##############################################
+$BOUTON
+Case BOUT
+  When "Z"  :   Gosub BUSCAR
+  When "Y"  :   Gosub SEL
+  When "X"  :   Gosub DESSEL
+  When "V"  :   Gosub FECHA
+  When "U"  :   Gosub INICIAR
+  When "W"  :   Gosub ALTA
+  When "T"  :   Gosub IMPRIMIR
+  When "S"  :   Gosub DESHACER
+Endcase
+Return
+
+
+##############################################
+$IMPRIMIR
+Local Integer HAY
+# Impresión de varias OFs
+For I=0 To [M:YPSA]PIE-1
+  If [M:YPSA]SEL(I) = 2
+    HAY = 2
+    Break
+  Endif
+Next
+
+# Sigo si paso el control
+If HAY = 2
+  For I=0 To [M:YPSA]PIE-1
+    If [M:YPSA]SEL(I) = 2
+        #Infbox("linea:" - num$(I))
+        Call MNG_PRINT(2,[M:YPSA]PLANTA,[M:YPSA]OF(I),[M:YPSA]YLINEA(I),[M:YPSA]FECHA(I),[M:YPSA]ARTICULO(I) )
+    Endif
+  Next
+Else
+  Errbox "Seleccione primero al menos una OF"
+Endif
+
+Return
+
+
+##############################################
+$BUSCAR
+# Limpio el bloque de líneas
+Gosub LIMPIO_LINEAS
+
+# Apertura de tablas
+If !clalev([PP1]) : Local File MFGHEAD    [PP1] : Endif
+If !clalev([PP2]) : Local File MFGITM     [PP2] : Endif
+If !clalev([PP3]) : Local File SORDERQ    [PP3] : Endif
+If !clalev([PP4]) : Local File BPCUSTOMER [PP4] : Endif
+If !clalev([PP5]) : Local File ITMMASTER  [PP5] : Endif
+If !clalev([PP6]) : Local File AOBJTXT    [PP6] : Endif
+If !clalev([PP8]) : Local File BPARTNER   [PP8] : Endif
+If !clalev([PP9]) : Local File YMFGSERIE  [PP9] : Endif
+If !clalev([PP10]) : Local File SORDERQ   [PP10] : Endif
+
+# Defino variables
+Local Integer TOPE
+Local Char CRITERIO1(250) : CRITERIO1 = "1=1"
+Local Char CRITERIO2(250)
+#Local Char CRITERIO3(250) : CRITERIO3 = "1=1" # @04@ - EQM
+Local Integer SIGO
+Local Integer ASIGNA_LINEA
+
+# Compongo los criterios
+If [M:YPSA]PLANTA <> ""
+  CRITERIO1 += " & [PP1]MFGFCY=[M:YPSA]PLANTA"
+Endif
+If [M:YPSA]FECHAINI <> "000000"
+  CRITERIO1 += " & [PP1]STRDAT>=[M:YPSA]FECHAINI"
+Endif
+If [M:YPSA]FECHAFIN <> "000000"
+  CRITERIO1 += " & [PP1]STRDAT<=[M:YPSA]FECHAFIN"
+Endif
+#If [M:YPSA]APLICA1 = 2
+#  CRITERIO1 += " & [PP1]ALLSTA=[M:YPSA]ASIGNACION"
+#Endif
+If [M:YPSA]APLICA2 = 2
+  CRITERIO1 += " & [PP1]SCDFLG=[M:YPSA]ESCALONA"
+Endif
+
+If [M:YPSA]APLICA3 = 2
+   CRITERIO1 += " & [PP1]MFGTRKFLG=[M:YPSA]SITUACION"
+Endif
+If [M:YPSA]FMODIFICADA = 2
+  CRITERIO1 += " & [PP1]YMFECHA=2"
+Endif
+If [M:YPSA]FNMODIFICADA = 2
+  CRITERIO1 += " & [PP1]YMFECHA<>2"
+Endif
+If [M:YPSA]ORDEN <> ""
+  CRITERIO1 += " & [PP1]MFGNUM=[M:YPSA]ORDEN"
+Endif
+
+# Criterios fijos
+CRITERIO2 += " ([PP1]MFGSTA=1 or [PP1]MFGSTA=4)"        # Solamente muestro órdenes en firme
+If [M:YPSA]APLICA3 <> 2
+  CRITERIO2 += " & [PP1]MFGTRKFLG<6"  # Solamente muestro órdenes que no estén con Precio Coste Calculado
+Endif
+# @04@ - EQM -INI
+#If [M:YPSA]FENTINI <> '000000'
+#    CRITERIO3 += " & [PP2]DEMDLVDAT>=[M:YPSA]FENTINI"
+#Endif
+#If [M:YPSA]FENTFIN <> '000000'
+#    CRITERIO3 += " & [PP2]DEMDLVDAT<=[M:YPSA]FENTFIN"
+#Endif
+# @04@ - EQM - FIN
+
+# Busco resultados (límite 2000 líneas)
+nolign = 1
+Filter [PP1] Where evalue(CRITERIO1) and evalue(CRITERIO2) Order By [PP1]MFGNUM Asc
+For [PP1]
+  For [PP2] Where [PP2]MFGNUM = [PP1]MFGNUM and [PP2]ITMTYP = 1       # Solamente saco las líneas de tipo "producto"; no muestro el tipo "subproducto"
+    SIGO = 2
+    # Compruebo la Familia Superior del artículo lanzado en la OF
+    If [M:YPSA]FAM01 <> ""
+      If [M:YPSA]FAM01 <> [F:PP2]TSICOD(0)
+        SIGO = 1
+      Endif
+    Endif
+
+    # Compruebo la Familia del artículo lanzado en la OF
+    If SIGO = 2
+      If [M:YPSA]FAM02 <> ""
+        If [M:YPSA]FAM02 <> [F:PP2]TSICOD(1)
+          SIGO = 1
+        Endif
+      Endif
+    Endif
+
+    # Criterio del artículo
+    If SIGO = 2
+      If [M:YPSA]ITEM <> ""
+        If [M:YPSA]ITEM <> [F:PP2]ITMREF
+          SIGO = 1
+        Endif
+      Endif
+    Endif
+
+    # Criterio del pedido
+    If SIGO = 2
+      If [M:YPSA]PV <> ""
+        If [M:YPSA]PV <> [F:PP2]VCRNUMORI
+          SIGO = 1
+        Endif
+      Endif
+    Endif
+    # Criterio de la fecha entrega
+    If SIGO = 2
+      If [M:YPSA]FENTINI <> '000000'
+          Read [PP10]SOQ0 = [PP2]VCRNUMORI;[PP2]VCRLINORI;[PP2]VCRSEQORI
+          If fstat = 0
+            If  [F:PP10]SHIDAT<[M:YPSA]FENTINI
+              SIGO = 1
+            Endif
+          Else
+              SIGO = 1
+          Endif
+      Endif
+    Endif
+    If SIGO = 2
+      If [M:YPSA]FENTFIN <> '000000'
+      Read [PP10]SOQ0 = [PP2]VCRNUMORI;[PP2]VCRLINORI;[PP2]VCRSEQORI
+          If fstat = 0
+            If  [F:PP10]SHIDAT>[M:YPSA]FENTFIN
+              SIGO = 1
+            Endif
+           Else
+               SIGO = 1
+           Endif
+      Endif
+    Endif
+
+    # Criterio del cliente pedido
+    If SIGO = 2
+      If [M:YPSA]CLIENT <> ""
+        If [M:YPSA]CLIENT <> [F:PP2]BPCNUM
+          SIGO = 1
+        Endif
+      Endif
+    Endif
+
+    # Criterio del cliente pagador
+    If SIGO = 2
+      If [M:YPSA]CLIENTPA <> ""
+        Read [PP4]BPC0 = [F:PP2]BPCNUM
+        If fstat = 0
+          If [M:YPSA]CLIENTPA <> [F:PP4]BPCPYR
+            SIGO = 1
+          Endif
+        Else
+          SIGO = 1
+        Endif
+      Endif
+    Endif
+
+   # Estado de asignación (voy a las líneas de materiales)
+    If SIGO = 2 and [M:YPSA]APLICA1 = 2
+      Local Integer STA_ASI_OF
+      STA_ASI_OF = func ASIGNA_OF([PP1]MFGNUM)
+      Case [L]STA_ASI_OF
+        When 1  # ninguna
+          If [M:YPSA]ASIGNACION = 1
+            SIGO = 2
+          Else
+            SIGO = 1
+          Endif
+        When 2  # parcial con ruptura (sea global o detallada)
+          If [M:YPSA]ASIGNACION = 5
+            SIGO = 2
+          Else
+            SIGO = 1
+          Endif
+        When 3  # asignación completa (sea global o detallada)
+          If [M:YPSA]ASIGNACION = 3
+            SIGO = 2
+          Else
+            SIGO = 1
+          Endif
+      Endcase
+    Endif
+
+    # Cargo líneas
+    If SIGO = 2
+      TOPE +=1
+      If TOPE < 2000
+        [M:YPSA]SEL(nolign-1)         = 1
+        [M:YPSA]OF(nolign-1)          = [PP1]MFGNUM
+        [M:YPSA]YMFECHA(nolign-1)     = [PP1]YMFECHA
+        [M:YPSA]ARTICULO(nolign-1)    = [PP2]ITMREF
+        Call LECTEXTRA([M:YPSA]ARTICULOD(nolign-1),"ITMMASTER","DES1AXX",[M:YPSA]ARTICULO(nolign-1),"") From ATEXTRA
+        Read [PP5]ITM0 = [PP2]ITMREF
+        If fstat = 0
+          [M:YPSA]LFAM01(nolign-1)      = [PP5]TSICOD(0)
+          [M:YPSA]LFAM02(nolign-1)      = [PP5]TSICOD(1)
+        Endif
+
+        [L]ASIGNA_LINEA = 0
+        [L]ASIGNA_LINEA = func ASIGNA_OF([PP1]MFGNUM)
+        Case [L]ASIGNA_LINEA
+          When 1,3 : [M:YPSA]LASIGNACION(nolign-1) = [L]ASIGNA_LINEA
+          When 2   : [M:YPSA]LASIGNACION(nolign-1) = 5
+        Endcase
+        [M:YPSA]FECHA(nolign-1)       = [PP1]STRDAT
+        [M:YPSA]LSITUACION(nolign-1)  = [PP1]MFGTRKFLG
+        [M:YPSA]CANTIDAD(nolign-1)    = [PP2]UOMEXTQTY
+        [M:YPSA]YUNIDAD(nolign-1)     = [PP2]UOM
+        [M:YPSA]YLINEA(nolign-1)      = [PP2]MFGLIN
+        [M:YPSA]LESCALONA(nolign-1)   = [PP1]SCDFLG
+        [M:YPSA]PEDIDO(nolign-1)      = [PP2]VCRNUMORI
+#        [M:YPSA]FECHAENTR(nolign-1)   = [PP2]DEMDLVDAT #lo sacamos ahora del PV [PP3]
+        #añado zlargozanchozalto
+        # @01@ - EQM -INI - Comento código anterior
+#        [M:YPSA]ZALTO(nolign-1)    = [PP2]ZALTO
+#        [M:YPSA]ZANCHO(nolign-1)   = [PP2]ZANCHO
+#        [M:YPSA]ZLARGO(nolign-1)   = [PP2]ZLARGO
+        # @01@ - EQM - FIN
+        [M:YPSA]YINICIADA(nolign-1)   = [PP1]YINICIADA
+        [M:YPSA]YALTA(nolign-1)       = [PP1]YALTA
+        [M:YPSA]CANTIDADI(nolign-1)   = [PP1]YQTYINICIADA
+        [M:YPSA]CANTIDADA(nolign-1)   = [PP1]YQTYALTA
+
+        Filter [PP6] Where [PP6]ABREV = 'SOH' and [PP6]IDENT1 = [PP2]VCRNUMORI and [PP6]MOTCLE(0) = 'PLANO' and [PP6]MOTCLE(1) = num$([PP2]VCRSEQORI)
+        For [PP6]
+          [M:YPSA]PLANO(nolign-1)   = 2
+          Break
+        Next
+        Filter [PP6]
+		If [M:YPSA]PLANO(nolign-1)   <> 2
+		  [M:YPSA]PLANO(nolign-1)   = 1
+		Endif
+        Read [PP3]SOQ0 = [PP2]VCRNUMORI;[PP2]VCRLINORI;[PP2]VCRSEQORI
+        If fstat = 0
+          [M:YPSA]FECHAPED(nolign-1)  = [PP3]ORDDAT
+          [M:YPSA]YRAL(nolign-1)      = [PP3]YRAL
+          # @01@ - EQM - INI
+          [M:YPSA]ZALTO(nolign-1)     = [PP3]ZALTO
+          [M:YPSA]ZANCHO(nolign-1)    = [PP3]ZANCHO
+          [M:YPSA]ZLARGO(nolign-1)    = [PP3]ZLARGO
+          [M:YPSA]ZLARGO(nolign-1)    = [PP3]ZLARGO
+          [M:YPSA]FECHAENTR(nolign-1) = [PP3]SHIDAT
+          # @01@ - EQM - FIN
+          Read [PP8]BPR0 = [PP3]BPCORD
+          If fstat = 0
+            [M:YPSA]RAZON(nolign-1)  = [PP8]BPRNAM(0) + [PP8]BPRNAM(1)
+          Endif
+        Else
+          #[M:YPSA]FECHAPED(nolign-1)  = "000000"
+          #[M:YPSA]RAZON(nolign-1)     = ""
+        Endif
+        nolign +=1
+      Else
+        Errbox "No se van a visualizar todas las OFs (límite 2.000)"
+        Break
+      Endif
+    Endif
+  Next
+Next
+Filter [PP1]
+
+# Visualizo pantalla
+[M:YPSA]PIE = nolign-1
+Affzo [M:YPSA]10
+
+
+# Cierro tablas
+Close Local File [PP1]
+Close Local File [PP2]
+Close Local File [PP3]
+Close Local File [PP4]
+Close Local File [PP5]
+Close Local File [PP6]
+Close Local File [PP8]
+Close Local File [PP9]
+Return
+
+
+
+##############################################
+$LIMPIO_LINEAS
+# Limpio el bloque de líneas
+Local Integer J
+For J=0 To [M:YPSA]PIE-1
+  [M:YPSA]SEL(J)         = 0
+  [M:YPSA]OF(J)          = ""
+  [M:YPSA]YMFECHA(J)     = 0
+  [M:YPSA]ARTICULO(J)    = ""
+  [M:YPSA]LFAM01(J)      = ""
+  [M:YPSA]LFAM02(J)      = ""
+  [M:YPSA]LASIGNACION(J) = 0
+  [M:YPSA]FECHA(J)       = "000000"
+  [M:YPSA]LSITUACION(J)  = 0
+  [M:YPSA]CANTIDAD(J)    = 0
+  [M:YPSA]LESCALONA(J)   = 0
+  [M:YPSA]PEDIDO(J)      = ""
+  [M:YPSA]FECHAENTR(J)   = "000000"
+  [M:YPSA]YINICIADA(J)   = 0
+  [M:YPSA]FECHAPED(J)    = "000000"
+  [M:YPSA]RAZON(J)       = ""
+  [M:YPSA]YALTA(J)       = 0
+  [M:YPSA]YRAL(J)        = ""
+  [M:YPSA]PLANO(J)       = 1
+  [M:YPSA]YUNIDAD(J)     = ""
+  [M:YPSA]YLINEA(J)      = 0
+  [M:YPSA]CANTIDADI(J)   = 0
+  [M:YPSA]CANTIDADA(J)   = 0
+Next
+
+[M:YPSA]PIE = 0
+Affzo [M:YPSA]10
+
+Return
+
+
+
+##############################################
+$SEL
+# Selecciono de golpe todas las líneas
+Local Integer LINE
+For LINE = 0 To [M:YPSA]PIE-1
+  [M:YPSA]SEL(LINE) = 2
+Next
+Affzo [M:YPSA]10
+Return
+
+
+##############################################
+$DESSEL
+# Deselecciono de golpe todas las líneas
+Local Integer LINE
+For LINE = 0 To [M:YPSA]PIE-1
+  [M:YPSA]SEL(LINE) = 1
+Next
+Affzo [M:YPSA]10
+
+Return
+
+
+##############################################
+$FECHA
+# Control de selección de al menos una línea
+Local Integer I, HAY
+For I=0 To [M:YPSA]PIE-1
+  If [M:YPSA]SEL(I) = 2
+    HAY = 2
+    Break
+  Endif
+Next
+
+# Sigo si paso el control
+If HAY = 2
+  Local Integer LINT
+  Global Char GL1LLE(250)(3)
+  Call SAISIE_LIB(LINT,GL1LLE,"YPRODFECHA","SPEYPRF","OBJZON") From GSAISIE
+  Gosub BUSCAR
+Else
+  Errbox "Seleccione primero al menos una OF"
+Endif
+Return
+
+
+##############################################
+$INICIAR
+# Control de selección de al menos una línea
+Local Integer I, HAY
+Local Integer LINICIADA : LINICIADA = 0
+Local Integer HAY_RUPTURA
+If !clalev([F:JJ1]): Local File MFGMAT [JJ1] : Endif
+If !clalev([F:JJ2]): Local File STOALL [JJ2] : Endif
+
+
+For I=0 To [M:YPSA]PIE-1
+  If [M:YPSA]SEL(I) = 2
+    HAY = 2
+    Break
+  Endif
+Next
+
+# Sigo si paso el control
+If HAY = 2
+  # Pregunto si imprimir la documentación de las OFs
+  Local Integer OK9
+  Call OUINON("¿Quiere imprimir la documentación de las OFs seleccionadas?",OK9) From GESECRAN
+  For I=0 To [M:YPSA]PIE-1
+    # Si la OF está ya iniciada, no puedo volver a Iniciar
+    If [M:YPSA]SEL(I) = 2 and [M:YPSA]YINICIADA(I) = 2
+      Errbox "La orden " +  [M:YPSA]OF(I) + " está ya iniciada, por lo que no se puede volver a Iniciar"
+    Else
+      If [M:YPSA]SEL(I) = 2 and [M:YPSA]YINICIADA(I) <> 2 Then
+        # Control en los inicios masivos. Si tengo un componente con ruptura, no inicio la orden
+        [L]HAY_RUPTURA = 0
+        Filter [JJ1] Where [JJ1]MFGNUM = [M:YPSA]OF(I) and ([JJ1]ALLSTA = 1 or [JJ1]ALLSTA = 2 or [JJ1]ALLSTA = 4) and [JJ1]MATSTA < 2
+        If rowcount ([JJ1]) > 0 : [L]HAY_RUPTURA = 2 : Endif
+        Filter [JJ1]
+
+        # Segundo control: busco que no haya ninguna ruptura en la tabla de asignaciones
+        If [L]HAY_RUPTURA = 0
+          Filter [JJ2] Where [JJ2]VCRNUM = [M:YPSA]OF(I) and [JJ2]VCRLIN = [M:YPSA]YLINEA(I)
+            For [JJ2]
+              If [JJ2]ALLTYP = 4 or [JJ2]ALLTYP = 5
+                [L]HAY_RUPTURA = 2
+                Break
+              Endif
+            Next
+          Filter [JJ2]
+        Endif
+
+        If [L]HAY_RUPTURA = 2
+          Errbox "La orden " + [M:YPSA]OF(I) + " no se puede iniciar porque tiene ruptura en algún componente"
+        Else
+          Call BAJA_CONSUMO(1,[M:YPSA]CANTIDAD(I),0,[M:YPSA]OF(I),[M:YPSA]YLINEA(I),[M:YPSA]PLANTA, [M:YPSA]ARTICULO(I), LINICIADA)
+          # Imprimo la documentación
+          If OK9 = 2
+            Call MNG_PRINT(2,[M:YPSA]PLANTA,[M:YPSA]OF(I),[M:YPSA]YLINEA(I),[M:YPSA]FECHA(I),[M:YPSA]ARTICULO(I))
+          Endif
+          # Marco la OF
+          If LINICIADA = 0 Then
+            [M:YPSA]YINICIADA(I) = 2
+          Endif
+        Endif
+      Endif
+    Endif
+  Next
+  Gosub BUSCAR
+Else
+  Errbox "Seleccione primero al menos una OF"
+Endif
+
+Close Local File [JJ1]
+Close Local File [JJ2]
+Return
+
+
+##############################################
+$ALTA
+# Control de selección de al menos una línea
+Local Integer I, HAY
+Local Integer LALTA : LALTA = 0
+
+For I=0 To [M:YPSA]PIE-1
+  If [M:YPSA]SEL(I) = 2
+    HAY = 2
+    Break
+  Endif
+Next
+
+# Sigo si paso el control
+If HAY = 2
+  If !clalev([J1]) : Local File YMFGSERIE  [J1] : Endif
+  For I=0 To [M:YPSA]PIE-1
+    # Si la OF está ya iniciada, no puedo volver a Iniciar
+    If [M:YPSA]SEL(I) = 2 and [M:YPSA]YALTA(I) = 2
+      Errbox "La orden " +  [M:YPSA]OF(I) + " ya ha sido dada de alta, por lo que no se puede volver a dar de Alta"
+    Else
+      If [M:YPSA]SEL(I) = 2 and [M:YPSA]YALTA(I) <> 2 Then
+        # Solamente se pueden dar de alta órdenes completamente iniciadas
+        If [M:YPSA]CANTIDADI(I) < [M:YPSA]CANTIDAD(I)
+          Errbox "La orden " +  [M:YPSA]OF(I) + " no se puede dar de Alta porque no se ha Iniciado completamente"
+        Else
+          # Si tiene números de serie, cargo vector
+          Global Char GNSERIE(25)(200)
+          Local Integer LSERIE
+          Filter [J1] Where [J1]MFGNUM = [M:YPSA]OF(I) and [J1]MFGLIN = [M:YPSA]YLINEA(I)
+            [L]LSERIE = rowcount([J1])
+          Filter [J1]
+
+          If [L]LSERIE > 0
+            Local Integer ICONT
+            Filter [J1] Where [J1]MFGNUM = [M:YPSA]OF(I) and [J1]MFGLIN = [M:YPSA]YLINEA(I)
+              For [J1]
+                GNSERIE(ICONT) = [J1]NSERIE
+                ICONT +=1
+              Next
+            Filter [J1]
+          Endif
+
+          Call ALTA_OF(1,[M:YPSA]CANTIDAD(I),[M:YPSA]OF(I),[M:YPSA]YLINEA(I),[M:YPSA]PLANTA, [M:YPSA]ARTICULO(I), LALTA)
+          If LALTA = 0 and [M:YPSA]CANTIDAD(I) = [M:YPSA]CANTIDADA(I) Then
+            [M:YPSA]YALTA(I) = 2
+          Endif
+        Endif
+      Endif
+    Endif
+  Next
+  Close Local File [J1]
+  Gosub BUSCAR
+Else
+  Errbox "Seleccione primero al menos una OF"
+Endif
+Return
+
+
+##############################################
+$DESHACER
+# Deshacer de forma masiva inicios / altas
+Local Integer LINT
+Global Char GL1LLE(250)(10)
+If !clalev([W1]) : Local File ITMMASTER  [W1] : Endif
+GL1LLE(0) = "1"  # Deshacer masivo
+
+Call SAISIE_LIB(LINT,GL1LLE,"YPRODSANYD","SPEYPSAD","OBJZON") From GSAISIE
+
+Gosub BUSCAR
+
+Return
+
+
+######################################################################################
+Subprog C_SEL(VALEUR)
+Variable Integer VALEUR
+# No permito seleccionar la línea si no hay Of o si ya se ha lanzado el consumo
+If ([M:YPSA]OF(nolign-1) = "") and VALEUR = 2
+  VALEUR = 1
+Endif
+End
+
+
+######################################################################################
+Subprog AV_SEL(VALEUR)
+Variable Integer VALEUR
+Local Char YESTILO(10)
+# Modificación 12/07/24. Linea en rosa si Ctd. Alta es = a Ctd. iniciada
+#If [M:YPSA]YALTA(nolign-1) = 2
+If [M:YPSA]CANTIDADA(nolign-1) = [M:YPSA]CANTIDAD(nolign-1)
+  YESTILO = "MTC1"  # OFs con alta en rosa
+# Modificación 12/07/24. Linea en verde si Ctd. Lanzada es = a Ctd. iniciada
+#Elsif [M:YPSA]YINICIADA(nolign-1) = 2
+Elsif [M:YPSA]CANTIDAD(nolign-1) = [M:YPSA]CANTIDADI(nolign-1)
+  YESTILO = "MTC2"  # OFs iniciadas en verde
+Elsif [M:YPSA]FECHA(nolign-1) > [M:YPSA]FECHAENTR(nolign-1)
+  YESTILO = "NET3"  # Si fecha > fecha entrega en amarillo
+Elsif [M:YPSA]YMFECHA(nolign-1) = 2
+  YESTILO = "MTC3"  # OFs fechas modificadas en azul
+Else
+  YESTILO = ""
+Endif
+
+# @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+If [M:YPSA]PLANO(nolign-1) = 2
+  # versión negrita de los estilos
+  If YESTILO = ""
+    Chgstl PIE(nolign-1) With "CIG1" # sólo negrita
+  Else
+    Chgstl PIE(nolign-1) With "Y"+YESTILO+"N" # color+negrita
+  Endif
+Else
+  Chgstl PIE(nolign-1) With YESTILO
+Endif
+# @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+End
+
+
+######################################################################################
+Subprog IB_PIE
+#Infbox "IB"
+  GBOUT1 = ""
+# Etiqueta de los botones
+If [M:YPSA]OF(nolign-1)<>""
+#  GBOUT1 = "OF -> " + [M:YPSA]OF(nolign-1)  # Túnel a la OF
+  GBOUT3 = "Inicio parcial de la OF: " + [M:YPSA]OF(nolign-1)
+  GBOUT4 = "Alta parcial de la OF:  "  + [M:YPSA]OF(nolign-1)
+  GBOUT7 = "OF -> " + [M:YPSA]OF(nolign-1)  # Túnel a la OF
+Else
+#  GBOUT1 = ""
+  GBOUT3 = ""
+  GBOUT4 = ""
+  GBOUT7 = ""
+Endif
+
+GBOUT2 = "Imprimir" # Imprimir la documentación de la OF
+#If [M:YPSA]YALTA(nolign-1) = 2 or [M:YPSA]YINICIADA(nolign-1) = 2
+#  GBOUT5 = "Deshacer parcial OF: " + [M:YPSA]OF(nolign-1)
+#Else
+#  GBOUT5 = ""
+#Endif
+#Infbox "C_PIE"
+  If [M:YPSA]CANTIDADI(nolign-1) > 0 or [M:YPSA]CANTIDADA(nolign-1) > 0
+    GBOUT5 = "Deshacer parcial OF: " + [M:YPSA]OF(nolign-1)
+  Else
+    GBOUT5 = ""
+  Endif
+  # @03@ - EQM - INI
+  If [M:YPSA]PEDIDO(nolign-1) <>''
+       GBOUT6 = "PV -> " + [M:YPSA]PEDIDO(nolign-1)  # Túnel al ped venta
+  Else
+       GBOUT6=''
+  Endif
+# @03@ - EQM - FIN
+
+End
+######################################################################################
+Subprog B1_PIE
+# Acceso a la OF
+Call OBJET("MFG", [M:YPSA]OF(nolign-1),"") From GOBJET
+End
+######################################################################################
+Subprog BAJA_CONSUMO(PORIGEN,PQTY_INI,PQTY_LAN,PNUMERO,PLINEA,PPLANTA, PITMREF, PINICIADA)
+  Value Integer PORIGEN   # 1=completa, 2=parcial
+  Value Decimal PQTY_INI  # Cantidad iniciada. La empleo solamente en caso de incios parciales
+  Value Decimal PQTY_LAN  # Cantidad lanzada inicialmente
+  Value Char PNUMERO()
+  Value Integer PLINEA
+  Value Char PITMREF()
+  Value Char PPLANTA()
+
+  Variable Integer PINICIADA
+
+  Local Char LFILE(250)
+  Local Char FECHA(250),HORA(250)
+  Local Char PATHFILE(250)
+  Local Integer LCONT : LCONT = 0
+
+  If !clalev([YMFM])  Then : Local File MFGMAT      [YMFM] : Endif
+  If !clalev([YMFH])  Then : Local File MFGHEAD     [YMFH] : Endif
+  If !clalev([YMFS])  Then : Local File YMFGSERIE   [YMFS] : Endif
+  If !clalev([YMFI])  Then : Local File MFGITM      [YMFI] : Endif
+  If !clalev([YMTK])  Then : Local File MFGHEADTRK  [YMTK] : Endif
+
+
+  FECHA = vireblc(num$(date$),4) : FECHA = mid$(FECHA,1,2)+mid$(FECHA,4,2)+mid$(FECHA,7,4)
+  HORA = vireblc(num$(time$),4)  : HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
+  PATHFILE = filpath("","IMP","")
+
+  LFILE = PATHFILE + "\CONSUMO_" + PNUMERO + "_" + FECHA + "_" + HORA + ".txt"
+
+  Call CREA_FICHERO_MATERIALES(LFILE, PPLANTA, PNUMERO, PITMREF, FECHA,PORIGEN,PQTY_INI,PQTY_LAN)
+
+  GERRTRACE = 0
+  Local Integer PRTN
+  Local Char PCTR
+  Local Integer PNER
+  Call IMP_MODEL("no read","YMKMS",LFILE,PRTN,PCTR,PNER)
+  GERRTRACE = PNER
+  If GERRTRACE = 0 Then
+    If PORIGEN = 1
+      # Busco el número del seguimiento y escribo la cantidad iniciada
+      Local Char LMTK
+      Filter [YMTK] Where [YMTK]MFGNUM = PNUMERO and [YMTK]MATTRKFLG = 2 Order By [YMTK]MFGTRKNUM Desc
+      Read [YMTK] First
+      If fstat = 0
+        [L]LMTK = [YMTK]MFGTRKNUM
+        [YMTK]YCANTIDAD = PQTY_INI
+        Trbegin [YMTK]
+          Rewrite [YMTK]
+        Commit
+      Endif
+      Filter [YMTK]
+
+      # Marco como iniciados los números de serie
+      Trbegin [YMFS]
+        Filter [YMFS] Where [YMFS]MFGNUM = PNUMERO and [YMFS]MFGLIN = PLINEA
+        For [YMFS]
+          [YMFS]INICIADA  = 2
+          [YMFS]MTKINICIO = [L]LMTK
+          Rewrite [YMFS]
+        Next
+        Filter [YMFS]
+      Commit
+    Endif
+
+    # Marco como iniciada la OF, solamente si la cantidad iniciada = cantidad lanzada
+    Read [F:YMFH]MFG0=PNUMERO
+    If !fstat Then
+      Trbegin [F:YMFH]
+      If PORIGEN = 1 # En el caso de inicio completo
+        Filter [YMFI] Where [YMFI]MFGNUM = PNUMERO
+        Read [YMFI]First
+        If fstat = 0
+          [F:YMFH]YQTYINICIADA = [YMFI]EXTQTY
+          [F:YMFH]YINICIADA    = 2
+        Endif
+        Filter [YMFI]
+      Endif
+      Rewrite [F:YMFH]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+
+  Endif
+  PINICIADA = GERRTRACE
+
+  Close Local File [YMFM], [YMFH], [YMFS], [YMFI], [YMTK]
+End
+
+
+######################################################################################
+Subprog ALTA_OF(PORIGEN,PCANTIDAD,PNUMERO, PLINEA, PPLANTA, PITMREF, PALTA)
+  Value Integer PORIGEN   # 1=completa, 2=parcial
+  Value Decimal PCANTIDAD
+  Value Char PNUMERO
+  Value Integer PLINEA
+  Value Char PITMREF
+  Value Char PPLANTA
+  Variable Integer PALTA
+
+  Local Char LFILE(250)
+  Local Char FECHA(250),HORA(250)
+  Local Char PATHFILE(250)
+  Local Integer LCONT : LCONT = 0
+
+  If !clalev([YMFM])  Then : Local File MFGMAT     [YMFM] : Endif
+  If !clalev([YMFH])  Then : Local File MFGHEAD    [YMFH] : Endif
+  If !clalev([YMFS])  Then : Local File YMFGSERIE  [YMFS] : Endif
+  If !clalev([YMTK])  Then : Local File MFGHEADTRK [YMTK] : Endif
+  If !clalev([YMFI])  Then : Local File MFGITM     [YMFI] : Endif
+
+
+  FECHA = vireblc(num$(date$),4) : FECHA = mid$(FECHA,1,2)+mid$(FECHA,4,2)+mid$(FECHA,7,4)
+  HORA = vireblc(num$(time$),4) : HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
+  PATHFILE = filpath("","IMP","")
+
+  #FECHA = vireblc(num$(date$),4) : FECHA = mid$(FECHA,1,2)+mid$(FECHA,4,2)+mid$(FECHA,7,4)
+  #HORA = vireblc(num$(time$),4) : HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
+
+  LFILE = PATHFILE + "\ALTA_" + PNUMERO + "_" + FECHA + "_" + HORA + ".txt"
+
+  Call CREA_FICHERO_ALTA(PORIGEN,PCANTIDAD,LFILE, PPLANTA, PNUMERO, PLINEA, PITMREF, FECHA)
+
+  GERRTRACE = 0
+  Local Integer PRTN
+  Local Char PCTR
+  Local Integer PNER
+  Call IMP_MODEL("no read","YMKIAP",LFILE,PRTN,PCTR,PNER)
+  GERRTRACE = PNER
+  If GERRTRACE = 0 Then
+
+    # Busco el número del seguimiento
+    Local Char LMTK
+    Filter [YMTK] Where [YMTK]MFGNUM = PNUMERO and [YMTK]ITMTRKFLG = 2 Order By [YMTK]MFGTRKNUM Desc
+    Read [YMTK] First
+    If fstat = 0
+      [L]LMTK = [YMTK]MFGTRKNUM
+      [YMTK]YCANTIDAD = PCANTIDAD
+      Trbegin [YMTK]
+        Rewrite [YMTK]
+      Commit
+    Endif
+    Filter [YMTK]
+
+    # Marco como generados el alta los números de serie
+    Trbegin [YMFS]
+      For W=0 To 199
+        If GNSERIE(W) <> ""
+          Filter [YMFS] Where [YMFS]MFGNUM = PNUMERO and [YMFS]MFGLIN = PLINEA and [YMFS]NSERIE = GNSERIE(W)
+          For [YMFS]
+            [YMFS]ALTA    = 2
+            [YMFS]MTKALTA = [L]LMTK
+            Rewrite [YMFS]
+          Next
+          Filter [YMFS]
+        Else
+          Break
+        Endif
+      Next
+    Commit
+
+    # Marco como generada el alta la OF
+    Local Decimal QTY_LAN
+    Read [YMFI]MFI0 = PNUMERO;PLINEA
+    If fstat = 0
+      [L]QTY_LAN = [YMFI]UOMEXTQTY
+    Endif
+
+    Read [F:YMFH]MFG0=PNUMERO
+    If !fstat Then
+      Trbegin [F:YMFH]
+      [F:YMFH]YQTYALTA += PCANTIDAD
+      If [L]QTY_LAN = [F:YMFH]YQTYALTA    # Solamente marco Alta si se ha dado de alta toda la cantidad lanzada
+        [F:YMFH]YALTA    = 2
+      Endif
+      Rewrite [F:YMFH]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+  PALTA = GERRTRACE
+
+  Close Local File [YMFM], [YMFH], [YMFS], [YMFI]
+End
+
+
+
+#####################################################################
+#**
+#* GENERAR FICHERO MODELO IMPORTACION CONSUMOS
+#*
+#*
+#*
+#*!
+
+Subprog CREA_FICHERO_MATERIALES(PFILE, PPLANTA, PMFGNUM, PITMREF,  PFECHA,PMORI,PMQTY_INI,PMQTY_LAN)
+Value Char PFILE()
+Value Char PPLANTA, PMFGNUM, PITMREF()
+Value Char PFECHA
+Value Integer PMORI         # Origen: 1=completa, 2=parcial
+Value Decimal PMQTY_INI     # Cantidad iniciada; solamente lo tengo en cuenta para los inicios parciales
+Value Decimal PMQTY_LAN     # Cantidad lanzada inicialmente; solamente lo tengo en cuenta para los inicios parciales
+
+Local Char LFILE(250)
+Local Char LMFG(40)(1..20)
+
+If !clalev([YMMAT])  Then : Local File MFGMAT [YMMAT] : Endif
+
+
+Local Char PATHFILE(250)
+
+Local Integer LSEQ
+
+LFILE = PFILE
+Gosub OPEN_FILE
+
+Local Decimal QTY_CPTE
+Filter [YMMAT] Where MFGNUM = PMFGNUM and ([YMMAT]CPNTYP = 1 or [YMMAT]CPNTYP = 5) and [F:YMMAT]RETQTY>0 and [YMMAT]MATSTA <3
+  For [YMMAT]
+    [L]QTY_CPTE = [YMMAT]RETQTY
+    # Si es un inicio parcial, tego que sacar la prorrata de la cantidad consumida
+    If PMORI = 2
+      If PMQTY_LAN <> 0
+        [L]QTY_CPTE = ar2((PMQTY_INI / PMQTY_LAN) * [YMMAT]RETQTY)
+      Endif
+    Endif
+
+    # Control. Solamente pongo lineas que tengo cantidad a consumir > 0
+    If [L]QTY_CPTE > 0
+      LMFG(1) = "M"
+      LMFG(2) = PMFGNUM
+      LMFG(3) = PPLANTA
+      LMFG(4) = num$([YMMAT]MFGLIN)
+      LMFG(5) = num$([YMMAT]BOMSEQ) # secuencia BOM
+      LMFG(6) = [YMMAT]ITMREF
+      LMFG(7) = PITMREF # ESTRUCTURA
+      LMFG(8) = "10"    # ESTRUCTURA ALTERNATIVA
+      LMFG(9) = num$([L]QTY_CPTE)
+      LMFG(10) = mid$(num$(PFECHA),5,4) + mid$(num$(PFECHA),3,2) + mid$(num$(PFECHA),1,2)
+      LMFG(11) = num$([YMMAT]BOMOPE)
+      LMFG(12) = ""
+      LMFG(13) = ""
+      LMFG(14) = ""
+      LMFG(15) = ""
+      LMFG(16) = ""
+
+      Wrseq LMFG(1), LMFG(2), LMFG(3), LMFG(4), LMFG(5), LMFG(6), LMFG(7), LMFG(8), LMFG(9), LMFG(10), LMFG(11),
+&     LMFG(12), LMFG(13), LMFG(14), LMFG(15), LMFG(16)
+    Endif
+  Next
+Filter
+
+Openo # CERRAMOS FICHERO CONSUMO
+Close Local File [YMMAT]
+#Infbox PMFGNUM
+End
+
+
+
+#####################################################################
+#**
+#* GENERAR FICHERO MODELO IMPORTACION ALTAS OF
+#*
+#*
+#*
+#*!
+
+Subprog CREA_FICHERO_ALTA(XORIGEN,XCANTIDAD,PFILE, PPLANTA, PMFGNUM, PMFGLIN, PITMREF,  PFECHA)
+  Value Integer XORIGEN  #1:global, 2:parcial
+  Value Decimal XCANTIDAD
+  Value Char PFILE()
+  Value Char PPLANTA
+  Value Char PMFGNUM
+  Value Integer PMFGLIN
+  Value Char PITMREF
+  Value Char PFECHA
+
+
+  # Local Char LLOTE, LUBICACION
+
+  Local Char LFILE(250)
+  Local Char LMFG(40)(1..20)
+  # Local Char LSTO(40)(1..20)
+
+  If !clalev([YMFG])  Then : Local File MFGHEAD   [YMFG] : Endif
+  If !clalev([YMFI])  Then : Local File MFGITM    [YMFI] : Endif
+  If !clalev([YMFS])  Then : Local File YMFGSERIE [YMFS] : Endif
+
+
+  Local Char PATHFILE(250)
+
+  Local Integer LSEQ
+
+  LFILE = PFILE
+  Gosub OPEN_FILE
+
+
+
+
+    Read [YMFG]MFG0 = PMFGNUM
+    If fstat = 0
+      For [YMFI] Where [F:YMFI]MFGNUM = [F:YMFG]MFGNUM and [F:YMFI]MFGLIN = PMFGLIN
+        # Si el articulo tiene número de serie, debo generar un registro por número de serie
+          Local Integer SI_SERIE
+          For [YMFS] Where [YMFS]MFGNUM = [F:YMFI]MFGNUM and [YMFS]MFGLIN = [F:YMFI]MFGLIN
+            SI_SERIE = 2
+            Break
+          Next
+
+
+Wrseq 'M',
+& "" + [F:YMFG]MFGFCY + "",
+& "" + [F:YMFG]MFGNUM + "",
+& "" + [F:YMFI]ITMREF + "",
+& num$(XCANTIDAD),
+& "" + [F:YMFI]UOM + "",
+& num$([F:YMFI]UOMSTUCOE),
+& '',
+& "" + date$ + "",
+& 'STD'+ ';'
+
+          If SI_SERIE <> 2 # No hay número de serie
+# & num$([F:YMFI]EXTQTY),
+
+Wrseq 'S',
+& "" + [F:YMFI]UOM + "",
+& num$(XCANTIDAD) ,
+& num$([F:YMFI]UOMSTUCOE) ,
+& "" + [F:YMFI]LOT + ';'
+          Else
+            For R=0 To 199
+              If GNSERIE(R)<>""
+Wrseq 'S',
+& "" + [F:YMFI]UOM + "",
+& num$(1) ,
+& num$([F:YMFI]UOMSTUCOE) ,
+& "" + [F:YMFI]LOT+ "",
+& "" + GNSERIE(R)+ ';'
+              Else
+                Break
+              Endif
+            Next
+          Endif
+       Next
+    Endif
+
+
+  Openo # CERRAMOS FICHERO ALTA
+  Close Local File [YMFG],[YMFI],[YMFS]
+
+End
+
+
+
+########################################################
+$OPEN_FILE
+  adxifs = ";"
+  adxirs = chr$(13)+chr$(10)
+  Openo LFILE
+  # Iomode adxium (50)
+Return
+
+
+#############################################
+Subprog IMP_MODEL(PTRA,PMOD,PFILE,PRTN,PCTR,PNER)
+Value Char PTRA
+Value Char PMOD
+Value Char PFILE
+Variable Integer PRTN
+Variable Char PCTR
+Variable Integer PNER
+
+#####
+# Proceso encargado de integrar un registro a traves de un modelo de datos..
+#####
+# PTRA  = indica si hay lectura de traza "read".- lee traza, "no read".- no lee traza
+# PMOD  = modelo a tratar
+# PFILE = el fichero a importar..
+
+Local File AOBJEXT    [AOE]
+Local File AOBJEXTD   [AOD]
+Local File AOBJET     [ZAOB]
+Local File ADOVAL     [ADW]
+Local File ATYPE      [ZATY]
+Local File AMSK       [ZAMK]
+Local File AMSKZON    [ZAMZ]
+Local File ATABLE     [ZATB]
+Local File ATABZON    [ZATZ]
+Local File ATABIND    [ZATI]
+Local File AFONCTION  [ZAFC]
+Local File APARIMPEXP [APX]
+Local Mask AOE0       [AOE0]
+Local Mask AOE1       [AOE1]
+Local Mask AOE2       [AOE2]
+Local Mask IMPTEST    [IEX]
+Local Mask IMPENCH    [DIA]
+Local Mask IMPOBJ2    [IMP2]
+
+
+PRTN = 0
+mkstat = 0 : fstat = 0 : GERRTRACE = 0
+# Lanzamiento de la importación silenciosa
+Call OUVRE_TRACE("Importación estandar") From LECFIC
+Call IMPORTSIL(PMOD,PFILE) From GIMPOBJ
+Call FERME_TRACE From LECFIC
+
+
+If (fstat <> 0 and fstat <> 4) or GERRTRACE <> 0 Then
+    PCTR = GTRACE
+    PNER = GERRTRACE
+    PRTN = 1
+Endif
+
+If PTRA = "read" or GERRTRACE <> 0 Then
+    Call LEC_TRACE From LECFIC
+Endif
+
+mkstat = 0 : fstat = 0 : GERRTRACE = 0 : GOK = 1
+
+Close Local File [AOE],[AOD],[ZAOB],[ADW],[ZATY],[ZAMK],[ZAMZ],[ZATB],[ZATZ],[ZATI],[ZAFC],[APX]
+Close Local Mask [AOE0],[AOE1],[AOE2],[IEX],[DIA],[IMP2]
+
+End
+
+
+######################################################################################
+Subprog B2_PIE
+# Imprimir la documentación de la OF
+# Empleo el primer parámetro para marcar el origen de la solicitud:
+# 1: desde los tres puntos de la línea (siempre quiero que salga PDF)
+# 2: desde el botón de impresión (quiero que funcione en base a los destinos de impresión)
+Call MNG_PRINT(1,[M:YPSA]PLANTA,[M:YPSA]OF(nolign-1),[M:YPSA]YLINEA(nolign-1),[M:YPSA]FECHA(nolign-1),[M:YPSA]ARTICULO(nolign-1))
+End
+
+
+#############################################
+Subprog MNG_PRINT(MORI,MPLA,MOF,MOFLIN,MFECHA,MITM)
+Value Integer MORI
+Value Char MPLA
+Value Char MOF
+Value Integer MOFLIN
+Value Char MFECHA
+Value Char MITM
+Value Integer MCANTIDAD
+
+
+# Impresión de la OF
+Call PRINT_OF(MORI,MPLA,MOF,MFECHA)
+
+# Impresiones de la etiqueta EAN13 - nº serie - motor/metal
+If !clalev([XP1]) : Local File ITMMASTER [XP1] : Endif
+If !clalev([XP2]) : Local File ZITMLOGO  [XP2] : Endif
+If !clalev([XP3]) : Local File MFGMAT    [XP3] : Endif
+If !clalev([XP4]) : Local File MFGITM    [XP4] : Endif
+If !clalev([XP5]) : Local File YMFGSERIE [XP5] : Endif
+If !clalev([XP6]) : Local File SORDERQ   [XP6] : Endif # @05@ - EQM
+If !clalev([XP7]) : Local File SORDERQ   [XP7] : Endif # @05@ - EQM
+If !clalev([XP8]) : Local File SORDERQ   [XP8] : Endif # @05@ - EQM
+If !clalev([XP9]) : Local File SORDERQ   [XP9] : Endif # @05@ - EQM
+
+# Guardo el número de etiquetas a imprimir de cada tipo
+Local Integer NETI_EAN
+Local Integer NETI_SER
+Local Integer NETI_MOT
+Local Integer NETI_COR
+Local Integer NETI_MAX
+Local Integer NETI_I
+
+Read [XP1]ITM0 = MITM
+If fstat = 0
+  Read [XP2]ZITML0 = [XP1]TSICOD(1)    # Familia
+  If fstat = 0
+    # Primero debo sacar el número de etiquetas a imprimir por cada tipo
+#    If [XP2]ETQEAN13 <> ""  : NETI_EAN = [XP2]QTYETQEAN13 : Endif
+#    If [XP2]ETQSER <> ""    : NETI_SER = [XP2]QTYETQSER   : Endif # @05@ - EQM
+#    If [XP2]ETQMOTOR <> ""  :  NETI_MOT =  [XP2]QTYETQMOT : Endif # @05@ - EQM
+#    If [XP2]ETQCORTE<>""     :  NETI_COR =  [XP2]QTYETQCOR   : Endif
+
+    Read [XP4]MFI0 = MOF;MOFLIN
+    If fstat = 0
+      NETI_MAX = [XP4]EXTQTY
+      If [XP2]ETQEAN13  <> "" and [XP2]QTYETQEAN13>0    :  NETI_EAN =  [XP4]EXTQTY                  : Endif
+      If [XP2]ETQSER <> ""    and [XP2]QTYETQSER>0      :  NETI_SER =  [XP4]EXTQTY                  : Endif
+      If [XP2]ETQCORTE<>""    and [XP2]QTYETQCOR>0      :  NETI_COR =  [XP4]EXTQTY                  : Endif # @05@ - EQM
+      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  1                            : Endif # @05@ - EQM SOLO 1 PDF
+    Endif
+
+    # Imprimo las etiquetas por unidad producida
+#    For NETI_I = 1 To NETI_MAX # @05@ - EQM
+      If [XP1]SERMGTCOD>1 #Si tiene gestión serie
+          Filter [XP5] Where [XP5]MFGNUM = MOF and [XP5]MFGLIN = MOFLIN
+          For [XP5]
+          # Etiqueta EAN13
+          If NETI_EAN > 0
+            Call PRINT_ETI(MOF,[XP2]ETQEAN13,1)
+            [L]NETI_EAN -= 1
+          Endif
+
+          # Etiqueta Nº serie (por aquí solamente debo pasar una vez porque ya hago el bucle en el detalle de números de serie)
+          If NETI_SER > 0
+            Local Integer CONTA_RPT
+    #        Filter [XP5] Where [XP5]MFGNUM = MOF and [XP5]MFGLIN = MOFLIN     # @05@ - EQM
+    #        For [XP5]
+    #          Call PRINT_ETI_SER(MOF,[XP2]ETQSER,[XP5]NSERIE,1) From SPEYPSAP # @05@ - EQM
+               Call PRINT_ETI_SER(MOF,[XP2]ETQSER,[XP5]NSERIE,1) From SPEYPSAP
+              [L]NETI_SER -= 1
+
+              [L]CONTA_RPT += 1
+    #        Next   # @05@ - EQM
+    #        Filter [XP5] # @05@ - EQM
+            # Modificación 16/07/2024. Aunque no haya número de serie, si el Tipo Serie = Lote noken sin hidro y tengo etiqueta serie, lanzo impresión
+
+            ### PENDIENTE REVISAR @05@
+#            If [L]CONTA_RPT = 0 and [XP2]TIPOSERIE = 4 and [XP2]ETQSER <> ""
+#              Call PRINT_ETI_SER(MOF,[XP2]ETQSER,[XP5]NSERIE,1) From SPEYPSAP
+#            Endif
+          Endif
+
+          # Etiqueta Motor / Metal
+          If NETI_MOT >0
+            Call PRINT_ETI(MOF,[XP2]ETQMOTOR,1)
+            [L]NETI_MOT -= 1
+          Endif
+
+
+    #      # Etiqueta Asociados
+    #      For [XP3] Where [XP3]MFGNUM = MOF
+    #        If [XP3]ZASOCIADO = 2
+    #            If GUSER='NUN12' : Infbox"ZASOCIADO"-[XP3]ITMREF-num$([XP3]RETQTY) : Endif
+    #            For I=1 To  [XP3]RETQTY
+    #               If GUSER='NUN12' : Infbox"imprime" : Endif
+    #              Call PRINT_ETI_ASO(MOF,[XP3]ITMREF,"Z-ETIQASOC",1)
+    #            Next
+    #        Endif
+    #      Next
+
+          #Etiqueta corte Buscamos en el pedido de venta, donde tenemos los datos
+          For [XP4] Where [XP4]MFGNUM=MOF
+            Read [XP6]SOQ0 = [XP4]VCRNUMORI;[XP4]VCRLINORI;[XP4]VCRSEQORI
+            If !fstat
+              If [XP6]ZALTO <>0 or [XP6]ZANCHO<>0 or [XP6]ZLARGO <>0
+                If [L]NETI_COR > 0
+                    Call PRINT_ETI(MOF, [XP2]ETQCORTE,1)
+                    [L]NETI_COR -= 1
+                Endif
+              Endif
+            Endif
+          Next
+#          For [XP3] Where [XP3]MFGNUM = MOF
+#            If [XP3]ZASOCIADO = 2
+#                Call PRINT_ETI_ASO(MOF,[XP3]ITMREF,"Z-ETIQASOC",1)
+#            Endif
+#          Next
+          Filter [XP6] Where [XP6]FMINUM=MOF
+          Read [XP6]
+          If fstat = 0
+              For [XP7] Where  [XP7]SOHNUM=[XP6]SOHNUM and [XP7]ZLINASOC=[XP6]SOPLIN and [XP7]ZASOCIADO=2
+              Read[XP7]
+              If !fstat
+                  Call PRINT_ETI_ASO( [XP7]SOHNUM,[XP7]ITMREF,[XP7]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+              Endif
+              Next
+          Endif
+         Filter [XP6]
+        Next
+          # Etiqueta Asociados
+#          For [XP3] Where [XP3]MFGNUM = MOF
+#            If [XP3]ZASOCIADO = 2
+#                Call PRINT_ETI_ASO(MOF,[XP3]ITMREF,"Z-ETIQASOC",1)
+#            Endif
+#          Next
+        Filter [XP5]# @05@ - EQM
+    Else #Sin gestión serie
+      For NETI_I = 1 To NETI_MAX
+         # Etiqueta EAN13
+          If NETI_EAN > 0
+            Call PRINT_ETI(MOF,[XP2]ETQEAN13,1)
+            [L]NETI_EAN -= 1
+          Endif
+          #Etiqueta serie sin hidro
+          If  [XP2]TIPOSERIE = 4 and [XP2]ETQSER = 'Z-ETIQNKSSH' and [XP2]QTYETQSER>0
+              Call PRINT_ETI_SER(MOF,[XP2]ETQSER,'',1) From SPEYPSAP
+          Endif
+          # Etiqueta Motor / Metal
+          If NETI_MOT >0
+            Call PRINT_ETI(MOF,[XP2]ETQMOTOR,1)
+            [L]NETI_MOT -= 1
+          Endif
+          #Etiqueta corte Buscamos en el pedido de venta, donde tenemos los datos
+          For [XP4] Where [XP4]MFGNUM=MOF
+            Read [XP6]SOQ0 = [XP4]VCRNUMORI;[XP4]VCRLINORI;[XP4]VCRSEQORI
+            If!fstat
+              If [XP6]ZALTO <>0 or [XP6]ZANCHO<>0 or [XP6]ZLARGO <>0
+                If [L]NETI_COR > 0
+                    Call PRINT_ETI(MOF, [XP2]ETQCORTE,1)
+                    [L]NETI_COR -= 1
+                Endif
+              Endif
+            Endif
+          Next
+#          For [XP3] Where [XP3]MFGNUM = MOF
+#              If [XP3]ZASOCIADO = 2
+#                  Call PRINT_ETI_ASO(MOF,[XP3]ITMREF,"Z-ETIQASOC",1)
+#              Endif
+#          Next
+          Filter [XP8] Where [XP8]FMINUM=MOF
+          For [XP8]
+          Read [XP8]
+          If fstat = 0
+              For [XP7] Where  [XP7]SOHNUM=[XP8]SOHNUM and [XP7]ZLINASOC=[XP8]SOPLIN and [XP7]ZASOCIADO=2
+              Read[XP7]
+              If !fstat
+                  Call PRINT_ETI_ASO( [XP7]SOHNUM,[XP7]ITMREF,[XP7]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+              Endif
+              Next
+          Endif
+          Next
+         Filter [XP8]
+      Next
+    Endif
+  Endif
+Endif
+
+Close Local File [XP1]
+Close Local File [XP2]
+Close Local File [XP3]
+Close Local File [XP4]
+Close Local File [XP5]
+Close Local File [XP6]# @05@ - EQM
+Close Local File [XP7]# @05@ - EQM
+Close Local File [XP8]# @05@ - EQM
+Close Local File [XP9]# @05@ - EQM
+
+End
+
+
+#############################################
+Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA)
+Value Integer VORI
+Value Char VPLA
+Value Char VOF
+Value Char VFECHA
+
+Local Char TBVAL(20)(20)
+Local Char TBPAR(20)(20)
+
+#TBPAR(0) = "codimp"
+#TBVAL(0) = "2"
+
+TBPAR(1) = "impselection"
+TBVAL(1) = "1"
+
+
+TBPAR(2) = "mfgfcydeb"
+TBVAL(2) = VPLA
+
+
+TBPAR(3) = "mfgfcydeb"
+TBVAL(3) = VPLA
+
+
+TBPAR(4) = "mfgnumdeb"
+TBVAL(4) = VOF
+
+
+TBPAR(5) = "mfgnumfin"
+TBVAL(5) = VOF
+
+
+TBPAR(6) = "strdatdeb"
+TBVAL(6) = VFECHA
+
+
+TBPAR(7) = "strdatfin"
+TBVAL(7) = VFECHA
+
+If VORI = 1 # Lanzo la impresión desde los 3 puntos
+  Call ETAT("Y-DOSFABR","YPRODSANY",TBPAR,TBVAL) From ETAT
+Else
+  Call ETAT("Z-DOSFABR","YPRODSANY",TBPAR,TBVAL) From ETAT
+Endif
+End
+
+
+#############################################
+Subprog PRINT_ETI(EOF,EET,ENU)
+Value Char EOF
+Value Char EET
+Value Integer ENU
+
+Global Char GREPORT : GREPORT = EET
+Global Integer GMUL : GMUL = ENU
+
+
+Local Char TBVAL(20)(20)
+Local Char TBPAR(20)(20)
+
+TBPAR(0) = "mfgnum"
+TBVAL(0) = EOF
+
+Call ETAT(EET,"YPRODSANY",TBPAR,TBVAL) From ETAT
+
+End
+#############################################
+Subprog PRINT_ETI_ASO(EPV,EITM,ELN,EET,ENU)
+Value Char EPV
+Value Char EITM
+Value Integer ELN
+Value Char EET
+Value Integer ENU
+
+Global Char GREPORT : GREPORT = EET
+Global Integer GMUL : GMUL = ENU
+
+Local Char TBVAL(20)(20)
+Local Char TBPAR(20)(20)
+
+TBPAR(0) = "pventa"
+TBVAL(0) = EPV
+
+TBPAR(1) = "itmref"
+TBVAL(1) = EITM
+
+TBPAR(2) = "linea"
+TBVAL(2) = num$(ELN)
+
+Call ETAT(EET,"YPRODSANY",TBPAR,TBVAL) From ETAT
+
+End
+######################################################################################
+Subprog IB_OF
+End
+
+
+######################################################################################
+Subprog IB_MFGNUM
+End
+
+
+######################################################################################
+Subprog C_MFGNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+######################################################################################
+Subprog AM_MFGNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+######################################################################################
+Funprog ASIGNA_OF(POF)
+Value Char    POF
+Local Integer ESTADO_A
+
+# Función que devuelve el estado de asignación de la OF revisando el estado de asignación de los materiales
+# 1 : no asignado
+# 2 : asignado con ruptura (sea global o detallada)
+# 3 : asignado completamente (sea global o detallada)
+
+If !clalev([ZPP7]) : Local File MFGMAT     [ZPP7] : Endif
+
+Local Integer LINES
+Local Integer MAT_ASIG
+Local Integer MAT_PAR_ASIG
+Local Integer MAT_NO_ASIG
+For [ZPP7] Where [ZPP7]MFGNUM = POF and [ZPP7]MATSTA < 4
+  [L]LINES +=1
+  Case [ZPP7]ALLSTA
+    When 1   : [L]MAT_NO_ASIG +=1
+    When 2,4 : [L]MAT_PAR_ASIG +=1
+    When 3,5 : [L]MAT_ASIG += 1
+  Endcase
+
+  # No asignado ==> si líneas materiales = líneas no asignadas
+  If [L]LINES = [L]MAT_NO_ASIG
+    [L]ESTADO_A = 1
+  # Asignado completamente ==> si líneas materiales = líneas asignadas
+  Elsif [L]LINES = [L]MAT_ASIG
+    [L]ESTADO_A = 3
+  # Asignado con ruptura ==> si tengo al menos una línea asignada con ruptura
+  Elsif [L]MAT_PAR_ASIG > 0
+    [L]ESTADO_A = 2
+  Endif
+
+Next
+
+Close Local File [ZPP7]
+End ESTADO_A
+
+
+######################################################################################
+Subprog AS_ASIGNACION(VALEUR)
+Variable Integer VALEUR
+# Opciones del menú local; solamente muestro 1-3-5
+GMENLOC(2) = 1
+GMENLOC(4) = 1
+End
+
+
+
+######################################################################################
+Subprog B3_PIE
+# Si el producto no tiene gestión de lote pero no de serie --> bastará con pedir la cantidad GL1LLE(5)=1
+# Si el producto tiene gestión de serie --> tiene que indicar la cantidad y marcar los números de serie que va a iniciar GL1LLE(5)=2
+Local Integer LINT
+Global Char GL1LLE(250)(10)
+If !clalev([W1]) : Local File ITMMASTER  [W1] : Endif
+GL1LLE(0) = [M:YPSA]OF(nolign-1)
+GL1LLE(1) = [M:YPSA]ARTICULO(nolign-1)
+GL1LLE(2) = [M:YPSA]ARTICULOD(nolign-1)
+GL1LLE(3) = num$([M:YPSA]CANTIDAD(nolign-1))
+GL1LLE(4) = num$([M:YPSA]YUNIDAD(nolign-1))
+GL1LLE(6) = num$([M:YPSA]YLINEA(nolign-1))
+GL1LLE(7) = "1"   # 1: baja parcial; 2: alta parcial
+
+Read [W1]ITM0 = [M:YPSA]ARTICULO(nolign-1)
+If fstat = 0
+  If [W1]SERMGTCOD >= 2
+    GL1LLE(5)= "2"
+  Else
+    GL1LLE(5)= "1"
+  Endif
+Endif
+Close Local File [W1]
+
+Call SAISIE_LIB(LINT,GL1LLE,"YPRODSANYP","SPEYPSAP","OBJZON") From GSAISIE
+
+
+Gosub BUSCAR
+End
+
+
+######################################################################################
+Subprog B4_PIE
+# Si el producto no tiene gestión de lote pero no de serie --> bastará con pedir la cantidad GL1LLE(5)=1
+# Si el producto tiene gestión de serie --> tiene que indicar la cantidad y marcar los números de serie que va a iniciar GL1LLE(5)=2
+Local Integer LINT
+Global Char GL1LLE(250)(10)
+If !clalev([W1]) : Local File ITMMASTER  [W1] : Endif
+GL1LLE(0) = [M:YPSA]OF(nolign-1)
+GL1LLE(1) = [M:YPSA]ARTICULO(nolign-1)
+GL1LLE(2) = [M:YPSA]ARTICULOD(nolign-1)
+GL1LLE(3) = num$([M:YPSA]CANTIDAD(nolign-1))
+GL1LLE(4) = num$([M:YPSA]YUNIDAD(nolign-1))
+GL1LLE(6) = num$([M:YPSA]YLINEA(nolign-1))
+GL1LLE(7) = "2"   # 1: baja parcial; 2: alta parcial
+
+Read [W1]ITM0 = [M:YPSA]ARTICULO(nolign-1)
+If fstat = 0
+  If [W1]SERMGTCOD >= 2
+    GL1LLE(5)= "2"
+  Else
+    GL1LLE(5)= "1"
+  Endif
+Endif
+Close Local File [W1]
+
+Call SAISIE_LIB(LINT,GL1LLE,"YPRODSANYP","SPEYPSAP","OBJZON") From GSAISIE
+
+Gosub BUSCAR
+End
+
+
+
+######################################################################################
+Subprog B5_PIE
+# Deshacer de forma parcial inicios / altas
+Local Integer LINT
+Global Char GL1LLE(250)(10)
+If !clalev([W1]) : Local File ITMMASTER  [W1] : Endif
+GL1LLE(0) = "2"                                 # Deshacer parcial
+GL1LLE(1) = num$([M:YPSA]CANTIDADA(nolign-1))   # Cantidad dada de alta de la OF
+GL1LLE(2) = num$([M:YPSA]CANTIDADI(nolign-1))   # Cantidad ya iniciada de la OF
+GL1LLE(3) = [M:YPSA]OF(nolign-1)
+GL1LLE(4) = num$([M:YPSA]YLINEA(nolign-1))
+
+Call SAISIE_LIB(LINT,GL1LLE,"YPRODSANYD","SPEYPSAD","OBJZON") From GSAISIE
+
+Gosub BUSCAR
+End
+######################################################################################
+Subprog B6_PIE
+ # Acceso a  PV
+   Call OBJET("SOH", [M:YPSA]PEDIDO(nolign-1),"") From GOBJET
+End
+######################################################################################
+Subprog B7_PIE
+   # Acceso a la OF
+    Call OBJET("MFG", [M:YPSA]OF(nolign-1),"") From GOBJET
+End
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YPRODSANY) 13/08/2024 09:34:12 (NUN14)
+######################################################################################
+Subprog C_PIE
+#Infbox "C_PIE"
+#    GBOUT5 = "Deshacer parcial OF: " + [M:YPSA]OF(nolign-1)
+
+End
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YPRODSANY) 13/08/2024 09:49:46 (NUN14)
+######################################################################################
+Subprog AV_PIE
+#Infbox "AV_PIE" - num$(nolign)
+End
+
+Subprog D_PIE
+#Infbox "D_PIE"
+End
+Subprog AS_PIE
+#Infbox "AS_PIE"
+End
+
+Subprog AP_PIE
+#Infbox "AP_PIE"
+End
+
+Subprog AM_PIE
+#Infbox "AM_PIE"
+End
+
+Subprog AVANT_PIE
+#Infbox "AVANT_PIE"
+End
+
+Subprog APRES_PIE
+#Infbox "APRES_PIE"
+End
+
+
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YPRODSANY) 06/09/2024 12:51:34 (NUN12)
+######################################################################################
+# @02@ - EQM
+Subprog AS_SITUACION(VALEUR)
+Variable Integer VALEUR
+
+    # Opciones del menú local; solamente muestro 1-4-5-6
+    GMENLOC(2) = 1
+    GMENLOC(3) = 1
+
+End
+
+
+######################################################################################

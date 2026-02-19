@@ -1,0 +1,455 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog GET_DATOS_TRANSPORTISTA(PCOD_TRANSPORTISTA, URL, URL_TRK, FRANQUICIA, COD_ABONADO, COD_DEPARTAMENTO, USUARIO, PASSW, APIKEY)
+  # Entrada
+  Value Char PCOD_TRANSPORTISTA
+  # Salida
+  Variable Char URL
+  Variable Char URL_TRK
+  Variable Char FRANQUICIA
+  Variable Char COD_ABONADO
+  Variable Char COD_DEPARTAMENTO
+  Variable Char USUARIO
+  Variable Char PASSW
+  Variable Char APIKEY
+
+  If !clalev([YTRAN]) : Local File YTRAN [YTRAN] : Endif
+
+  Read [YTRAN]YTRAN0 = PCOD_TRANSPORTISTA
+  If !fstat
+    URL = [YTRAN]YURLEXP
+    If [YTRAN]YURLTRK = "" Then
+      URL_TRK = [YTRAN]YURLEXP
+    Else
+      URL_TRK = [YTRAN]YURLTRK
+    Endif
+    FRANQUICIA = [YTRAN]YFRANQUICIA
+    COD_ABONADO = [YTRAN]YCODCLI
+    COD_DEPARTAMENTO = [YTRAN]YDEPTO
+    USUARIO = [YTRAN]YUSUARIO
+    PASSW = [YTRAN]YPASSWD
+    APIKEY = [YTRAN]YAPIKEY
+  Endif
+
+  Close Local File [YTRAN]
+End
+
+Subprog GET_DOCUMENTO_ENVIO(PCOD_DOCUMENTO, FECHA_ENVIO, OBSERVACIONES, NOMBRE_CLIENTE, DIRECCION, COD_POSTAL, LOCALIDAD, COD_PAIS, PAIS, CONTACTO, TELEFONO, MAIL, NUM_BULTOS, COD_SERVICIO, 
+& DESC_SERVICIO, COD_TERMINO_SERVICIO, ORDER_GROUP_DACHSER, FECHA_ENTREGA, PACKING_BULTO, ALTO_BULTO, LARGO_BULTO, ANCHO_BULTO, PESO_BULTO)
+  # Entrada
+  Value Char PCOD_DOCUMENTO
+  # Salida
+  Variable Char FECHA_ENVIO
+  Variable Char OBSERVACIONES
+  Variable Char NOMBRE_CLIENTE
+  Variable Char DIRECCION
+  Variable Char COD_POSTAL
+  Variable Char LOCALIDAD
+  Variable Char COD_PAIS
+  Variable Char PAIS
+  Variable Char CONTACTO
+  Variable Char TELEFONO
+  Variable Char MAIL
+  Variable Integer NUM_BULTOS
+  Variable Char COD_SERVICIO
+  Variable Char DESC_SERVICIO
+  Variable Char COD_TERMINO_SERVICIO
+  Variable Char ORDER_GROUP_DACHSER
+  Variable Char FECHA_ENTREGA
+  Variable Char PACKING_BULTO()()
+  Variable Decimal ALTO_BULTO()
+  Variable Decimal LARGO_BULTO()
+  Variable Decimal ANCHO_BULTO()
+  Variable Decimal PESO_BULTO()
+
+  Local Integer I : Raz I
+
+  If !clalev([YSTPH]) : Local File STOPREH [YSTPH]   : Endif
+  If !clalev([YSTPD]) : Local File STOPRED [YSTPD]   : Endif
+  If !clalev([YSPAH]) : Local File YSPACK [YSPAH]    : Endif
+  If !clalev([YSDEL]) : Local File SDELIVERY [YSDEL] : Endif
+  If !clalev([YSOH])  : Local File SORDER [YSOH]     : Endif
+  If !clalev([YSER])  : Local File YTRASERV [YSER]   : Endif
+  If !clalev([YPKG])  : Local File TABPACKAGE [YPKG] : Endif
+  If !clalev([YTCO])  : Local File TABCOUNTRY [YTCO] : Endif
+
+
+  Read [YSTPH]PRH0 = PCOD_DOCUMENTO
+  If !fstat
+    Read [YSDEL]SDH0 = [YSTPH]SDHNUM
+    If !fstat
+      FECHA_ENVIO = num$([YSDEL]DLVDAT)
+    Else
+      FECHA_ENVIO = num$(date$)
+    Endif
+    Filter [YSTPD] Where PRHNUM = [YSTPH]PRHNUM
+    Read [YSTPD] First
+    If !fstat
+      Read [YSOH]SOH0 = [YSTPD]ORINUM
+      If !fstat
+        OBSERVACIONES = [YSOH]YOBSERVA
+        NOMBRE_CLIENTE = [YSOH]BPDNAM
+        DIRECCION = [YSOH]BPDADDLIG(0)
+        If [YSOH]BPDADDLIG(1) <> ""
+          DIRECCION += ", " + [YSOH]BPDADDLIG(1)
+        Endif
+        Read [YTCO]TCY0 = [YSOH]BPDCRY
+        If !fstat
+          COD_POSTAL = vireblc(format$([YTCO]POSCODFMT, [YSOH]BPDPOSCOD), 1)
+        Else
+          COD_POSTAL = [YSOH]BPDPOSCOD
+        Endif
+        LOCALIDAD = [YSOH]BPDCTY
+        COD_PAIS = [YSOH]BPDCRY
+        PAIS = [YSOH]BPDCRYNAM
+        CONTACTO = [YSOH]YCONTACTO
+        TELEFONO = [YSOH]YTELEFONO
+        MAIL = [YSOH]YMAIL
+        COD_SERVICIO = [YSTPH]YSERVICIO
+        Read [YSER]YTRAN0 = [YSTPH]BPTNUM;[YSTPH]YSERVICIO
+        If !fstat
+          DESC_SERVICIO = [YSER]YDESCSERV
+        Endif
+        COD_TERMINO_SERVICIO = [YSTPH]YTERMSRV
+        ORDER_GROUP_DACHSER = "A"
+        If [YSOH]YFECDACHSER <> [00/00/0000] Then
+          FECHA_ENTREGA = num$([YSOH]YFECDACHSER)
+        Endif
+      Endif
+    Endif
+    Filter [YSPAH] Where VCRTYP = 3 and VCRNUM = [YSTPH]PRHNUM
+    For [YSPAH]
+      Read [YPKG]TPA0 = [YSPAH]PCK
+      If !fstat
+        PACKING_BULTO(I) = [YPKG]YPCKDACHSER
+      Endif
+      ALTO_BULTO(I)    = [YSPAH]YPCKHEI
+      LARGO_BULTO(I)   = [YSPAH]YPCKLEN
+      ANCHO_BULTO(I)   = [YSPAH]YPCKWID
+      PESO_BULTO(I)    = [YSPAH]YBRWEI
+
+      I += 1
+    Next
+    NUM_BULTOS = I
+  Endif
+
+  Close Local File [YSTPH]
+  Close Local File [YSPAH]
+  Close Local File [YSDEL]
+  Close Local File [YSOH]
+  Close Local File [YSER]
+  Close Local File [YPKG]
+  Close Local File [YTCO]
+End
+
+Subprog GUARDAR_RESULTADO_MRW(PCOD_DOCUMENTO, PTIPO_MENSAJE, PESTADO, PMENSAJE, PNUM_SOLICITUD, LRET)
+  # Entrada
+  Value Char PCOD_DOCUMENTO
+  Value Integer PTIPO_MENSAJE
+  Value Integer PESTADO
+  Value Clbfile PMENSAJE
+  Value Char PNUM_SOLICITUD
+  # Salida
+  Variable Integer LRET : LRET = 0
+
+  Local Char LHORA(5) : LHORA  = vireblc(num$(time$),4) : LHORA  = mid$(LHORA,1,2) + mid$(LHORA,4,2)
+
+  If !clalev([YTRKE]) : Local File YTRKENVIOS [YTRKE] : Endif
+
+  Trbegin [YTRKE]
+  [YTRKE]YFECHA = date$
+  [YTRKE]YHORA = LHORA
+  [YTRKE]VCRNUM = PCOD_DOCUMENTO
+  [YTRKE]YMSGTYP = PTIPO_MENSAJE
+  If PESTADO = 1
+    [YTRKE]YESTADOOK = 2
+  Else
+    [YTRKE]YESTADOOK = 1
+  Endif
+  [YTRKE]YMENSAJE = PMENSAJE
+  [YTRKE]YNUMSOL = PNUM_SOLICITUD
+  Write [YTRKE]
+  If !fstat
+    Commit
+    LRET = 1
+  Else
+    Rollback
+  Endif
+
+  Close Local File [YTRKE]
+End
+
+Subprog GUARDAR_PDF_ETIQUETAS(PCOD_DOCUMENTO, PDIR, PNOMBRE_FICHERO, LRET)
+  # Entrada
+  Value Char PCOD_DOCUMENTO
+  Value Char PDIR
+  Value Char PNOMBRE_FICHERO
+  # Salida
+  Variable Integer LRET : LRET = 0
+
+  Local Char LTIPO_DOC : LTIPO_DOC = 'PRH'
+  Local Integer LONGITUD_FICHERO
+  Local Char LPATH(250) : LPATH = filpath("", "", "") + "\FILES\" + PDIR + "\" + PNOMBRE_FICHERO
+
+  If filinfo(LPATH, 7) > 0 Then
+    # Si se ha creado el fichero correctamente tenemos que crear el registro en la tabla de documentos e imprimir la etiqueta
+    If !clalev([YAOBJ]) : Local File AOBJTXT [YAOBJ] : Endif
+
+    Filter [YAOBJ] Where IDENT1 = PCOD_DOCUMENTO
+    Local Integer CONT : CONT = rowcount([YAOBJ]) + 1
+    Raz [YAOBJ]
+
+    Trbegin [YAOBJ]
+    [YAOBJ]ABREV = [L]LTIPO_DOC
+    [YAOBJ]IDENT1 = PCOD_DOCUMENTO
+    [YAOBJ]IDENT3 = right$("000" + num$(CONT), 3)
+    [YAOBJ]TYPDOC = "PDF"
+    [YAOBJ]NAM = "[FILES]/" + PDIR + "/" + PNOMBRE_FICHERO
+    [YAOBJ]ORINAM = "[FILES]/" + PDIR + "/" + PNOMBRE_FICHERO
+    [YAOBJ]CAT = 1
+    Write [YAOBJ]
+    If !fstat
+      Commit
+
+      LRET = 1
+    Else
+      Rollback
+    Endif
+
+    Close Local File [YAOBJ]
+  Endif
+End
+
+Subprog IMPRIMIR_ETIQUETA(PDIR, PFICHERO, PDESTINO, RES)
+  # Entrada
+  Value Char PDIR
+  Value Char PFICHERO
+  Value Char PDESTINO
+  # Salida
+  Variable Integer RES
+
+  Local Char LRES(250)
+
+  GSILENCE = 1
+
+  System LRES = "C:\Sumatra\SumatraPDF.exe -print-to " + PDESTINO + " " + filpath("", "", "") + "\FILES\" + PDIR + "\" + PFICHERO
+
+  GSILENCE = 0
+End
+
+Subprog ENVIO_SOLICITUD(PCOD_DOCUMENTO, LRET)
+  # Entrada
+  Value Char PCOD_DOCUMENTO
+  # Salida
+  Variable Integer LRET
+
+  Local Integer OK8
+  Local Char LMESS(250)
+
+  If !clalev([YSTPH]) : Local File STOPREH [YSTPH] : Endif
+  If !clalev([YTRA])  : Local File YTRAN   [YTRA]  : Endif
+
+  Read [YSTPH]PRH0 = PCOD_DOCUMENTO
+  If !fstat
+    Read [YTRA]YTRAN0 = [YSTPH]BPTNUM
+    If !fstat
+      Call OUINON("¿Confirma la solitud de envío?", OK8) From GESECRAN
+      If OK8 = 2 Then
+        Case [YTRA]YFUNC
+          When 1: Call ENVIO('mrw', 'x3_mrw_client.exe', 1, "", "", LMESS) #MRW
+          When 2: Call ENVIO('dachser', 'x3_dachser_client.exe', 1, "", "", LMESS) #DACHSER
+          When Default: Infbox("Método inexistente")
+        Endcase
+      Endif
+    Else
+      Infbox("El transportista no tiene ningún método de integración asociado")
+    Endif
+  Endif
+
+  Close Local File [YSTPH]
+  Close Local File [YTRA]
+End
+
+Subprog ENVIO(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, LMESS)
+  # Entrada
+  Value Char PDIR
+  Value Char PEJECUTABLE
+  Value Integer IS_WS
+  Value Char PCOD_PREPARACION
+  Value Char PCOD_TRANSPORTISTA
+  # Salida
+  Variable Char LMESS
+
+  Local Char RES(255)
+  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+  Local Char USUARIO : USUARIO = "NUN21"
+  Local Char PASSW : PASSW = "Jf04092023"
+  Local Char POOL : POOL = "POOLSANYCCES"
+  Local Char LCOD_PREPARACION
+  Local Char LCOD_TRANSPORTISTA
+
+  If IS_WS = 2
+    LCOD_PREPARACION = PCOD_PREPARACION
+    LCOD_TRANSPORTISTA = PCOD_TRANSPORTISTA
+  Else
+    LCOD_PREPARACION = [M:PRH0]PRHNUM
+    LCOD_TRANSPORTISTA = [YSTPH]BPTNUM
+  Endif
+
+  System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [L]LCOD_PREPARACION + '" "' + [L]LCOD_TRANSPORTISTA + '" "' + [
+& YTRA]YRUTETIQ + '" ' + num$([YTRA]YAUTIMP) + ' "' + [YTRA]YRUTIMP + '"'
+
+  If IS_WS = 1
+    Infbox(RES)
+    Affzo [M:YPRHTRA]
+  Else
+    LMESS = RES
+  Endif
+End
+
+Subprog GUARDAR_SEGUIMIENTO(PNUM_DOCUMENTO, PREFERENCIA, PESTADO, PFECHA, PHORA, PPERSONA, RES)
+  # Entrada
+  Value Char PNUM_DOCUMENTO
+  Value Char PREFERENCIA
+  Value Char PESTADO()()
+  Value Char PFECHA()()
+  Value Char PHORA()()
+  Value Char PPERSONA()()
+  # Salida
+  Variable Integer RES
+
+  RES = 1
+
+  Local Integer NBSEG
+  Local Char LESTADO_ANTERIOR(80)
+
+  If !clalev([YHIS]) : Local File YHISTSEG [YHIS] : Endif
+
+  Delete [YHIS] Where YNUMDOC = PNUM_DOCUMENTO and YREFERENCIA = PREFERENCIA
+
+  For NBSEG = 0 To dim(PESTADO) - 1
+    If PESTADO(NBSEG) = ""
+      Break
+    Endif
+
+    If PESTADO(NBSEG) <> [L]LESTADO_ANTERIOR Then
+      Trbegin [YHIS]
+      [YHIS]YNUMDOC = PNUM_DOCUMENTO
+      [YHIS]YREFERENCIA = PREFERENCIA
+      [YHIS]YESTADO = PESTADO(NBSEG)
+      [YHIS]YFECHA = gdat$(val(left$(PFECHA(NBSEG), 2)), val(mid$(PFECHA(NBSEG), 3, 2)), val(right$(PFECHA(NBSEG), 5)))
+      [YHIS]YHORA = PHORA(NBSEG)
+      [YHIS]YPERSONA = PPERSONA(NBSEG)
+      Write [YHIS]
+      If !fstat
+        Commit
+        [L]LESTADO_ANTERIOR = PESTADO(NBSEG)
+      Else
+        Rollback
+        RES = 0
+        Break
+      Endif
+    Endif
+  Next
+End
+
+Subprog MOSTRAR_SEGUIMIENTO()
+  If !clalev([YSTPH]) : Local File STOPREH  [YSTPH] : Endif
+  If !clalev([YTRA])  : Local File YTRAN    [YTRA]  : Endif
+  If !clalev([YSEG])  : Local File YHISTSEG [YSEG]  : Endif
+
+  Read [YSTPH]PRH0 = [M:PRH0]PRHNUM
+  If !fstat
+    Read [YTRA]YTRAN0 = [YSTPH]BPTNUM
+    If !fstat
+      Case [YTRA]YFUNC
+        When 1:
+          Call SEGUIMIENTO('mrw', 'x3_mrw_tracking.exe') # MRW
+          Call ABRIR_MODAL_SEGUIMIENTO()
+#        When 2:
+#          Call SEGUIMIENTO('dachser', 'x3_dachser_tracking.exe') # DACHSER
+#          Call ABRIR_MODAL_SEGUIMIENTO()
+        When Default:
+          Infbox("El transportista no tiene ningún método de integración asociado")
+      Endcase
+    Else
+      Infbox("El transportista no tiene ningún método de integración asociado")
+    Endif
+  Endif
+
+  Close Local File [YSTPH]
+  Close Local File [YTRA]
+  Close Local File [YSEG]
+End
+
+Subprog ABRIR_MODAL_SEGUIMIENTO()
+  Local Char YRESULT
+  Local Char    PARMSK(250)(1..20)
+
+  Filter [YSEG] Where YREFERENCIA = [M:PRH0]PRHNUM
+  If rowcount([YSEG]) > 0 Then
+    Call SAISIE_CHAR(YRESULT, PARMSK, "YSEGENV", "SUBYSE", "SPEYSE") From GSAISIE
+  Else
+    Infbox("No se encontraron registros de seguimiento")
+  Endif
+  Filter [YSEG]
+End
+
+Subprog SEGUIMIENTO(PDIR, PEJECUTABLE)
+  # Entrada
+  Value Char PDIR
+  Value Char PEJECUTABLE
+
+  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+  Local Char USUARIO : USUARIO = "NUN21"
+  Local Char PASSW : PASSW = "Jf04092023"
+  Local Char POOL : POOL = "POOLSANYCCES"
+
+  If !clalev([YHIS]) : Local File YHISTSEG [YHIS] : Endif
+
+  If PDIR = "mrw" Then
+     System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [M:PRH0]PRHNUM + '" "' + [M:PRH0]BPTNUM + '" 1 1'
+  Else
+    If PDIR = "dachser" Then
+      System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [M:PRH0]PRHNUM + '" "' + [M:PRH0]BPTNUM + '"'
+    Endif
+  Endif
+
+  Close Local File [YHIS]
+End
+
+Subprog DESCARGAR_MANIFIESTO_DACHSER(FECHA, FICHERO)
+  # Entrada
+  Value Date FECHA
+  # Salida
+  Variable Char FICHERO
+
+  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+  Local Char USUARIO : USUARIO = "NUN21"
+  Local Char PASSW : PASSW = "Jf04092023"
+  Local Char POOL : POOL = "POOLSANYCCES"
+  Local Char DIR(150)
+  Local Char MES : MES = '00' + num$(month(FECHA))
+  Local Char DIA : DIA = '00' + num$(day(FECHA))
+  Local Char STR_FECHA: STR_FECHA = num$(year(FECHA)) + '-' + right$(MES, len(MES) - 1) + '-' + right$(DIA, len(DIA) - 1)
+  Local Char LTRAN : LTRAN = "NA000008"
+  Local Char LRES(255)
+
+  If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+  Read [YTRA]YTRAN0 = LTRAN
+  If !fstat
+    DIR = [YTRA]YRUTADOCS
+  Endif
+
+  # Descarga manifiesto
+  System FICHERO = '\\localhost\files\dachser\x3_dachser_manifiesto.exe "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + LTRAN + '" "' +  DIR + '" "' + STR_FECHA + '"'
+
+  # Impresión manifiesto
+  Local Char RUTA_FICHERO(255) : [L]RUTA_FICHERO = filpath("", "", "") + "\FILES\DACHSER\DOCS\" + FICHERO
+  If filinfo([L]RUTA_FICHERO, 7) > 0 Then
+    System LRES = 'C:\Sumatra\SumatraPDF.exe -print-to ' + [YTRA]YIMPDOCS + ' ' + [L]RUTA_FICHERO
+  Else
+    Infbox("No se encontró el fichero del manifiesto.")
+  Endif
+
+  Close Local File [YTRA]
+End

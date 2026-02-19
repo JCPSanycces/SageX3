@@ -1,0 +1,92 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara IPTACPT (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla IPTACPT) 26/12/2023 08:50:33 (NUN04)
+######################################################################################
+$ACTION
+Case ACTION
+ When "SEL_TABLE"    : # Traitement de sélection lié à l'action IPTACPTSEL
+  Case TABLE
+   When "SELNUM" : Gosub SEL_NUM_SPE
+  Endcase
+Endcase
+Return
+
+
+######################################################################################
+$SEL_NUM_SPE
+# En el caso que la imputación sea contra un pedido, Llamo a la selección STD añadiendo la columna con el pendiente de cobro
+If [M:IPT]CDEFAC(nolign-1) = 1
+  OBJET = "YSOHV" : OPTIONS = "#"
+  CRITERE = "BPCPYR='"+[M]TIERS+"'"
+  GPE=1
+Endif
+Return
+
+
+######################################################################################
+Funprog SELPDTE (PEDIDO)
+Value Char PEDIDO
+Local Decimal LRES
+# Calculo el importe pendiente de cobro
+If !clalev([PP1]) : Local File GACCDUDATE    [PP1] : Endif
+
+Filter [PP1] Where [PP1]TYP='*SO' and [PP1]NUM = PEDIDO
+  For [PP1]
+    LRES += [PP1]AMTCUR - [PP1]PAYCUR - [PP1]TMPCUR
+  Next
+Filter [PP1]
+
+Close Local File [PP1]
+End LRES
+
+
+######################################################################################
+Subprog AS_CDEFAC(VALEUR)
+Variable Integer VALEUR
+# Por defecto, si el valor del campo es Sin Imputar, pongo Pedido
+If VALEUR = 3
+  VALEUR = 1
+Endif
+End
+
+
+
+######################################################################################
+Subprog C_AMTIPT(VALEUR)
+Variable Decimal VALEUR
+# BLOQUEO SI SE QUIERE INDICAR MÁS IMPORTE DEL VENCIMIENTO PENDIENTE DE LIQUIDAR
+# 1-Busco la cantidad ya indicada en vencimientos de anticipo para este pedido
+If !clalev([PP1]) : Local File GACCDUDATE    [PP1] : Endif
+
+Local Decimal YA_GACC
+Filter [PP1] Where [PP1]TYP='*SO' and [PP1]NUM = [M:IPT]NUMERO(nolign-1)
+  For [PP1]
+    [L]YA_GACC += [PP1]AMTCUR
+  Next
+Filter [PP1]
+
+# 2-Cantidad máxima pendiente de liquidar
+Local Decimal PDTE_LIQ
+#[L]PDTE_LIQ =
+
+
+Close Local File [PP1]
+
+End
+
+
+
+######################################################################################
+Subprog AM_NUMERO(VALEUR)
+Variable Char    VALEUR()
+# En el caso que la imputación sea contra un pedido, Llamo a la función para calcular el pendiente de cobro
+If [M:IPT]CDEFAC(nolign-1) = 1
+  [M:IPT]AMTIPT(nolign-1) = func SPEIPT.SELPDTE(VALEUR)
+  Affzo [M:IPT]AMTIPT(nolign-1)
+Endif
+End
+
+
+######################################################################################
