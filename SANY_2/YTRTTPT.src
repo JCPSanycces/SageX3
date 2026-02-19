@@ -1,0 +1,20 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+
+Case ACTION
+
+When "AVTGENACPT": Gosub AVTGENACPT
+
+Endcase
+
+Return
+
+$ AVTGENACPT
+
+If !clalev([F:SOH])
+
+[F:SOH]YCREWRK = 4
+Endif
+
+
+Return

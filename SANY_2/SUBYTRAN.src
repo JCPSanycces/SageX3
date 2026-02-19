@@ -1,0 +1,121 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Transportistas
+$ACTION
+If GUSER = "NUN40"
+  #Infbox ACTION
+Endif
+  Case ACTION
+    When "OUVRE" : Gosub OUVRE
+    When "LIENS" : Gosub LIENS
+    When "INIMOD" : Gosub INIMOD
+    When "INICRE" : Gosub INICRE
+  Endcase
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+
+$OUVRE
+  If !clalev([YTSR]) Local File YTRASERV [YTSR] Endif
+  If !clalev([YTMS]) Local File YTERMSERV [YTMS] Endif
+
+Return
+######################################################################################
+$INIMOD
+Gosub GUARDAR
+Return
+######################################################################################
+$INICRE
+Gosub GUARDAR
+Return
+######################################################################################
+$LIENS
+
+ # Cargo la lista de servicios
+  #If !clalev([YTSR]) : Local File YTRASERV [YTSR] : Endif
+  #nolign = 1
+  [M:YTRANSER]NBLIG = 0
+  Filter [YTSR] Where [YTSR]YTRANS = [M:YTRN0]YTRANS
+  #Infbox [YTSR]YTRANS
+  For [YTSR]
+    [M:YTRANSER] = [YTSR]
+    nolign += 1
+    [M:YTRANSER]NBLIG += 1
+  Next
+  Filter [YTSR]
+
+  Affzo [M:YTRANSER]
+  #Close Local File [YTSR]
+
+  nolign = 1
+  [M:YTSV]NBLIG = 0
+  Filter [YTMS] Where  [YTMS]YTRANS = [M:YTRN0]YTRANS
+  For [YTMS]
+      [M:YTSV]YCODTERMINO(NBLIG) = [YTMS]YCODTERMINO
+      [M:YTSV]YDESTERM(NBLIG) = [YTMS]YDESTERM
+      nolign += 1
+      [M:YTSV]NBLIG += 1
+  Next
+  Filter [YTMS]
+
+  Affzo [M:YTSV]
+
+
+Return
+
+$GUARDAR
+  Affzo [M:YTRANSER]
+  If [M:YTRANSER]NBLIG > 0
+
+    Delete [YTSR] Where [YTSR]YTRANS = [M:YTRN0]YTRANS
+    For I = 0 To [M:YTRANSER]NBLIG-1
+
+      If [M:YTRANSER]YCODSERV(I) <> '' Then
+        Read [YTSR]YTRAN0 = [M:YTRN0]YTRANS;[M:YTRANSER]YCODSERV(I)
+
+          If !fstat
+            [YTSR]YTRANS = [M:YTRN0]YTRANS
+            [YTSR]YCODSERV = [M:YTRANSER]YCODSERV(I)
+            [YTSR]YDESCSERV = [M:YTRANSER]YDESCSERV(I)
+            Rewrite [YTSR]
+
+          Else
+            [YTSR]YTRANS = [M:YTRN0]YTRANS
+            [YTSR]YCODSERV = [M:YTRANSER]YCODSERV(I)
+            [YTSR]YDESCSERV = [M:YTRANSER]YDESCSERV(I)
+            Write [YTSR]
+          Endif
+
+          Affzo [M:YTRANSER]
+      Endif
+    Next
+  Endif
+
+
+  Affzo [M:YTSV]
+  If [M:YTSV]NBLIG > 0
+    Delete [YTMS] Where [YTSR]YTRANS = [M:YTRN0]YTRANS
+    For I = 0 To [M:YTSV]NBLIG-1
+
+      If [M:YTSV]YCODTERMINO(I) <> '' Then
+        Read [YTSR]YTRAN0 = [M:YTRN0]YTRANS;[M:YTSV]YCODTERMINO(I)
+
+          If !fstat
+            [YTMS]YTRANS = [M:YTRN0]YTRANS
+            [YTMS]YCODTERMINO = [M:YTSV]YCODTERMINO(I)
+            [YTMS]YDESTERM = [M:YTSV]YDESTERM(I)
+            Rewrite [YTMS]
+
+          Else
+            [YTMS]YTRANS = [M:YTRN0]YTRANS
+            [YTMS]YCODTERMINO = [M:YTSV]YCODTERMINO(I)
+            [YTMS]YDESTERM = [M:YTSV]YDESTERM(I)
+            Write [YTMS]
+          Endif
+
+          Affzo [M:YTRANSER]
+      Endif
+    Next
+  Endif
+
+Return

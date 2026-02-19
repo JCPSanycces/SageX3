@@ -1,0 +1,97 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+
+
+
+Funprog ARTICULO_CLIENTE(ITMREF,TERCERO)
+Value Char ITMREF
+Value Char TERCERO
+Local Char DESC_ART(50)
+
+If !clalev([YITMBPC2])  : Local File ITMBPC   [YITMBPC2] : Endif
+
+  Read [YITMBPC2]ITU0 = ITMREF;TERCERO
+    If !fstat
+      DESC_ART = [YITMBPC2]ITMREFBPC
+    Endif
+
+End DESC_ART
+#Local Char PS_NUM(20) : PS_NUM = 'ABC11251100003'
+#
+#Infbox  num$(func GET_TOTAL_IMPUESTOS(PS_NUM)) - num$(func GET_CALCULOS(PS_NUM,21)) - num$(func GET_CALCULOS(PS_NUM,22))
+#
+#End
+#
+## -11,98 GET_TOTAL_IMPUESTOS
+## -57,05 SUM_SVCRFOOT
+#
+#Funprog GET_CALCULOS(PS_NUM, OPC)
+#  Value Char PS_NUM
+#  Value Integer OPC # CAMPO DEL FICHERO
+#  Local Decimal YBIMP : YBIMP = 0
+#  Local Decimal YIMPUES : YIMPUES = 0
+#  Local Decimal YTOT : YTOT = 0
+#  Local Decimal C22_1,C22_2
+#
+#  If !clalev([F:YSIHD]): Local File SINVOICED [YSIHD]  : Endif
+#  If !clalev([F:YSIH]): Local File SINVOICE [YSIH]  : Endif
+#
+#      For [F:YSIHD] Where [F:YSIHD]NUM = PS_NUM
+#        YBIMP += [F:YSIHD]BASTAXLIN       # 380.30
+#        YIMPUES +=  [F:YSIHD]AMTTAXLIN    # 79,87
+#      Next
+#
+#   Read [YSIH]SIH0 = PS_NUM
+#      If !fstat
+#        Local Decimal YIMP : YIMP = (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))
+##        Infbox "Dentro proceso: " - num$([YSIH]AMTTAX) - num$(YIMPUES) -num$(TEST) - num$(YIMPUES-TEST)
+#        If ((YIMPUES-TEST)-[YSIH]AMTTAX) = 0.01
+#          YIMPUES = [YSIH]AMTTAX + TEST
+#        Endif
+#      Endif
+#
+#
+#    C22_1= YBIMP - (-1*func YFACTSERES.SUM_SVCRFOOT(PS_NUM))
+#    C22_2= YIMPUES - (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))
+#
+#  Case OPC
+#    When 18 : YTOT = YBIMP                                            # CAMPO 18
+#    When 19 : YTOT = YBIMP - (-1*func YFACTSERES.SUM_SVCRFOOT(PS_NUM))           # CAMPO 19
+#    When 21 : YTOT = YIMPUES - (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))  # CAMPO 21
+#    When 22 : YTOT = C22_1+C22_2                                      # CAMPO 22
+#  Endcase
+#
+#End YTOT
+#
+#
+#Funprog GET_TOTAL_IMPUESTOS(PS_NUM)
+#Value Char PS_NUM
+#
+#  Local Decimal SV_SUM : [L]SV_SUM = 0
+#  If clalev([F:YSVF])=0 : Local File SVCRFOOT [YSVF] : Endif
+#  For [F:YSVF] Where [F:YSVF]VCRNUM = PS_NUM
+#    [L]SV_SUM += [F:YSVF]DTAVATAMT
+#  Next
+#
+#End [L]SV_SUM
+
+
+#Local Char C_PED(20)  :    C_PED = 'UE000887'     # CLIENTE PEDIDO
+#Local Char N_PED(20)  : N_PED =   '80406463'     # NUMERO PEDIDO
+#Local Decimal IMP_TOT_NET  : IMP_TOT_NET = 958.600 # IMPORTE TOTAL NETO
+#Local Char YCONTADOR      # Nº CONTADOR EDI
+#Local Integer RESULT : RESULT = 0  # 0 = NO ESTA DUPLICADO / 1 = ESTA DUPLICADO
+#
+#  If !clalev([F:YZOC1C])  : Local File ZOCERE1C  [F:YZOC1C]   : Endif
+#  If !clalev([F:YZOC])    : Local File ZOCSOH    [F:YZOC]     : Endif
+#
+#    Filter [F:YZOC1C] Where vireblc([F:YZOC1C]C3,4) = N_PED and [F:YZOC1C]C20 = IMP_TOT_NET #and [F:YZOC1C]CONTADOR <> YCONTADOR
+#      For [F:YZOC1C]
+##        If rowcount([F:YZOC1C]) = 1
+#          Read [F:YZOC]ZOCSOH0 = [F:YZOC1C]CONTADOR
+#            If !fstat and [F:YZOC]BPCORD = C_PED
+#              Infbox "ESTA DUPLCIADA"
+#            Endif
+##        Endif
+#      Next
+#    Filter [F:YZOC1C]

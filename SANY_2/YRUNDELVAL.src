@@ -1,0 +1,6 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char VALBOUT: VALBOUT =''
+Local Char PARBOUT: PARBOUT ='YALLOC'
+Call SAISIE_CHAR(VALBOUT,PARBOUT,"YALLOC","","SPEYALLOC") From GSAISIE
+
+End

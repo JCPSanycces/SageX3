@@ -1,0 +1,355 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#################################################################################################################
+#
+# @01@ - EQM - 2024/07/11
+# @02@ - SCD - 12/07/2024 - Ajuste para el campo Y2ENTREGA
+# @03@ - EQM - 07/08/2024 - Eliminamos condición de visualización campo PESOBRUT y PESOREF
+# @04@ - JLP - 06/09/2024 - Ajuste para que la columna servicio se gestione con el campo YTIPENVAGE DE LA TABLA BPCARRIER
+#
+#################################################################################################################
+$ACTION
+Case ACTION
+  When "DEBUT"    :  Gosub DEBUT
+  When "BOUTON"   :  Gosub BOUTON
+Endcase
+Return
+
+
+##############################################
+$DEBUT
+# Limpio la pantalla
+Raz [M:YFACTT]
+[M:YFACTT]PIE_FT = 0
+[M:YFACTT]CPAIS  = ""
+Affzo [M:YFACTT]
+Return
+
+
+
+##############################################
+$BOUTON
+Case BOUT
+  When "Z"  :   Gosub BUSCAR
+Endcase
+Return
+
+
+
+##############################################
+$BUSCAR
+# Limpio el bloque de líneas
+Gosub LIMPIO_LINEAS
+
+# Apertura de tablas
+If !clalev([PP2]) : Local File SDELIVERY    [PP2] : Endif
+If !clalev([PP3]) : Local File STOPREH      [PP3] : Endif
+If !clalev([PP4]) : Local File SORDER       [PP4] : Endif
+If !clalev([PP6]) : Local File STOPRED      [PP6] : Endif
+If !clalev([PP7]) : Local File BPDLVCUST    [PP7] : Endif
+If !clalev([PP8]) : Local File SORDERP      [PP8] : Endif
+If !clalev([PP9]) : Local File YSPACK       [PP9] : Endif
+If !clalev([P10]) : Local File BPCARRIER    [P10] : Endif
+
+# Declaro variables
+Local Integer CONTA
+Local Integer SIGO
+Local Decimal IMPORTE_DP
+Local Decimal PESO_BRUTO
+Local Decimal VOLUMEN
+
+# Compongo criterios de la cabecera de la cita de transporte
+Local Char CRITERIOS1(250) : CRITERIOS1 = " 1=1"
+
+If [M:YFACTT]CPLANTA <> ""
+  [L]CRITERIOS1 += " & [PP3]STOFCY=[M:YFACTT]CPLANTA"
+Endif
+If [M:YFACTT]CFECHACINI <> "000000"
+  [L]CRITERIOS1 += " & [PP3]SHIDAT>=[M:YFACTT]CFECHACINI"
+Endif
+If [M:YFACTT]CFECHACFIN <> "000000"
+  [L]CRITERIOS1 += " & [PP3]SHIDAT<=[M:YFACTT]CFECHACFIN"
+Endif
+If [M:YFACTT]CTRANSPORTE <> ""
+  [L]CRITERIOS1 += " & [PP3]BPTNUM=[M:YFACTT]CTRANSPORTE"
+Endif
+
+nolign = 1
+Filter [PP3] Where evalue(CRITERIOS1) Order By [PP3]PRHNUM Asc
+  For [PP3]
+    SIGO = 2
+
+    # Comparo con el país de entrega del primer pedido de venta
+    # Quito este filtro del pais
+    If 1=2
+      If [M:YFACTT]CPAIS <> ""
+        Filter [PP5] Where [PP5]ZCITANUM = [PP1]ZCITANUM
+        Read [PP5] First
+        If fstat = 0
+          Filter [PP6] Where [PP6]PRHNUM = [PP5]PRHNUM
+          Read [PP6] First
+          If fstat = 0
+            Read [PP4]SOH0 = [PP6]ORINUM
+            If fstat = 0
+              If [PP4]BPDCRY = [M:YFACTT]CPAIS
+                SIGO = 2
+              Else
+                SIGO = 1
+              Endif
+            Else
+              SIGO = 1
+            Endif
+          Else
+            SIGO = 1
+          Endif
+          Filter [PP6]
+        Else
+          SIGO = 1
+        Endif
+        Filter [PP5]
+      Endif
+    Endif
+
+    If [L]SIGO = 2
+        [L]IMPORTE_DP = 0
+        [L]PESO_BRUTO = 0
+        [L]VOLUMEN    = 0
+        [M:YFACTT]TRANSPORTE(nolign-1)   = [PP3]BPTNUM
+        [M:YFACTT]PREPARA(nolign-1)      = [PP3]PRHNUM
+        [M:YFACTT]FECHAC(nolign-1)       = [PP3]SHIDAT
+        [M:YFACTT]ALTURAMAX(nolign-1)    = func ALT_MAX([PP3]PRHNUM)
+
+        Filter [PP6] Where [PP6]PRHNUM = [PP3]PRHNUM
+        Read [PP6] First
+        If fstat = 0
+          Read [PP4]SOH0 = [PP6]ORINUM
+          If fstat = 0
+            [M:YFACTT]PAIS(nolign-1)          = [PP4]BPDCRY
+            [M:YFACTT]DELEGACION(nolign-1)    = [PP4]BPCORD
+            [M:YFACTT]CLIENTE(nolign-1)       = [PP4]BPCINV
+            [M:YFACTT]DIRENT(nolign-1)        = [PP4]BPAADD
+            [M:YFACTT]POBLACION(nolign-1)     = [PP4]BPDCTY
+            [M:YFACTT]CP(nolign-1)            = [PP4]BPDPOSCOD
+            [M:YFACTT]PARTICULAR(nolign-1)    = [PP4]YPARTICULAR
+            [M:YFACTT]CONCERTACION(nolign-1)  = [PP4]YCONCERTA
+            [M:YFACTT]PLATAFORMA(nolign-1)    = [PP4]YPLATAFORMA
+            [M:YFACTT]OBSERVA(nolign-1)       = [PP4]YOBSERVA
+#            [M:YFACTT]CONSIGNATARI(J)         = [PP4]BPDNAM #@01@
+            [M:YFACTT]CONSIGNATARI(nolign-1)         = [PP4]BPDNAM
+          Endif
+        Endif
+        Filter [PP6]
+
+        For [PP6] Where [PP6]PRHNUM = [PP3]PRHNUM
+          Read [PP8]SOP0 = [PP6]ORINUM;[PP6]ORILIN;[PP6]ORISEQ
+          If fstat = 0
+            [L]IMPORTE_DP += [PP8]NETPRINOT
+          Endif
+        Next
+        [M:YFACTT]IMPORTE(nolign-1) = [L]IMPORTE_DP
+
+        Filter [PP9] Where [PP9]VCRNUM = [M:YFACTT]PREPARA(nolign-1)
+          For [PP9]
+            [L]PESO_BRUTO += [PP9]YBRWEI
+            [L]VOLUMEN    += [PP9]VOL
+          Next
+        Filter [PP9]
+        [M:YFACTT]PESOBRUT(nolign-1) = [L]PESO_BRUTO
+
+        Read [P10]BPT0 = [M:YFACTT]TRANSPORTE(nolign-1)
+        If fstat = 0
+          [M:YFACTT]PESOREF(nolign-1) = [L]VOLUMEN * [P10]COEWEIVOL
+        Endif
+
+        [M:YFACTT]IMPORTEASE(nolign-1) = val(func YENVDACH.VALSEGUR([M:YFACTT]PREPARA(nolign-1)))
+        If [M:YFACTT]IMPORTEASE(nolign-1) > 1500
+          [M:YFACTT]ASEGURADO(nolign-1) = 2
+        Endif
+# @04@ - JLP - 06/09/2024 - INI
+        # Gestión del campo Servicio en función o no si es DACHSER
+        If (func GET_DACHER([M:YFACTT]TRANSPORTE(nolign-1)) = 1)
+          If [M:YFACTT]PARTICULAR(nolign-1) = 2
+            [M:YFACTT]SERVICIO(nolign-1) = 2
+          Else
+            [M:YFACTT]SERVICIO(nolign-1) = 3
+          Endif
+        Else
+          [M:YFACTT]SERVICIO(nolign-1) = 1
+        Endif
+
+        # Gestión del campo Servicio en función o no si es DACHSER
+#        If [M:YFACTT]TRANSPORTE(nolign-1) = "NA000018"
+#          If [M:YFACTT]PARTICULAR(nolign-1) = 2
+#            [M:YFACTT]SERVICIO(nolign-1) = 2
+#          Else
+#            [M:YFACTT]SERVICIO(nolign-1) = 3
+#          Endif
+#        Else
+#          [M:YFACTT]SERVICIO(nolign-1) = 1
+#        Endif
+# @04@ - JLP - 06/09/2024 - FIN
+
+        # Gestión la visualización del peso bruto / peso REF
+        # @03@ - EQM - INI  Comentamos
+#        If [M:YFACTT]PESOBRUT(nolign-1) <> 0 or [M:YFACTT]PESOREF(nolign-1) <> 0
+#          If [M:YFACTT]PESOBRUT(nolign-1) > [M:YFACTT]PESOREF(nolign-1)
+#            [M:YFACTT]PESOREF(nolign-1) = 0
+#          Else
+#            [M:YFACTT]PESOBRUT(nolign-1) = 0
+#          Endif
+#        Endif
+        # @03@ - EQM - FIN
+        # @01@ - EQM - INI
+#        [M:YFACTT]VOLUMEN(J)      = [L]VOLUMEN
+#        [M:YFACTT]ANCHOMAX(J)     = func ANC_MAX([PP3]PRHNUM)
+#        [M:YFACTT]LARGOMAX(J)     = func LAR_MAX([PP3]PRHNUM)
+#        [M:YFACTT]CANTSEGUNDAS(J) = 0
+        [M:YFACTT]VOLUMEN(nolign-1)      = [L]VOLUMEN
+        [M:YFACTT]ANCHOMAX(nolign-1)     = func ANC_MAX([PP3]PRHNUM)
+        [M:YFACTT]LARGOMAX(nolign-1)     = func LAR_MAX([PP3]PRHNUM)
+#        [M:YFACTT]CANTSEGUNDAS(nolign-1) = 0
+        [M:YFACTT]CANTSEGUNDAS(nolign-1) = [PP3]Y2ENTREGA
+        # @01@ - EQM -FIN
+
+        nolign +=1
+
+        CONTA +=1
+        If CONTA = 3000
+          Errbox "Atención!! No se van a cargar todos los registros en pantalla (Máximo 3.000 líneas)"
+          Break
+        Endif
+
+        $SIGUIENTE
+    Endif
+  Next
+Filter [PP3]
+
+
+# Visualizo pantalla
+[M:YFACTT]PIE_FT = nolign-1
+Affzo [M:YFACTT]10
+
+
+# Cierro tablas
+Close Local File [PP2]
+Close Local File [PP3]
+Close Local File [PP4]
+Close Local File [PP6]
+Close Local File [PP7]
+Close Local File [PP8]
+Close Local File [PP9]
+Close Local File [P10]
+Return
+
+
+##############################################
+$LIMPIO_LINEAS
+# Limpio el bloque de líneas
+Local Integer J
+For J=0 To [M:YFACTT]PIE_FT-1
+  [M:YFACTT]TRANSPORTE(J)   = ""
+  [M:YFACTT]PAIS(J)         = ""
+  [M:YFACTT]PREPARA(J)      = ""
+  [M:YFACTT]FECHAC(J)       = "000000"
+  [M:YFACTT]CLIENTE(J)      = ""
+  [M:YFACTT]DELEGACION(J)   = ""
+  [M:YFACTT]DIRENT(J)       = ""
+  [M:YFACTT]POBLACION(J)    = ""
+  [M:YFACTT]CP(J)           = ""
+  [M:YFACTT]PESOBRUT(J)     = 0
+  [M:YFACTT]PESOREF(J)      = 0
+  [M:YFACTT]ASEGURADO(J)    = 0
+  [M:YFACTT]IMPORTEASE(J)   = 0
+  [M:YFACTT]PARTICULAR(J)   = 0
+  [M:YFACTT]SERVICIO(J)     = 0
+  [M:YFACTT]CONCERTACION(J) = 0
+  [M:YFACTT]ALTURAMAX(J)    = 0
+  [M:YFACTT]PLATAFORMA(J)   = 0
+  [M:YFACTT]CANTIDAD2(J)    = 0
+  [M:YFACTT]OBSERVA(J)      = ""
+  [M:YFACTT]IMPORTE(J)      = 0
+  [M:YFACTT]CONSIGNATARI(J) = ""
+  [M:YFACTT]VOLUMEN(J)      = 0
+  [M:YFACTT]ANCHOMAX(J)     = 0
+  [M:YFACTT]LARGOMAX(J)     = 0
+  [M:YFACTT]CANTSEGUNDAS(J) = 0
+Next
+
+[M:YFACTT]PIE_FT = 0
+Affzo [M:YFACTT]10
+Return
+
+
+
+##############################################
+Funprog ALT_MAX(PPRHNUM)
+Value Char    PPRHNUM
+
+Local Decimal ALTURA
+
+If !clalev([Y001]) Then : Local File YSPACK [Y001] : Endif
+
+Filter [Y001] Where [Y001]VCRNUM = PPRHNUM Order By [Y001]YPCKHEI Desc
+For [Y001]
+  ALTURA = max(ALTURA,[Y001]YPCKHEI)
+Next
+Filter [Y001]
+
+Close Local File [Y001]
+
+End ALTURA
+
+
+
+##############################################
+Funprog ANC_MAX(PPRHNUM)
+Value Char    PPRHNUM
+
+Local Decimal ANCHO
+
+If !clalev([Y001]) Then : Local File YSPACK [Y001] : Endif
+
+Filter [Y001] Where [Y001]VCRNUM = PPRHNUM Order By [Y001]YPCKWID Desc
+For [Y001]
+  ANCHO = max(ANCHO,[Y001]YPCKWID)
+Next
+Filter [Y001]
+
+Close Local File [Y001]
+
+End ANCHO
+
+
+##############################################
+Funprog LAR_MAX(PPRHNUM)
+Value Char    PPRHNUM
+
+Local Decimal LARGO
+
+If !clalev([Y001]) Then : Local File YSPACK [Y001] : Endif
+
+Filter [Y001] Where [Y001]VCRNUM = PPRHNUM Order By [Y001]YPCKLEN Desc
+For [Y001]
+  LARGO = max(LARGO,[Y001]YPCKLEN)
+Next
+Filter [Y001]
+
+Close Local File [Y001]
+
+End LARGO
+
+# @04@ - JLP - 06/09/2024 - INI
+##############################################
+# Devuelve el valor del tipo de envio
+Funprog GET_DACHER(BPC)
+Value Char BPC
+Local Integer YCARRIER : YCARRIER = 0
+
+If !clalev([YBPC]) Then : Local File BPCARRIER [YBPC] : Endif
+
+  Read [YBPC]BPT0 = BPC
+     If [YBPC]YTIPENVAGE = 1
+        YCARRIER = 1
+     Endif
+
+End YCARRIER
+# @04@ - JLP - 06/09/2024 - FIN

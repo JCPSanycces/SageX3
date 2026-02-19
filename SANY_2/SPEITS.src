@@ -1,0 +1,19 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara ITS (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ITS) 25/07/2022 15:50:22 (NUN10)
+######################################################################################
+$ACTION
+Case ACTION
+ When Default
+Endcase
+Return
+
+Subprog AM_ZASOCIADO(VALEUR)
+Variable Integer VALEUR
+ If VALEUR<3
+   [M:ITS]ZARTASOC=""
+   Affzo [M:ITS]ZARTASOC
+ Endif
+End

@@ -1,0 +1,120 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#################################################
+
+
+Subprog IMPRIME(NBPAR,PARAMETRE)
+Variable    Integer NBPAR
+Variable Char    PARAMETRE()(1..)
+
+Call EXEC(NBPAR,PARAMETRE)
+
+End
+
+######################################################################
+Subprog EXEC(NBPAR,PARAMETRE)
+Variable    Integer NBPAR
+Variable Char    PARAMETRE()(1..)
+
+Local Char    CHART  :  CHART=chr$(1)
+
+Gosub OUVRE
+If GERREUR : GERREUR=0 : End : Endif
+Gosub DECLARE
+[L]CRITERE = "1=1"
+
+Local Char W_REPORT(20)
+If GFONCTION = "YPRODSANY"
+  W_REPORT = GREPORT
+Endif
+
+For I=1 To NBPAR
+ J=instr(1,[L]PARAMETRE(I),"=")
+ If J
+    [L]PARAM  = left$([L]PARAMETRE(I),J-1)
+    If J<>0 and mid$(PARAMETRE(I),J+1,1)=CHART
+      [L]VALEUR = right$([L]PARAMETRE(I),J+2)
+    Else
+      [L]VALEUR = right$([L]PARAMETRE(I),J+1)
+    Endif
+  Case [L]PARAM
+   When "X3ETA"           : [L]ETAT = [L]VALEUR
+   When "__REQUETE"       : [L]NUMREQ = val([L]VALEUR)
+   When "pventa"          : [L]CRITERE -= "& SOHNUM='"+[L]VALEUR+"'"
+   When "itmref"          : [L]CRITERE -= "& ITMREF='"+[L]VALEUR+"'"
+   When "linea"           : [L]CRITERE -= "& SOPLIN="+num$([L]VALEUR)
+   When "numedt"          : [L]PARAMETRE(I) = "numedt="+num$([L]NUMREQ)
+   When "usr"             : [L]PARAMETRE(I) = "usr="+GUSER
+   When "etat"            : [L]PARAMETRE(I) = "etat="+[L]ETAT
+ Endcase
+ Endif
+Next
+Filter [F:SOQ] Where evalue([L]CRITERE)
+
+Gosub TRT_SOQ
+
+End
+
+###################################################################
+###################################################################
+$TRT_SOQ
+#If !clalev([SOQ]) : Local File SORDERQ     [SOQ] : Endif
+Raz WNUMLIG
+Local Decimal W_NUM
+Local Char W_TSICOD(20)
+
+Default File [SOQ]
+
+Read[F:SOQ]SOQ0 First
+If !fstat
+
+
+   Read [F:ITM]ITM0=[F:SOQ]ITMREF
+   If !fstat
+       W_TSICOD=[F:ITM]TSICOD(2)
+       Read [ZITML]ZITML0=[F:ITM]TSICOD(1)
+       If !fstat
+           W_NUM=[ZITML]QTYETQEAN13
+           Gosub TR1
+       Endif
+   Endif
+Endif
+
+Filter [SOQ]
+Return
+
+##########################################################################
+$TR1
+Trbegin [ARM]
+
+For WNUMLIG=1 To W_NUM
+  Raz [F:ARM]
+
+  [F:ARM]USR     = GUSER
+  [F:ARM]RPTCOD  = ETAT
+  [F:ARM]NUMREQ  = [L]NUMREQ
+  [F:ARM]NUMLIG  = WNUMLIG
+  [F:ARM]CLEA1   = [F:SOQ]SOHNUM
+  [F:ARM]CLEA2   = [F:SOQ]ITMREF
+  [F:ARM]CLEA3   = num$([F:SOQ]SOPLIN)
+  [F:ARM]CREDAT  = date$
+  Write [F:ARM]
+  If fstat : GOK = 0 : Call FSTA("ARM") From GLOCK : Goto AB_TR1 : Endif
+Next
+Commit
+Return
+
+$AB_TR1
+
+Rollback
+Return
+
+$OUVRE
+Local File AREPORTM [ARM], SORDERQ [SOQ], ZITMLOGO [ZITML], ITMMASTER [ITM]
+
+Return
+
+$DECLARE
+Local Char    CRITERE(255), PARAM(30) , VALEUR(30) , ETAT(15)
+Local Integer WNUMLIG, NUMREQ
+Local Date    DATREF
+Return

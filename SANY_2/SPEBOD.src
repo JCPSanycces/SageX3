@@ -1,0 +1,34 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Estructura
+#--
+#-- Y004 - Descripción larga
+#--
+$ACTION
+Case ACTION
+  When "LIENS"  : Gosub LIENS #-- Y004
+  When Default
+Endcase
+Return
+
+$LIENS
+  If 1=1
+  #-- Y004 I
+  Gosub LIENS From SUBBODA
+  For I=0 To NBLIG -1
+    Read [F:ITM]ITM0 = [M:BOD1]CPNITMREF(I)
+    If ! fstat
+      [M:BOD1]ZCPNITMREFD(I) = [F:ITM]ITMDES1 : Affzo [M:BOD1]ZCPNITMREFD(nolign-1)
+    Endif
+  Next
+  GPE = 1
+  #-- Y004 F
+  Endif
+Return
+
+Subprog AM_CPNITMREF(VALEUR)
+Variable Char    VALEUR()
+  #--
+  [M:BOD1]ZCPNITMREFD(nolign-1) = [F:ITM]ITMDES1 : Affzo [M:BOD1]ZCPNITMREFD(nolign-1) #-- Y004 I
+End
+
+
+######################################################################################

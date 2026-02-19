@@ -1,0 +1,206 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara SRH1 (Especifico)
+# @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas.
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SRH1) 21/12/2023 16:12:29 (NUN04)
+######################################################################################
+$ACTION
+Case ACTION
+ When "LIENS_LIG"   :   Gosub LIENS_LIG
+ When "VERIF_CRE"   :   Gosub VERIF
+ When "VERIF_MOD"   :   Gosub VERIF
+ When "APRES_CRE"   :   Gosub MODIF
+ When "APRES_MOD"   :   Gosub MODIF
+ When "SETBOUT"     :   Gosub SETBOUT
+Endcase
+Return
+
+####################################################################
+$SETBOUT
+# Control de los botones de resolver / desresolver
+If [M:SRH0]YESTADO = 2
+  Actzo [M:SRH0]YRESOLVER
+Else
+  Grizo [M:SRH0]YRESOLVER
+Endif
+
+If [M:SRH0]YESTADO = 3
+  Actzo [M:SRH0]YDESRESOLVER
+Else
+  Grizo [M:SRH0]YDESRESOLVER
+Endif
+
+Return
+
+
+####################################################################
+$MODIF
+# Gestión del campo Estado, solamente si el valor del campo NO es resuelto
+# Para ello solamente miro a la primera línea (confirmado 28/06/2024)
+If [M:SRH0]YESTADO <> 3
+  Local Decimal SRH_STA
+  If [M:SRH1]QTY(0) = 0
+    [L]SRH_STA = 1
+  Elsif [M:SRH1]QTY(0) > 0
+    [L]SRH_STA = 2
+  Endif
+  Read [PP3]SRH0 = [M:SRH0]SRHNUM
+  If fstat = 0
+    [PP3]YESTADO = [L]SRH_STA
+    Rewrite [PP3]
+    If fstat = 0
+      [M:SRH0]YESTADO = [L]SRH_STA
+      Affzo [M:SRH0]YESTADO
+    Endif
+  Endif
+Endif
+Return
+
+
+####################################################################
+$VERIF
+Return # Anulo el control 27/03/2024
+# Compruebo que no haya ninguna línea con el campo Cantidad Devuelta a cero
+Local Integer PROBLEMA
+For LINE = 0 To [M:SRH1]NBLIG-1
+  If [M:SRH1]QTY(LINE) = 0
+    [L]PROBLEMA = 2
+    Break
+  Endif
+Next
+
+If [L]PROBLEMA = 2
+  Errbox "No puede haber líneas con Cantidad Devuelta a cero"
+  OK       = 0 : GERR = 1
+Endif
+Return
+
+
+####################################################################
+$LIENS_LIG
+
+# Muestro la información del control de calidad en las líneas
+Gosub LIENS_LIG From SUBSRHA
+
+Local Decimal LAAA
+Local Decimal LRRR
+
+Read [PP1]QLH3 = 13;[M:SRH0]SRHNUM;[M:SRH1]ITMREF(nolign-1)
+If fstat = 0
+    Filter [PP2] Where [PP2]STOFCY = [M:SRH0]STOFCY
+&                    & [PP2]VCRTYP = 28 & [PP2]VCRNUM = [PP1]VCRNUM & [PP2]VCRLINORI = [M:SRH1]SRDLIN(nolign-1)
+&                    & [PP2]VCRNUMORI = [M:SRH0]SRHNUM & [PP2]REGFLG <> 2
+&                    & [PP2]QTYSTU > 0
+&                    & pat([PP2]STA,"Q*")<>1
+      For [PP2] Hint Key STJ1
+        If left$([PP2]STA,1)="A"
+            LAAA += [PP2]QTYSTU
+        Elsif left$([PP2]STA,1)="R"
+            LRRR += [PP2]QTYSTU
+        Endif
+      Next
+    Filter [PP2]
+
+  [M:SRH1]YCCVALIDA(nolign-1) = [PP1]VALFLG
+  [M:SRH1]YCCAQTY(nolign-1)   = LAAA
+  [M:SRH1]YCCRQTY(nolign-1)   = LRRR
+
+  Affzo [M:SRH1]YCCVALIDA(nolign-1)
+  Affzo [M:SRH1]YCCAQTY(nolign-1)
+  Affzo [M:SRH1]YCCRQTY(nolign-1)
+Endif
+
+
+Return
+
+
+
+######################################################################################
+Subprog AM_QTY(VALEUR)
+Variable Decimal VALEUR
+# Mensaje informativo al modificar la cantidad
+Infbox "ATENCIÓN!! REVISAR LA FECHA DEVOLUCIÓN"
+
+# Si pongo valor, reviso el campo de actualización de stock para asegurarme que está a Sí
+If VALEUR <> 0 and [M:SRH1]RTNSTOUPD(nolign-1) <> 2
+  [M:SRH1]STOMGTCOD(nolign-1) = 2
+  [M:SRH1]RTNSTOUPD(nolign-1) = 2
+  Affzo [M:SRH1]STOMGTCOD(nolign-1)
+  Affzo [M:SRH1]RTNSTOUPD(nolign-1)
+Endif
+End
+
+
+######################################################################################
+Subprog CL_YRESOLVER(VALEUR)
+Variable Char    VALEUR()
+# Paso el estado a Resuelta
+Local Integer OK9
+Call OUINON("¿Desea resolver la devolución " + [M:SRH0]SRHNUM + "?", OK9) From GESECRAN
+If OK9 = 2
+  Read [PP3]SRH0 = [M:SRH0]SRHNUM
+  If fstat = 0
+    [PP3]YESTADO = 3
+    Rewrite [PP3]
+    If fstat = 0
+      [M:SRH0]YESTADO = 3
+      Affzo [M:SRH0]YESTADO
+      Actzo [M:SRH0]YDESRESOLVER
+      Grizo [M:SRH0]YRESOLVER
+    Endif
+  Endif
+Endif
+End
+
+
+######################################################################################
+Subprog CL_YDESRESOLVER(VALEUR)
+Variable Char    VALEUR()
+# Paso el estado a des-Resuelta
+Local Integer OK9
+Call OUINON("¿Desea des-resolver la devolución " + [M:SRH0]SRHNUM + "?", OK9) From GESECRAN
+If OK9 = 2
+  Read [PP3]SRH0 = [M:SRH0]SRHNUM
+  If fstat = 0
+    [PP3]YESTADO = 2
+    Rewrite [PP3]
+    If fstat = 0
+      [M:SRH0]YESTADO = 2
+      Affzo [M:SRH0]YESTADO
+      Actzo [M:SRH0]YRESOLVER
+      Grizo [M:SRH0]YDESRESOLVER
+    Endif
+  Endif
+Endif
+End
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SRH1) 11/11/2025 10:24:38 (NUN28)
+######################################################################################
+# @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas. - INI
+# EVENTO DE CAMPO INIC.
+Subprog D_YCATITM(VALEUR)
+Variable Char    VALEUR()
+
+If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
+  Read [YITM]ITM0 = [M:SRH1]ITMREF(nolign-1)
+    If !fstat
+      VALEUR = [YITM]TCLCOD
+    Endif
+End
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SRH1) 11/11/2025 10:44:22 (NUN28)
+######################################################################################
+# EVENTO DE CAMPO DESPUES MODIF.
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+
+  If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
+  Read [YITM]ITM0 = VALEUR
+    If !fstat
+      [M:SRH1]YCATITM(nolign-1) = [YITM]TCLCOD
+      Affzo [M:SRH1]YCATITM(nolign-1)
+    Endif
+End
+# @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas. - FIN
+######################################################################################

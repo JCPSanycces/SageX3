@@ -1,0 +1,17 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+    When "APRES_CRE"  :    Gosub APRES
+    When "APRES_MOD"  :    Gosub APRES
+Endcase
+Return
+
+##################################################
+$APRES
+# Actualizo el campo SPE donde guardo la razón social concatenada
+Read [YBPR]BPR0 = [F:REP]REPNUM
+If fstat = 0 and [YBPR]YRAZSOC = ""
+  [YBPR]YRAZSOC = [BPR]BPRNAM(0) + [BPR]BPRNAM(1)
+  Rewrite [YBPR]
+Endif
+Return

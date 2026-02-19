@@ -1,0 +1,235 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#@01@ nun48 - Modificacion del estado de contenedores desde Expedición
+$ACTION
+Case ACTION
+  When "MODIF"        :   Gosub MODIF
+  When "VERIF_CRE"    :   Gosub VERIF_CRE
+  When "VERIF_MOD"    :   Gosub VERIF_MOD
+  When "LIENS"        :   Gosub LIENS
+  When "APRES_CRE"    :   Gosub APRES_CRE
+  When "APRES_MOD"    :   Gosub APRES_MOD
+  When "ANNULE"       :   Gosub ANNULE
+Endcase
+Return
+
+###########################################
+$APRES_CRE
+  If ! func GET_ESTADO_CONTAINER([M:SHIP0]SHIPNUM)
+#    Infbox 'FIN'
+  Endif
+Return
+###########################################
+$APRES_MOD
+  If ! func GET_ESTADO_CONTAINER([M:SHIP0]SHIPNUM)
+#    Infbox 'FIN'
+  Endif
+Return
+###########################################
+$ANNULE
+  If func COMPROBAR_CONTENEDORES([M:SHIP0]SHIPNUM) = 0
+#    Infbox "CONTENEDORES DESMARCADOS"
+  Else
+#    Infbox "NO HA SIDO POSIBLE DESMARCAR LOS CONTENEDORES DE LA EXPEDICIÓN"
+  Endif
+Return
+###########################################
+Funprog COMPROBAR_CONTENEDORES(YSHIPNUM)
+Value Char YSHIPNUM
+Local Integer I_RES : I_RES = 0
+
+If !clalev([YCRT]) : Local File YVCTR [YCRT] : Endif
+Filter [YCRT] Where [YCRT]SHIPNUM = YSHIPNUM
+For [YCRT]
+  If !func SPESHIP.MARCAR_CONTENEDOR([YCRT]CTRNUM, 1)
+#    Infbox "Contenedor NO marcado"
+  Else
+#     Infbox "Contenedor marcado"
+  Endif
+Next
+
+End I_RES
+###########################################
+Funprog GET_ESTADO_CONTAINER(YSHIPNUM)
+Value Char YSHIPNUM
+Local Integer I_RES : I_RES=0
+
+If !clalev([YCRT]) : Local File YVCTR [YCRT] : Endif
+Filter [YCRT] Where [YCRT]SHIPNUM = YSHIPNUM
+For [YCRT]
+  If [YCRT]PTHNUM<>''
+     #Tiene RECEPCIÓN
+     If !func MARCAR_CONTENEDOR([YCRT]CTRNUM, 3) #Recepcionado
+#      Infbox "MAL"
+     Else
+#      Infbox "BIEN"
+     Endif
+  Else
+     If !func MARCAR_CONTENEDOR([YCRT]CTRNUM, 2) #En expedición
+#      Infbox "MAL"
+     Else
+#      Infbox "BIEN"
+     Endif
+  Endif
+Next
+End I_RES
+###########################################
+Funprog MARCAR_CONTENEDOR(YCTRHNUM, YESTADO)
+Value Char YCTRHNUM
+Value Integer YESTADO
+Local Integer I_RES : I_RES = 0
+
+Local Integer I_ADXLOG : [L]I_ADXLOG = adxlog
+
+If !clalev([YCONT]) : Local File CONTAINER [YCONT] : Endif
+
+If !I_ADXLOG
+  Trbegin [YCONT]
+Endif
+
+Read [YCONT]CTRH0 = YCTRHNUM
+
+If !fstat
+  [YCONT]YESTADO = YESTADO
+  Rewrite [YCONT]
+Endif
+If !fstat
+   I_RES = 2
+   If ![L]I_ADXLOG
+     Commit
+   Endif
+Else
+   I_RES = 0
+   If ![L]I_ADXLOG
+    Rollback
+   Endif
+Endif
+
+End I_RES
+###########################################
+$LIENS
+# Cargo la partida arancelaria en las líneas (pedidos)
+Gosub LIENS From SUBSHIPA
+
+For K=0 To [M:SHIP1]NBLIG-1
+  Read [ITM]ITM0 = [M:SHIP1]ITMREF(K)
+  If fstat = 0
+    [M:SHIP1]YREFERENCIA(K) = [ITM]CUSREF
+    Affzo [M:SHIP1]YREFERENCIA(K)
+  Endif
+Next
+
+GPE = 1
+Return
+
+
+###########################################
+$MODIF
+# Guardo la fecha recepción prevista y el ID de la expedición por contenedor
+For I=0 To [M:SHIP3]NBCONT-1
+  Read [CTRH]CTRH0 = [M:SHIP3]CTRNUM(I)
+  If fstat = 0
+    [F:CTRH]YFECHAPREV = [M:SHIP3]YFECHAPREV(I)
+#    [F:CTRH]SHIPUID    = [M:SHIP0]SHIPUID
+    Rewrite [CTRH]
+  Endif
+Next
+Return
+
+
+###########################################
+$VERIF_MOD
+# Si tengo fecha por contenedor, actualizo la fecha de la pestaña de detalle para este contenedor
+# Para ello, lanzo el STD, actualizo la fecha y bloqueo STD
+
+Gosub VERIF_CRE From SUBSHIPA
+
+For J=0 To [M:SHIP3]NBCONT-1
+  If [M:SHIP3]YFECHAPREV(J) <> "000000"
+    For I=0 To [M:SHIP1]NBLIG-1
+      If [M:SHIP1]CTRNUM(I) = [M:SHIP3]CTRNUM(J)
+        [M:SHIP1]EXTRCPDAT(I) = [M:SHIP3]YFECHAPREV(J)
+        [M:SHIP1]UPDFLG(I)=1
+        Affzo [M:SHIP1]EXTRCPDAT(I)
+      Endif
+    Next
+  Endif
+Next
+
+Gosub REESCRIBIR_CC
+Call SET_CC_PEDIDO([M:SHIP0]SHIPNUM)
+GPE=1
+Return
+#############################################################################
+###########################################################################################
+Funprog CC_PEDIDO(POHNUM, POPLIN, POPSEQ)
+Value Char POHNUM
+Value Integer POPLIN,POPSEQ
+Local Integer CC_RES : CC_RES = 0
+
+  If !clalev([ZPOH]) Local File PORDERP [ZPOH] Endif
+  Read [ZPOH]POP0 = POHNUM;POPLIN;POPSEQ
+  If !fstat
+    CC_RES = [ZPOH]QUAFLG
+  Endif
+
+End CC_RES
+###########################################################################################
+
+$VERIF_CRE
+  Call SET_CC_PEDIDO([M:SHIP0]SHIPNUM)
+  Gosub REESCRIBIR_CC
+Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SHIP0) 18/09/2024 14:30:45 (NUN22)
+######################################################################################
+Subprog AS_BPRNUM(VALEUR)
+Variable Char    VALEUR()
+  If [M:SHIP0]BPSNUM <> ""
+    VALEUR = [M:SHIP0]BPSNUM
+    Affzo [M:SHIP0]BPSNUM
+  Endif
+End
+
+
+######################################################################################
+$REESCRIBIR_CC
+
+For I=0 To [M:SHIP1]NBLIG -1
+
+    [M:SHIP1]YQUAFLG(I) = func CC_PEDIDO([M:SHIP1]POHNUM(I), [M:SHIP1]POPLIN(I),[M:SHIP1]POQSEQ(I))
+    Affzo [M:SHIP1]YQUAFLG(I)
+
+Next
+    Affzo [M:SHIP1]YQUAFLG
+
+Return
+################################################################
+Subprog SET_CC_PEDIDO(C_SHIPMENT)
+Value Char C_SHIPMENT
+Local Integer I_RES : I_RES=0
+
+Local Integer O_TRS : O_TRS = adxlog
+Local Integer FSTAT_COMMIT
+
+If !clalev([ZSHD]) Local File  SHIPMENTD [ZSHD] Endif
+
+If !O_TRS
+ Trbegin [ZSHD]
+Endif
+
+For [ZSHD] Where [ZSHD]SHIPNUM = C_SHIPMENT
+
+    [ZSHD]YQUAFLG = func CC_PEDIDO([ZSHD]POHNUM, [ZSHD]POPLIN, [ZSHD]POQSEQ)
+    Rewrite [ZSHD]
+Next
+
+
+If !O_TRS
+  If !FSTAT_COMMIT
+    Commit
+  Else
+    Rollback
+  Endif
+Endif
+
+End

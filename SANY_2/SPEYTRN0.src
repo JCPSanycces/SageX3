@@ -1,0 +1,181 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+
+Case ACTION
+
+  When "BOUTON" : Gosub BOUTON
+  When "DEBUT" : Gosub DEBUT
+  When "APRES_MODIF" : Gosub APRES_MODIF
+  When "LIENS" : Gosub LIENS
+  When "INIMOD" : Gosub INIMOD
+  When "INICRE" : Gosub INICRE
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+######################################################################################
+$BOUTON
+#  Case BOUT
+#    When 'A' Then
+#      Sleep 2
+#      Infbox "Transportista guardado."
+#      Gosub GUARDAR
+#    When 'B' Then
+#      Local Integer YN : YN = 2 :# POR DEFECTO APUNTA A SI
+#      Call OUINON("¿Estas seguro de conectar?", YN) From GESECRAN
+#        If YN = 2
+#          Sleep 5
+#          Infbox "Comunicación realizada."
+#        Endif
+#  Endcase
+Return
+
+$DEBUT
+  Affzo [M]
+Return
+######################################################################################
+$APRES_MODIF
+#  If [M:YTRN1]YUSUARIO = '' and [M:YTRN1]YPASSWD <> ''
+#    [M:YTRN1]YPASSWD = ''
+#    Affzo [M:YTRN1]YPASSWD
+#  Endif
+Return
+######################################################################################
+
+$INIMOD
+#Gosub GUARDAR
+Return
+######################################################################################
+$INICRE
+#Gosub GUARDAR
+Return
+
+
+$LIENS
+#IF GUSER = "NUN40" THEN
+#  INFBOX "LLEGO"
+#ENDIF
+#
+# # Cargo la lista de servicios
+#  If !clalev([YTSR]) : Local File YTRASERV [YTSR] : Endif
+#  nolign = 1
+#  [M:YTRANSER]NBLIG = 0
+#  Filter [YTSR] Where [YTSR]YTRANS = [M:YTRN0]YTRANS
+#  Infbox [YTSR]YTRANS
+#  For [YTSR]
+#    [M:YTRANSER] = [YTSR]
+#    nolign += 1
+#    [M:YTRANSER]NBLIG += 1
+#  Next
+#  Filter [YTSR]
+#
+#  Affzo [M:YTRANSER]
+#  Close Local File [YTSR]
+Return
+
+
+
+
+
+
+######################################################################################
+$GUARDAR
+
+#If !clalev([YTRAN]) Local File YTRAN [YTRAN] Endif
+#  Read [YTRAN]YTRAN0 = [M:YTRN1]YTRANS
+#    If !fstat
+#      [YTRAN] = [M:YTRN1]
+#      Rewrite [YTRAN]
+#    Else
+#      [YTRAN] = [M:YTRN1]
+#      Write [YTRAN]
+#    Endif
+Return
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRAN) 25/11/2025 14:42:43 (ADMIN)
+######################################################################################
+Subprog AM_YTRANS(VALEUR)
+#Variable Char    VALEUR()
+#Local Integer I : I = 0
+#If !clalev([YTRAN]) Local File YTRAN [YTRAN] Endif
+#
+#  Read [YTRAN]YTRAN0 = VALEUR
+#    If !fstat
+#      [M:YTRN1] = [YTRAN]
+#      [M:YTRN1]YSERV = [YTRAN]YSERV
+#      [M:YTRN1]YCODSERV = [YTRAN]YCODSERV
+#      [M:YTRN1]NBLIG = 1
+#      Affzo[M:YTRN1]YSERV
+#      Affzo[M:YTRN1]YCODSERV
+#      Affzo [M:YTRN1]
+#    Else
+##      Local Char YTRANS(20) : YTRANS = [M:YTRN1]YTRANS
+##      Local Integer YFUNC(20) : YFUNC = [M:YTRN]YFUNC
+#      Raz [M:YTRN1]YTRANS
+#      [M:YTRN1]YTRANS = VALEUR
+##     [M:YTRN1]YFUNC = YFUNC
+#      Affzo [M:YTRN1]YTRANS
+#      [M:YTRN1]NBLIG = 0
+#
+#      For I = 0 To I = 1
+#          [M:YTRN1]YSERV(I) = "Estándar"
+#          [M:YTRN1]YCODSERV(I) = "01"
+#
+#          Affzo [M:YTRN1]YSERV(I)
+#          Affzo [M:YTRN1]YCODSERV(I)
+#          [M:YTRN1]NBLIG = I + 1
+#          Affzo [M:YTRN1]
+#      Next
+#    Endif
+#  Affzo [M:YTRN1]
+End
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRAN) 26/11/2025 12:04:49 (ADMIN)
+######################################################################################
+Subprog AM_YFUNC(VALEUR)
+#Variable Integer VALEUR
+#Local Integer I : I = 0
+#If !clalev([YTRAN]) Local File YTRAN [YTRAN] Endif
+#
+#  Read [YTRAN]YTRAN0 = [M:YTRN1]YTRANS
+#    If !fstat
+#      [M:YTRN1] = [YTRAN]
+#      [M:YTRN1]YSERV = [YTRAN]YSERV
+#      [M:YTRN1]YCODSERV = [YTRAN]YCODSERV
+#      [M:YTRN1]NBLIG = 1
+#      Affzo[M:YTRN1]YSERV
+#      Affzo[M:YTRN1]YCODSERV
+#      Affzo [M:YTRN1]
+#    Else
+#      Local Char YTRANS(20) : YTRANS = [M:YTRN1]YTRANS
+##      Local Integer YFUNC(20) : YFUNC = [M:YTRN1]YFUNC
+#      Raz [M:YTRN1]YTRANS
+##      [M:YTRN1]YFUNC = VALEUR
+#      [M:YTRN1]YTRANS = YTRANS
+#      Affzo [M:YTRN1]YTRANS
+#      [M:YTRN1]NBLIG = 0
+#
+#      For I = 0 To I = 1
+#          [M:YTRN1]YSERV(I) = "Estándar"
+#          [M:YTRN1]YCODSERV(I) = "01"
+#
+#          Affzo [M:YTRN1]YSERV(I)
+#          Affzo [M:YTRN1]YCODSERV(I)
+#          [M:YTRN1]NBLIG = I + 1
+#          Affzo [M:YTRN1]
+#      Next
+#    Endif
+#  Affzo [M:YTRN1]
+End
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRAN) 25/11/2025 15:17:51 (ADMIN)
+######################################################################################
+Subprog C_YPASSWD(VALEUR)
+Variable Char    VALEUR()
+End
+######################################################################################

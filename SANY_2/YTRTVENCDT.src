@@ -1,0 +1,70 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Return
+Case ACTION
+  When "CALCREDIT"    :   Gosub CALCREDIT
+Endcase
+Return
+
+
+###########################################
+$CALCREDIT
+# En el pedido de venta
+If GFONCTION= "GESSOH" and 1=2
+  # Si el riesgo está excedido -> bloqueo el pedido
+  If CDTSTA = 3
+
+    CDTSTA = 2
+
+  Else
+  # Si la condición de pago es E03 y el riesgo está excedido y el anticipo NO está emitido -> bloqueo el pedido
+  # 12/04/23. Cambio de requerimientos. Bloqueo no solamente la E03 sino cualquier condición que tenga un tipo de pago = Anticipo
+  #Elsif [M:SOH3]PTE = "E03" and CDTSTA = 3
+    If !clalev([PP0]) : Local File TABPAYTERM [PP0] : Endif
+    If !clalev([PP1]) : Local File GACCDUDATE [PP1] : Endif
+    If !clalev([PP2]) : Local File PAYMENTH   [PP2] : Endif
+    If !clalev([PP3]) : Local File PAYMENTD   [PP3] : Endif
+
+
+    Local Integer ES_ANTICIPO
+    For [PP0] Where [PP0]PTE = [M:SOH3]PTE
+      If [PP0]PAMTYP = 2
+        ES_ANTICIPO = 2
+        Break
+      Endif
+    Next
+
+    # En caso de anticipo, solamente desbloqueo el pedido si todos los vencimientos están en Banco (pago contabilizado)
+    If ES_ANTICIPO = 2
+
+      # Por defecto, bloqueado
+      CDTSTA = 2
+
+      Local Integer NO_EN_BANCO
+      Local Integer EN_COBRO
+
+      Filter [PP3] Where [PP3]VCRNUM = [M:SOH0]SOHNUM
+      For [PP3]
+        EN_COBRO = 2
+        Read [PP2]PYH0 = [PP3]NUM
+        If fstat = 0
+          If [PP2]STA <> 9
+            NO_EN_BANCO = 2
+            Break
+          Endif
+        Endif
+      Next
+      Filter [PP3]
+
+      If EN_COBRO = 2 and NO_EN_BANCO <> 2
+        CDTSTA = 1
+      Endif
+    Endif
+
+    Close Local File [PP0]
+    Close Local File [PP1]
+    Close Local File [PP2]
+    Close Local File [PP3]
+  Endif
+Endif
+Return

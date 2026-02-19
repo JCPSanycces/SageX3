@@ -1,0 +1,91 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#
+##########################################################################
+$ACTION
+    If GUSER = 'NUN05' Then : Infbox ACTION : Endif
+#--- Dem 74959
+# Entry point reserved for ETO
+  Case ACTION
+    When "YDTOCOM"     : Gosub YDTOCOM
+    When "YDTOCAS"     : Gosub YDTOCAS
+  Endcase
+Return
+
+
+######################################################################################
+$YDTOCOM
+  If GUSER = 'NUN05' Then : Infbox "COMPRAS" : Endif
+  If GUSER = 'NUN05' Then : Infbox GFONCTION : Endif
+  If GUSER = 'NUN05' Then : Infbox "[M:POH3]INVORDAMT(NOL): " + num$([M:POH3]INVORDAMT(NOL)) : Endif
+  If GUSER = 'NUN05' Then : Infbox "[M:POH3]TOTLINATI: " + num$([M:POH3]TOTLINATI) : Endif
+  WMNTCLCBAS = sum([M:POH3]TOTLINATI) -  sum([M:POH3]INVORDAMT)
+
+  # WMNTCLCBAS=arr([M:POH3]TOTLINAMT*VALEUR/100,GPOH_RND)*SIGN
+
+Return
+
+######################################################################################
+$YDTOCAS
+
+  #- Buscamos la base inicial y sumamos o restamos las cuotas de los elementos anteriores
+  #- Base en cascada
+
+  Local Decimal ZBASE
+  Local Decimal ZQUOTA
+
+  Gosub BASE_QUOTA
+
+  If GUSER = 'NUN05' Then : Infbox "ZBASE:" + num$(ZBASE) : Endif
+  If GUSER = 'NUN05' Then : Infbox "ZQUOTA:" + num$(ZQUOTA) : Endif
+  If GUSER = 'NUN05' Then : Infbox "sum([M:SIHV]XFNOTP):" + num$(sum([M:SIHV]XFNOTP)) : Endif
+  WMNTCLCBAS = (ZBASE + ZQUOTA) # + sum([M:SIHV]XFNOTP)
+  If GUSER = 'NUN05' Then : Infbox "WMNTCLCBAS:" + num$(WMNTCLCBAS) : Endif
+
+Return
+
+######################################################################################
+$BASE_QUOTA
+  If [M:SIHV]CLCBAS(JL)=1 : # sur le HT
+
+#    If GUSER = 'NUN05' Then : Infbox "[M:SIHV]XFMCLCVAT(JL):" + num$([M:SIHV]XFMCLCVAT(JL)) : Endif
+#    If GUSER = 'NUN05' Then : Infbox "[M:SIHV]CLCORD(JL):" + num$([M:SIHV]CLCORD(JL)) : Endif
+#    If GUSER = 'NUN05' Then : Infbox "[M:SIHV]XFNUM(JL):" + num$([M:SIHV]XFNUM(JL)) : Endif #  XFNUM ELEMENT NO.
+#    If GUSER = 'NUN05' Then : Infbox "[M:SIHV]XFDTAAMT(JL):" + num$([M:SIHV]XFDTAAMT(JL)) : Endif # XFDTAAMT
+
+    If [M:SIHV]XFMCLCVAT(JL)<>"" : # application de la sélection taxe pour le calcul
+      JLT=find([M:SIHV]XFMCLCVAT(JL),TVACOD(0..NBTVA-1))
+#      If GUSER = 'NUN05' Then : Infbox "JLT:" + num$(JLT) : Endif
+      If JLT
+        ZBASE=TVANOT(JLT-1)
+        ZQUOTA=0
+#        If GUSER = 'NUN05' Then : Infbox "1-ZBASE: " + num$(ZBASE) : Endif
+#        If GUSER = 'NUN05' Then : Infbox "1-QUOTA: " + num$(0) : Endif
+      Endif
+    Else
+#      If GUSER = 'NUN05' Then : Infbox "1.1.TVANOT(0):" + num$(TVANOT(0)) : Endif
+#      If GUSER = 'NUN05' Then : Infbox "1.1.TVANOT(1):" + num$(TVANOT(1)) : Endif
+#      If GUSER = 'NUN05' Then : Infbox "1.1.TVANOT(2):" + num$(TVANOT(2)) : Endif
+
+      ZBASE=sum(TVANOT)
+      # ZBASE=sum([M:SIHV]XFSMI)   # ¿?¿?¿?
+      ZQUOTA=sum([M:SIHV]XFNOT)
+#      If GUSER = 'NUN05' Then : Infbox "2-ZQUOTA: " + num$(ZQUOTA) : Endif
+#      If GUSER = 'NUN05' Then : Infbox "2-ZBASE: " + num$(ZBASE) : Endif
+    Endif
+  Endif
+
+
+  If [M:SIHV]CLCBAS(JL)=2 : # sur le TTC
+    If [M:SIHV]XFMCLCVAT(JL)<>"" : # application de la sélection taxe pour le calcul
+      JLT=find([M:SIHV]XFMCLCVAT(JL),TVACOD(0..NBTVA-1))
+      If JLT
+        ZBASE=TVAATI(JLT-1)
+        ZQUOTA=0
+      Endif
+    Else
+      ZBASE=sum(TVAATI)
+      ZQUOTA=sum([M:SIHV]XFATI)
+    Endif
+  Endif
+Return
+######################################################################################

@@ -1,0 +1,23 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+
+  Case ACTION
+    When "DEBFIL": Gosub DEBFIL
+  Endcase
+
+Return
+
+#########################################################################
+
+$DEBFIL
+
+  Case WUPDFIL
+    When "PTH" Then FILSUP -= ' & [F:PTH]PRHFCY <> "13"'
+    When "PNH" Then FILSUP -= ' & [F:PNH]PNHFCY <> "13"'
+    When "PIH" Then FILSUP -= ' & [F:PIH]FCY <> "13"'
+    When "SDH" Then FILSUP -= ' & [F:SDH]SALFCY <> "13"'
+    When "SRH" Then FILSUP -= ' & [F:SRH]SALFCY <> "13"'
+    When "SIH" Then FILSUP -= ' & [F:SIH]FCY <> "13"'
+  Endcase
+
+Return

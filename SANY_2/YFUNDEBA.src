@@ -1,0 +1,41 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "DEBCTLLIG"    :   Gosub DEBCTLLIG
+Endcase
+Return
+
+################################################
+$DEBCTLLIG
+# Si es una entrega, no debe aparecer si es de la planta 13
+If WMVT>=1 and WMVT<=6
+  If [SDH]STOFCY = "13"
+    GPE = 1
+  Endif
+# Si es una devolución cliente, no debe aparecer si es de la planta 13
+Elsif WMVT=12 or WMVT=13 or WMVT=19
+  If [SRH]STOFCY = "13"
+    GPE = 1
+  Endif
+# Si es una recepción, no debe aparecer si es de la planta 13
+Elsif WMVT=8 or WMVT=9 or WMVT=10 or WMVT=11
+  If [PTH]PRHFCY = "13"
+    GPE = 1
+  Endif
+# Si es una devolución a proveedor, no debe aparecer si es de la planta 13
+Elsif WMVT=14
+  If [PNH]PNHFCY = "13"
+    GPE = 1
+  Endif
+# Si es una factura de venta, no debe aparecer si es de la planta 13
+Elsif WMVT=15 or WMVT=16
+  If [SIH]FCY = "13"
+    GPE = 1
+  # Para el resto de plantas, NO tener en cuenta las facturas de tipo abono devolución en la declaración del Intrastat
+  Elsif [F:SIH]INVTYP = 2
+    If [F:SIV]SIHORI = 6
+      GPE = 1
+    Endif
+  Endif
+Endif
+Return

@@ -1,0 +1,1381 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ SERES ORDERS
+#####################################################################################
+# Src: SPEZOC
+#-------------------------------------------------------------------------------------
+# (Monitor de importación de pedidos EDI)
+#-------------------------------------------------------------------------------------
+# Proyecto: Sanycces
+#-------------------------------------------------------------------------------------
+# Version: v12 2023R1
+#-------------------------------------------------------------------------------------
+# Fecha:07-03-2024
+#-------------------------------------------------------------------------------------
+# Desarrollador: NUN22
+# Codigo Actividad:
+#######################################################################################
+#@01@: (Y119) NUN22 07-03-2024  Corrfecciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+#@02@: (Y119) NUN14 12-03-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+#@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+#@04@: (Y119) NUN28 22-08-2024  Correciones ya que no se puede modificar ningun pedido con incidencias.
+#@05@: (Y119) NUN28 28-08-2024  Correciones para que se puedan generar masivamente los pedidos.
+#@06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+#@07@: (Y119) NUN28 16-09-2024  Improtación de pedidos masivo EDI
+#@08@: (Y119) NUN11 25-09-2024  Recorro los terceros para encontrar el que sea cliente
+#@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente
+#@10@: (Y119) NUN28 29-10-2024  Error en las cantidades del pedido al guardar y pone simepre la cantidad de la primera linea
+#@11@: (Y119) NUN28 16-10-2025  Modificar el campo fecha pedido para que indique la fecha de importación a SAGE
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+#@13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información
+##-----------------------------------------------------------------------------------------------
+$ACTION
+  #--
+  Case ACTION
+    When "OUVRE"        : Gosub OUVRE
+    When "LIENS"        : Gosub LIENS
+    When "MODIF"        : Gosub MODIF
+    When "SETBOUT"      : Gosub SETBOUT
+    When "EXEBOUT"      : Gosub EXEBOUT
+    When "STATUT"       : Gosub STATUT
+    When "ANNULE"       : Gosub ANNULE
+    When "AVANT_CHOI"  : Gosub AVANT_CHOI
+    When Default
+Endcase
+Return
+
+#############################################################################
+
+$AVANT_CHOI
+    GBPCNUM = [M:ZOCERESO]BPCORD
+Return
+
+#############################################################################
+
+##-----------------------------------------------------------------------------------------------  objeto
+$OUVRE
+  #--
+  Local Char WCONTADOR(20), WTEXTO(250)(0..3)
+  Local Char S_MOG_INVBPC(GLONBPC),S_MOG_TITLE(50),S_MOG_FTITLE(50),S_MOG_OBJ(50) #@01@
+  Local Char S_SQLMESS(250) #@01@
+  Local Integer STAT,I_OKMOG,I_ERRTYP #@01@
+  Local Decimal AF_DESC(3) #@01@
+  Global Char WSOHNUM
+  #--
+  If !clalev([F:ZOCTL])  : Local File ZOCRECTL  [F:ZOCTL]   : Endif
+  If !clalev([F:ZOCTL2]) : Local File ZOCRECTL  [F:ZOCTL2]  : Endif
+  If !clalev([F:ZOC1C])  : Local File ZOCERE1C  [F:ZOC1C]   : Endif
+  If !clalev([F:ZOC1C2]) : Local File ZOCERE1C  [F:ZOC1C2]  : Endif
+  If !clalev([F:ZOC1T])  : Local File ZOCERE1T  [F:ZOC1T]   : Endif
+  If !clalev([F:ZOC1P])  : Local File ZOCERE1P  [F:ZOC1P]   : Endif
+  If !clalev([F:ZOC1P2]) : Local File ZOCERE1P  [F:ZOC1P2]  : Endif
+  If !clalev([F:ZOC1L])  : Local File ZOCERE1L  [F:ZOC1L]   : Endif
+  #--
+  If !clalev([F:ZOCSOH]) : Local File ZOCSOH    [F:ZOCSOH]  : Endif
+  If !clalev([F:ZOCSOQ]) : Local File ZOCSOQ    [F:ZOCSOQ]  : Endif
+  If !clalev([F:ZOCSOH2]): Local File ZOCSOH    [F:ZOCSOH2] : Endif
+  If !clalev([F:ZOCSOQ2]): Local File ZOCSOQ    [F:ZOCSOQ2] : Endif
+  #--
+  If !clalev([F:ZECP])   : Local File EDICPYPAR [F:ZECP]    : Endif
+  If !clalev([F:ZEFP])   : Local File EDIFCYPAR [F:ZEFP]    : Endif
+  If !clalev([F:ZEBP])   : Local File EDIBPRPAR [F:ZEBP]    : Endif
+  #--
+  If !clalev([F:ZITU])   : Local File ITMBPC    [F:ZITU]    : Endif
+  If !clalev([F:ZITM])   : Local File ITMMASTER [F:ZITM]    : Endif
+  If !clalev([F:YBPC1])  : Local File BPCUSTOMER[F:YBPC1]   : Endif
+
+  If !clalev([F:YSOH1])  : Local File SORDER    [F:YSOH1]   : Endif
+  If !clalev([F:YSOQ1])  : Local File SORDERQ   [F:YSOQ1]   : Endif
+
+  If !clalev([YBPDV]) : Local File BPDLVCUST [YBPDV] : Endif #@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente
+  If !clalev([YBPAD]) : Local File BPADDRESS [YBPAD] : Endif #@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente
+
+Return
+
+#############################################################################
+
+$LIENS
+  #--
+  Read [F:ZOC1C]ZOC1C0 = [F:ZOCTL]CONTADOR
+  If !fstat
+    [M:ZOCERE1C] = [F:ZOC1C]
+  Endif
+  Affzo [M:ZOCERE1C]
+  #--
+  nolign = 1
+  Filter [F:ZOC1T] Where CONTADOR = [F:ZOCTL]CONTADOR
+  For [F:ZOC1T]
+    [M:ZOCERE1T]NBLIG = nolign
+    [M:ZOCERE1T] = [F:ZOC1T]
+    nolign += 1
+  Next
+  Filter [F:ZOC1T]
+  [M:ZOCERE1T]NBLIG = nolign-1
+  Affzo [M:ZOCERE1T]
+  #--
+  nolign = 1
+  Filter [F:ZOC1P] Where CONTADOR = [F:ZOCTL]CONTADOR
+  For [F:ZOC1P]
+    [M:ZOCERE1P]NBLIG1 = nolign
+    [M:ZOCERE1P] = [F:ZOC1P]
+    nolign += 1
+  Next
+  Filter [F:ZOC1P]
+  [M:ZOCERE1P]NBLIG1 = nolign-1
+  Affzo [M:ZOCERE1P]
+  #--
+  nolign = 1
+  Filter [F:ZOC1L] Where CONTADOR = [F:ZOCTL]CONTADOR
+  For [F:ZOC1L]
+    [M:ZOCERE1L]NBLIG2 = nolign
+    [M:ZOCERE1L] = [F:ZOC1L]
+    nolign += 1
+  Next
+  Filter [F:ZOC1L]
+  [M:ZOCERE1L]NBLIG2 = nolign-1
+  Affzo [M:ZOCERE1L]
+  #--
+  Read [F:ZOCSOH]ZOCSOH0 = [F:ZOCTL]CONTADOR
+  If fstat
+    Gosub CARGA_SOH_W #-- crear
+    Gosub GUARDAR  #@03@: (Y119) NUN14 30-04-2024 - INI
+  Else
+    Gosub CARGA_SOH_R #-- leer
+  Endif
+  If [M:ZOCRECTL]SOHNUM <> ""
+    Grizo [M:ZOCERESO]
+  Else
+    Actzo [M:ZOCERESO]
+  Endif
+
+#  #@01@ - Según la condición que se cumpla, la orden se queda en un estado u otro
+# @12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#  If [F:ZOCTL]YINCIDENCIA < 5
+  If [F:ZOCTL]YINCIDENCIA < 6
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+      For I=0 To [M:ZOCERESO]NBLIG3-1
+          If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
+              [F:ZOCTL]YINCIDENCIA = 4
+#              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
+              [M:ZOCRECTL]YINCIDENCIA = 4
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC1"  # en ROJO
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC1"  # en ROJO
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC1"  # en ROJO
+              Break
+          Else
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC2"  # en VERDE
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC2"  # en VERDE
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC2"  # en VERDE
+          Endif
+
+          If [M:ZOCERESO]ITMREF(I) = ''
+              [F:ZOCTL]YINCIDENCIA = 3
+#              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
+              [M:ZOCRECTL]YINCIDENCIA = 3
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC1"  # en ROJO
+              Break
+          Else
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC2"  # en VERDE
+          Endif
+
+          If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I)
+              [F:ZOCTL]YINCIDENCIA = 2
+#              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
+              [M:ZOCRECTL]YINCIDENCIA = 2
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC1"  # en ROJO
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC1"  # en ROJO
+#              Break
+          Else
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC2"  # en VERDE
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC2"  # en VERDE
+          Endif
+      Next
+  Endif
+
+  If [M:ZOCERESO]BPCINV = ""
+      [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+      [F:ZOCSOH]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+      Rewrite [F:ZOCSOH]
+  Endif
+
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
+  Affzo [M:ZOCRECTL]
+  Affzo [M:ZOCERESO]
+  #@01@- fin
+
+  #@01@ - Actualizamos el campo de la cabecera si encontramos un determinado texto en las observaciones.
+  [L]S_SQLMESS = "SELECT CASE WHEN EXISTS (SELECT 1 FROM ZOCERE1T WHERE CONTADOR_0 = '"+[F:ZOCTL]CONTADOR+
+& "' AND CHARINDEX('PEDIDO ENTREGA DIRECTA',CONCAT(C3_0,C4_0,C5_0,C6_0,C7_0))>0) THEN 1 ELSE 0 END AS Encontrado"
+
+  For (Integer I_ENCONTRADO) From '5'  Sql [L]S_SQLMESS As [ZSQL]
+      If [ZSQL]I_ENCONTRADO
+          [M:ZOCERE1C]C10 = 'EDP'
+          [F:ZOC1C]C10 = 'EDP'
+          Rewrite [F:ZOC1C]
+          Affzo [M:ZOCERE1C]
+      Endif
+  Next
+  #@01@ - Fin
+
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  If func ZCHARGESERES.PEDIDO_DUPLICADO([M:ZOCERESO]BPCORD, [M:ZOCERE1C]C3, [M:ZOCERE1C]C20, [M:ZOCRECTL]CONTADOR) = 1
+    [F:ZOCTL]YINCIDENCIA = 5
+    [M:ZOCRECTL]YINCIDENCIA = 5
+    Affzo [M:ZOCRECTL]YINCIDENCIA
+  Endif
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+Return
+
+
+#############################################################################
+
+$SETBOUT
+  #@01@ - Activamos en menú de generación masiva de pedidos
+  CHMEN += "Y"
+  Gosub SET_BOUT_SPE From GSAISIE
+  #@01@ - Fin
+
+  #--
+  If [F:ZOCTL]SOHNUM <> "" and ([F:ZOCTL]CONTADOR <> "" or GREP="M")
+      Call VIREBOUT(CHAINE,"x") From GOBJET
+  Endif
+  #--
+
+  #@01@ - Desactivamos los botones cuando el pedido no está pendiente y no existe ninguna incidencia
+  If [F:ZOCTL]YESTADO <> 1
+      Call VIREBOUT(CHAINE,"z") From GOBJET
+      Call VIREBOUT(CHAINE,"y") From GOBJET
+  Endif
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=5
+  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=6
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+      Call VIREBOUT(CHAINE,"y") From GOBJET
+  Endif
+  #@01@ - Fin
+
+Return
+
+#############################################################################
+
+#@01@ - Capturamos la ejecución de botones para realizar distintas acciones
+$EXEBOUT
+  Local Integer I_YN : [L]I_YN = 2 :# By default points on Yes
+
+  Case BOUT
+      When "x"
+          #@01@ - Impedimos la generación del pedido si el estado y las incidencias no son las correctas
+          #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>5)
+          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>6)
+          #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+              Errbox "Imposible generar el pedido."+chr$(10)+"Revise el estado/indicencias del pedido." Titled "Error importación" Sleep 10
+          Else
+              Gosub CREAR_SOH
+              Gosub RELIT From GOBJSUB
+          Endif
+          #@01@ - Fin
+
+      When "y"
+          Call OUINON("¿Está seguro de resolver las incidencias?", [L]I_YN) From GESECRAN
+          If [L]I_YN
+              #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#              [F:ZOCTL]YINCIDENCIA = 5
+              [F:ZOCTL]YINCIDENCIA = 6
+              #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+              Rewrite [F:ZOCTL]
+              [M:ZOCRECTL]YINCIDENCIA = [F:ZOCTL]YINCIDENCIA
+              Affzo [M:ZOCRECTL]
+          Endif
+
+      When "z"
+          [F:ZOCTL]YESTADO = 3
+          Rewrite [F:ZOCTL]
+          [M:ZOCRECTL]YESTADO = [F:ZOCTL]YESTADO
+          Affzo [M:ZOCRECTL]
+
+      When Default
+  Endcase
+
+Return
+#@01@ - Fin
+
+#############################################################################
+
+#@01@ - Capturamos la ejecución de menús
+$STATUT
+  Case BOUT
+      When "Y" : Gosub GEN_MAS_PED : Gosub RELIT From GOBJSUB
+      When Default
+  Endcase
+
+Return
+#@01@ - Fin
+
+
+#############################################################################
+#@03@: (Y119) NUN14 30-04-2024 - INI
+
+$GUARDAR
+  #--
+  Delete [F:ZOCSOH] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  Delete [F:ZOCSOQ] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  #--
+  Raz [F:ZOCSOH]
+  [F:ZOCSOH]CONTADOR = [F:ZOCTL]CONTADOR
+  [F:ZOCSOH] = [M:ZOCERESO]
+  Write [F:ZOCSOH]
+  #--
+  For I = 0 To [M:ZOCERESO]NBLIG3 - 1
+    Raz [F:ZOCSOQ]
+    [F:ZOCSOQ]CONTADOR = [F:ZOCTL]CONTADOR
+    [F:ZOCSOQ]DTO1 = [M:ZOCERESO]DTO1(I)
+    [F:ZOCSOQ]DTO1S = [M:ZOCERESO]DTO1S(I)
+    [F:ZOCSOQ]DTO2 = [M:ZOCERESO]DTO2(I)
+    [F:ZOCSOQ]DTO2S = [M:ZOCERESO]DTO2S(I)
+    [F:ZOCSOQ]DTO3 = [M:ZOCERESO]DTO3(I)
+    [F:ZOCSOQ]DTO3S = [M:ZOCERESO]DTO3S(I)
+    [F:ZOCSOQ]GROPRI = [M:ZOCERESO]GROPRI(I)
+    [F:ZOCSOQ]GROPRIS = [M:ZOCERESO]GROPRIS(I)
+    [F:ZOCSOQ]ITMCOMP = [M:ZOCERESO]ITMCOMP(I)
+    [F:ZOCSOQ]ITMDES = [M:ZOCERESO]ITMDES(I)
+    [F:ZOCSOQ]ITMREF = [M:ZOCERESO]ITMREF(I)
+    [F:ZOCSOQ]NETPRI = [M:ZOCERESO]NETPRI(I)
+    [F:ZOCSOQ]NETPRIS = [M:ZOCERESO]NETPRIS(I)
+    [F:ZOCSOQ]QTY = [M:ZOCERESO]QTY(I)
+    [F:ZOCSOQ]SAU = [M:ZOCERESO]SAU(I)
+    [F:ZOCSOQ]SOHLIN = [M:ZOCERESO]SOHLIN(I)
+    nolign += 1
+    Write [F:ZOCSOQ]
+  Next
+#@02@: (Y119) NUN14 12-03-2024 - INI
+
+ [F:ZOC1C] = [M:ZOCERE1C]
+ Rewrite [F:ZOC1C]
+#@02@: (Y119) NUN14 12-03-2024 - FIN
+
+Return
+#@03@: (Y119) NUN14 30-04-2024 - FIN
+
+#############################################################################
+
+$MODIF
+  #--
+  Delete [F:ZOCSOH] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  Delete [F:ZOCSOQ] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  #--
+  Raz [F:ZOCSOH]
+  [F:ZOCSOH]CONTADOR = [F:ZOCTL]CONTADOR
+  [F:ZOCSOH] = [M:ZOCERESO]
+  Write [F:ZOCSOH]
+  #--
+  For I = 0 To [M:ZOCERESO]NBLIG3 - 1
+    Raz [F:ZOCSOQ]
+    [F:ZOCSOQ]CONTADOR = [F:ZOCTL]CONTADOR
+#    [F:ZOCSOQ]         = [M:ZOCERESO]
+#@10@: (Y119) NUN28 29-10-2024  Error en las cantidades del pedido al guardar y pone simepre la cantidad de la primera linea - INI
+    [F:ZOCSOQ]DTO1 = [M:ZOCERESO]DTO1(I)
+    [F:ZOCSOQ]DTO1S = [M:ZOCERESO]DTO1S(I)
+    [F:ZOCSOQ]DTO2 = [M:ZOCERESO]DTO2(I)
+    [F:ZOCSOQ]DTO2S = [M:ZOCERESO]DTO2S(I)
+    [F:ZOCSOQ]DTO3 = [M:ZOCERESO]DTO3(I)
+    [F:ZOCSOQ]DTO3S = [M:ZOCERESO]DTO3S(I)
+    [F:ZOCSOQ]GROPRI = [M:ZOCERESO]GROPRI(I)
+    [F:ZOCSOQ]GROPRIS = [M:ZOCERESO]GROPRIS(I)
+    [F:ZOCSOQ]ITMCOMP = [M:ZOCERESO]ITMCOMP(I)
+    [F:ZOCSOQ]ITMDES = [M:ZOCERESO]ITMDES(I)
+    [F:ZOCSOQ]ITMREF = [M:ZOCERESO]ITMREF(I)
+    [F:ZOCSOQ]NETPRI = [M:ZOCERESO]NETPRI(I)
+    [F:ZOCSOQ]NETPRIS = [M:ZOCERESO]NETPRIS(I)
+    [F:ZOCSOQ]QTY = [M:ZOCERESO]QTY(I)
+    [F:ZOCSOQ]SAU = [M:ZOCERESO]SAU(I)
+    [F:ZOCSOQ]SOHLIN = [M:ZOCERESO]SOHLIN(I)
+#@10@: (Y119) NUN28 29-10-2024  Error en las cantidades del pedido al guardar y pone simepre la cantidad de la primera linea - FIN
+    nolign += 1
+    Write [F:ZOCSOQ]
+  Next
+#@02@: (Y119) NUN14 12-03-2024 - INI
+
+ [F:ZOC1C] = [M:ZOCERE1C]
+ Rewrite [F:ZOC1C]
+#@02@: (Y119) NUN14 12-03-2024 - FIN
+
+Return
+
+#############################################################################
+
+$ANNULE
+  #--
+  Delete [F:ZOC1C] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  Delete [F:ZOC1T] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  Delete [F:ZOC1P] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+  Delete [F:ZOC1L] Where CONTADOR = [M:ZOCRECTL]CONTADOR
+Return
+
+#############################################################################
+
+##-----------------------------------------------------------------------------------------------  procesos
+$CARGA_SOH_W
+  #--
+  Raz [M:ZOCERESO]
+  Raz WTEXTO
+  If [M:ZOCRECTL]SOHNUM<>"" Then
+    Chgstl [M:ZOCRECTL]SOHNUM With "MTC2"
+    [M:ZOCERESO]SOHNUM = [M:ZOCRECTL]SOHNUM : Affzo [M:ZOCERESO]SOHNUM
+    Chgstl [M:ZOCERESO]SOHNUM With "MTC2"
+  Else
+    Chgstl [M:ZOCRECTL]SOHNUM With ""
+    Chgstl [M:ZOCERESO]SOHNUM With ""
+  Endif
+  #--
+  [M:ZOCERESO]SALFCY =  "11"    # hay que parametrizar, no puede estar fija
+  [M:ZOCERESO]SOHTYP =  "SON"
+# @11@: (Y119) NUN28 16-10-2025  Modificar el campo fecha pedido para que indique la fecha de importación a SAGE - INI
+#  [M:ZOCERESO]ORDDAT    =  gdat$(val(mid$([M:ZOCERE1C]C5,7,2)),val(mid$([M:ZOCERE1C]C5,5,2)),val(mid$([M:ZOCERE1C]C5,1,4)))
+  [M:ZOCERESO]ORDDAT    =  date$
+# @11@: (Y119) NUN28 16-10-2025  Modificar el campo fecha pedido para que indique la fecha de importación a SAGE - FIN
+  [M:ZOCERESO]CUSORDREF =  [M:ZOCERE1C]C3
+  [M:ZOCERESO]CUR       =  [M:ZOCERE1C]C16
+  [M:ZOCERESO]DEMDLVDAT = gdat$(val(mid$([M:ZOCERE1C]C7,7,2)),val(mid$([M:ZOCERE1C]C7,5,2)),val(mid$([M:ZOCERE1C]C7,1,4)))
+  #@02@: (Y119) NUN14 12-03-2024 - INI
+  If [M:ZOCERESO]BPCORD <> ''
+      [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+  Endif
+  #@02@: (Y119) NUN14 12-03-2024 - FIN
+
+  For I = 0 To [M:ZOCERE1T]NBLIG - 1
+    If vireblc([M:ZOCERE1T]C3(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C3(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C4(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C4(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C5(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C5(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C6(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C6(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C7(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C7(I)
+    Endif
+    If dim(WTEXTO(0)) > 0 Then
+      Chgstl [M:ZOCERE1T]NBLIG(I) With "MTC2"  # en VERDE
+    Else
+      Chgstl [M:ZOCERE1T]NBLIG(I) With ""  #
+    Endif
+  Next
+  [M:ZOCERESO]TEXTOC1   = WTEXTO(0)
+
+  [M:ZOCERESO]TEXTOC2   = WTEXTO(1)+WTEXTO(2)
+  #--
+  #-- BY quien compra, es el cliente
+  #-- DP punto destino mercancia, dirección de entrega
+  #-- SU proveedor, es sanycess
+  #-- IV a quien se factura, cliente a facturar
+  #-- PR pagador, quien paga
+  For I = 0 To [M:ZOCERE1P]NBLIG1 - 1
+    Chgstl [M:ZOCERE1P]NBLIG1(I)  With "" # LIMPIAMOS ESTILO
+    Case vireblc([M:ZOCERE1P]C2(I),4)
+      When "SU" : Gosub SEGSU
+
+# @01@ - SCD - 11/08/23 - INI
+#**@deprecated
+#*
+#*       When "DP" : Gosub SEGDP
+#*    #  When "BY" : Gosub SEGBY
+#*
+#*!
+#      When "DP" : Gosub SEGDP
+      When "BY" : Gosub SEGDP
+
+# @01@ - SCD - 11/08/23 - FIN
+
+    #  When "IV" : Gosub SEGIV
+    #  When "PR" : Gosub SEGPR
+    #  When Default
+    Endcase
+
+  Next
+  #--
+  nolign = 1
+  For I = 0 To [M:ZOCERE1L]NBLIG2 - 1
+    [M:ZOCERESO]NBLIG3 = nolign
+    # Read [F:ZITM]SPE_ITM9 = vireblc([M:ZOCERE1L]C3,4) # NUN05.14032023.OLD - No existen estos índices en la tabla
+    Filter [F:ZITM] Where EANCOD =  vireblc([M:ZOCERE1L]C3(I),4)
+    Read [F:ZITM] First
+    If !fstat
+      [M:ZOCERESO]ITMREF(I) = [F:ZITM]ITMREF
+      Chgstl [M:ZOCERESO]ITMREF(I) With "MTC2"  # en VERDE
+      [M:ZOCERESO]ITMDES(I) = [F:ZITM]ITMDES1
+      [M:ZOCERESO]SAU(I)    = [F:ZITM]SAU
+      Chgstl [M:ZOCERE1L]NBLIG2(I) With "MTC2"  # en VERDE
+    Else
+      Chgstl [M:ZOCERESO]ITMREF(I) With "MTC1"  # en ROJO
+      Chgstl [M:ZOCERE1L]NBLIG2(I) With "MTC1"  # en ROJO
+    Endif
+    Filter [F:ZITM]
+    [M:ZOCERESO]ITMCOMP(I)  = vireblc([M:ZOCERE1L]C10(I),4) #@01@ - Rellenamos el artículo comprador con la información del fichero
+    [M:ZOCERESO]SOHLIN(I)   = [M:ZOCERE1L]ERE1LLIN(I)
+    [M:ZOCERESO]QTY(I)      = [M:ZOCERE1L]C13(I)
+
+    #Precios del fichero ORDERS
+    If [M:ZOCERE1L]C22(I) = 0 Then
+      [M:ZOCERESO]GROPRI(I) = [M:ZOCERE1L]C23(I)
+    Else
+      [M:ZOCERESO]GROPRI(I)   = [M:ZOCERE1L]C22(I)
+    Endif
+    #@01@ - Se añaden los precios del ORDERS que faltaban y se calculan los precios con tarifas Sage
+    [M:ZOCERESO]DTO1(I)   = 0
+    [M:ZOCERESO]DTO2(I)   = 0
+    [M:ZOCERESO]DTO3(I)   = 0
+    [M:ZOCERESO]NETPRI(I) = [M:ZOCERE1L]C23(I)
+
+    #Precios calculados con tarifas Sage
+    Call CALCULO_TARIFA_DESCUENTOS([M:ZOCERESO]BPCORD,[M:ZOCERESO]ITMREF(I),[M:ZOCERESO]SALFCY,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]QTY,[M:ZOCERESO]SAU(I),[M:ZOCERESO]
+& GROPRIS(I),[M:ZOCERESO]NETPRIS(I),[L]AF_DESC)
+#    [M:ZOCERESO]GROPRIS(I) = 0
+#    [M:ZOCERESO]DTO1S(I)   = ([M:ZOCERESO]GROPRIS(I)*[L]AF_DESC(0))/100
+#    [M:ZOCERESO]DTO2S(I)   = ([M:ZOCERESO]GROPRIS(I)*[L]AF_DESC(1))/100
+#    [M:ZOCERESO]DTO3S(I)   = ([M:ZOCERESO]GROPRIS(I)*[L]AF_DESC(2))/100
+    [M:ZOCERESO]DTO1S(I)   = [L]AF_DESC(0)
+    [M:ZOCERESO]DTO2S(I)   = [L]AF_DESC(1)
+    [M:ZOCERESO]DTO3S(I)   = [L]AF_DESC(2)
+#    [M:ZOCERESO]NETPRIS(I) = 0
+    #@01@ - Fin
+
+    nolign += 1
+  Next
+  [M:ZOCERESO]NBLIG3 = nolign-1
+  Affzo [M:ZOCERESO]
+Return
+
+#############################################################################
+
+$CARGA_SOH_R
+  #--
+  [M:ZOCERESO] = [F:ZOCSOH]
+  nolign = 0
+  Filter [F:ZOCSOQ] Where CONTADOR = [F:ZOCTL]CONTADOR
+
+
+#@03@: (Y119) NUN14 30-04-2024 - INI
+#  For [F:ZOCSOQ]
+#    [M:ZOCERESO]NBLIG3 = nolign
+#    [M:ZOCERESO] = [F:ZOCSOQ]
+#    nolign += 1
+#  Next
+
+  For [F:ZOCSOQ]
+    [M:ZOCERESO]NBLIG3 = nolign
+    [M:ZOCERESO]DTO1(nolign) =     [F:ZOCSOQ]DTO1
+    [M:ZOCERESO]DTO1S(nolign) =     [F:ZOCSOQ]DTO1S
+    [M:ZOCERESO]DTO2(nolign) =     [F:ZOCSOQ]DTO2
+    [M:ZOCERESO]DTO2S(nolign) =     [F:ZOCSOQ]DTO2S
+    [M:ZOCERESO]DTO3(nolign) =     [F:ZOCSOQ]DTO3
+    [M:ZOCERESO]DTO3S(nolign) =     [F:ZOCSOQ]DTO3S
+    [M:ZOCERESO]GROPRI(nolign) =     [F:ZOCSOQ]GROPRI
+    [M:ZOCERESO]GROPRIS(nolign) =     [F:ZOCSOQ]GROPRIS
+    [M:ZOCERESO]ITMCOMP(nolign) =     [F:ZOCSOQ]ITMCOMP
+    [M:ZOCERESO]ITMDES(nolign) =     [F:ZOCSOQ]ITMDES
+    [M:ZOCERESO]ITMREF(nolign) =     [F:ZOCSOQ]ITMREF
+    [M:ZOCERESO]NETPRI(nolign) =     [F:ZOCSOQ]NETPRI
+    [M:ZOCERESO]NETPRIS(nolign) =     [F:ZOCSOQ]NETPRIS
+    [M:ZOCERESO]QTY(nolign) =     [F:ZOCSOQ]QTY
+    [M:ZOCERESO]SAU(nolign) =     [F:ZOCSOQ]SAU
+    [M:ZOCERESO]SOHLIN(nolign) =     [F:ZOCSOQ]SOHLIN
+    nolign += 1
+  Next
+#@03@: (Y119) NUN14 30-04-2024 - FIN
+
+  Filter [F:ZOCSOQ]
+  [M:ZOCERESO]NBLIG3 = nolign
+  Affzo [M:ZOCERESO]
+
+  #@01@ - Calculo tarifas y gestion de campos
+  #Precios calculados con tarifas Sage
+  For I=0 To [M:ZOCERESO]NBLIG3-1
+      Call CALCULO_TARIFA_DESCUENTOS([M:ZOCERESO]BPCORD,[M:ZOCERESO]ITMREF(I),[M:ZOCERESO]SALFCY,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]QTY,[M:ZOCERESO]SAU(I),[M:ZOCERESO
+& ]GROPRIS(I),[M:ZOCERESO]NETPRIS(I),[L]AF_DESC)
+      [M:ZOCERESO]DTO1S(I)   = [L]AF_DESC(0)
+      [M:ZOCERESO]DTO2S(I)   = [L]AF_DESC(1)
+      [M:ZOCERESO]DTO3S(I)   = [L]AF_DESC(2)
+  Next
+
+  If [M:ZOCRECTL]SOHNUM<>"" Then
+    Chgstl [M:ZOCRECTL]SOHNUM With "MTC2"
+    [M:ZOCERESO]SOHNUM = [M:ZOCRECTL]SOHNUM : Affzo [M:ZOCERESO]SOHNUM
+    Chgstl [M:ZOCERESO]SOHNUM With "MTC2"
+  Else
+    Chgstl [M:ZOCRECTL]SOHNUM With ""
+    Chgstl [M:ZOCERESO]SOHNUM With ""
+  Endif
+  #@01@ - Fin
+
+  Affzo [M:ZOCERESO]
+
+
+Return
+
+#############################################################################
+
+$SEGBY
+  #--
+Return
+
+#############################################################################
+
+$SEGDP
+  #--
+# @01@ - SCD - 11/08/23 - INI
+#**
+#*
+#* Filter [F:ZEBP] Where EDISDHCOD = vireblc([M:ZOCERE1P]C3(I),4)
+#*
+#*!
+Filter [F:ZEBP] Where EXCEDICOD = vireblc([M:ZOCERE1P]C3(I),4)
+# @01@ - SCD - 11/08/23 - FIN
+# @08@ - RAP - INI
+#Read [F:ZEBP] First
+Local File BPCUSTOMER [YYBPC]
+For [F:ZEBP]
+Read [YYBPC]BPC0 = [F:ZEBP]BPANUM
+  If !fstat Then
+    [M:ZOCERESO]BPCORD = [F:ZEBP]BPANUM
+    [M:ZOCERESO]BPAADD = [F:ZEBP]BPAADD
+    Chgstl [M:ZOCERESO]BPCORD With "MTC2"  # en VERDE
+    Chgstl [M:ZOCERE1P]NBLIG1(I)  With "MTC2"  # en VERDE
+    Chgstl [M:ZOCERESO]BPAADD With "MTC2"  # en VERDE
+    Break
+  Else
+    Chgstl [M:ZOCERESO]BPCORD With "MTC1"  # en ROJO
+    Chgstl [M:ZOCERESO]BPAADD With "MTC1"  # en ROJO
+    Chgstl [M:ZOCERE1P]NBLIG1(I)  With "MTC1"  # en VERDE
+  Endif
+  Next
+  Filter [F:ZEBP]
+  Close File [YYBPC]
+  # @08@ - RAP - FIN
+Return
+
+#############################################################################
+
+$SEGSU
+  #--
+  # Read [F:ZEBP]SPE_EBP0 = vireblc([M:ZOCERE1P]C3(I),4)
+#  Read [F:ZEBP]EBP0 = vireblc([M:ZOCERE1P]C3(I),4)
+#  If !fstat
+#    [M:ZOCERESO]BPCORD = [F:ZEBP]BPANUM
+#  Endif
+Return
+
+#############################################################################
+
+$SEGIV
+  #--
+Return
+
+#############################################################################
+
+$SEGPR
+  #--
+Return
+
+#############################################################################
+
+$CREAR_SOH
+  #--
+    # incidencia indice maximo 10-09-24 - INI
+#  Local Char    ITMREF(GLONITM)(0..24)
+#  Local Char    ITMDES(70)     (0..24)
+#  Local Char    SAU(3)         (0..24)
+#  Local Decimal QTY            (0..24)
+#  Local Decimal GROPRI         (0..24)
+
+
+  Local Char    ITMREF(GLONITM)(0..100)
+  Local Char    ITMDES(70)     (0..100)
+  Local Char    SAU(3)         (0..100)
+  Local Decimal QTY            (0..100)
+  Local Decimal GROPRI         (0..100)
+  # incidencia indice maximo 10-09-24 - FIN
+
+  Local Integer YERR : YERR = 0
+  #--
+  For I = 0 To [M:ZOCERESO]NBLIG3 - 1
+    ITMREF(I) = [M:ZOCERESO]ITMREF(I)
+    ITMDES(I) = [M:ZOCERESO]ITMDES(I)
+    SAU(I)    = [M:ZOCERESO]SAU(I)
+    QTY(I)    = [M:ZOCERESO]QTY(I)
+    GROPRI(I) = [M:ZOCERESO]GROPRI(I)
+  Next
+  #--
+
+  WSOHNUM = '' #@06@: (y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+
+  Call ZCRESOH([M:ZOCERESO]SALFCY,[M:ZOCERESO]SOHTYP,"",[M:ZOCERESO]BPCORD, [M:ZOCERESO]BPAADD, [M:ZOCERESO]ORDDAT,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]CUSORDREF,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:
+& ZOCERESO]TEXTOC1,
+& [M:ZOCERESO]TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR) From ZCRESOH
+  #--
+
+  #@01@ - Comprobamos que el pedido se ha generado correctamente y cambiamos estados, traspasamos proyecto al nuevo pedido...
+  If WSOHNUM <> '' and YERR = 0 #@06@: (y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+#  If WSOHNUM <> ''
+      Read [F:YSOH1]SOH0 = WSOHNUM
+      If !fstat
+          [F:YSOH1]PJT = [M:ZOCERESO]PROYECTO
+          For I=0 To [M:ZOCERESO]NBLIG3-1
+              Read [F:YSOQ1]SOQ0 = WSOHNUM;(I+1)*1000;(I+1)*1000
+              If !fstat
+                  [F:YSOQ1]YITMCOMP = [M:ZOCERESO]ITMCOMP(I)
+                  Local File BPCUSTOMER [YYBPC]
+                  Local File ITMBPC [YYITU]
+                  If [M:ZOCERESO]ITMCOMP(I) =''
+                    Read [F:YYBPC]BPC0 = [M:ZOCERESO]BPCORD
+                    If !fstat
+                      Read [F:YYITU]ITU0 = [M:ZOCERESO]ITMREF(I);[F:YYBPC]BPCINV
+                      If !fstat
+                        [F:YSOQ1]YITMCOMP= [F:YYITU]ITMREFBPC
+                      Endif
+                    Endif
+                  Endif
+                  Close File [YYBPC]
+                  Close File [YYITU]
+                  Rewrite [F:YSOQ1] #@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+              Endif
+          Next
+          [F:ZOCTL]YESTADO = 2
+          [F:ZOCTL]SOHNUM = WSOHNUM
+          [F:ZOCSOH]SOHNUM = WSOHNUM
+
+#@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente - INI
+          Read [YBPDV]BPD0 = [F:YSOH1]BPCORD;[F:YSOH1]BPAADD
+            If fstat = 0
+                If [YBPDV]YCONCERTA = 0
+                  [F:YSOH1]YCONCERTA = 1
+                Else
+                  [F:YSOH1]YCONCERTA = [YBPDV]YCONCERTA
+                Endif
+              [F:YSOH1]YCONTACTO = [YBPDV]YCONTACTO
+              [F:YSOH1]YOBSERVA  = [YBPDV]YOBSERVA
+            Endif
+
+            Read [YBPAD]BPA0 = 1;[F:YSOH1]BPCORD;[F:YSOH1]BPAADD
+            If fstat = 0
+              [F:YSOH1]YTELEFONO = [YBPAD]TEL(0)
+              [F:YSOH1]YMAIL     = [YBPAD]WEB(3)
+            Endif
+
+              [F:YSOH1]YPARTICULAR = 1
+              [F:YSOH1]YPLATAFORMA = 1
+#@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente - FIN
+
+          Rewrite [F:ZOCTL]
+          Rewrite [F:YSOH1]
+
+          Rewrite [F:ZOCSOH]
+          If !fstat
+              [M:ZOCRECTL]YESTADO = [F:ZOCTL]YESTADO : Affzo [M:ZOCRECTL]YESTADO
+              [M:ZOCRECTL]SOHNUM = [F:ZOCTL]SOHNUM : Affzo [M:ZOCRECTL]SOHNUM
+              [M:ZOCERESO]SOHNUM = WSOHNUM : Affzo [M:ZOCERESO]SOHNUM
+          Endif
+      # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - INI
+          If !clalev([YSOQITM])  : Local File SORDERQ   [YSOQITM] : Endif
+          If !clalev([YSORD2])  : Local File SORDER   [YSORD2] : Endif
+
+          Read [YSORD2]SOH0 = WSOHNUM
+            If !fstat
+              Local Char YTERCERO(20)
+              YTERCERO = [YSORD2]BPCINV
+            Endif
+
+          Filter [YSOQITM] Where [YSOQITM]SOHNUM = WSOHNUM
+            For [YSOQITM]
+              [YSOQITM]YITMCOMP = func ARTICULO_CLIENTE([YSOQITM]ITMREF, YTERCERO)
+              Rewrite [YSOQITM]
+            Next
+          Filter [YSOQITM]
+          Close Local File [YSOQITM]
+          Close Local File [YSORD2]
+      # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - FIN
+      Endif
+
+  Else
+    #**¿Hay que poner la orden en algún estado si falla la importación?#*!
+    WSOHNUM = '' #@06@: (y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+  Endif
+  #@01@ - Fin
+
+#  [F:ZOCTL]SOHNUM = WSOHNUM
+#  Rewrite [F:ZOCTL]
+#  If !fstat
+#    [M:ZOCRECTL]SOHNUM = [F:ZOCTL]SOHNUM : Affzo [M:ZOCRECTL]SOHNUM
+#  Endif
+Return
+
+#############################################################################
+#@01@ - Proceso de generación masiva de pedidos filtrado por cliente facturado
+$GEN_MAS_PED
+
+    Local Char    S_CRITERE(250) : [L]S_CRITERE = '1=1'
+    # incidencia indice erroneo 10-09-24 - INI
+#    Local Char    S_MOG_ITMREF(GLONITM) (0..24)
+#    Local Char    S_MOG_ITMDES(70)      (0..24)
+#    Local Char    S_MOG_SAU(3)          (0..24)
+#    Local Char    S_MOG_BPAADD(GLONBPA)
+#    Local Decimal F_MOG_QTY             (0..24)
+#    Local Decimal F_MOG_GROPRI          (0..24)
+
+
+    Local Char    S_MOG_ITMREF(GLONITM) (0..100)
+    Local Char    S_MOG_ITMDES(70)      (0..100)
+    Local Char    S_MOG_SAU(3)          (0..100)
+    Local Char    S_MOG_BPAADD(GLONBPA)
+    Local Decimal F_MOG_QTY             (0..100)
+    Local Decimal F_MOG_GROPRI          (0..100)
+    # incidencia indice erroneo 10-09-24 - FIN
+
+    Local Integer I_CT : [L]I_CT = 0
+    Local Integer I_CTORDER : [L]I_CTORDER = 0
+    Local Date    D_DLVDAT
+    Local Integer I_YN : I_YN = 2 :# By default points on Yes
+    Local Integer YERR : YERR = 0
+    #--
+
+    Gosub LIENS_MASIV From YENVMASEDI # @07@: (Y119) NUN28 16-09-2024  Improtación de pedidos masivo EDI
+
+    [L]S_MOG_TITLE = 'CRITERIOS'
+    [L]S_MOG_FTITLE = 'CLIENTE FACTURADO'
+    [L]S_MOG_OBJ = 'BPC'
+
+    Call SAICAR([L]S_MOG_INVBPC,[L]S_MOG_TITLE,[L]S_MOG_FTITLE,[L]S_MOG_OBJ,0,0,"",[L]I_OKMOG) From GESECRAN
+
+    If [L]I_OKMOG=2
+        If !GSERVEUR : Call OUVRE_TRACE("Proceso de generación masiva de pedidos EDI") From LECFIC : Endif
+
+        If [L]S_MOG_INVBPC<>''
+            [L]S_CRITERE += '& [F:YBPC1]BPCINV=[L]S_MOG_INVBPC & [F:ZOCTL2]YESTADO = 1'
+        Else
+            Call OUINON("Se van a procesar todos los pedidos sin ningún filtro de cliente facturado.\¿Continuar? ", I_YN) From GESECRAN
+#            [L]S_CRITERE += '& [F:ZOCTL2]YESTADO = 1 & ([F:ZOCTL2]YINCIDENCIA = 1 OR [F:ZOCTL2]YINCIDENCIA = 5)' # @05@ (Y119) NUN28 28-08-2024 - Genera los pedidos sin incidencias.
+            If I_YN < 2
+                Goto NO_PROCESS
+            Endif
+
+        Endif
+        Link [F:ZOCTL2] With [F:ZOCSOH2]ZOCSOH0~=[F:ZOCTL2]CONTADOR,[F:YBPC1]BPC0~=[F:ZOCSOH2]BPCORD As [ZOC]
+
+
+        For [ZOC] Where evalue(S_CRITERE)
+            [L]I_CTORDER += 1
+            Call ECR_TRACE ("Procesando ORDER -"-[F:ZOCTL2]CONTADOR,0) From GESECRAN
+            #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#            If [F:ZOCTL2]YESTADO<>1 or ([F:ZOCTL2]YINCIDENCIA<>1 and [F:ZOCTL2]YINCIDENCIA<>5)
+            If [ZOC]YESTADO<>1 or ([ZOC]YINCIDENCIA<>1 and [ZOC]YINCIDENCIA<>6)
+            #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+                  Call ECR_TRACE ("Imposible generar el pedido. Revise el estado/indicencias del pedido.",1) From GESECRAN
+                  Goto ORDER_ERR #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+            Else
+                Raz [L]S_MOG_ITMREF
+                Raz [L]S_MOG_ITMDES
+                Raz [L]S_MOG_SAU
+                Raz [L]F_MOG_QTY
+                Raz [L]F_MOG_GROPRI
+                Raz [L]I_CT
+                For [F:ZOCSOQ2] Where CONTADOR = [F:ZOCSOH2]CONTADOR
+                  [L]S_MOG_ITMREF(I_CT) = [F:ZOCSOQ2]ITMREF
+                  [L]S_MOG_ITMDES(I_CT) = [F:ZOCSOQ2]ITMDES
+                  [L]S_MOG_SAU(I_CT)    = [F:ZOCSOQ2]SAU
+                  [L]F_MOG_QTY(I_CT)    = [F:ZOCSOQ2]QTY
+                  [L]F_MOG_GROPRI(I_CT) = [F:ZOCSOQ2]GROPRI
+                  [L]I_CT += 1
+                Next
+
+                Read [F:ZOC1C2]ZOC1C0 = [F:ZOCSOH2]CONTADOR
+                If !fstat
+                    [L]D_DLVDAT = gdat$(val(mid$([F:ZOC1C2]C7,7,2)),val(mid$([F:ZOC1C2]C7,5,2)),val(mid$([F:ZOC1C2]C7,1,4)))
+                Endif
+
+
+                Filter [F:ZOC1P2] Where CONTADOR=[F:ZOCSOH2]CONTADOR and vireblc(C2,4)='BY'
+                Read [F:ZOC1P2] First
+                If !fstat
+                    Filter [F:ZEBP] Where EXCEDICOD = vireblc([F:ZOC1P2]C3,4)
+                    Read [F:ZEBP] First
+                    If !fstat Then
+                      [L]S_MOG_BPAADD = [F:ZEBP]BPAADD
+                    Else
+                      Call ECR_TRACE ("Dirección del pedido no parametrizada en EDI partner por tercero",1) From GESECRAN
+                      Goto ORDER_ERR
+                    Endif
+
+                    Filter [F:ZEBP]
+                Else
+                    Call ECR_TRACE ("No existe dirección con calificador del intermediario 'BY'",1) From GESECRAN
+                    Goto ORDER_ERR
+                Endif
+
+                YERR = 0 # @06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+
+                Call ZCRESOH([F:ZOCSOH2]SALFCY,[F:ZOCSOH2]SOHTYP,"",[F:ZOCSOH2]BPCORD, [L]S_MOG_BPAADD, [F:ZOCSOH2]ORDDAT,[L]D_DLVDAT,[F:ZOCSOH2]CUSORDREF,[F:ZOCSOH2]SALFCY,[F:ZOCSOH2]CUR,
+&                            [F:ZOCSOH2]TEXTOC1,[F:ZOCSOH2]TEXTOC2,S_MOG_ITMREF,S_MOG_ITMDES,S_MOG_SAU,F_MOG_QTY,F_MOG_GROPRI,YERR) From ZCRESOH
+
+#                If WSOHNUM <> ''
+                If WSOHNUM <> '' and YERR = 0 #@06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+                Local Integer YCONTADORLIN : YCONTADORLIN =1000
+                    Read [F:YSOH1]SOH0 = WSOHNUM
+                    If !fstat
+                        [F:YSOH1]PJT = [F:ZOCSOH2]PROYECTO
+                        For [F:ZOCSOQ2] Where CONTADOR = [F:ZOCSOH2]CONTADOR
+
+                            Read [F:YSOQ1]SOQ0 = WSOHNUM;YCONTADORLIN;YCONTADORLIN
+                            If !fstat
+                                [F:YSOQ1]YITMCOMP = [F:ZOCSOQ2]ITMCOMP
+                                Local File BPCUSTOMER [YYBPC]
+                                Local File ITMBPC [YYITU]
+                                If [F:ZOCSOQ2]ITMCOMP=''
+                                  Read [F:YYBPC]BPC0 = [F:YSOH1]BPCORD
+                                  If !fstat
+                                    Read [F:YYITU]ITU0 = [F:YSOQ1]ITMREF;[F:YYBPC]BPCINV
+                                    If !fstat
+                                      [F:YSOQ1]YITMCOMP= [F:YYITU]ITMREFBPC
+                                    Endif
+                                  Endif
+                                Endif
+                                Close File [YYBPC]
+                                Close File [YYITU]
+                                Rewrite [F:YSOQ1] #@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+                            Endif
+                            YCONTADORLIN = YCONTADORLIN +1000
+                        Next
+                        [F:ZOCTL2]YESTADO = 2
+                        [F:ZOCTL2]SOHNUM = WSOHNUM
+                        [F:ZOCSOH2]SOHNUM = WSOHNUM # JLP - INCIDENCIA 10-09-24 ENVIO MASIVO - NUEVO
+#@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente - INI
+                            Read [YBPDV]BPD0 = [F:YSOH1]BPCORD;[F:YSOH1]BPAADD
+                              If fstat = 0
+                                  If [YBPDV]YCONCERTA = 0
+                                    [F:YSOH1]YCONCERTA = 1
+                                  Else
+                                    [F:YSOH1]YCONCERTA = [YBPDV]YCONCERTA
+                                  Endif
+                                [F:YSOH1]YCONTACTO = [YBPDV]YCONTACTO
+                                [F:YSOH1]YOBSERVA  = [YBPDV]YOBSERVA
+                              Endif
+
+                              Read [YBPAD]BPA0 = 1;[F:YSOH1]BPCORD;[F:YSOH1]BPAADD
+                              If fstat = 0
+                                [F:YSOH1]YTELEFONO = [YBPAD]TEL(0)
+                                [F:YSOH1]YMAIL     = [YBPAD]WEB(3)
+                              Endif
+
+                                [F:YSOH1]YPARTICULAR = 1
+                                [F:YSOH1]YPLATAFORMA = 1
+#@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente - FIN
+
+                        Rewrite [F:ZOCTL2]
+                        Rewrite [F:YSOH1]
+
+                        # JLP - INCIDENCIA 10-09-24 ENVIO MASIVO - INI
+                        Rewrite [F:ZOCSOH2]
+                        If !fstat
+                            [M:ZOCRECTL]YESTADO = [F:ZOCTL2]YESTADO : Affzo [M:ZOCRECTL]YESTADO
+                            [M:ZOCRECTL]SOHNUM = [F:ZOCTL2]SOHNUM : Affzo [M:ZOCRECTL]SOHNUM
+                            [M:ZOCERESO]SOHNUM = WSOHNUM : Affzo [M:ZOCERESO]SOHNUM
+                        Endif
+                        # JLP - INCIDENCIA 10-09-24 ENVIO MASIVO - FIN
+                    Endif
+                    # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - INI
+                        If !clalev([YSOQITM])  : Local File SORDERQ   [YSOQITM] : Endif
+                        If !clalev([YSORD2])  : Local File SORDER   [YSORD2] : Endif
+
+                        Read [YSORD2]SOH0 = WSOHNUM
+                          If !fstat
+                            Local Char YTERCERO(20)
+                            YTERCERO = [YSORD2]BPCINV
+                          Endif
+
+                        Filter [YSOQITM] Where [YSOQITM]SOHNUM = WSOHNUM
+                          For [YSOQITM]
+                            [YSOQITM]YITMCOMP = func ARTICULO_CLIENTE([YSOQITM]ITMREF, YTERCERO)
+                            Rewrite [YSOQITM]
+                          Next
+                        Filter [YSOQITM]
+                        Close Local File [YSOQITM]
+                        Close Local File [YSORD2]
+                    # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - FIN
+                Else
+                  #**¿Hay que poner la orden en algún estado si falla la importación?#*!
+                 WSOHNUM = '' #@06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
+                Endif
+
+            Endif
+
+            $ORDER_ERR
+        Next
+        Filter [ZOC]
+
+        $NO_PROCESS
+
+        If [L]I_CTORDER=0 : Call ECR_TRACE ("No se ha procesado ningún ORDER."+chr$(10)+"Revise los filtros aplicados.",0) From GESECRAN : Endif
+
+#        If GERRTRACE <> 0 Then
+#          If !GSERVEUR : Call FERME_TRACE() From LECFIC : Endif
+#          Call LEC_TRACE From LECFIC
+          Call FERME_TRACE From LECFIC
+
+          If GERRTRACE <> 0 Then
+              Call LEC_TRACE From LECFIC
+          Endif
+
+          mkstat = 0 : fstat = 0 : GERRTRACE = 0 : GOK = 1
+#        Endif
+    Endif
+
+    #@nun48 - inicio - proceso para arreglar los duplicados y los nº de pedido
+#    Call REESCRITURA_SOHNUM
+    #@nun48 - fin
+
+Return
+#@01@ - Fin
+
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZOCERESO) 12/03/2024 11:42:26 (NUN14)
+######################################################################################
+#@02@: (Y119) NUN14 12-03-2024 - INI
+Subprog AM_BPCORD(VALEUR)
+Variable Char    VALEUR()
+  [M:ZOCERESO]BPCINV = func CHECK_BPCINV(VALEUR)
+  Affzo [M:ZOCERESO]BPCINV
+End
+
+#############################################################################
+
+#** @01@
+#* Función para realizar el cálculo de tarifas y descuentos
+#*
+#* @param PS_BPC      Cliente de la tarifa
+#* @param PS_ITM      Código del artículo
+#* @param PS_SALFCY   Planta de venta
+#* @param PS_STOFCY
+#* @param PS_CUR
+#* @param PD_DAT
+#* @param PF_QTY
+#* @param PS_UOM
+#* @param PRF_GROPRI
+#* @param PRF_NETPRI
+#* @param PRAF_DESC
+#*!
+Subprog CALCULO_TARIFA_DESCUENTOS(PS_BPC,PS_ITM,PS_SALFCY,PS_STOFCY,PS_CUR,PD_DAT,PF_QTY,PS_UOM,PRF_GROPRI,PRF_NETPRI,PRAF_DESC)
+Value     Char    PS_BPC ()
+Value     Char    PS_ITM ()
+Value     Char    PS_SALFCY ()
+Value     Char    PS_STOFCY ()
+Value     Char    PS_CUR ()
+Value     Date    PD_DAT
+Value     Decimal PF_QTY
+Value     Char    PS_UOM ()
+Variable  Decimal PRF_GROPRI
+Variable  Decimal PRF_NETPRI
+Variable  Decimal PRAF_DESC
+
+Local   Integer AFF, NOL
+
+#--- pas d'appel du s/p si les on est dans les commandes
+If GFONCTION="GESSOH" : End : Endif
+
+NOL=nolign
+
+Gosub SIM_SPC_FILE From TRTPRICE
+Gosub SIM_SPC_GLOB From TRTPRICE
+Call TARIFCHGT(5)  From TRTPRICE
+
+If clalev([F:REP])=0 : Local File SALESREP [REP] : Endif
+
+
+If clalev([M:SOH0])=0 : Local Mask SOH0      [SOH0] : Raz [M:SOH0] : Endif
+If clalev([M:SOH1])=0 : Local Mask SOH1      [SOH1] : Raz [M:SOH1] : Endif
+If clalev([M:SOH2])=0 : Local Mask SOH2      [SOH2] : Raz [M:SOH2] : Endif
+If clalev([M:SOH3])=0 : Local Mask SOH3      [SOH3] : Raz [M:SOH3] : Endif
+If clalev([M:SOH4])=0 : Local Mask SOH4      [SOH4] : Raz [M:SOH4] : Endif
+
+Default Mask [SOH4]
+Default Mask [SOH3]
+Default Mask [SOH2]
+Default Mask [SOH1]
+Default Mask [SOH0]
+
+# Issue 74556 - 2011-07-04 by VPO : lecture ssi besoin
+If [F:BPC]BPCNUM<>[L]PS_BPC
+Read [BPC]BPC0=[L]PS_BPC : #Call LECTURE ("BPC",[L]BPC,"") From CONTOBJ
+Endif
+If [F:ITS]ITMREF<>[L]PS_ITM
+Read [ITS]ITS0=[L]PS_ITM : #Call LECTURE ("ITS",[L]ITM,"") From CONTOBJ
+Endif
+If [F:ITM]ITMREF<>[L]PS_ITM
+Read [ITM]ITM0=[L]PS_ITM : #Call LECTURE ("ITM",[L]ITM,"") From CONTOBJ
+Endif
+
+[M]BPCORD=[L]PS_BPC : [M]ORDDAT=[L]PD_DAT
+
+If [L]PS_SALFCY = "" [M]SALFCY=GFCYDEF(5) Else [M]SALFCY=[L]PS_SALFCY Endif
+If [L]PS_STOFCY = "" [M]STOFCY=GFCYDEF(7) Else [M]STOFCY=[L]PS_STOFCY Endif
+
+nolign=1
+[M:SOH4]ITMREF(0)=[L]PS_ITM
+[M:SOH4]SAU(0)=[L]PS_UOM
+[M:SOH4]QTY(0)=[L]PF_QTY
+
+Call ALICDE(1,"C",[M]BPCORD) From TRTVENCDE
+[M]CUR=[L]PS_CUR
+Call INIT_SOH(1,AFF) From SUBSOHB
+Call INIT_ITM (1,[M:SOH4]ITMREF(0)) From SUBSOHB
+
+Raz [L]PRF_GROPRI, [L]PRF_NETPRI
+Call RECH_TARIF (1,[M:SOH4]ITMREF(0),0,[M:SOH4]QTY(0),"SOH",[M:SOH4]GROPRI(0)) From TRTVENTAR
+[L]PRF_GROPRI=[M:SOH4]GROPRI(0)
+Call CLCNETPRI([M]QTY(0),[M:SOH0]CUR,0) From TRTVENPRI
+[L]PRF_NETPRI=[M]NETPRI(0)
+
+nolign=NOL
+
+PRAF_DESC(0) = [M:SOH4]DISCRGVAL1
+PRAF_DESC(1) = [M:SOH4]DISCRGVAL2
+PRAF_DESC(2) = [M:SOH4]DISCRGVAL3
+
+End
+#@01@ - Fin
+
+######################################################################################
+
+Funprog CHECK_BPCINV(PS_BPCORD)
+  Value Char PS_BPCORD
+  Local Char L_BPCINV(GLONBPR)
+
+  If !clalev([F:YBPC])   : Local File BPCUSTOMER    [F:YBPC]   : Endif
+  Read [F:YBPC]BPC0 = PS_BPCORD
+  If !fstat
+    [L]L_BPCINV = [F:YBPC]BPCINV
+ Endif
+End [L]L_BPCINV
+#@02@: (Y119) NUN14 12-03-2024 - FIN
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ZOCERESO) 17/04/2024 10:38:45 (NUN22)
+######################################################################################
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+Local Decimal AF_DESC(3) #@01@
+Local Integer I_LIN
+If clalev([F:YITM1])=0 : Local File ITMMASTER [YITM1] : Endif
+
+    Read [F:YITM1]ITM0 = VALEUR
+    If !fstat
+        [M:ZOCERESO]ITMDES(nolign-1) = [F:YITM1]ITMDES1
+        [M:ZOCERESO]SAU(nolign-1) = [F:YITM1]SAU
+        Affzo [M:ZOCERESO]ITMDES(nolign-1)
+        Affzo [M:ZOCERESO]SAU(nolign-1)
+    Endif
+
+    #@01@ - Calculamos los descuentos y precios cuando se modifica el artículo
+    Call CALCULO_TARIFA_DESCUENTOS([M:ZOCERESO]BPCORD,VALEUR,[M:ZOCERESO]SALFCY,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]QTY,[M:ZOCERESO]SAU(nolign-1),[M:ZOCERESO]GROPRIS(
+& nolign-1),[M:ZOCERESO]NETPRIS(nolign-1),[L]AF_DESC)
+    [M:ZOCERESO]DTO1S(nolign-1)   = [L]AF_DESC(0)
+    [M:ZOCERESO]DTO2S(nolign-1)   = [L]AF_DESC(1)
+    [M:ZOCERESO]DTO3S(nolign-1)   = [L]AF_DESC(2)
+
+    Affzo [M:ZOCERESO]DTO1S(nolign-1)
+    Affzo [M:ZOCERESO]DTO1S(nolign-1)
+    Affzo [M:ZOCERESO]DTO2S(nolign-1)
+    Affzo [M:ZOCERESO]DTO3S(nolign-1)
+    Affzo [M:ZOCERESO]GROPRIS(nolign-1)
+    Affzo [M:ZOCERESO]NETPRIS(nolign-1)
+
+    #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#    If [F:ZOCTL]YINCIDENCIA < 5
+    If [F:ZOCTL]YINCIDENCIA < 6
+    #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+        I_LIN = nolign-1
+        If [M:ZOCERESO]NETPRI(I_LIN) <> [M:ZOCERESO]NETPRIS(I_LIN) and [M:ZOCERESO]ITMREF(I_LIN) = ''
+            [M:ZOCRECTL]YINCIDENCIA = 4
+            Chgstl [M:ZOCERESO]NETPRI(I_LIN) With "MTC1"  # en ROJO
+            Chgstl [M:ZOCERESO]NETPRIS(I_LIN) With "MTC1"  # en ROJO
+            Chgstl [M:ZOCERESO]ITMREF(I_LIN) With "MTC1"  # en ROJO
+        Else
+            Chgstl [M:ZOCERESO]NETPRI(I_LIN) With "MTC2"  # en VERDE
+            Chgstl [M:ZOCERESO]NETPRIS(I_LIN) With "MTC2"  # en VERDE
+            Chgstl [M:ZOCERESO]ITMREF(I_LIN) With "MTC2"  # en VERDE
+        Endif
+
+        If [M:ZOCERESO]ITMREF(I_LIN) = ''
+            [M:ZOCRECTL]YINCIDENCIA = 3
+            Chgstl [M:ZOCERESO]ITMREF(I_LIN) With "MTC1"  # en ROJO
+        Else
+            Chgstl [M:ZOCERESO]ITMREF(I_LIN) With "MTC2"  # en VERDE
+        Endif
+        If [M:ZOCERESO]NETPRI(I_LIN) <> [M:ZOCERESO]NETPRIS(I_LIN)
+            [M:ZOCRECTL]YINCIDENCIA = 2
+            Chgstl [M:ZOCERESO]NETPRI(I_LIN) With "MTC1"  # en ROJO
+            Chgstl [M:ZOCERESO]NETPRIS(I_LIN) With "MTC1"  # en ROJO
+        Else
+            Chgstl [M:ZOCERESO]NETPRI(I_LIN) With "MTC2"  # en VERDE
+            Chgstl [M:ZOCERESO]NETPRIS(I_LIN) With "MTC2"  # en VERDE
+        Endif
+
+    Endif
+
+    Affzo [M:ZOCRECTL]
+    Affzo [M:ZOCERESO]DTO1S(nolign-1)
+    Affzo [M:ZOCERESO]DTO1S(nolign-1)
+    Affzo [M:ZOCERESO]DTO2S(nolign-1)
+    Affzo [M:ZOCERESO]DTO3S(nolign-1)
+    Affzo [M:ZOCERESO]GROPRIS(nolign-1)
+    Affzo [M:ZOCERESO]NETPRIS(nolign-1)
+#    #@01@ - Fin
+
+End
+
+
+######################################################################################
+######################################################################################
+#nun48 -- rectificación de los numeros de pedido repetidos para la importación masiva#
+Subprog REESCRITURA_SOHNUM()
+Local Char CA_CUSORDREF(240), CA_BPCORD(240)
+Local Char NUEVO_PEDIDO(240)
+Local Integer I_ADXLOG : [L]I_ADXLOG = adxlog
+Local Integer CONTADORREGISTROS : CONTADORREGISTROS = 0
+#Recorro toda la tabla ZOCRECTL
+
+If !clalev([ZACTL]) Local File ZOCRECTL [ZACTL] Endif
+
+If ![L]I_ADXLOG : Trbegin [ZACTL] : Endif
+
+For [ZACTL]
+[L]CONTADORREGISTROS += 1
+#Call ESCRIBIR_TRAZA('REGISTRO: ' + num$([L]CONTADORREGISTROS) + " ***************************", '')
+#  [L]CA_CUSORDREF = func GET_CUSORDREF([ZACTL]CONTADOR) #Busca la referencia del pedido
+   Call GET_CUSORDREF_BPCORD([ZACTL]CONTADOR, CA_CUSORDREF, CA_BPCORD)
+#Call ESCRIBIR_TRAZA([L]CA_CUSORDREF, '')
+  If CA_CUSORDREF<>'' #Busca el pedido en SORDER que tenga ese CUSORDREF
+    [L]NUEVO_PEDIDO = func GET_EDI_SOHNUM([L]CA_CUSORDREF,[L]CA_BPCORD) #Busca el nuevo pedido
+    If [L]NUEVO_PEDIDO <> ''
+      [ZACTL]SOHNUM = [L]NUEVO_PEDIDO
+      Rewrite [ZACTL]
+    Endif
+  Else
+    [ZACTL]SOHNUM = ''
+    Rewrite [ZACTL]
+  Endif
+Next
+
+  If !fstat
+    If ![L]I_ADXLOG : Commit : Endif
+  Else
+    If ![L]I_ADXLOG : Rollback : Endif
+  Endif
+End
+#######################################################################################
+#Funprog GET_EDI_SOHNUM(ZCUSORDREF)
+#Value Char ZCUSORDREF
+#Local Char C_SOHNUM(250)
+#Local Char CUSORDREF_SINE(240)
+#
+#[L]C_SOHNUM = ''
+#
+#If !clalev([ZASOH]) Local File SORDER [ZASOH] Endif
+##Call ESCRIBIR_TRAZA("*"+ZCUSORDREF+"*", '')
+#[L]CUSORDREF_SINE = vireblc(ZCUSORDREF,2)
+##Call ESCRIBIR_TRAZA("*"+[L]CUSORDREF_SINE+"*", '')
+#Filter [ZASOH] Where [ZASOH]CUSORDREF = vireblc(CUSORDREF_SINE,2)
+#Read [ZASOH] First
+#If !fstat
+##  Call ESCRIBIR_TRAZA("PEDIDO:" +[ZASOH]SOHNUM , '')
+#  C_SOHNUM = [ZASOH]SOHNUM
+#Endif
+#
+#End C_SOHNUM
+#######################################################################################
+######################################################################################
+Funprog GET_EDI_SOHNUM(ZCUSORDREF, ZBPCORD)
+Value Char ZCUSORDREF, ZBPCORD
+Local Char C_SOHNUM(250)
+Local Char CUSORDREF_SINE(240)
+
+[L]C_SOHNUM = ''
+
+If !clalev([ZASOH]) Local File SORDER [ZASOH] Endif
+#Call ESCRIBIR_TRAZA("*"+ZCUSORDREF+"*", '')
+[L]CUSORDREF_SINE = vireblc(ZCUSORDREF,2)
+Filter [ZASOH] Where [ZASOH]CUSORDREF = vireblc(CUSORDREF_SINE,2) and [ZASOH]BPCORD = ZBPCORD
+Read [ZASOH] First
+If !fstat
+#  Call ESCRIBIR_TRAZA("PEDIDO:" +[ZASOH]SOHNUM , '')
+  C_SOHNUM = [ZASOH]SOHNUM
+Endif
+
+End C_SOHNUM
+######################################################################################
+Funprog GET_CUSORDREF (C_CONTADOR)
+Value Char C_CONTADOR
+Local Char C_CUSORDREF(240)
+
+C_CUSORDREF = ''
+
+If !clalev([ZAZC]) Local File ZOCSOH [ZAZC] Endif
+For [ZAZC] Where [ZAZC]CONTADOR = C_CONTADOR
+  If [ZAZC]CUSORDREF<> ''
+    C_CUSORDREF = [ZAZC]CUSORDREF
+  Endif
+Next
+
+End C_CUSORDREF
+######################################################################################
+Subprog GET_CUSORDREF_BPCORD (C_CONTADOR, C_CUSORDREF, C_BPCORD)
+Value Char C_CONTADOR
+Variable Char C_CUSORDREF, C_BPCORD
+Local Char TMP_CUSORDREF(240)
+C_CUSORDREF = ''
+C_BPCORD = ''
+If !clalev([ZAZC]) Local File ZOCSOH [ZAZC] Endif
+For [ZAZC] Where [ZAZC]CONTADOR = vireblc(C_CONTADOR,2)
+  If  vireblc([ZAZC]CUSORDREF,2)<>''
+    C_CUSORDREF = vireblc([ZAZC]CUSORDREF,2)
+    C_BPCORD = [ZAZC]BPCORD
+  Endif
+Next
+
+End
+#####################################################################################
+Subprog ESCRIBIR_TRAZA (MENSAJE, MENSAJECLB)
+  Value Char MENSAJE
+  Value Clbfile MENSAJECLB
+
+  Openo filpath("YTRAZA","YZOC_"+format$("D:DDMMYYYY",date$),"txt") Using [XLOG]
+
+  If MENSAJE <> ''
+    Wrseq date$-time$-MENSAJE   Using [XLOG]
+  Endif
+
+  If MENSAJECLB <> ''
+    Wrseq date$-time$-MENSAJECLB Using [XLOG]
+  Endif
+
+  Openo Using [XLOG]
+End
+#####################################################################################
+# @13@: (Y119) NUN28 18-11-2025  MODIFICACIÓN DEL CAMPO YITMCOMP PARA QUE MUESTRE CORRECTAMENTE LA INFORMACIÓN - INI
+Funprog ARTICULO_CLIENTE(ITMREF,TERCERO)
+Value Char ITMREF
+Value Char TERCERO
+Local Char DESC_ART(50)
+
+If !clalev([YITMBPC2])  : Local File ITMBPC   [YITMBPC2] : Endif
+
+  Read [YITMBPC2]ITU0 = ITMREF;TERCERO
+    If !fstat
+      DESC_ART = [YITMBPC2]ITMREFBPC
+    Endif
+
+End DESC_ART
+# @13@: (Y119) NUN28 18-11-2025  MODIFICACIÓN DEL CAMPO YITMCOMP PARA QUE MUESTRE CORRECTAMENTE LA INFORMACIÓN - FIN

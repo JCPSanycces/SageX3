@@ -1,0 +1,47 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+  Case ACTION
+     When "SEL_LISTE": Gosub SEL_LISTE
+  Endcase
+Return
+
+$SEL_LISTE
+Case GACTION
+   When "ZSELLINASO": Gosub SEL_LINEA_ASOC
+Endcase
+Return
+
+$SEL_LINEA_ASOC
+
+Local Char    TEX(30)(0..300) , TEXTE(50)(0..300)
+Local Char    TIT(30): TIT = "Selección de la linea asociada"
+Local Integer NBTEX
+Local Char    TLIN(60)(300)
+Local Integer NLIN : NLIN = 0
+Local Integer WLIN : WLIN = 0
+NBTEX  = 0
+
+If GFONCTION = "GESSOH"
+  For X=0 To [M:SOH4]NBLIG-1
+    If nolign-1<>X and [M:SOH4]ZASOCIADO(X)<2
+      TLIN(NLIN)=num$([M:SOH4]SOPLIN(X))-[M:SOH4]ITMREF(X)-num$([M:SOH4]QTY)
+      NLIN+=1
+    Endif
+  Next
+Elsif GFONCTION = "GESSQH"
+  For X=0 To [M:SQH2]NBLIG-1
+    If nolign-1<>X and [M:SQH2]ZASOCIADO(X)<2
+      TLIN(NLIN)=num$([M:SQH2]SQDLIN(X))-[M:SQH2]ITMREF(X)-num$([M:SQH2]QTY)
+      NLIN+=1
+    Endif
+  Next
+Endif
+
+If NLIN<>0
+  For WLIN = 0 To NLIN-1
+    NBTEX+=1: TEX(NBTEX)=TLIN(WLIN)
+  Next
+Endif
+SIZLIG=75
+SIZCOL=300
+Return

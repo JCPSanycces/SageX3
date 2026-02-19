@@ -1,0 +1,562 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#@001@ - RAP- 120924 - Añado filtro para no cargar las lineas si el estado es saldada
+
+######################################################################################
+$ACTION
+
+Case ACTION
+  When "OUVRE"        Gosub OUVRE
+  When "DEBUT"        Gosub DEBUT
+  When "BOUTON"       Gosub BOUTON
+  When "SETBOUT"    : Gosub SETBOUT #@002@ - EQM
+Endcase
+Return
+######################################################################################
+#@002@ - EQM
+$SETBOUT
+
+   CHMEN =  ""
+   Gosub SET_BOUT_SPE From GSAISIE
+   CHMEN +=  "B"
+   CHMEN +=  "Z"
+   CHMEN +=  "Y"
+   Read[YAUS]CODUSR=GUSER
+   If !fstat
+   If [YAUS]USR='SN004' or [YAUS]USR='SN007'
+
+       CHMEN +=  "M"
+   Endif
+   Endif
+   Gosub SET_BOUT_SPE From GSAISIE
+
+Return
+######################################################################################
+$DEBUT
+  Chgstl [M:YEXP]YSHIDATNEW  With "BACKGREEN"
+  Affzo [M:YEXP]
+Return
+
+######################################################################################
+$OUVRE
+    If clalev([F:YSOH]) <=0 :  Local File SORDER       [YSOH]  : Endif
+    If clalev([F:YSOQ]) <=0 :  Local File SORDERQ      [YSOQ]  : Endif
+    If clalev([F:YSOP]) <=0 :  Local File SORDERP      [YSOP]  : Endif
+    If clalev([F:BPD])  <=0 :  Local File BPDLVCUST    [BPD]   : Endif
+    If clalev([F:YBPT]) <=0 :  Local File BPCARRIER    [YBPT]  : Endif
+    If clalev([F:YBPD]) <=0 :  Local File BPDLVCUST    [YBPD]  : Endif
+    If clalev([F:YITM]) <=0 :  Local File ITMMASTER    [YITM]  : Endif
+    If clalev([F:YMFG]) <=0 :  Local File MFGHEAD      [YMFG]  : Endif
+    If clalev([F:YITT]) <=0 :  Local File YITMTECNICO  [YITT]  : Endif
+    If clalev([F:YSTA]) <=0 :  Local File STOALL       [YSTA]  : Endif
+    If clalev([F:YSTO]) <=0 :  Local File STOCK        [YSTO]  : Endif
+    If clalev([F:YAUS]) <=0 :  Local File AUTILIS      [YAUS]  : Endif #@002@ - EQM
+
+    Local Integer GEN_FICH,WSTAT
+    Local Date D_CALC
+Return
+
+######################################################################################
+$BOUTON
+ Case BOUT
+    When "B"  Gosub CARGAR
+    When "M"  Gosub MODIFICAR
+    When "Z"  Gosub SELECCIONAR
+    When "Y"  Gosub DESSEL
+ Endcase
+Return
+
+######################################################################################
+$SELECCIONAR
+# Marco todas las líneas
+For I=0 To [M:YEXP]NBLIG-1
+  [M:YEXP]MARCAR(I)= 2
+  Affzo [M:YEXP]MARCAR(I)
+Next
+Return
+
+
+######################################################################################
+$DESSEL
+# Desmarco todas las líneas
+For I=0 To [M:YEXP]NBLIG-1
+  [M:YEXP]MARCAR(I)= 1
+  Affzo [M:YEXP]MARCAR(I)
+Next
+Return
+
+######################################################################################
+$CARGAR
+Local Char WFILTRO(250)(0..2)
+Local Char TXTSQL(250)(0..2)
+Local Integer F
+Local Integer SIGO
+
+  WFILTRO(0) = "1=1"
+
+
+
+
+  If [M:YEXP]YSALFCY<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.SALFCY_0 = "+ "'" +[M:YEXP]YSALFCY + "'"
+  Endif
+  If [M:YEXP]BPCORD<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.BPCORD_0 = "+ "'" +[M:YEXP]BPCORD + "'"
+  Endif
+  If [M:YEXP]BPAADD<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.BPAADD_0 = "+ "'" +[M:YEXP]BPAADD + "'"
+  Endif
+  If [M:YEXP]BPTNUM<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.BPTNUM_0 = "+ "'" +[M:YEXP]BPTNUM + "'"
+  Endif
+  If [M:YEXP]YSOHNUM<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.SOHNUM_0 = "+ "'" +[M:YEXP]YSOHNUM + "'"
+  Endif
+  If [M:YEXP]REPRESEN1<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.REP_0 = "+ "'" +[M:YEXP]REPRESEN1 + "'"
+  Endif
+  If [M:YEXP]REPRESEN2<> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.REP_1 = "+ "'" +[M:YEXP]REPRESEN2 + "'"
+  Endif
+  If [M:YEXP]FECHAPED <> [0/0/0] Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.ORDDAT_0 = "+ "'" +[M:YEXP]FECHAPED + "'"
+  Endif
+  If [M:YEXP]CLIFAC <> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.BPCINV_0 = "+ "'" +[M:YEXP]CLIFAC + "'"
+  Endif
+
+  If [M:YEXP]CUSUARIO <> "" Then
+      WFILTRO(0) = WFILTRO(0) + " AND S.CREUSR_0 = "+ "'" +[M:YEXP]CUSUARIO + "'"
+  Endif
+
+  WFILTRO(1)= " AND S.ORDSTA_0=1 AND S.DLVSTA_0<>3 ORDER BY S.DEMDLVDAT_0 ASC"
+  TXTSQL(0)= "SELECT S.SOHNUM_0,S.SHIDAT_0,S.CUSORDREF_0,S.SOHTYP_0,S.BPTNUM_0,S.BPAADD_0,S.BPCORD_0,S.BPCNAM_0,S.ORDDAT_0,S.REP_0,S.REP_1,S.BPCINV_0,S.CDTSTA_0,S.CREUSR_0 FROM SORDER S WHERE  "
+  TXTSQL(1)= WFILTRO(0) + WFILTRO(1)
+
+  # Limpio las líneas
+  Raz [M:YEXP]SOHNUM,[M:YEXP]YSHIDAT,[M:YEXP]MARCAR,[M:YEXP]YREF,[M:YEXP]YSOHTYP,[M:YEXP]YBPTNUM,[M:YEXP]YBPAADD,[M:YEXP]DESBPTNUM,[M:YEXP]YBPCORD,
+& [M:YEXP]DESBPCORD,[M:YEXP]DESBPAADD,[M:YEXP]SOPLIN,[M:YEXP]SOQSEQ,[M:YEXP]LFECHAPED,[M:YEXP]LCLIFAC,[M:YEXP]LFAMSUP,[M:YEXP]LFAM,[M:YEXP]LREP1,[M:YEXP]LREP2,[M:YEXP]CDTSTA,
+& [M:YEXP]YCTDASIGNA,[M:YEXP]YCTRUPTURA,[M:YEXP]YUSUARIO,[M:YEXP]LPREPICKING,[M:YEXP]LCONTENEDOR,[M:YEXP]LREF,
+& [M:YEXP]YCTPDTE,[M:YEXP]YPRECIO,[M:YEXP]YPESONETO,[M:YEXP]LASOCIADO,[M:YEXP]NBLIG,[M:YEXP]DDEMDLVDAT
+
+  # Aplico filtros
+  For (Char YSOHNUM1(GLONVCR), Date YSHIDAT1, Char YCUSORDREF1(GLONVCR),Char YSOHTYP1,Char YBPTNUM1,Char YBPAADD1,Char YBPCORD1,Char YDESBPCORD1(20),Date FECHAPV,Char R1, Char R2, Char CLIFACT,Integer
+& YCREDITO, Char YUSER)
+& From num$(GTYPDBA*2+1) Sql TXTSQL As [YEXPS]
+
+      # Aplico ahora los filtros de líneas
+      For [YSOQ] Where [YSOQ]SOHNUM = YSOHNUM1
+        SIGO = 2
+
+        If [M:YEXP]ARTICULO <> ""
+          If [YSOQ]ITMREF <> [M:YEXP]ARTICULO
+            SIGO = 1
+          Endif
+        Endif
+        #@001@ - RAP- 120924 - INI
+        If SIGO = 2
+          If [YSOQ]SOQSTA = 3
+            SIGO = 1
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [YSOQ]QTY = [YSOQ]OPRQTY
+            SIGO = 1
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [YSOQ]QTY = [YSOQ]OPRQTY + [YSOQ]PREQTY + [YSOQ]LPRQTY
+            SIGO = 1
+          Endif
+        Endif
+
+        #@001@ - RAP- 120924 - FIN
+
+        If SIGO = 2
+          If [M:YEXP]SHIDATINI <>  [0/0/0]
+            If [YSOQ]SHIDAT < [M:YEXP]SHIDATINI
+              SIGO = 1
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [M:YEXP]SHIDATFIN <>  [0/0/0]
+            If [YSOQ]SHIDAT > [M:YEXP]SHIDATFIN
+              SIGO = 1
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [M:YEXP]FAMILIASUP <> ""
+            Read [YITM]ITM0 = [YSOQ]ITMREF
+            If fstat = 0
+              If [YITM]TSICOD(0) <> [M:YEXP]FAMILIASUP
+                SIGO = 1
+              Endif
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [M:YEXP]CREF <> ""
+            Read [YITM]ITM0 = [YSOQ]ITMREF
+            If fstat = 0
+              If [YITM]CUSREF <> [M:YEXP]CREF
+                SIGO = 1
+              Endif
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [M:YEXP]CPREPICKING = 2
+            Read [YITT]YITT0 = [YSOQ]ITMREF
+            If fstat = 0
+              If [YITT]PREPICKING <> 2
+                SIGO = 1
+              Endif
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [M:YEXP]CCRIT = 2
+            If [M:YEXP]CFMI <> [YSOQ]FMI
+              SIGO = 1
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          If [M:YEXP]FAMILI <> ""
+            Read [YITM]ITM0 = [YSOQ]ITMREF
+            If fstat = 0
+              If [YITM]TSICOD(1) <> [M:YEXP]FAMILI
+                SIGO = 1
+              Endif
+            Endif
+          Endif
+        Endif
+
+        If SIGO = 2
+          F = [M:YEXP]NBLIG
+          [M:YEXP]SOHNUM(F)       = YSOHNUM1      # pedido
+          [M:YEXP]YSHIDAT(F)      = [YSOQ]SHIDAT  # fecha de expedición de la línea
+          [M:YEXP]YREF(F)         = YCUSORDREF1   # referencia
+          [M:YEXP]YSOHTYP(F)      = YSOHTYP1      # tipo
+          [M:YEXP]YBPTNUM(F)      = YBPTNUM1      # transportista
+          [M:YEXP]YBPAADD(F)      = YBPAADD1      # dir entrega
+          [M:YEXP]YBPCORD(F)      = YBPCORD1      # cliente
+          [M:YEXP]DESBPCORD(F)    = YDESBPCORD1   # desc cliente
+          [M:YEXP]YARTICULO(F)    = [YSOQ]ITMREF  # artículo
+          [M:YEXP]CDTSTA(F)       = YCREDITO      # estado de crédito
+          [M:YEXP]YCTDASIGNA(F)   = [YSOQ]ALLQTY  # cantidad asignada
+          [M:YEXP]YCTRUPTURA(F)   = [YSOQ]SHTQTY  # cantidad en ruptura
+          [M:YEXP]YUSUARIO(F)     = YUSER         # usuario creación pedido
+          [M:YEXP]YCTPDTE(F)      = [YSOQ]QTY - [YSOQ]DLVQTY         # cantidad pendiente entrega
+          [M:YEXP]YPESONETO(F)    = [YSOQ]DSPLINWEI  # peso línea
+          [M:YEXP]LASOCIADO(F)    = [YSOQ]ZASOCIADO  # artículo asociado
+
+          [M:YEXP]DDEMDLVDAT(F)   = [YSOQ]DEMDLVDAT
+
+          Read [YITT]YITT0 = [YSOQ]ITMREF
+          If fstat = 0
+            [M:YEXP]LPREPICKING(F) = [YITT]PREPICKING
+          Endif
+
+          If [M:YEXP]LPREPICKING(F) = 2
+            Filter [YSTA] Where [YSTA]VCRNUM = [YSOQ]SOHNUM and [YSTA]VCRSEQ = [YSOQ]SOQSEQ and [YSTA]VCRLIN = [YSOQ]SOPLIN
+            Read [YSTA] First
+            If fstat = 0
+              Read [YSTO]STO0 = [YSTA]STOFCY;[YSTA]STOCOU
+              If fstat = 0
+                [M:YEXP]LCONTENEDOR(F) = [YSTO]LPNNUM
+              Endif
+            Endif
+            Filter [YSTA]
+          Endif
+
+          Call LECTEXTRA([M]YARTDES(F),"ITMMASTER","DES1AXX",[YSOQ]ITMREF,"") From ATEXTRA
+          [M:YEXP]YCANTIDAD(F)    = [YSOQ]QTY     # cantidad
+          Read [YSOP]SOP0 = [YSOQ]SOHNUM;[YSOQ]SOPLIN;[YSOQ]SOQSEQ
+          If fstat = 0
+            [M:YEXP]YUNIDAD(F)      = [YSOP]SAU     # unidad de venta
+            [M:YEXP]YPRECIO(F)      = [YSOP]NETPRI  # precio neto
+          Endif
+          [M:YEXP]LFECHAPED(F)    = FECHAPV       # fechapedido
+          [M:YEXP]LREP1(F)        = R1            # representante 1
+          [M:YEXP]LREP2(F)        = R2            # representante 2
+          [M:YEXP]LCLIFAC(F)      = CLIFACT       # cliente factura
+          #MODIF AMB	18 dic. 2023  @01 - AÑADIMOS EL ESTADO DE LA LINEA
+          [M:YEXP]YSOQSTA(F)=[YSOQ]SOQSTA
+          #FIN MODIF AMB	18 dic = . 2023  @01 -  AÑADIMOS EL ESTADO DE LA LINEA
+
+          Read [YITM]ITM0 = [M:YEXP]YARTICULO(F)
+          If fstat = 0
+            [M:YEXP]LFAMSUP(F)      = [YITM]TSICOD(0)       # familia superior
+            [M:YEXP]LFAM(F)         = [YITM]TSICOD(1)       # familia
+            [M:YEXP]LREF(F)         = [YITM]CUSREF          # referencia aduana
+          Endif
+
+          If YBPTNUM1<>''
+            Read[F:YBPT]BPT0=YBPTNUM1
+            If !fstat
+              [M:YEXP]DESBPTNUM(F)=[F:YBPT]BPTNAM
+            Endif
+          Endif
+          If YBPAADD1<>''
+            Read [F:YBPD]BPD0=YBPCORD1;YBPAADD1
+            If !fstat
+              [M:YEXP]DESBPAADD(F)=[F:YBPD]BPDNAM
+            Endif
+          Endif
+          [M:YEXP]MARCAR(F) = 2
+          [M:YEXP]SOPLIN(F) = [YSOQ]SOPLIN
+          [M:YEXP]SOQSEQ(F) = [YSOQ]SOQSEQ
+          #MODIF AMB  18 dic. 2023  @01 - AÑADIMOS INFORMACION DE CONTRAMARCA
+          [M:YEXP]YFMINUM(F) =[YSOQ]FMINUM
+          [M:YEXP]YFMI(F) =[YSOQ]FMI
+          If [M:YEXP]YFMI(F) = 5 and [M:YEXP]YFMINUM(F) <> ""
+            Read [F:YMFG]MFG0 = [M:YEXP]YFMINUM(F)
+            If fstat = 0
+              [M:YEXP]YSITUACIONOF(F) = [F:YMFG]MFGTRKFLG
+              [M:YEXP]YASIGNAOF(F)    = [F:YMFG]ALLSTA
+            Endif
+            Else
+             [M:YEXP]YSITUACIONOF(F) = 0
+             [M:YEXP]YASIGNAOF(F)    = 0
+            Endif
+          #FIN MODIF AMB  18 dic = . 2023  @01 -  AÑADIMOS INFORMACION DE CONTRAMARCA
+
+          Actzo [M:YEXP]MARCAR(F)
+          [M:YEXP]NBLIG+=1
+          If F > 498 Then Infbox "Número máximo líneas permitido (500)" : Break 2 : Endif
+        Endif
+      Next
+  Next
+  Affzo [M:YEXP]
+Return
+
+
+######################################################################################
+$MODIFICAR
+# Modifico la fecha de expedición de las líneas marcadas
+If [M:YEXP]YSHIDATNEW = "000000"
+  Errbox "Por favor, introduzca la nueva fecha de expedición"
+Else
+  Local Integer OK9
+  Call OUINON("¿Desea modificar la fecha de expedición de las líneas de los pedidos seleccionadas?",OK9) From GESECRAN
+  If OK9 = 2
+    If clalev([F:PP9]) <=0 :  Local File SORDERQ    [PP9]  : Endif
+
+    For K=0 To [M:YEXP]NBLIG-1
+      If [M:YEXP]MARCAR(K) = 2
+        Read [PP9]SOQ0 = [M:YEXP]SOHNUM(K);[M:YEXP]SOPLIN(K);[M:YEXP]SOQSEQ(K)
+        If fstat = 0
+          [PP9]SHIDAT = [M:YEXP]YSHIDATNEW
+          Call CALC_DLVDAT([M:YEXP]YSHIDATNEW, [PP9]DAYLTI, [PP9]BPAADD,[PP9]BPCORD, 0, 0,
+&                          [PP9]EXTDLVDAT) From TRTVENDAT
+          Rewrite [PP9]
+        Endif
+      Endif
+    Next
+
+    Close Local File [PP9]
+
+    Gosub CARGAR
+  Endif
+Endif
+
+Return
+
+
+######################################################################################
+$GENERA_FICHERO
+    NOMFIC =  'Modif_fecha_exped'+format$("D:YYYYMMDD",date$)+ "_" + sigma(1, 10, chr$(int(rnd(25))+ascii("A"))) #num$(CONTADOR)
+
+    WFICHERO =filpath("tmp",NOMFIC,"txt")
+    Call EFFACE(WFICHERO,WSTAT) From ORDSYS
+    Openo WFICHERO,0 Using [FEXP]
+
+    Iomode adxifs ";"                 Using [FEXP]
+    Iomode adxirs chr$(13)+chr$(10)   Using [FEXP]
+    Iomode adxium GASCII              Using [FEXP]
+    GEN_FICH=1
+Return
+
+
+######################################################################################
+$IMPORTA_FICHERO
+    Openo Using [FEXP]
+    MODELE ="YSOH"
+    WFICHERO =filpath("tmp",NOMFIC,"txt")
+    Gosub OUVRE From GIMPOBJ
+    Call IMPORTSIL(MODELE,WFICHERO) From GIMPOBJ
+Return
+
+
+#######################################################################################
+$RELLENA_CABECERA
+    Wrseq "E"                                   ;   Using [FEXP]     #/
+    Wrseq [M:YEXP]SOHNUM(I)                     ;   Using [FEXP]    #Pedido
+    Wrseq  D_CALC                                   Using [FEXP]    #Fecha entrega sol
+Return
+
+
+######################################################################################
+$RELLENA_LINEAS
+    Wrseq "L"                                   ;   Using [FEXP]    #Línea
+    Wrseq [F:YSOQ]SOPLIN                        ;   Using [FEXP]    #Línea
+    Wrseq [F:YSOQ]SOQSEQ                        ;   Using [FEXP]    #Sec
+    Wrseq  D_CALC                                   Using [FEXP]    #Fecha entrega sol
+Return
+
+
+######################################################################################
+Subprog C_YSHIDATNEW(VALEUR)
+Variable Date    VALEUR
+If VALEUR <> "000000"
+  Local Date D_SHIP
+  D_SHIP=VALEUR
+  If clalev([F:YFCY]) <=0 :  Local File FACILITY    [F:YFCY]  : Endif
+
+  Read [F:YFCY]FCY0=[M:YEXP]YSALFCY
+  If !fstat
+    Call CTL_JOU2(D_SHIP,VALEUR,[F:YFCY]UVYDAY,[F:YFCY]UVYCOD,0) From CONTX3
+    If D_SHIP<>VALEUR
+    If GUSER="NUN12" : Infbox"VALEUR"-VALEUR : Endif
+      GERR = 2
+      GMESSAGE = "La nueva fecha de expedición no es hábil. No se lanza la modificación."
+      zonsui ="[M:YEXP]YSHIDATNEW"
+    Endif
+  Endif
+Endif
+End
+
+######################################################################################
+$CALC_DEMDLVDAT
+D_CALC=[0/0/0]
+Read [F:YSOH]SOH0=[M:YEXP]SOHNUM(I)
+If !fstat
+    Call CALC_DLVDAT([M:YEXP]YSHIDATNEW, [F:YSOH]DAYLTI, [F:YSOH]BPAADD, [F:YSOH]BPCORD, 0,0,D_CALC) From TRTVENDAT
+
+Endif
+
+Return
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YEXP) 29/08/2023 14:20:58 (NUN12)
+######################################################################################
+Subprog C_SOHNUM(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+
+######################################################################################
+Subprog IB_NBLIG
+# Acciones del menú contextual de la línea
+If [M:YEXP]SOHNUM(nolign-1) <> ""
+  GBOUT1 = "PV: " + [M:YEXP]SOHNUM(nolign-1)
+Else
+  GBOUT1 = ""
+Endif
+
+If [M:YEXP]YFMINUM(nolign-1) <> ""
+  Case [M:YEXP]YFMI(nolign-1)
+    When 2,3 : GBOUT2 = "PC: " + [M:YEXP]YFMINUM(nolign-1)
+    When 5   : GBOUT2 = "OF: " + [M:YEXP]YFMINUM(nolign-1)
+  Endcase
+Else
+  GBOUT2 = ""
+Endif
+
+If [M:YEXP]YARTICULO(nolign-1) <> ""
+  GBOUT3 = "Artículo: " + [M:YEXP]YARTICULO(nolign-1)
+Else
+  GBOUT3 = ""
+Endif
+
+If [M:YEXP]YBPCORD(nolign-1) <> ""
+  GBOUT4 = "Cliente: " + [M:YEXP]YBPCORD(nolign-1)
+Else
+  GBOUT4 = ""
+Endif
+
+GBOUT5 = ""
+End
+
+######################################################################################
+Subprog B1_NBLIG
+Call OBJET("SOH",[M:YEXP]SOHNUM(nolign-1),"") From GOBJET
+End
+
+######################################################################################
+Subprog B2_NBLIG
+Case [M:YEXP]YFMI(nolign-1)
+  When 2,3 : Call OBJET("POH",[M:YEXP]YFMINUM(nolign-1),"") From GOBJET
+  When 5   : Call OBJET("MFG",[M:YEXP]YFMINUM(nolign-1),"") From GOBJET
+Endcase
+End
+
+######################################################################################
+Subprog B3_NBLIG
+Call OBJET("ITM",[M:YEXP]YARTICULO(nolign-1),"") From GOBJET
+End
+
+######################################################################################
+Subprog B4_NBLIG
+Call OBJET("BPC",[M:YEXP]YBPCORD(nolign-1),"") From GOBJET
+End
+
+######################################################################################
+Subprog B5_NBLIG
+End
+
+
+######################################################################################
+Subprog AP_CCRIT(VALEUR)
+Variable Integer VALEUR
+If VALEUR <> 2
+  Grizo [M:YEXP]CFMI
+Else
+  Actzo [M:YEXP]CFMI
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CFMI(VALEUR)
+Variable Integer VALEUR
+If CCRIT <> 2 : mkstat = 2 : Endif
+End
+
+
+
+######################################################################################
+Subprog AV_MARCAR(VALEUR)
+Variable Integer VALEUR
+# Marco en azul si asociados
+If [M:YEXP]LASOCIADO(nolign-1) = 2
+  Chgstl NBLIG(nolign-1) With "MTC3"
+Elsif [M:YEXP]YCTRUPTURA(nolign-1) <> 0
+  Chgstl NBLIG(nolign-1) With "AEXPEXC1"
+Elsif [M:YEXP]YCTDASIGNA(nolign-1) = 0   # or [M:YEXP]YCTDASIGNA(nolign-1) = null)
+  Chgstl NBLIG(nolign-1) With "AERROR"
+Elsif [M:YEXP]HLDSTA(nolign-1) = 2 or [M:YEXP]CDTSTA(nolign-1) > 1
+  Chgstl NBLIG(nolign-1) With "BACKRED"
+Else
+Chgstl NBLIG(nolign-1) With "NORMAL"
+Endif
+#If [M:YEXP]SOHNUM(nolign-1) = 'PDV112400512'
+#  Infbox num$([M:YEXP]YCTDASIGNA(nolign-1)) - " aaa " - num$(dim([M:YEXP]YCTDASIGNA(nolign-1)))
+#Endif
+End
+
+
+######################################################################################

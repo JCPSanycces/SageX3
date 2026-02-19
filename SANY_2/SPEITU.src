@@ -1,0 +1,44 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara ITU (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ITU) 22/08/2022 00:11:22 (NUN10)
+######################################################################################
+$ACTION
+Case ACTION
+ When Default
+Endcase
+Return
+
+Subprog AM_XZETICLI(VALEUR)
+Variable Integer VALEUR
+  [M:ITU]ZETICLI([M:ITU]XLIGITU) = VALEUR
+  [M:ITU]UPDDAT([M:ITU]XLIGITU) = date$
+  [M:ITU]UPDUSR([M:ITU]XLIGITU) = GUSER
+  [M:ITU]FLMOD([M:ITU]XLIGITU) = 1
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla ITU) 22/08/2022 00:17:30 (NUN10)
+######################################################################################
+Subprog AS_NBITU
+
+NOL = nolign-1
+[M]XLIGITU = nolign-1
+Gosub CHARGE_ITU From SUBITU
+[M:ITU]XZETICLI    = [M:ITU]ZETICLI(NOL)
+Affzo [M:ITU]XZETICLI
+Raz GBOUT1, GBOUT2
+If [M:ITU]BPCNUM(NOL) <> ""
+  # Bouton texte document vente
+  GBOUT1 = mess(231,198,1)
+  # Bouton texte bon préparation
+  GBOUT2 = mess(229,198,1)
+Endif
+Call CHECKING_BOXES() From SUBITU# Issue X3-115954 - 2018-12-12 by SDEM
+End
+
+
+#######################################################################################

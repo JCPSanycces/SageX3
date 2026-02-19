@@ -1,0 +1,649 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#//////////////////////////////////////////////////////////////////////////////////////////////#
+# @01@ - JLP - 03-12-2024 - A pedir = (Stock máximo - Disp.venta - En reaprov) / (Lote técnico)
+# @02@ - EQM - 18-08-2025 - Redondeo a 2 dec para que aparezca ok en excel
+# @03@ - AAS - 17/02/2026 - Nuevo filtro CCOMPRADOR
+#//////////////////////////////////////////////////////////////////////////////////////////////#
+
+$ACTION
+Case ACTION
+  When "DEBUT"    :  Gosub DEBUT
+  When "BOUTON"   :  Gosub BOUTON
+Endcase
+Return
+
+
+##############################################
+$DEBUT
+# Limpio la pantalla
+Raz [M:YAPSA]
+[M:YAPSA]PIE_AP = 0
+Affzo [M:YAPSA]
+Return
+
+
+##############################################
+$BOUTON
+Case BOUT
+  When "Z"  :   Gosub BUSCAR
+Endcase
+Return
+
+
+##############################################
+$BUSCAR
+# Limpio el bloque de líneas
+Gosub LIMPIO_LINEAS
+
+# Fecha de arranque
+Local Date F_ARRANQUE : F_ARRANQUE = gdat$(01,10,2024)
+
+# Apertura de tablas
+If !clalev([PP1]) : Local File ITMMASTER     [PP1] : Endif
+If !clalev([PP2]) : Local File ITMFACILIT    [PP2] : Endif
+If !clalev([PP3]) : Local File ITMMVT        [PP3] : Endif
+If !clalev([PP4]) : Local File ORDERS        [PP4] : Endif
+If !clalev([PP5]) : Local File MFGMAT        [PP5] : Endif
+If !clalev([PP6]) : Local File PORDERQ       [PP6] : Endif
+If !clalev([PP7]) : Local File BPSUPPLIER    [PP7] : Endif
+If !clalev([PP8]) : Local File YHISTAPRO     [PP8] : Endif
+If !clalev([PP9]) : Local File PPRICLIST     [PP9] : Endif
+If !clalev([P10]) : Local File SORDERQ       [P10] : Endif
+If !clalev([P11]) : Local File ITMBPS        [P11] : Endif
+If !clalev([P12]) : Local File SORDER        [P12] : Endif
+
+# Enlazo ITM-ITF
+Link [PP2] With [PP1]ITM0 = [PP2]ITMREF As [XX1]
+
+# Compongo criterios
+Local Char CRITERIOS1(250) : CRITERIOS1 = "[PP1]ITMSTA=1"
+Local Char CRITERIOS2(250) : CRITERIOS2 = " 1=1"
+Local Char CRITERIOS3(250) : CRITERIOS3 = " 1=1"
+
+If [M:YAPSA]CPLANTA <> ""
+  CRITERIOS1 += " & [PP2]STOFCY=[M:YAPSA]CPLANTA"
+Endif
+
+If [M:YAPSA]CARTICULOD <> ""
+  CRITERIOS1 += " & [PP1]ITMREF>=[M:YAPSA]CARTICULOD"
+Endif
+
+If [M:YAPSA]CARTICULOH <> ""
+  CRITERIOS1 += " & [PP1]ITMREF<=[M:YAPSA]CARTICULOH"
+Endif
+
+If [M:YAPSA]CFAMILIASUPD <> ""
+  CRITERIOS1 += " & [PP1]TSICOD(0)>=[M:YAPSA]CFAMILIASUPD"
+Endif
+
+If [M:YAPSA]CFAMILIASUPH <> ""
+  CRITERIOS1 += " & [PP1]TSICOD(0)<=[M:YAPSA]CFAMILIASUPH"
+Endif
+
+If [M:YAPSA]CFAMILIAD <> ""
+  CRITERIOS2 += " & [PP1]TSICOD(1)>=[M:YAPSA]CFAMILIAD"
+Endif
+
+If [M:YAPSA]CFAMILIAH <> ""
+  CRITERIOS2 += " & [PP1]TSICOD(1)<=[M:YAPSA]CFAMILIAH"
+Endif
+
+# @03@ - AAS - 17/02/2026 - Nuevo filtro CCOMPRADOR
+# si no se indica comprador se ignora el filtro en vez de buscarlo vacío adrede
+If [M:YAPSA]CCOMPRADOR <> ""
+  CRITERIOS2 += " & [PP1]BUY=[M:YAPSA]CCOMPRADOR"
+Endif
+# @03@ - AAS - 17/02/2026 - Nuevo filtro CCOMPRADOR
+
+# Cargo pantalla (máximo 3000 líneas)
+Local Integer CONTA
+Local Decimal QTY_POS
+Local Decimal QTY_MFM
+Local Decimal QTY_POQ
+Local Char BPS_POS
+Local Decimal DH_PV
+Local Decimal DH_OF
+Local Decimal D_PV
+Local Decimal D_OF
+Local Decimal DH90_PV
+Local Decimal DH90_OF
+Local Decimal D90_PV
+Local Decimal D90_OF
+Local Integer ENCUENTRO_BPS
+Local Char PPRINCIPAL
+
+nolign = 1
+Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMREF Asc
+For [XX1]
+
+    #** Proveedor principal
+    #*
+    Filter [P11] Where [P11]ITMREF = [PP1]ITMREF Order By [P11]PIO Asc
+    Read [P11] First
+    If fstat = 0
+      [M:YAPSA]PPRINCIPAL(nolign-1)       = [P11]BPSNUM
+    Else
+      [M:YAPSA]PPRINCIPAL(nolign-1)       = ""
+    Endif
+    Filter [P11]
+
+    # Modif. 04/04/2024. Sino hay proveedor principal, no muestro el registro
+    If [M:YAPSA]PPRINCIPAL(nolign-1) = ""
+      Goto SIGUIENTE
+    Endif
+
+    #** Filtro por Proveedor principal
+    #*
+    If [M:YAPSA]CPROVEEDORD <> "" and [M:YAPSA]CPROVEEDORH <> ""
+      If [M:YAPSA]PPRINCIPAL(nolign-1) < [M:YAPSA]CPROVEEDORD or [M:YAPSA]PPRINCIPAL(nolign-1) > [M:YAPSA]CPROVEEDORH
+        Goto SIGUIENTE
+      Endif
+    Elsif [M:YAPSA]CPROVEEDORD <> "" and [M:YAPSA]CPROVEEDORH = ""
+      If [M:YAPSA]PPRINCIPAL(nolign-1) < [M:YAPSA]CPROVEEDORD
+        Goto SIGUIENTE
+      Endif
+    Elsif [M:YAPSA]CPROVEEDORD = "" and [M:YAPSA]CPROVEEDORH <> ""
+      If [M:YAPSA]PPRINCIPAL(nolign-1) > [M:YAPSA]CPROVEEDORH
+        Goto SIGUIENTE
+      Endif
+    Endif
+
+    #** Campos directos de base de datos
+    #*!
+    [M:YAPSA]PLANTA(nolign-1)       = [PP2]STOFCY
+    [M:YAPSA]ARTICULO(nolign-1)     = [PP1]ITMREF
+    Call LECTEXTRA([M:YAPSA]ARTICULOD(nolign-1),"ITMMASTER","DES1AXX",[M:YAPSA]ARTICULO(nolign-1),"") From ATEXTRA
+    [M:YAPSA]STU(nolign-1)          = [PP1]STU
+
+    Read [PP3]ITV0 = [PP2]ITMREF;[PP2]STOFCY
+    If fstat = 0
+      [M:YAPSA]STOCKACT(nolign-1)   = [PP3]PHYSTO + [PP3]CTLSTO     # Stock actual = stock físico en A + stock físico en Q
+      [M:YAPSA]PTEENVIO(nolign-1)   = [PP3]SALSTO                   # PTE ENVÍO: Cantidades en pedidos de venta pendiente de servir
+    Endif
+
+    [M:YAPSA]LIMITEREAP(nolign-1)   = [PP2]REOTSD
+    [M:YAPSA]STOCKMAX(nolign-1)     = ar2([PP2]MAXSTO) # @02@ - EQM - Redondeo ar2
+    [M:YAPSA]LOTEECO(nolign-1)      = [PP2]REOMINQTY
+    [M:YAPSA]LOTETEC(nolign-1)      = [PP2]MFGLOTQTY
+    [M:YAPSA]PLAZOENT(nolign-1)     = [PP2]OFS
+
+    # @03@ - AAS - 17/02/2026 - Nuevo filtro CCOMPRADOR
+    [M:YAPSA]COMPRADOR(nolign-1)    = [PP1]BUY
+    # @03@ - AAS - 17/02/2026 - Nuevo filtro CCOMPRADOR
+
+    #** Campos calculados
+    # Saco la info de las POS (tabla ORDERS)
+    [L]QTY_POS = 0
+    [L]BPS_POS = ""
+    #[L]ENCUENTRO_BPS = 0
+
+    Filter [PP4] Where [PP4]STOFCY = [PP2]STOFCY and [PP4]ITMREF = [PP1]ITMREF and [PP4]WIPTYP=2 and [PP4]WIPSTA=3 and evalue(CRITERIOS3)
+      For [PP4]
+        #[L]ENCUENTRO_BPS = 2
+        [L]QTY_POS += [PP4]EXTQTY               # A PEDIR: Cantidad sugerida a comprar (Cantidad en POS)
+        If [L]BPS_POS <> "$"
+          If [L]BPS_POS = ""
+            [L]BPS_POS = [PP4]BPRNUM
+          Elsif [L]BPS_POS <> [PP4]BPRNUM
+            [L]BPS_POS = "$"
+          Endif
+        Endif
+      Next
+    Filter [PP4]
+
+    # Aplico el filtro de proveedores
+    #If [L]ENCUENTRO_BPS <> 2 and ([M:YAPSA]CPROVEEDORD <> "" or [M:YAPSA]CPROVEEDORH <> "")   : Goto SIGUIENTE : Endif
+
+#    [M:YAPSA]APEDIR(nolign-1)    = [L]QTY_POS # @01@ - JLP - 03-12-2024 -
+    [M:YAPSA]SUGE(nolign-1)    = [L]QTY_POS  # @01@ - JLP - 03-12-2024 -
+
+    [M:YAPSA]PROVEEDOR(nolign-1) = [L]BPS_POS
+    If [L]BPS_POS <> "" and [L]BPS_POS <> "$"
+      Read [PP7]BPS0 = [L]BPS_POS
+      If fstat = 0
+        [M:YAPSA]RAZONSOC(nolign-1) = [PP7]BPSNAM
+      Endif
+    Elsif [L]BPS_POS = "$"
+      [M:YAPSA]RAZONSOC(nolign-1) = "$"
+    Endif
+
+    # Información del precio y la divisa de la POS. La saco de la tarifa del artículo - proveedor solamente cuando tengo un proveedor concreto; si tengo $ no pongo valor
+    If [M:YAPSA]PROVEEDOR(nolign-1) = "$"
+      [M:YAPSA]PRECIOCOMP(nolign-1) = 0
+      [M:YAPSA]DIVISA(nolign-1)     = "$"
+    Else
+      Filter [PP9] Where [PP9]PLI = "T10" and [PP9]PLICRI1 = [M:YAPSA]PROVEEDOR(nolign-1) and [PP9]PLICRI2 = [M:YAPSA]ARTICULO(nolign-1) and
+&                        [PP9]PLISTRDAT<=date$ and [PP9]PLIENDDAT>=date$ and [PP9]MINQTY<=[L]QTY_POS and [PP9]MAXQTY>=[L]QTY_POS
+      Read [PP9] First
+      If fstat = 0
+        [M:YAPSA]PRECIOCOMP(nolign-1) = [PP9]PRI
+        [M:YAPSA]DIVISA(nolign-1)     = [PP9]CUR
+      Endif
+      Filter [PP9]
+    Endif
+
+    If [M:YAPSA]LOTETEC(nolign-1) <> 0
+#      [M:YAPSA]APEDIRLOTET(nolign-1) = [M:YAPSA]APEDIR(nolign-1) / [M:YAPSA]LOTETEC(nolign-1)     # EQUIV. EN LOTE TEC: A PEDIR/LOTE TEC
+      [M:YAPSA]APEDIRLOTET(nolign-1) = [M:YAPSA]SUGE(nolign-1) / [M:YAPSA]LOTETEC(nolign-1)     # EQUIV. EN LOTE TEC: A PEDIR/LOTE TEC # @01@ - JLP - 03-12-2024 -
+    Else
+      [M:YAPSA]APEDIRLOTET(nolign-1) = 0
+    Endif
+
+    # Saco la info de la MFM (tabla MFGMAT)
+    [L]QTY_MFM = 0
+    Filter [PP5] Where [PP5]MFGFCY = [PP2]STOFCY and [PP5]ITMREF = [PP1]ITMREF and [PP5]MFGSTA = 1 and [PP5]MATSTA < 3
+      For [PP5]
+        [L]QTY_MFM += [PP5]RETQTY - [PP5]USEQTY               # PDT PROD: Cantidades en ordenes de fabricación como componente Pdt de consumir
+      Next
+    Filter [PP5]
+    [M:YAPSA]PTEPROD(nolign-1) = [L]QTY_MFM
+
+    # Saco la info de las POQ (tabla PORDERQ)
+    [L]QTY_POQ = 0
+    Filter [PP6] Where [PP6]POHFCY = [PP2]STOFCY and [PP6]ITMREF = [PP1]ITMREF and [PP6]LINCLEFLG <> 2 and [PP6]LINSTA < 3 and [PP6]WIPSTA = 1
+      For [PP6]
+        [L]QTY_POQ += [PP6]QTYSTU - [PP6]RCPQTYSTU            # PDT RECIBIR: Cantidades en pedidos de compra pendientes de recibir (No saldadas)
+      Next
+    Filter [PP6]
+    [M:YAPSA]PTEREC(nolign-1) = [L]QTY_POQ
+
+    # DISP. FUTURO: STOCK ACTUAL + PTE RECIBIR - PTE ENV - PTE PROD
+    [M:YAPSA]DISPFUTURO(nolign-1) = [M:YAPSA]STOCKACT(nolign-1) + [M:YAPSA]PTEREC(nolign-1) - [M:YAPSA]PTEENVIO(nolign-1) - [M:YAPSA]PTEPROD(nolign-1)
+
+    # DISP. VENTA: DISP. FUTURO - PTE RECIBIR
+    [M:YAPSA]DISPVENTA(nolign-1) = [M:YAPSA]DISPFUTURO(nolign-1) - [M:YAPSA]PTEREC(nolign-1)
+
+    # Informaciones de la demanda. Busco en tabla de histórico si hoy-365 < fecha arranque
+    If 1=2 # 07/06/2024. No calculo la demanda mensual; voy a buscarla al proceso de Rupturas sanycces
+      [L]DH_PV = 0
+      [L]DH_OF = 0
+      [L]D_PV  = 0
+      [L]D_OF  = 0
+      If date$-365 <= [L]F_ARRANQUE
+        Call DEMANDA_HIST([M:YAPSA]ARTICULO(nolign-1),[M:YAPSA]PLANTA(nolign-1),[L]F_ARRANQUE,[L]DH_PV,[L]DH_OF)
+      Endif
+      # Saco ahora la info de los datos de X3
+      Filter [P10] Where [P10]SALFCY = [M:YAPSA]PLANTA(nolign-1) and [P10]ITMREF = [M:YAPSA]ARTICULO(nolign-1) and [P10]DEMSTA = 1 and [P10]ORDDAT>=[L]F_ARRANQUE and [P10]ORDDAT>=(date$-365) and [P10]
+&     ORDDAT<=date$ and [P10]STOMGTCOD = 2
+        For [P10]
+          # 12/03/2024. No tomo en cuenta los pedidos especiales
+          Read [P12]SOH0 = [P10]SOHNUM
+          If fstat = 0 and [P12]YOPEESPE<> 2
+            [L]D_PV += [P10]QTYSTU
+          Endif
+        Next
+      Filter [P10]
+      Filter [PP5] Where [PP5]MFGFCY = [M:YAPSA]PLANTA(nolign-1) and [PP5]ITMREF = [M:YAPSA]ARTICULO(nolign-1) and [PP5]MFGSTA = 1 and [PP5]RETDAT>=[L]F_ARRANQUE and [PP5]RETDAT>=(date$-365) and [PP5]
+&    RETDAT<=date$
+        For [PP5]
+          [L]D_OF += [PP5]RETQTY
+        Next
+      Filter [PP5]
+
+      [M:YAPSA]DEMANDAM(nolign-1) = ([L]DH_PV + [L]D_PV + [L]DH_OF + [L]D_OF) / 12
+    Else
+      [M:YAPSA]DEMANDAM(nolign-1)  = func SPEYRUSA.GET_DEMANDA([M:YAPSA]PLANTA(nolign-1),[M:YAPSA]ARTICULO(nolign-1))
+    Endif
+
+    # Informaciones de la demanda90. Busco en tabla de histórico si hoy-90 < fecha arranque
+    [L]DH90_PV = 0
+    [L]DH90_OF = 0
+    [L]D90_PV  = 0
+    [L]D90_OF  = 0
+    If date$-90 <= [L]F_ARRANQUE
+      Call DEMANDA_HIST_90([M:YAPSA]ARTICULO(nolign-1),[M:YAPSA]PLANTA(nolign-1),[L]F_ARRANQUE,[L]DH90_PV,[L]DH90_OF)
+    Endif
+    # Saco ahora la info de los datos de X3
+    Filter [P10] Where [P10]SALFCY = [M:YAPSA]PLANTA(nolign-1) and [P10]ITMREF = [M:YAPSA]ARTICULO(nolign-1) and [P10]DEMSTA = 1 and [P10]ORDDAT>=[L]F_ARRANQUE and [P10]ORDDAT>=(date$-90) and [P10]
+& ORDDAT<=date$ and [P10]STOMGTCOD = 2
+      For [P10]
+        # 12/03/2024. No tomo en cuenta los pedidos especiales
+        Read [P12]SOH0 = [P10]SOHNUM
+        If fstat = 0 and [P12]YOPEESPE<> 2
+          [L]D90_PV += [P10]QTYSTU
+        Endif
+      Next
+    Filter [P10]
+    Filter [PP5] Where [PP5]MFGFCY = [M:YAPSA]PLANTA(nolign-1) and [PP5]ITMREF = [M:YAPSA]ARTICULO(nolign-1) and [PP5]MFGSTA = 1 and [PP5]RETDAT>=[L]F_ARRANQUE and [PP5]RETDAT>=(date$-90) and [PP5]
+& RETDAT<date$
+      For [PP5]
+        [L]D90_OF += [PP5]RETQTY
+      Next
+    Filter [PP5]
+    [M:YAPSA]DEMANDA90(nolign-1) = ar2(([L]DH90_PV + [L]D90_PV + [L]DH90_OF + [L]D90_OF) / 3) # @02@ - EQM - Redondeo ar2
+
+    # Meses stock actual 90D = Disp. venta/Demanda 90D
+    If [M:YAPSA]DEMANDA90(nolign-1) > 0
+      [M:YAPSA]MESACT90(nolign-1) = ar2([M:YAPSA]DISPVENTA(nolign-1) /[M:YAPSA]DEMANDA90(nolign-1)) # @02@ - EQM - Redondeo ar2
+    Endif
+
+    # Meses stock futuro a 90D = Disp. futuro/Demanda 90D
+    If [M:YAPSA]DEMANDA90(nolign-1) > 0
+      [M:YAPSA]MESFUT90(nolign-1) = ar2([M:YAPSA]DISPFUTURO(nolign-1) /[M:YAPSA]DEMANDA90(nolign-1)) # @02@ - EQM - Redondeo ar2
+    Endif
+
+    # STOCK MIN CAL: DEMANDA MENSUAL * (PLAZO ENTREGA / 30)
+    [M:YAPSA]STKMINCAL(nolign-1) = ar2([M:YAPSA]DEMANDAM(nolign-1) * ([M:YAPSA]PLAZOENT(nolign-1) / 30)) # @02@ - EQM - Redondeo ar2
+
+    # Aplico el filtro de disp.futuro < stock minimo
+    If [M:YAPSA]CDISPONIBLE = 2
+      If [M:YAPSA]DISPFUTURO(nolign-1) > [M:YAPSA]LIMITEREAP(nolign-1) : Goto SIGUIENTE : Endif
+      If [M:YAPSA]DISPFUTURO(nolign-1) = 0 and [M:YAPSA]LIMITEREAP(nolign-1) = 0 : Goto SIGUIENTE : Endif
+    Endif
+
+    # STOCK MIN CAL 90D: DEMANDA 90D * (PLAZO ENTREGA / 30)
+    [M:YAPSA]STKMINCAL90(nolign-1) = ar2([M:YAPSA]DEMANDA90(nolign-1) * ([M:YAPSA]PLAZOENT(nolign-1) / 30)) # @02@ - EQM - Redondeo ar2
+
+    # STOCK MAX CAL: STOCK MIN CAL * 2
+    [M:YAPSA]STOCKMAXCAL(nolign-1) = ar2([M:YAPSA]STKMINCAL(nolign-1) * 2) # @02@ - EQM - Redondeo ar2
+
+    # STOCK MAX CAL 90D: STOCK MIN CAL 90D * 2
+    [M:YAPSA]STOCKMAXCAL9(nolign-1) = ar2([M:YAPSA]STKMINCAL90(nolign-1) * 2) # @02@ - EQM - Redondeo ar2
+
+    # MESES STOCK ACTUAL: DISP. VENTA / DEMANDA MENSUAL
+    If [M:YAPSA]DEMANDAM(nolign-1) <> 0
+      [M:YAPSA]MESESSTKACT(nolign-1) = ar2([M:YAPSA]DISPVENTA(nolign-1) / [M:YAPSA]DEMANDAM(nolign-1)) # @02@ - EQM - Redondeo ar2
+    Endif
+
+    # MESES STOCK FUTURO: DISP. FUTURO / DEMANDAD MENSUAL
+    If [M:YAPSA]DEMANDAM(nolign-1) <> 0
+      [M:YAPSA]MESESSTKFUT(nolign-1) = ar2([M:YAPSA]DISPFUTURO(nolign-1) / [M:YAPSA]DEMANDAM(nolign-1)) # @02@ - EQM - Redondeo ar2
+    Endif
+
+    # Precio y descuento 1 del artículo
+    Local Integer   MODULE                : # module (vente achat)
+    Local Integer   PLITYP                : # type de tarif
+    Local Char      TRAIT (5)             : # type de traitement
+    #---- Paramètres complementaires appel recherche tarifs
+    Local  Char     PARAM_T (25) (0..5)   : # indice 0 = coef. multiplicateur UV --> US
+
+    Local Date      DAT                       : # date commande ou livraison
+    Local Decimal   QTY                       : # quantité
+    Local Char      UOM(GLONUOM)              : # unité de vente
+    Local Integer   CHGTYP                    : # type de cours
+    Local Char      CUR(GLONCUR)              : # devise de la commande
+    Local Integer   PRITYP                    : # prix ht ou ttc
+    Local Char      VAT(GLONVAT)      (0..2)  : # codes taxes
+    Local Decimal   MONTANT           (0..10) : # (0)=prix (1..9)=fr/rem (10)=comm rep
+    Local Shortint  MOTIF             (0..10) : # motif
+    Local Shortint  PRIORITE          (0..10) : # priorité
+    Local Char      PLI(GLONPLI)      (0..10) : # code tarif
+    Local Char      PLICRD (GLONVCR)  (0..10) : # code de la fiche tarif
+    Local Integer   PLILIN            (0..10) : # no de ligne de la fiche tarif
+    Local Char      FOCITMREF(GLONITM)(0..1)  : # article gratuit
+    Local Decimal   FOCQTY            (0..1)  : # quantité gratuite
+    Local Char      FOCUOM(GLONUOM)   (0..1)  : # unité vente gratuit
+    Local Shortint  FOCMOTIF          (0..1)  : # motif gratuit
+    Local Date      PLISTRDAT                 : # date debut validite
+    Local Date      PLIENDDAT                 : # date fin   validite
+    Local Libelle   INTERDIT                  : # 1 si interdit
+    Local Libelle   ERR                       : # 1 si erreur
+
+    Local Shortint  PIO                   : # priorité courante de table globale
+    Local Integer   JLT
+
+    If clalev([M:PPM0]) = 0 : Local Mask PPSIMUL0 [PPM0] : Endif
+
+    If !clalev([PPC]) : Local File PPRICCONF     [PPC] : Endif
+    If !clalev([BPS]) : Local File BPSUPPLIER    [BPS] : Endif
+    If !clalev([ITM]) : Local File ITMMASTER     [ITM] : Endif
+
+    #----- Initialisation -----#
+    Raz MONTANT, MOTIF, PRIORITE, PLI, PLICRD, PLILIN
+    Raz FOCITMREF, FOCQTY, FOCUOM, FOCMOTIF
+    Raz PLISTRDAT, PLIENDDAT, INTERDIT, ERR
+    Raz [M:PPM0]
+    MODULE =6
+    PLITYP =1
+    TRAIT  ="POH"
+    DAT    =date$
+
+#    If [M:YAPSA]APEDIR(nolign-1) <> 0   # @01@ - JLP - 03-12-2024 -
+    If [M:YAPSA]SUGE(nolign-1) <> 0      # @01@ - JLP - 03-12-2024 -
+#      QTY = [M:YAPSA]APEDIR(nolign-1)   # @01@ - JLP - 03-12-2024 -
+      QTY = [M:YAPSA]SUGE(nolign-1)      # @01@ - JLP - 03-12-2024 -
+    Else
+      QTY = 1
+    Endif
+    UOM   = [M:YAPSA]STU(nolign-1)
+    CHGTYP = 1
+
+    Gosub CALCULO_APEDIR # @01@ - JLP - 03-12-2024 -
+
+    PRITYP=1
+    VAT(0)="" : VAT(1)="" : VAT(2)=""
+
+    Read [BPS] BPS0=[M:YAPSA]PPRINCIPAL(nolign-1)
+    Read [ITM] ITM0=[M:YAPSA]ARTICULO(nolign-1)
+
+    [M:PPM0]POHFCY  =  [M:YAPSA]PLANTA(nolign-1)
+    [M:PPM0]PRHFCY  =  [M:YAPSA]PLANTA(nolign-1)
+    [M:PPM0]BPSNUM  =  [M:YAPSA]PPRINCIPAL(nolign-1)
+    [M:PPM0]ORDDAT  =  date$
+    [M:PPM0]XITMREF =  [M:YAPSA]ARTICULO(nolign-1)
+    [M:PPM0]CUR     =  [BPS]CUR
+    CUR             =  [BPS]CUR
+    [M:PPM0]XQTY    =  QTY
+    [M:PPM0]XPUU    =  UOM
+
+    If [M:PPM0]TARNORACT(0)=""
+      Raz JLT
+      For [PPC] PPC1 Where PLIENAFLG=2 & PLITYP=1 & PLISTC=GPLISTC
+        [M:PPM0]TARNORACT(JLT)=[F:PPC]PLI
+        [M:PPM0]TARPIO(JLT)   =[F:PPC]PIO
+        JLT += 1
+        If JLT>dim([M:PPM0]TARNORACT)-1 Break : Endif
+      Next
+    Endif
+    Effzo [PPM0]35
+    For I=0 To dim([M:PPM0]TARNORACT)-1
+      If [M:PPM0]TARNORACT(I)="" : Break : Endif
+      PIO        = [M:PPM0]TARPIO(I)
+      PLI(0)     = "*SIMU*"
+      Call TARIF(TRAIT,DAT,QTY,UOM,CHGTYP,CUR,PRITYP,VAT,PIO,PARAM_T,MONTANT,MOTIF,PRIORITE,
+&            PLI,PLICRD,PLILIN,FOCITMREF,FOCQTY,FOCUOM,FOCMOTIF,
+&            PLISTRDAT,PLIENDDAT,INTERDIT) From ="WAT"+[M:PPM0]TARNORACT(I)
+    Next I
+
+    [M:YAPSA]PRECIO(nolign-1)      = [M:PPM0]VPRI(0)
+    [M:YAPSA]DESCUENTO1(nolign-1)  = [M:PPM0]VXFRAREM1(0)
+    nolign +=1
+
+    CONTA +=1
+    If CONTA = 3000
+      Errbox "¡Atención! No se van a cargar todos los registros en pantalla (Máximo 3.000 líneas)"
+      Break
+    Endif
+
+    $SIGUIENTE
+Next
+Filter
+
+# Visualizo pantalla
+[M:YAPSA]PIE_AP = nolign-1
+Affzo [M:YAPSA]10
+
+# Cierre de tablas
+Close Local File [PP1]
+Close Local File [PP2]
+Close Local File [PP3]
+Close Local File [PP4]
+Close Local File [PP5]
+Close Local File [PP6]
+Close Local File [PP7]
+Close Local File [PP8]
+Close Local File [PP9]
+Close Local File [P10]
+Close Local File [P11]
+Close Local File [P12]
+Return
+
+
+##############################################
+# @01@ - JLP - 03-12-2024 - INI
+# A PEDIR = (STOCK MÁXIMO - DISP.VENTA - EN REAPROV) / (LOTE TÉCNICO)
+$CALCULO_APEDIR
+  Local Double PED : PED = 0
+  Local Double EN_REAP : EN_REAP = 0
+  Local Double REDOND : REDOND = 0
+  Local Double LOT_TEC : LOT_TEC =0
+
+  If !clalev([YITM01]) : Local File ITMMVT     [YITM01] : Endif
+  Read [YITM01]ITV0 = [M:YAPSA]ARTICULO(nolign-1);[M:YAPSA]CPLANTA
+    If !fstat
+        EN_REAP = [YITM01]ORDSTO
+    Endif
+
+      If [M:YAPSA]DISPFUTURO(nolign-1) <= [M:YAPSA]LIMITEREAP(nolign-1)
+        If [M:YAPSA]LOTETEC(nolign-1) = 0
+          PED = ([M:YAPSA]STOCKMAX(nolign-1) - [M:YAPSA]DISPVENTA(nolign-1) - EN_REAP) / 1
+          LOT_TEC = 1
+        Else
+          PED = ([M:YAPSA]STOCKMAX(nolign-1) - [M:YAPSA]DISPVENTA(nolign-1) - EN_REAP) / [M:YAPSA]LOTETEC(nolign-1)
+          LOT_TEC = [M:YAPSA]LOTETEC(nolign-1)
+        Endif
+        REDOND = arr(PED,1)
+
+          If PED > REDOND
+            REDOND +=1
+            [M:YAPSA]APEDIR(nolign-1) = REDOND * LOT_TEC
+            Affzo [M:YAPSA]APEDIR(nolign-1)
+          Else
+            [M:YAPSA]APEDIR(nolign-1) = REDOND * LOT_TEC
+            Affzo [M:YAPSA]APEDIR(nolign-1)
+          Endif
+      Else
+        [M:YAPSA]APEDIR(nolign-1) = 0
+        Affzo [M:YAPSA]APEDIR(nolign-1)
+      Endif
+Return
+# @01@ - JLP - 03-12-2024 - FIN
+
+
+##############################################
+Subprog DEMANDA_HIST(DART,DPLA,DFEC,DDPV,DDOF)
+Value Char DART
+Value Char DPLA
+Value Date DFEC
+Variable Decimal DDPV
+Variable Decimal DDOF
+
+If !clalev([PP8]) : Local File YHISTAPRO     [PP8] : Endif
+
+Filter [PP8] Where [PP8]ARTICULO = DART and [PP8]PLANTA = DPLA and [PP8]FECHA>=(date$-365)  Order By [PP8]FECHA Asc
+  For [PP8]
+    If [PP8]FECHA >= DFEC
+      Break
+    Endif
+    DDPV += [PP8]CTDPEDIDO
+    DDOF += [PP8]CTDOF
+  Next
+Filter [PP8]
+End
+
+
+##############################################
+Subprog DEMANDA_HIST_90(D90ART,D90PLA,D90FEC,DD90PV,DD90OF)
+Value Char D90ART
+Value Char D90PLA
+Value Date D90FEC
+Variable Decimal DD90PV
+Variable Decimal DD90OF
+
+Filter [PP8] Where [PP8]ARTICULO = D90ART and [PP8]PLANTA = D90PLA and [PP8]FECHA>=(date$-90)  Order By [PP8]FECHA Asc
+  For [PP8]
+    If [PP8]FECHA >= D90FEC
+      Break
+    Endif
+    DD90PV += [PP8]CTDPEDIDO
+    DD90OF += [PP8]CTDOF
+  Next
+Filter [PP8]
+End
+
+
+##############################################
+$LIMPIO_LINEAS
+# Limpio el bloque de líneas
+Local Integer J
+For J=0 To [M:YAPSA]PIE_AP-1
+  [M:YAPSA]PLANTA(J)        = ""
+  [M:YAPSA]ARTICULO(J)      = ""
+  [M:YAPSA]ARTICULOD(J)     = ""
+  [M:YAPSA]STU(J)           = ""
+  [M:YAPSA]APEDIR(J)        = 0
+  [M:YAPSA]SUGE(J)          = 0    # @01@ - JLP - 03-12-2024 -
+  [M:YAPSA]APEDIRLOTET(J)   = 0
+  [M:YAPSA]STOCKACT(J)      = 0
+  [M:YAPSA]PTEENVIO(J)      = 0
+  [M:YAPSA]PTEPROD(J)       = 0
+  [M:YAPSA]PTEREC(J)        = 0
+  [M:YAPSA]DISPFUTURO(J)    = 0
+  [M:YAPSA]DISPVENTA(J)     = 0
+  [M:YAPSA]DEMANDAM(J)      = 0
+  [M:YAPSA]DEMANDA90(J)     = 0
+  [M:YAPSA]PLAZOENT(J)      = 0
+  [M:YAPSA]MESESSTKACT(J)   = 0
+  [M:YAPSA]MESESSTKFUT(J)   = 0
+  [M:YAPSA]STKMINCAL(J)     = 0
+  [M:YAPSA]STKMINCAL90(J)   = 0
+  [M:YAPSA]LIMITEREAP(J)    = 0
+  [M:YAPSA]STOCKMAXCAL(J)   = 0
+  [M:YAPSA]STOCKMAXCAL9(J)  = 0
+  [M:YAPSA]STOCKMAX(J)      = 0
+  [M:YAPSA]LOTEECO(J)       = 0
+  [M:YAPSA]LOTETEC(J)       = 0
+  [M:YAPSA]PROVEEDOR(J)     = ""
+  [M:YAPSA]RAZONSOC(J)      = ""
+  [M:YAPSA]PRECIOCOMP(J)    = 0
+  [M:YAPSA]DIVISA(J)        = ""
+  [M:YAPSA]PPRINCIPAL(J)    = ""
+  [M:YAPSA]MESACT90(J)      = 0
+  [M:YAPSA]MESFUT90(J)      = 0
+  [M:YAPSA]PRECIO(J)        = 0
+  [M:YAPSA]DESCUENTO1(J)    = 0
+Next
+
+[M:YAPSA]PIE_AP = 0
+Affzo [M:YAPSA]10
+Return
+
+
+######################################################################################
+Subprog AS_CARTICULOH(VALEUR)
+Variable Char    VALEUR()
+# Propongo valor por defecto
+If VALEUR = ""
+  VALEUR = [M:YAPSA]CARTICULOD
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CFAMILIASUPH(VALEUR)
+Variable Char    VALEUR()
+# Propongo valor por defecto
+If VALEUR = ""
+  VALEUR = [M:YAPSA]CFAMILIASUPD
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CFAMILIAH(VALEUR)
+Variable Char    VALEUR()
+# Propongo valor por defecto
+If VALEUR = ""
+  VALEUR = [M:YAPSA]CFAMILIAD
+Endif
+End
+
+
+######################################################################################
+Subprog AS_CPROVEEDORH(VALEUR)
+Variable Char    VALEUR()
+# Propongo valor por defecto
+If VALEUR = ""
+  VALEUR = [M:YAPSA]CPROVEEDORD
+Endif
+End

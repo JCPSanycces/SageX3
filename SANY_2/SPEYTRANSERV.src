@@ -1,0 +1,70 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara YTRANSERV (Especifico)
+
+$ACTION
+Case ACTION
+  When "LIENS" : Gosub LIENS
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+$LIENS
+Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRANSERV) 11/12/2025 08:21:11 (NUN40)
+######################################################################################
+Subprog AV_NBLIG
+
+  #Infbox "nº lineas" + num$([M:YTRANSER]NBLIG)
+
+End
+
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRANSERV) 11/12/2025 08:30:00 (NUN40)
+######################################################################################
+
+
+Subprog C_NBLIG
+#
+##If GUSER = "NUN40" Then
+##    Infbox "Control: nº lineas" + num$([M:YTRANSER]NBLIG)
+##    Infbox "Linea actual: " + num$(nolign)
+##    Infbox "CodServicio: " + [M:YTRANSER]YCODSERV(nolign)
+##Endif
+#
+#If [M:YTRANSER]YCODSERV(nolign-1) = '' Then
+#mkstat = 2
+#Endif
+
+
+
+End
+
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRANSERV) 11/12/2025 08:35:09 (NUN40)
+######################################################################################
+Subprog AM_NBLIG
+ #Infbox "DESPUES DE MODIFICAR: " + num$([M:YTRANSER]NBLIG)
+
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YTRANSERV) 11/12/2025 09:45:17 (NUN40)
+######################################################################################
+Subprog AM_YCODSERV(VALEUR)
+Variable Char    VALEUR()
+#Infbox "hola"
+#If VALEUR = "" Then
+#GMESSAGE = "Debe indicar código de servicio"
+#Endif
+End
+
+
+######################################################################################

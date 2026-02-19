@@ -1,0 +1,26 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+######################################################################################
+# @01@ - AAS - 16/09/2025 - NUN50 - Liquidación comisiones
+######################################################################################
+
+$ACTION
+  Case ACTION
+    When "IMP_MODIF" : Gosub IMP_MODIF
+  Endcase
+Return
+
+######################################################################################
+
+$IMP_MODIF
+  Case IMPFIC
+    When "SIH"
+      If VALIMP(2) = '2' # flag factura liquidada
+        If !clalev([F:YSIH]) : Local File SINVOICE [F:YSIH] : Endif
+        Read [F:YSIH]SIH0 = VALIMP(1)
+        If !fstat and [F:YSIH]YLIQFLG = 2 and [F:YSIH]YLIQDAT = [0/0/0]
+          [F:YSIH]YLIQDAT = date$ # actualizar fecha liquidación si se acaba de liquidar
+          Rewrite [F:YSIH]
+        Endif
+      Endif
+  Endcase
+Return

@@ -1,0 +1,141 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,STOFCY,CUR,TEXTOC1,TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR)
+  #--
+  Value    Char    SALFCY()
+  Value    Char    SOHTYP()
+  Value    Char    SOHNUM()
+  Value    Char    BPCORD()
+  Value    Char    BPAADD()
+  Value    Date    ORDDAT()
+  Value    Date    DEMDLVDAT()
+  Value    Char    CUSORDREF()
+  Value    Char    STOFCY()
+  Value    Char    CUR()
+  Value    Char    TEXTOC1()
+  Value    Char    TEXTOC2()
+  Value    Char    ITMREF()(0..)
+  Value    Char    ITMDES()(0..)
+  Value    Char    SAU()(0..)
+  Value    Decimal QTY(0..)
+  Value    Decimal GROPRI(0..)
+  Variable Integer YERR
+  #--
+  Gosub OUVRE
+  Gosub DEFINE_FIC
+  #--
+  Gosub ECR_HEAD         #-- cabecera
+  Gosub ECR_DET          #-- linea
+  #--
+  Openo Using[ZCRE]
+  #--
+  Gosub IMPORTA
+  #--
+
+#@03@: (Y119) NUN14 30-04-2024  - INI
+#  If !GSERVEUR
+#    Call LEC_TRACE From LECFIC
+#    Call FERME_TRACE From LECFIC
+#  Endif
+Call FERME_TRACE From LECFIC
+
+If GERRTRACE <> 0 Then
+    Call LEC_TRACE From LECFIC
+Endif
+
+mkstat = 0 : fstat = 0 : GERRTRACE = 0 : GOK = 1
+#@03@: (Y119) NUN14 30-04-2024  - FIN
+
+
+End
+
+#------------------------------------------------------------------------------------
+$OUVRE
+  #--
+  If !clalev([M:IMP2]) : Global Mask IMPOBJ2    [IMP2] : Endif
+  If !clalev([M:AOE0]) : Global Mask AOE0       [AOE0] : Endif
+  If !clalev([M:AOE1]) : Global Mask AOE1       [AOE1] : Endif
+  If !clalev([M:AOE2]) : Global Mask AOE2       [AOE2] : Endif
+  #--
+  Local Char C_NOMFIC(30), C_FICHERO(GDIMFIC), C_MODELO(10), C_CARPETA(250)
+  #--
+  If !GSERVEUR
+    Call OUVRE_TRACE("Crecion pedido de venta desde SERES") From LECFIC
+  Endif
+ Return
+
+#------------------------------------------------------------------------------------
+$DEFINE_FIC
+    #-- variables de fichero, inicializacion
+    adxifs = ";"                     #-- adxifs, separador de campo
+    adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
+    adxium = GASCII                  #-- adxium, ASCII
+    #--
+    C_CARPETA = "BQT" : C_MODELO = "ZOCSOH"
+    #--
+    C_NOMFIC  = "0_ZOCSOH"+"_"+num$(adxuid(1))+num$(time)
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+    Openo C_FICHERO,0 Using[ZCRE]
+Return
+
+#-- Generación del fichero de pedidos
+  #-- cabecera
+$ECR_HEAD
+  #--
+  Wrseq "E";                             Using [ZCRE]
+  Wrseq SALFCY;                          Using [ZCRE] #--
+  Wrseq SOHTYP;                          Using [ZCRE] #--
+  Wrseq SOHNUM;                          Using [ZCRE] #--
+  Wrseq BPCORD;                          Using [ZCRE] #--
+  Wrseq BPAADD;                          Using [ZCRE] #--
+  Wrseq format$("D:YYYYMMDD",ORDDAT);    Using [ZCRE] #--
+  Wrseq format$("D:YYYYMMDD",DEMDLVDAT); Using [ZCRE] #--
+  Wrseq vireblc(CUSORDREF,4);            Using [ZCRE] #--
+  Wrseq SALFCY;                          Using [ZCRE] #--
+  Wrseq CUR;                             Using [ZCRE] #--
+  Wrseq TEXTOC1;                         Using [ZCRE] #--
+  Wrseq TEXTOC2                          Using [ZCRE] #--
+Return
+
+  #-- linea - detalle
+$ECR_DET
+  #--
+  For Z = 0 To dim(ITMREF)-1
+    If ITMREF(Z) <> ""
+    If GUSER = 'NUN14'
+      Infbox ITMREF(Z) - num$(GROPRI(Z))
+    Endif
+      Wrseq "L";                             Using [ZCRE]
+      Wrseq ITMREF(Z);                       Using [ZCRE] #--
+      Wrseq ITMDES(Z);                       Using [ZCRE] #--
+      Wrseq SAU(Z);                          Using [ZCRE] #--
+      Wrseq num$(QTY(Z));                    Using [ZCRE] #--
+      Wrseq num$(GROPRI(Z));                 Using [ZCRE] #--
+      Wrseq "";                              Using [ZCRE] #--
+      Wrseq BPAADD                           Using [ZCRE] #--
+    Endif
+  Next
+Return
+
+#------------------------------------------------------------------------------------
+$IMPORTA
+
+  Raz [M:IMP2]
+  Raz [M:AOE0], [M:AOE1], [M:AOE2]
+  #--
+  [M:IMP2]MODIMP = C_MODELO
+  [M:IMP2]NOMIMP = C_FICHERO
+  [M:IMP2]TYPIMP = 2
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
+
+# @04@ - JLP - 05-09-24 - Control para ver si da error la importación - INI
+# Control para ver si se ha importado el Pedido
+
+  Sleep 3
+
+  If !clalev([YSOH]) Then : Local File SORDER     [YSOH] : Endif
+    Read [YSOH]SOH0 = WSOHNUM
+      If fstat
+         YERR = 1
+      Endif
+# @04@ - JLP - 05-09-24 - Control para ver si da error la importación - FIN
+Return

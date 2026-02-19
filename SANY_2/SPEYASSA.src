@@ -1,0 +1,559 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "DEBUT"    :  Gosub DEBUT
+  When "BOUTON"   :  Gosub BOUTON
+Endcase
+Return
+
+
+##############################################
+$DEBUT
+# Limpio la pantalla
+Raz [M:YASSA]
+[M:YASSA]PIE = 0
+Affzo [M:YASSA]
+
+Global Integer TOPE
+Return
+
+
+##############################################
+$BOUTON
+Case BOUT
+  When "Z"  :   Gosub BUSCAR
+Endcase
+Return
+
+
+##############################################
+$BUSCAR
+# Limpio el bloque de líneas
+Gosub LIMPIO_LINEAS
+
+# Muestro una información u otra en función del filtro tipo
+If [M:YASSA]CTIPO = 1   # PV + OF
+  Gosub PV
+  Gosub OF
+Elsif [M:YASSA]CTIPO = 2   # PV
+  Gosub PV
+Elsif [M:YASSA]CTIPO = 3   # OF
+  Gosub OF
+Endif
+
+Return
+
+
+##############################################
+$LIMPIO_LINEAS
+# Limpio el bloque de líneas
+For J=0 To [M:YASSA]PIE-1
+  [M:YASSA]TIPO(J)        = 0
+  [M:YASSA]PLANTA(J)      = ""
+  [M:YASSA]PRIORIDAD(J)   = 0
+  [M:YASSA]NDOC(J)        = ""
+  [M:YASSA]ASIENTOORI(J)  = ""
+  [M:YASSA]ARTICULO(J)    = ""
+  [M:YASSA]DESCRIPCION(J) = ""
+  [M:YASSA]CLIENTE(J)     = ""
+  [M:YASSA]RAZSOCIAL(J)   = ""
+  [M:YASSA]CLIENTEFAC(J)  = ""
+  [M:YASSA]RAZSOCIALF(J)  = ""
+  [M:YASSA]FECHAEN(J)     = "000000"
+  [M:YASSA]FECHAORI(J)    = "000000"
+  [M:YASSA]REP1(J)        = ""
+  [M:YASSA]REP2(J)        = ""
+  [M:YASSA]UNIDAD(J)      = ""
+  [M:YASSA]CTDPENDIENTE(J)= 0
+  [M:YASSA]CTDAASIGNAR(J) = 0
+  [M:YASSA]TIPOASIGNA(J)  = 0
+  [M:YASSA]CTDASIGNADA(J) = 0
+  [M:YASSA]CTDRUPTURA(J)  = 0
+  [M:YASSA]CONTRAMARCA(J) = ""
+  [M:YASSA]CONTENEDOR(J)  = ""
+Next
+
+
+[M:YASSA]PIE = 0
+Affzo [M:YASSA]10
+Return
+
+
+##############################################
+$PV
+# Apertura de tablas
+If !clalev([PV1]) : Local File SORDERQ      [PV1] : Endif
+If !clalev([PV2]) : Local File SORDERP      [PV2] : Endif
+If !clalev([PV3]) : Local File ATEXTRA      [PV3] : Endif
+If !clalev([PV4]) : Local File BPARTNER     [PV4] : Endif
+If !clalev([PV5]) : Local File ITMMASTER    [PV5] : Endif
+If !clalev([PV6]) : Local File STOALL       [PV6] : Endif
+If !clalev([PV7]) : Local File STOCK        [PV7] : Endif
+If !clalev([PV8]) : Local File YITMTECNICO  [PV8] : Endif
+If !clalev([PV9]) : Local File STOPRED      [PV9] : Endif
+
+
+Link [PV1] With [PV2]SOP0=[PV1]SOHNUM;[PV1]SOPLIN;[PV1]SOQSEQ As [PVX]
+
+Local Integer P_SIGO : [L]P_SIGO = 2
+Local Char CRITERIO1(250) : CRITERIO1 = "1=1"
+Local Char CRITERIO2(250) : CRITERIO2 = " 1=1"
+Local Char CONTENE(100)
+Local Integer ESTADO_PRH
+
+# Gestión de los filtros
+If [M:YASSA]CPLANTA <> ""
+  [L]CRITERIO1 += " & [PV1]STOFCY=[M:YASSA]CPLANTA"
+Endif
+
+If [M:YASSA]CFAMILIA1 <> ""
+  [L]CRITERIO1 += " & [PV2]TSICOD(0)=[M:YASSA]CFAMILIA1"
+Endif
+
+If [M:YASSA]CFAMILIA2 <> ""
+  [L]CRITERIO1 += " & [PV2]TSICOD(1)=[M:YASSA]CFAMILIA2"
+Endif
+
+If [M:YASSA]CPRIORIDAD <> 0
+  [L]CRITERIO1 += " & [PV1]DLVPIO=[M:YASSA]CPRIORIDAD"
+Endif
+
+If [M:YASSA]CARTICULO <> ""
+  [L]CRITERIO1 += " & [PV1]ITMREF=[M:YASSA]CARTICULO"
+Endif
+
+If [M:YASSA]CCLIENTE <> ""
+  [L]CRITERIO1 += " & [PV1]BPCORD=[M:YASSA]CCLIENTE"
+Endif
+
+If [M:YASSA]CCLIENTEF <> ""
+  [L]CRITERIO2 += " & [PV2]BPCINV=[M:YASSA]CCLIENTEF"
+Endif
+
+If [M:YASSA]CFECHAINI <> "000000"
+  [L]CRITERIO2 += " & [PV1]SHIDAT>=[M:YASSA]CFECHAINI"
+Endif
+
+If [M:YASSA]CFECHAFIN <> "000000"
+  [L]CRITERIO2 += " & [PV1]SHIDAT<=[M:YASSA]CFECHAFIN"
+Endif
+
+# Criterio fijo. Las líneas de los pedidos NO tienen que estar saldados
+[L]CRITERIO2 += " & [PV1]SOQSTA<3"
+
+# Cargo pantalla (queda por verificar el filtro de categoría del artículo)
+Filter [PVX] Where evalue(CRITERIO1) and evalue(CRITERIO2)
+  For [PVX]
+    TOPE +=1
+    If TOPE < 2000
+      If [M:YASSA]CCATEGORIA <> ""
+        Read [PV5]ITM0 = [PV1]ITMREF
+        If fstat = 0
+          If [PV5]TCLCOD <> [M:YASSA]CCATEGORIA
+            [L]P_SIGO = 1
+          Endif
+        Else
+          [L]P_SIGO = 1
+        Endif
+      Endif
+
+      If [L]P_SIGO = 2
+        [L]ESTADO_PRH = 0
+        # Si un Pedido de Venta tiene en su Documento de Preparación el Estado Empaquetado "Preparado", este no debe aparecer en la consulta
+        Filter [PV9] Where [PV9]ORINUM = [PV1]SOHNUM
+        Read [PV9] First
+        If fstat = 0
+          [L]ESTADO_PRH = func SPEPRH.ESTADO_VALE([PV9]PRHNUM)
+        Endif
+        Filter [PV9]
+        If [L]ESTADO_PRH = 3  # Preparado
+          [L]P_SIGO = 1
+        Endif
+      Endif
+
+      If [L]P_SIGO = 2
+        [L]CONTENE = ""
+
+        [M:YASSA]TIPO([M:YASSA]PIE)        = 2
+        [M:YASSA]PLANTA([M:YASSA]PIE)      = [PV1]STOFCY
+        [M:YASSA]PRIORIDAD([M:YASSA]PIE)   = [PV1]DLVPIO
+        [M:YASSA]NDOC([M:YASSA]PIE)        = [PV1]SOHNUM
+        [M:YASSA]CONTRAMARCA([M:YASSA]PIE) = [PV1]FMINUM
+        [M:YASSA]ASIENTOORI([M:YASSA]PIE)  = ""
+        [M:YASSA]ARTICULO([M:YASSA]PIE)    = [PV1]ITMREF
+        [M:YASSA]DESCRIPCION([M:YASSA]PIE) = func ITM_DES([PV1]ITMREF)
+        [M:YASSA]CLIENTE([M:YASSA]PIE)     = [PV1]BPCORD
+        [M:YASSA]RAZSOCIAL([M:YASSA]PIE)   = func RAZ_SOC([PV1]BPCORD)
+        [M:YASSA]CLIENTEFAC([M:YASSA]PIE)  = [PV2]BPCINV
+        [M:YASSA]RAZSOCIALF([M:YASSA]PIE)  = func RAZ_SOC([PV2]BPCINV)
+        [M:YASSA]FECHAEN([M:YASSA]PIE)     = [PV1]SHIDAT
+        [M:YASSA]FECHAORI([M:YASSA]PIE)    = "000000"
+        [M:YASSA]REP1([M:YASSA]PIE)        = [PV2]REP1
+        [M:YASSA]REP2([M:YASSA]PIE)        = [PV2]REP2
+        [M:YASSA]UNIDAD([M:YASSA]PIE)      = [PV2]STU
+        [M:YASSA]CTDPENDIENTE([M:YASSA]PIE)= [PV1]QTYSTU - [PV1]DLVQTYSTU
+        [M:YASSA]CTDAASIGNAR([M:YASSA]PIE) = [PV1]QTYSTU - [PV1]ALLQTYSTU
+        [M:YASSA]TIPOASIGNA([M:YASSA]PIE)  = [PV1]ALLTYP
+        [M:YASSA]CTDASIGNADA([M:YASSA]PIE) = [PV1]ALLQTYSTU
+        [M:YASSA]CTDRUPTURA([M:YASSA]PIE)  = [PV1]SHTQTYSTU
+
+        # Seguridad para el campo origen. Si no tiene valor que muestre el valor del documento
+        If [M:YASSA]ASIENTOORI([M:YASSA]PIE)  = ""
+          [M:YASSA]ASIENTOORI([M:YASSA]PIE)  = [M:YASSA]NDOC([M:YASSA]PIE)
+        Endif
+
+        # Saco los contenedores asociados al artículo - pedido de venta de la línea
+        Read [PV8]YITT0 = [M:YASSA]ARTICULO([M:YASSA]PIE)
+        If fstat = 0 and [PV8]PREPICKING = 2
+          Filter [PV6] Where [PV6]ALLTYP = 2 and [PV6]ITMREF = [M:YASSA]ARTICULO([M:YASSA]PIE) and [PV6]STOFCY = [M:YASSA]PLANTA([M:YASSA]PIE) and [PV6]VCRNUM = [M:YASSA]NDOC([M:YASSA]PIE)
+            For [PV6]
+              Read [PV7]STO0 = [PV6]STOFCY;[PV6]STOCOU
+              If fstat = 0
+                If [L]CONTENE = ""
+                  [L]CONTENE += [PV7]LPNNUM
+                Else
+                  [L]CONTENE += " - " + [PV7]LPNNUM
+                Endif
+              Endif
+            Next
+          Filter [PV6]
+        Endif
+
+        [M:YASSA]CONTENEDOR([M:YASSA]PIE)  = [L]CONTENE
+
+
+        [M:YASSA]PIE+=1
+      Endif   # Cierro SIGO
+    Else      # Else TOPE
+      Errbox "No se van a visualizar todas las líneas (límite 2.000)"
+      Break
+    Endif     # Cierro TOPE
+  Next
+Filter [PVX]
+
+
+# Visualizo pantalla
+Affzo [M:YASSA]10
+
+
+# Cierro tablas
+Close Local File [PV1]
+Close Local File [PV2]
+Close Local File [PV3]
+Close Local File [PV4]
+Close Local File [PV5]
+Close Local File [PV6]
+Close Local File [PV7]
+Close Local File [PV8]
+Return
+
+
+##############################################
+$OF
+# Apertura de tablas
+If !clalev([OF1]) : Local File MFGMAT    [OF1] : Endif
+If !clalev([OF2]) : Local File MFGITM    [OF2] : Endif
+If !clalev([PV3]) : Local File ATEXTRA   [PV3] : Endif
+If !clalev([PV4]) : Local File BPARTNER  [PV4] : Endif
+If !clalev([OF5]) : Local File ITMMASTER [OF5] : Endif
+If !clalev([OF6]) : Local File SORDERP   [OF6] : Endif
+If !clalev([OF7]) : Local File SORDERQ   [OF7] : Endif
+
+Link [OF1] With [OF2]MFI0=[OF1]MFGNUM;[OF1]MFGLIN As [OFX]
+
+Local Integer O_SIGO : [L]O_SIGO = 2
+Local Char CRITERIO3(250) : CRITERIO3 = "1=1"
+Local Char CRITERIO4(250) : CRITERIO4 = " 1=1"
+
+# Gestión de los filtros
+If [M:YASSA]CPLANTA <> ""
+  [L]CRITERIO3 += " & [OF1]MFGFCY=[M:YASSA]CPLANTA"
+Endif
+
+If [M:YASSA]CPRIORIDAD <> 0
+  [L]CRITERIO3 += " & [OF1]MFGPIO=[M:YASSA]CPRIORIDAD"
+Endif
+
+If [M:YASSA]CARTICULO <> ""
+  [L]CRITERIO3 += " & [OF1]ITMREF=[M:YASSA]CARTICULO"
+Endif
+
+If [M:YASSA]CCLIENTE <> ""
+  [L]CRITERIO3 += " & [OF2]BPCNUM=[M:YASSA]CCLIENTE"
+Endif
+
+If [M:YASSA]CFECHAINI <> "000000"
+  [L]CRITERIO4 += " & [OF1]RETDAT>=[M:YASSA]CFECHAINI"
+Endif
+
+If [M:YASSA]CFECHAFIN <> "000000"
+  [L]CRITERIO4 += " & [OF1]RETDAT<=[M:YASSA]CFECHAFIN"
+Endif
+
+# Criterio fijo. Las líneas de los pedidos NO tienen que estar saldados
+[L]CRITERIO4 += " & [OF1]MATSTA<3"
+
+# Cargo pantalla (quedan por verificar varios filtros)
+Filter [OFX] Where evalue(CRITERIO3) and evalue(CRITERIO4)
+  For [OFX]
+    TOPE +=1
+    If TOPE < 2000
+      If [M:YASSA]CCATEGORIA <> ""
+        Read [OF5]ITM0 = [OF1]ITMREF
+        If fstat = 0
+          If [OF5]TCLCOD <> [M:YASSA]CCATEGORIA
+            [L]O_SIGO = 1
+          Endif
+        Else
+          [L]O_SIGO = 1
+        Endif
+      Endif
+
+      If [L]O_SIGO = 2
+        If [M:YASSA]CFAMILIA1 <> ""
+          Read [OF5]ITM0 = [OF1]ITMREF
+          If fstat = 0
+            If [OF5]TSICOD(0) <> [M:YASSA]CFAMILIA1
+              [L]O_SIGO = 1
+            Endif
+          Else
+            [L]O_SIGO = 1
+          Endif
+        Endif
+      Endif
+
+      If [L]O_SIGO = 2
+        If [M:YASSA]CFAMILIA2 <> ""
+          Read [OF5]ITM0 = [OF1]ITMREF
+          If fstat = 0
+            If [OF5]TSICOD(1) <> [M:YASSA]CFAMILIA2
+              [L]O_SIGO = 1
+            Endif
+          Else
+            [L]O_SIGO = 1
+          Endif
+        Endif
+      Endif
+
+
+      If [L]O_SIGO = 2
+        If [M:YASSA]CCLIENTEF <> ""
+          Read [OF6]SOP0 = [OF2]VCRNUMORI;[OF2]VCRLINORI;[OF2]VCRSEQORI
+          If fstat = 0
+            If [OF6]BPCINV <> [M:YASSA]CCLIENTEF
+              [L]O_SIGO = 1
+            Endif
+          Else
+            [L]O_SIGO = 1
+          Endif
+        Endif
+      Endif
+
+
+      If [L]O_SIGO = 2
+        [M:YASSA]TIPO([M:YASSA]PIE)        = 3
+        [M:YASSA]PLANTA([M:YASSA]PIE)      = [OF1]MFGFCY
+        [M:YASSA]PRIORIDAD([M:YASSA]PIE)   = [OF1]MFGPIO
+        [M:YASSA]NDOC([M:YASSA]PIE)        = [OF1]MFGNUM
+        [M:YASSA]CONTRAMARCA([M:YASSA]PIE) = [OF1]MFGNUM
+        [M:YASSA]ASIENTOORI([M:YASSA]PIE)  = [OF2]VCRNUMORI
+        [M:YASSA]ARTICULO([M:YASSA]PIE)    = [OF1]ITMREF
+        [M:YASSA]DESCRIPCION([M:YASSA]PIE) = func ITM_DES([OF1]ITMREF)
+        [M:YASSA]CLIENTE([M:YASSA]PIE)     = [OF2]BPCNUM
+        [M:YASSA]RAZSOCIAL([M:YASSA]PIE)   = func RAZ_SOC([OF2]BPCNUM)
+        [M:YASSA]CLIENTEFAC([M:YASSA]PIE)  = func CLI_FAC([OF2]VCRNUMORI,[OF2]VCRLINORI,[OF2]VCRSEQORI)
+        [M:YASSA]RAZSOCIALF([M:YASSA]PIE)  = func RAZ_SOC([M:YASSA]CLIENTEFAC([M:YASSA]PIE))
+        [M:YASSA]FECHAEN([M:YASSA]PIE)     = func FEC_ORI([OF2]VCRNUMORI,[OF2]VCRLINORI,[OF2]VCRSEQORI)
+        [M:YASSA]FECHAORI([M:YASSA]PIE)    = "000000"
+        [M:YASSA]REP1([M:YASSA]PIE)        = func FREP1([OF2]VCRNUMORI,[OF2]VCRLINORI,[OF2]VCRSEQORI)
+        [M:YASSA]REP2([M:YASSA]PIE)        = func FREP2([OF2]VCRNUMORI,[OF2]VCRLINORI,[OF2]VCRSEQORI)
+        [M:YASSA]UNIDAD([M:YASSA]PIE)      = [OF1]STU
+        [M:YASSA]CTDPENDIENTE([M:YASSA]PIE)= [OF1]RETQTY - [OF1]USEQTY
+        [M:YASSA]CTDAASIGNAR([M:YASSA]PIE) = [OF1]RETQTY - [OF1]ALLQTY
+        [M:YASSA]TIPOASIGNA([M:YASSA]PIE)  = func TIP_ASI([OF1]ALLSTA)
+        [M:YASSA]CTDASIGNADA([M:YASSA]PIE) = [OF1]ALLQTY
+        [M:YASSA]CTDRUPTURA([M:YASSA]PIE)  = [OF1]SHTQTY
+
+        # Seguridad para el campo origen. Si no tiene valor que muestre el valor del documento
+        If [M:YASSA]ASIENTOORI([M:YASSA]PIE)  = ""
+          [M:YASSA]ASIENTOORI([M:YASSA]PIE)  = [M:YASSA]NDOC([M:YASSA]PIE)
+        Endif
+
+        [M:YASSA]PIE+=1
+      Endif   # Cierro SIGO
+
+    Else      # Else TOPE
+      Errbox "No se van a visualizar todas las líneas (límite 2.000)"
+      Break
+    Endif     # Cierro TOPE
+  Next
+Filter [OFX]
+
+
+# Visualizo pantalla
+Affzo [M:YASSA]10
+
+
+# Cierro tablas
+Close Local File [OF1]
+Close Local File [OF2]
+Close Local File [PV3]
+Close Local File [PV4]
+Close Local File [OF5]
+Close Local File [OF6]
+Close Local File [OF7]
+
+Return
+
+
+
+######################################################################################
+Funprog ITM_DES(PART)
+Value Char PART
+Local Char ART_DES(100)
+
+# Función que devuelve la descripción del artículo
+Read [PV3]AXX0 = "ITMMASTER";"DES1AXX";"SPA";PART;""
+If fstat = 0
+  [L]ART_DES = [PV3]TEXTE
+Endif
+
+End ART_DES
+
+
+######################################################################################
+Funprog TIP_ASI(PASI)
+Value Integer PASI
+Local Integer TIPO_A
+
+# Función que devuelve el tipo de asignación de la OF
+Case PASI
+  When 0 : [L]TIPO_A = 0
+  When 1 : [L]TIPO_A = 1
+  When 2 : [L]TIPO_A = 1
+  When 3 : [L]TIPO_A = 2
+  When 4 : [L]TIPO_A = 2
+Endcase
+
+End TIPO_A
+
+
+######################################################################################
+Funprog CLI_FAC(NPV,NLI,NSE)
+Value Char NPV
+Value Integer NLI
+Value Integer NSE
+
+Local Char NCLIFAC
+
+# Función que devuelve el cliente factura
+Read [OF6]SOP0 = NPV;NLI;NSE
+If fstat = 0
+  NCLIFAC = [OF6]BPCINV
+Endif
+
+End NCLIFAC
+
+
+######################################################################################
+Funprog FREP1(NPV,NLI,NSE)
+Value Char NPV
+Value Integer NLI
+Value Integer NSE
+
+Local Char PREP1
+
+# Función que devuelve el representante
+Read [OF6]SOP0 = NPV;NLI;NSE
+If fstat = 0
+  PREP1 = [OF6]REP1
+Endif
+
+End PREP1
+
+
+######################################################################################
+Funprog FREP2(NPV,NLI,NSE)
+Value Char NPV
+Value Integer NLI
+Value Integer NSE
+
+Local Char PREP2
+
+# Función que devuelve el representante
+Read [OF6]SOP0 = NPV;NLI;NSE
+If fstat = 0
+  PREP2 = [OF6]REP2
+Endif
+
+End PREP2
+
+
+######################################################################################
+Funprog FEC_ORI(NPV,NLI,NSE)
+Value Char NPV
+Value Integer NLI
+Value Integer NSE
+
+Local Date FORI
+
+# Función que devuelve la fecha de expedición del pedido
+Read [OF7]SOQ0 = NPV;NLI;NSE
+If fstat = 0
+  FORI = [OF7]SHIDAT
+Endif
+
+End FORI
+
+
+######################################################################################
+Funprog RAZ_SOC(PTER)
+Value Char PTER
+Local Char RAZ_TER(100)
+
+# Función que devuelve la razón social de un tercero
+Read [PV4]BPR0 = PTER
+If fstat = 0
+  [L]RAZ_TER = [PV4]BPRNAM
+Endif
+
+End RAZ_TER
+
+
+######################################################################################
+Subprog IB_PIE
+# Título del menú contextual
+If [M:YASSA]TIPO(nolign-1) = 2
+  GBOUT1 = "Pedido: " + [M:YASSA]NDOC(nolign-1)
+Elsif  [M:YASSA]TIPO(nolign-1) = 3
+  GBOUT1 = "Orden: " + [M:YASSA]NDOC(nolign-1)
+Else
+  GBOUT1 = ""
+Endif
+
+If [M:YASSA]TIPO(nolign-1) = 3
+  GBOUT2 = "Pedido: " + [M:YASSA]ASIENTOORI(nolign-1)
+Else
+  GBOUT2 = ""
+Endif
+End
+
+
+######################################################################################
+Subprog B1_PIE
+# Túnel a los asientos (pedido / OF)
+If [M:YASSA]TIPO(nolign-1) = 2
+  Call OBJET("SOH",[M:YASSA]NDOC(nolign-1),"") From GOBJET
+Elsif  [M:YASSA]TIPO(nolign-1) = 3
+  Call OBJET("MFG",[M:YASSA]NDOC(nolign-1),"") From GOBJET
+Endif
+End
+
+
+######################################################################################
+Subprog B2_PIE
+# Túnel al asiento origen
+If [M:YASSA]TIPO(nolign-1) = 3
+  Call OBJET("SOH",[M:YASSA]ASIENTOORI(nolign-1),"") From GOBJET
+Endif
+End

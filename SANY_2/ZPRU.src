@@ -1,0 +1,14 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#///////////////////////////////////////////////////////////////////////////////#
+If clalev([F:YMFG])=0 : Local File MFGHEAD [YMFG] : Endif
+
+  If [M:SOH4]FMINUM(NBLIG)<>''
+      Read [F:YMFG]MFG0=[M:SOH4]FMINUM
+      If !fstat
+          If [F:YMFG]YMFECHA=2
+              Call WORKFLOW(1,'YMP','YPRU','') From AWRK
+          Endif
+      Endif
+  Endif
+
+#///////////////////////////////////////////////////////////////////////////////#

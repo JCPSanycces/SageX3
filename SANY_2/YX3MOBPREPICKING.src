@@ -1,0 +1,1278 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+########################################################################################################
+#
+# @01@ - SCD - 03/06/2024 - Ajustes para I3
+#
+########################################################################################################
+#**
+#* APP devuelve la lista de clientes de un intervalo de pedidos filtrado por fecha
+#*
+#*!
+Subprog GETCLIENTESPEDIDO(DESDE_FECHA, HASTA_FECHA, QUERY, COD_CLIENTE, NOMBRE_CLIENTE)
+  # Entrada
+  Value Char DESDE_FECHA()
+  Value Char HASTA_FECHA()
+  Value Char QUERY()
+  # Salida
+  Variable Char COD_CLIENTE()()
+  Variable Char NOMBRE_CLIENTE()()
+
+  Local Char LREQSQL(250)(14)
+
+  Local Integer I       : I = 0
+
+  If !clalev([YBPR]) Then : Local File BPARTNER [YBPR] : Endif
+
+    Raz LREQSQL
+
+  LREQSQL(0) = " SELECT P.BPCORD_0, C.BPCNAM_0 "
+  LREQSQL(1) = " From " + nomap + ".SORDER P INNER JOIN " + nomap + ".SORDERQ D ON P.SOHNUM_0=D.SOHNUM_0 INNER JOIN " + nomap + ".YITMTECNICO T ON D.ITMREF_0=T.ITMREF_0 "
+  LREQSQL(2) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON P.BPCORD_0=C.BPCNUM_0  INNER JOIN  " + nomap + ".ITMMASTER A ON D.ITMREF_0=A.ITMREF_0 "
+#  LREQSQL(3) = " LEFT JOIN " + nomap + ".BPCARRIER CA ON P.BPTNUM_0=CA.BPTNUM_0"
+  LREQSQL(4) = " Where T.PREPICKING_0=2 and P.ORDSTA_0=1 and P.CDTSTA_0=1 and P.HLDSTA_0=1 AND D.ALLQTYSTU_0 > 0 "
+  #fecha envío
+  If DESDE_FECHA <> "" Then
+    LREQSQL(5) += " AND D.SHIDAT_0>='" + (DESDE_FECHA) + "'"
+  Endif
+  If HASTA_FECHA <> "" Then
+    LREQSQL(6) += " AND D.SHIDAT_0<='" + (HASTA_FECHA) + "'"
+    Endif
+
+  LREQSQL(11) += " GROUP By P.BPCORD_0, C.BPCNAM_0 "
+
+  If QUERY <> ""
+    LREQSQL(12) = " HAVING UPPER(C.BPCNAM_0) LIKE '%" + toupper(QUERY) + "%'"
+  Endif
+
+  LREQSQL(13) += " ORDER By C.BPCNAM_0 ASC"
+
+  I=0
+  For (Char BPCORD, Char BPCNAM) From '5' Sql LREQSQL(0..13) As [YAPP]
+    COD_CLIENTE(I)=[F:YAPP]BPCORD
+    Read [YBPR]BPR0 = [F:YAPP]BPCORD
+    If fstat = 0
+      NOMBRE_CLIENTE(I) = [YBPR]BPRNAM(0) + [YBPR]BPRNAM(1)
+    Endif
+    I+=1
+  Next
+
+Close Local File [YBPR]
+End
+
+####################################################################
+#**
+#* Sub que devuelve los trasportistas de la  lista de preparción en curso
+#*APP devuelve la lista de tranport. de un intervalo de pedidos filtrado por fecha
+#*!
+Subprog GETTRANSPORTISTASPEDIDO(DESDE_FECHA, HASTA_FECHA, QUERY, COD_TRANSPORTISTA, TRANSPORTISTA)
+  # Entrada
+  Value Char DESDE_FECHA()
+  Value Char HASTA_FECHA()
+  Value Char QUERY()
+  # Salida
+  Variable Char COD_TRANSPORTISTA()()
+  Variable Char TRANSPORTISTA()()
+
+  Local Char LREQSQL(250)(14) : Raz LREQSQL
+
+  Local Integer I : I = 0
+
+  LREQSQL(0) = " SELECT P.BPTNUM_0, CA.BPTNAM_0"
+  LREQSQL(1) = " From " + nomap + ".SORDER P INNER JOIN " + nomap + ".SORDERQ D ON P.SOHNUM_0=D.SOHNUM_0 INNER JOIN " + nomap + ".YITMTECNICO T ON D.ITMREF_0=T.ITMREF_0 "
+  LREQSQL(2) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON P.BPCORD_0=C.BPCNUM_0  INNER JOIN  " + nomap + ".ITMMASTER A ON D.ITMREF_0=A.ITMREF_0 "
+  LREQSQL(3) = " INNER JOIN " + nomap + ".BPCARRIER CA ON P.BPTNUM_0=CA.BPTNUM_0"
+  LREQSQL(4) = " Where T.PREPICKING_0=2 and P.ORDSTA_0=1 and P.CDTSTA_0=1 and P.HLDSTA_0=1 AND D.ALLQTYSTU_0 > 0 "
+  #fecha envío
+  If DESDE_FECHA <> "" Then
+    LREQSQL(5) += " AND D.SHIDAT_0>='" + (DESDE_FECHA) + "'"
+  Endif
+  If HASTA_FECHA <> "" Then
+    LREQSQL(6) += " AND D.SHIDAT_0<='" + (HASTA_FECHA) + "'"
+  Endif
+  LREQSQL(11) += " GROUP By P.BPTNUM_0, CA.BPTNAM_0   "
+  If QUERY <> '' Then
+    LREQSQL(12) = "HAVING UPPER(CA.BPTNAM_0) LIKE '%" + toupper(QUERY) + "%' "
+  Endif
+  LREQSQL(13) += " ORDER By CA.BPTNAM_0  ASC"
+  I=0
+  For (Char BPTNUM, Char BPTNAM) From '5' Sql LREQSQL(0..13) As [YAPP]
+    If [F:YAPP]BPTNUM <>"" Then
+        COD_TRANSPORTISTA(I)=[F:YAPP]BPTNUM
+        TRANSPORTISTA(I) = [F:YAPP]BPTNAM
+        I+=1
+    Endif
+  Next
+End
+
+Subprog GETLISTAPEDIDOSPREPICKING(PCOD_PLANTA, PDESDE_FECHA, PHASTA_FECHA, PCOD_CLIENTE, PCOD_TRANSPORTISTA, PCAMPO_FAMILIA, PCOD_FAMILIA, PCAMPO_SUBFAMILIA, PCOD_SUBFAMILIA, PCOD_PEDIDO,
+& PCOD_ARTICULO, PCOMPLETADOS, COD_PEDIDO, COD_CLIENTE,  NOMBRE_CLIENTE,  FECHA_EXPEDICION_MIN, ESTADO_ORDEN,  COD_TRANSPORTISTA, TRANSPORTISTA, FECHA_EXPEDICION, BLOQUEADO, COMPLETADO)
+  # Entrada
+  Value Char PCOD_PLANTA()
+  Value Char PDESDE_FECHA()
+  Value Char PHASTA_FECHA()
+  Value Char PCOD_CLIENTE()
+  Value Char PCOD_TRANSPORTISTA()
+  Value Char PCAMPO_FAMILIA()
+  Value Char PCOD_FAMILIA()
+  Value Char PCAMPO_SUBFAMILIA()
+  Value Char PCOD_SUBFAMILIA()
+  Value Char PCOD_PEDIDO()
+  Value Char PCOD_ARTICULO()
+  Value Integer PCOMPLETADOS
+  # Salida
+  Variable Char COD_PEDIDO()()
+  Variable Char COD_CLIENTE()()
+  Variable Char NOMBRE_CLIENTE()()
+  Variable Char FECHA_EXPEDICION_MIN()()
+  Variable Integer ESTADO_ORDEN()
+  Variable Char COD_TRANSPORTISTA()()
+  Variable Char TRANSPORTISTA()()
+  Variable Char FECHA_EXPEDICION()()
+  Variable Integer BLOQUEADO()
+  Variable Integer COMPLETADO()
+
+  If !clalev([YPBR]) Then : Local File BPARTNER    [YPBR] : Endif
+
+  Local Char LREQSQL(250)(20) : Raz LREQSQL
+
+  LREQSQL(0) = " SELECT P.SOHNUM_0, P.BPCORD_0, C.BPCNAM_0, MIN(D.SHIDAT_0) AS SHIDATMIN, P.ORDSTA_0, ISNULL(P.BPTNUM_0,'') As PBTNUM, ISNULL(CA.BPTNAM_0,'') As BPTNAM, D.SHIDAT_0, P.YAPPWIP_0 "
+  LREQSQL(1) = " From " + nomap + ".SORDER P INNER JOIN " + nomap + ".SORDERQ D ON P.SOHNUM_0=D.SOHNUM_0 INNER JOIN " + nomap + ".YITMTECNICO T ON D.ITMREF_0=T.ITMREF_0 "
+  LREQSQL(2) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON P.BPCORD_0=C.BPCNUM_0  INNER JOIN " + nomap + ".ITMMASTER A ON D.ITMREF_0=A.ITMREF_0 "
+  LREQSQL(3) = " LEFT JOIN " + nomap + ".BPCARRIER CA ON P.BPTNUM_0=CA.BPTNUM_0 "
+  LREQSQL(4) = " Where T.PREPICKING_0=2 and P.ORDSTA_0=1 and P.CDTSTA_0=1 and P.HLDSTA_0=1 "
+
+  If PCOMPLETADOS <> 2 Then
+    LREQSQL(5) = " and ((D.ALLQTYSTU_0 > 0 and D.ALLTYP_0 = 1) or (D.ALLTYP_0 = 2 and ((ISNULL((SELECT sum(A.QTYSTU_0) "
+    LREQSQL(6) = " From " + nomap + ".STOALL A Where A.VCRNUM_0 = D.SOHNUM_0 and A.VCRLIN_0 = D.SOPLIN_0 and A.ALLTYP_0 = 2 and A.STOCOU_0 IN("
+    LREQSQL(7) = " SELECT K.STOCOU_0 From " + nomap + ".STOCK K Where K.STOFCY_0='" +  PCOD_PLANTA + "' and K.LPNNUM_0='')), 0) > 0)) and "
+    LREQSQL(8) = " (D.QTYSTU_0 - D.SHTQTYSTU_0 - ISNULL((SELECT sum(A.QTYSTU_0)"
+    LREQSQL(9) = " From " + nomap + ".STOALL A Where A.VCRNUM_0 = D.SOHNUM_0 and A.VCRLIN_0 = D.SOPLIN_0 and A.ALLTYP_0 = 2 and A.STOCOU_0 IN("
+    LREQSQL(10)= " SELECT K.STOCOU_0 From " + nomap + ".STOCK K Where K.STOFCY_0='" +  PCOD_PLANTA + "' and K.LPNNUM_0='')), 0) >= 0)))"
+  Endif
+
+  #fecha envío
+  If PDESDE_FECHA <> "" Then
+    LREQSQL(11) += " AND D.SHIDAT_0>='" + (PDESDE_FECHA) + "'"
+  Endif
+  If PHASTA_FECHA <> "" Then
+    LREQSQL(12) += " AND D.SHIDAT_0<='" + (PHASTA_FECHA) + "'"
+  Endif
+   #Cliente
+  If PCOD_CLIENTE <> "" Then
+    LREQSQL(13) += " AND P.BPCORD_0='" + PCOD_CLIENTE + "'"
+  Endif
+  #transportista
+  If PCOD_TRANSPORTISTA <> "" Then
+    LREQSQL(14) += " AND P.BPTNUM_0='" + PCOD_TRANSPORTISTA + "'"
+  Endif
+  #Familia estadística 1, Familia superior
+  If PCOD_FAMILIA <> "" Then
+    LREQSQL(15) += " AND A." + PCAMPO_FAMILIA + " = '" + PCOD_FAMILIA + "'"
+  Endif
+  #Familia estadística 2, Familia
+  If PCOD_SUBFAMILIA <> "" Then
+    LREQSQL(16) += " AND A." + PCAMPO_SUBFAMILIA + " = '" + PCOD_SUBFAMILIA + "'"
+  Endif
+  #Artículo
+  If PCOD_ARTICULO <> "" Then
+    LREQSQL(16) += " AND D.ITMREF_0 = '" + PCOD_ARTICULO + "'"
+  Endif
+  If PCOD_PEDIDO <> "" Then
+    LREQSQL(16) += " AND UPPER(P.SOHNUM_0) LIKE '%" + PCOD_PEDIDO + "%'"
+  Endif
+
+  LREQSQL(17) += " GROUP By P.SOHNUM_0, P.BPCORD_0, C.BPCNAM_0, P.ORDSTA_0, ISNULL(P.BPTNUM_0,''),ISNULL(CA.BPTNAM_0,''),D.SHIDAT_0, P.YAPPWIP_0"
+  LREQSQL(18) += " ORDER By C.BPCNAM_0 ASC"
+
+  Local Integer I: I=0
+
+  For (Char SOHNUM, Char BPCORD, Char BPCNAM, Date SHIDATMIN, Integer ORDSTA, Char BPTNUM, Char BPTNAM, Date SHIDAT, Integer YAPPWIP) From '5' Sql LREQSQL As [YAPP]
+        COD_PEDIDO(I)=[F:YAPP]SOHNUM
+        COD_CLIENTE(I)=[F:YAPP]BPCORD
+        Read [YPBR]BPR0 = [F:YAPP]BPCORD
+        If fstat = 0
+          NOMBRE_CLIENTE(I)=[YPBR]BPRNAM(0) + [YPBR]BPRNAM(1)
+        Endif
+        FECHA_EXPEDICION_MIN(I)=num$([F:YAPP]SHIDATMIN)
+        ESTADO_ORDEN(I)=[F:YAPP]ORDSTA
+        COD_TRANSPORTISTA(I)=[F:YAPP]BPTNUM
+        TRANSPORTISTA(I)=[F:YAPP]BPTNAM
+        FECHA_EXPEDICION(I)=num$([F:YAPP]SHIDAT)
+        BLOQUEADO(I) = [F:YAPP]YAPPWIP
+        COMPLETADO(I) = func PEDIDO_COMPLETADO(PCOD_PLANTA, [F:YAPP]SOHNUM)
+
+        I+=1
+    Next
+
+  Close Local File [YPBR]
+End
+
+Subprog GETARTICULOSPREPICKING(PCOD_PLANTA, PDESDE_FECHA, PHASTA_FECHA, PCOD_CLIENTE, PCOD_TRANSPORTISTA, PCAMPO_FAMILIA, PCOD_FAMILIA,PCAMPO_SUBFAMILIA, PCOD_SUBFAMILIA, PCOD_PEDIDO, PCOD_ARTICULO,
+& PCOMPLETADOS, PQUERY, COD_ARTICULO, DESCRIPCION)
+  # Entrada
+  Value Char PCOD_PLANTA()
+  Value Char PDESDE_FECHA()
+  Value Char PHASTA_FECHA()
+  Value Char PCOD_CLIENTE()
+  Value Char PCOD_TRANSPORTISTA()
+  Value Char PCAMPO_FAMILIA()
+  Value Char PCOD_FAMILIA()
+  Value Char PCAMPO_SUBFAMILIA()
+  Value Char PCOD_SUBFAMILIA()
+  Value Char PCOD_PEDIDO()
+  Value Char PCOD_ARTICULO()
+  Value Integer PCOMPLETADOS
+  Value Char PQUERY()
+  # Salida
+  Variable Char COD_ARTICULO()()
+  Variable Char DESCRIPCION()()
+
+  Local Char LREQSQL(250)(20) : Raz LREQSQL
+
+  LREQSQL(0) = " SELECT D.ITMREF_0, A.ITMDES1_0 "
+  LREQSQL(2) = " From " + nomap + ".SORDER P INNER JOIN " + nomap + ".SORDERQ D ON P.SOHNUM_0=D.SOHNUM_0 INNER JOIN " + nomap + ".YITMTECNICO T ON D.ITMREF_0=T.ITMREF_0 "
+  LREQSQL(3) = " INNER JOIN " + nomap + ".BPCUSTOMER C ON P.BPCORD_0=C.BPCNUM_0  INNER JOIN " + nomap + ".ITMMASTER A ON D.ITMREF_0=A.ITMREF_0 "
+  LREQSQL(4) = " LEFT JOIN " + nomap + ".BPCARRIER CA ON P.BPTNUM_0=CA.BPTNUM_0 "
+  LREQSQL(5) = " Where T.PREPICKING_0=2 and P.ORDSTA_0=1 and P.CDTSTA_0=1 and P.HLDSTA_0=1 "
+
+  If PCOMPLETADOS <> 2 Then
+    LREQSQL(6) = " and ((D.ALLQTYSTU_0 > 0 and D.ALLTYP_0 = 1) or (D.ALLTYP_0 = 2 and ((ISNULL((SELECT sum(A.QTYSTU_0) "
+    LREQSQL(7) = " From " + nomap + ".STOALL A Where A.VCRNUM_0 = D.SOHNUM_0 and A.VCRLIN_0 = D.SOPLIN_0 and A.ALLTYP_0 = 2 and A.STOCOU_0 IN("
+    LREQSQL(8) = " SELECT K.STOCOU_0 From " + nomap + ".STOCK K Where K.STOFCY_0='" +  PCOD_PLANTA + "' and K.LPNNUM_0='')), 0) > 0)) and "
+    LREQSQL(9) = " (D.QTYSTU_0 - D.SHTQTYSTU_0 - ISNULL((SELECT sum(A.QTYSTU_0)"
+    LREQSQL(10) = " From " + nomap + ".STOALL A Where A.VCRNUM_0 = D.SOHNUM_0 and A.VCRLIN_0 = D.SOPLIN_0 and A.ALLTYP_0 = 2 and A.STOCOU_0 IN("
+    LREQSQL(11)= " SELECT K.STOCOU_0 From " + nomap + ".STOCK K Where K.STOFCY_0='" +  PCOD_PLANTA + "' and K.LPNNUM_0='')), 0) >= 0)))"
+  Endif
+
+  #fecha envío
+  If PDESDE_FECHA <> "" Then
+    LREQSQL(12) += " AND D.SHIDAT_0>='" + (PDESDE_FECHA) + "'"
+  Endif
+  If PHASTA_FECHA <> "" Then
+    LREQSQL(13) += " AND D.SHIDAT_0<='" + (PHASTA_FECHA) + "'"
+  Endif
+   #Cliente
+  If PCOD_CLIENTE <> "" Then
+    LREQSQL(14) += " AND P.BPCORD_0='" + PCOD_CLIENTE + "'"
+  Endif
+  #transportista
+  If PCOD_TRANSPORTISTA <> "" Then
+    LREQSQL(15) += " AND P.BPTNUM_0='" + PCOD_TRANSPORTISTA + "'"
+  Endif
+  #Familia estadística 1, Familia superior
+  If PCOD_FAMILIA <> "" Then
+    LREQSQL(16) += " AND A." + PCAMPO_FAMILIA + " = '" + PCOD_FAMILIA + "'"
+  Endif
+  # Query
+  If PQUERY <> "" Then
+    LREQSQL(16) += " AND (UPPER(A.ITMREF_0) LIKE '%" + toupper(PQUERY) + "%' OR UPPER(A.ITMDES1_0) LIKE '%" + toupper(PQUERY) + "%')"
+  Endif
+  #Familia estadística 2, Familia
+  If PCOD_SUBFAMILIA <> "" Then
+    LREQSQL(17) += " AND A." + PCAMPO_SUBFAMILIA + " = '" + PCOD_SUBFAMILIA + "'"
+  Endif
+  #Artículo
+  If PCOD_ARTICULO <> "" Then
+    LREQSQL(17) += " AND D.ITMREF_0 = '" + PCOD_ARTICULO + "'"
+  Endif
+  If PCOD_PEDIDO <> "" Then
+    LREQSQL(17) += " AND UPPER(P.SOHNUM_0) LIKE '%" + PCOD_PEDIDO + "%'"
+  Endif
+
+  LREQSQL(18) += " GROUP By D.ITMREF_0, A.ITMDES1_0"
+  LREQSQL(19) += " ORDER By D.ITMREF_0 ASC"
+
+  Local Integer I : Raz I
+  For(Char ITMREF, Char ITMDES1) From "5" Sql LREQSQL As [YITMPP]
+    COD_ARTICULO(I) = [YITMPP]ITMREF
+    DESCRIPCION(I) = [YITMPP]ITMDES1
+
+    I += 1
+  Next
+End
+
+Funprog PEDIDO_COMPLETADO(PCOD_PLANTA, PNUM_PEDIDO)
+  Value Char PCOD_PLANTA
+  Value Char PNUM_PEDIDO
+
+  Local Integer LRET : LRET = 2
+
+  Local Char LREQ(255)(6)
+
+  Openo filpath("tmp","consulta","txt") Using [XLOG]
+
+  LREQ(0) = "SELECT P.SOHNUM_0 From " + nomap + ".SORDER P INNER JOIN " + nomap + ".SORDERQ D ON P.SOHNUM_0=D.SOHNUM_0 INNER JOIN " + nomap + ".YITMTECNICO T ON D.ITMREF_0=T.ITMREF_0 "
+  LREQ(1) = "Where T.PREPICKING_0=2 and P.ORDSTA_0=1 and P.CDTSTA_0=1 and P.HLDSTA_0=1 and ((D.ALLQTYSTU_0 > 0 and D.ALLTYP_0 = 1) or (D.ALLTYP_0 = 2 and ((ISNULL((SELECT sum(A.QTYSTU_0) "
+  LREQ(2) = "From " + nomap + ".STOALL A Where A.VCRNUM_0 = D.SOHNUM_0 and A.VCRLIN_0 = D.SOPLIN_0 and A.ALLTYP_0 = 2 and A.STOCOU_0 IN(SELECT K.STOCOU_0 From " + nomap + ".STOCK K "
+  LREQ(3) = "Where K.STOFCY_0='" + PCOD_PLANTA + "' and K.LPNNUM_0='')), 0) > 0)) and (D.QTYSTU_0 - D.SHTQTYSTU_0 - ISNULL((SELECT sum(A.QTYSTU_0) From " + nomap +
+& ".STOALL A Where A.VCRNUM_0 = D.SOHNUM_0 "
+  LREQ(4) = "and A.VCRLIN_0 = D.SOPLIN_0 and A.ALLTYP_0 = 2 and A.STOCOU_0 IN(SELECT K.STOCOU_0 From " + nomap + ".STOCK K Where K.STOFCY_0='" + PCOD_PLANTA + "' and K.LPNNUM_0='')), 0) >= 0))) "
+  LREQ(5) = "and P.SOHNUM_0 = '" + PNUM_PEDIDO + "' GROUP By P.SOHNUM_0 "
+
+  Wrseq LREQ Using [XLOG]
+  Openo Using [XLOG]
+  For(Char SOHNUM) From "5" Sql LREQ As [YCOM]
+    LRET = 1
+  Next
+
+End LRET
+
+Subprog PPCAMBIARWIPPEDIDO(PCOD_PEDIDO, PWIP, PUSER, PRES, PMESS)
+  # Entrada
+  Value Char PCOD_PEDIDO
+  Value Integer PWIP
+  Value Char PUSER
+  # Salida
+  Variable Integer PRES
+  Variable Char PMESS
+
+  PRES = 100
+  PMESS = "Error al actualizar WIP"
+
+  If !clalev([YSOH]) : Local File SORDER [YSOH] : Endif
+
+  Read [YSOH]SOH0 = PCOD_PEDIDO
+  If !fstat Then
+    Trbegin [YSOH]
+    If !fstat Then
+      [YSOH]YAPPWIP = PWIP
+      [YSOH]YUSUARIOWIP = PUSER
+      Rewrite [YSOH]
+      If !fstat Then
+        Commit
+        PRES = 200
+        PMESS = "Actualización WIP correcta"
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+
+  Close Local File [YSOH]
+End
+
+Subprog PPCONTROLWIPPEDIDO(COD_PEDIDO, ESTADO, USUARIOWIP)
+  # Entrada
+  Value Char COD_PEDIDO
+  # Salida
+  Variable Integer ESTADO
+  Variable Char USUARIOWIP
+
+  ESTADO = -1
+
+  If !clalev([YSOH]) : Local File SORDER [YSOH] : Endif
+
+  Read [YSOH]SOH0 = COD_PEDIDO
+  If !fstat Then
+    ESTADO = [YSOH]YAPPWIP
+    USUARIOWIP = [YSOH]YUSUARIOWIP
+  Endif
+
+  Close Local File [YSOH]
+End
+
+Subprog GETSUBFAMILIAS(PTABLA_SUBFAMILIA, IDIOMA, QUERY, COD_SUBFAMILIA, SUBFAMILIA)
+  # Entrada
+  Value Char PTABLA_SUBFAMILIA()
+  Value Char IDIOMA()
+  Value Char QUERY()
+  # Salida
+  Variable Char COD_SUBFAMILIA()()
+  Variable Char SUBFAMILIA()()
+
+  Local Char LREQ(250)(0..4) : Raz LREQ
+  Local Integer I : Raz I
+
+  LREQ(0) = "SELECT * FROM ("
+  LREQ(1) = "SELECT CODE_0, ISNULL((SELECT TEXTE_0 FROM " + nomap + ".ATEXTRA WHERE CODFIC_0 = 'ATABDIV' AND ZONE_0 = 'LNGDES' "
+  LREQ(2) = "AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = '" + num$(PTABLA_SUBFAMILIA) + "' AND IDENT2_0 = CODE_0), 'N/A') AS TEXTE_0 "
+  LREQ(3) = "FROM " + nomap + ".ATABDIV WHERE NUMTAB_0 = " + num$(PTABLA_SUBFAMILIA) + ") AS V "
+  If QUERY <> "" Then
+    LREQ(4) = "WHERE UPPER(TEXTE_0) LIKE '%" + toupper(QUERY) + "%'"
+  Endif
+
+  For(Char CODE, Char TEXTE) From "5" Sql LREQ As [YSUB]
+    COD_SUBFAMILIA(I) = [YSUB]CODE
+    SUBFAMILIA(I) = [YSUB]TEXTE
+
+    I += 1
+  Next
+End
+
+Subprog GETFAMILIAS(PTABLA_FAMILIA, IDIOMA, QUERY, COD_FAMILIA, FAMILIA)
+  # Entrada
+  Value Char PTABLA_FAMILIA()
+  Value Char IDIOMA()
+  Value Char QUERY()
+  # Salida
+  Variable Char COD_FAMILIA()()
+  Variable Char FAMILIA()()
+
+  Local Char LREQ(250)(0..4) : Raz LREQ
+  Local Integer I : Raz I
+
+  LREQ(0) = "SELECT * FROM ("
+  LREQ(1) = "SELECT CODE_0, ISNULL((SELECT TEXTE_0 FROM " + nomap + ".ATEXTRA WHERE CODFIC_0 = 'ATABDIV' AND ZONE_0 = 'LNGDES' "
+  LREQ(2) = "AND LANGUE_0 = '" + IDIOMA + "' AND IDENT1_0 = '" + num$(PTABLA_FAMILIA) + "' AND IDENT2_0 = CODE_0), 'N/A') AS TEXTE_0 "
+  LREQ(3) = "FROM " + nomap + ".ATABDIV WHERE NUMTAB_0 = " + num$(PTABLA_FAMILIA) + ") AS V "
+  If QUERY <> "" Then
+    LREQ(4) = "WHERE UPPER(TEXTE_0) LIKE '%" + toupper(QUERY) + "%'"
+  Endif
+
+  For(Char CODE, Char TEXTE) From "5" Sql LREQ As [YSUB]
+    COD_FAMILIA(I) = [YSUB]CODE
+    FAMILIA(I) = [YSUB]TEXTE
+
+    I += 1
+  Next
+End
+
+Subprog GETDETALLEPEDIDOPREPICKING(PSOHNUM, PSHIDAT, PTSICOD0, PTSICOD1, PSOPLIN, PITMREF, PITMDES, PLPNNUM, PPRTFLG ,PQTY, PQTYLPN, PLPNNUM_USADO,PRES, PMESS)
+Value Char PSOHNUM()
+Value Char PSHIDAT()
+Value Char PTSICOD0()
+Value Char PTSICOD1()
+Variable Integer  PSOPLIN()
+Variable Char  PITMREF()()
+Variable Char   PITMDES()()
+Variable Char   PLPNNUM()()
+Variable Char   PPRTFLG()()
+Variable Decimal PQTY()
+Variable Decimal  PQTYLPN()
+Variable Char   PLPNNUM_USADO()
+Variable Char   PRES
+Variable Char   PMESS()
+
+Local Char EXISTE_LPN(1)
+
+If !clalev([YSOH])        Then : Local File SORDER      [YSOH] : Endif
+If !clalev([YSOQ])        Then : Local File SORDERQ     [YSOQ] : Endif
+If !clalev([YSTO])        Then : Local File STOCK       [YSTO] : Endif
+If !clalev([YLPN])        Then : Local File LPN         [YLPN] : Endif
+If !clalev([YITM])        Then : Local File ITMMASTER   [YITM] : Endif
+If !clalev([YITT])        Then : Local File YITMTECNICO [YITT] : Endif
+If !clalev([P1])          Then : Local File STOALL      [P1]   : Endif
+If !clalev([P2])          Then : Local File STOCK       [P2]   : Endif
+If !clalev([YI3PRVI])     Then : Local File YI3PRVI     [YI3PRVI]   : Endif
+
+PLPNNUM_USADO=""
+
+
+Read [F:YSOH]SOH0=PSOHNUM
+If !fstat Then
+  If [F:YSOH]CDTSTA<>1 Then
+    PRES="101"
+    PMESS="No hay crédito"
+    End
+  Endif
+  If [F:YSOH]HLDSTA<>1 Then
+    PRES="102"
+    PMESS="Bloqueado manualmente"
+    End
+  Endif
+  If [F:YSOH]ORDSTA <>1 Then
+    PRES="101"
+    PMESS="Línea saldada"
+    End
+  Endif
+Else
+  PRES="100"
+  PMESS="No existe el pedido"
+    End
+Endif
+
+
+
+Local Date DDD
+DDD=gdat$(val(left$(PSHIDAT,2)), val(mid$(PSHIDAT,4,2)), val(right$(PSHIDAT,7)))
+Filter [F:YSOQ] Where SOHNUM=PSOHNUM and SOQSTA <>3 and ALLQTYSTU > 0 and SHIDAT= DDD
+PRES="150"
+PMESS="Error leyendo información"
+I=0
+EXISTE_LPN="N"
+For [F:YSOQ]
+  Read [YITT]YITT0=[F:YSOQ]ITMREF
+  If !fstat Then
+     If   [YITT]PREPICKING= 2 Then
+       Read [F:YITM]ITM0=[F:YSOQ]ITMREF
+       If !fstat Then
+         #Testeamos las familias que pasamos, pasen bien
+         If PTSICOD0 = "" or PTSICOD0=[F:YITM]TSICOD(0)
+           If PTSICOD1 = "" or PTSICOD0=[F:YITM]TSICOD(1)
+              PSOPLIN(I)=[F:YSOQ]SOPLIN
+              PITMREF(I)=[F:YITM]ITMREF
+              PITMDES(I)=[F:YITM]ITMDES1
+
+              # Tenemos que obtener la cantidad que sería "preparable", que es la cantidad asignada si hay o la pendiente de preparar si no hay asignación
+              If [F:YSOQ]ALLQTYSTU <> 0
+                PQTY(I) = [F:YSOQ]ALLQTYSTU
+                # De la cantidad que tengo 'preparable' solamente tengo en cuenta la cantidad que NO esté en cajas
+                Local Integer QTY_NO_CAJAS
+                Local Integer QTY_SI_CAJAS
+                Filter [P1] Where [P1]VCRNUM = [F:YSOQ]SOHNUM and [P1]VCRSEQ = [F:YSOQ]SOQSEQ and [P1]VCRLIN = [F:YSOQ]SOPLIN and [P1]ALLTYP = 2
+                  For [P1]
+                    Read [P2]STO0 = [P1]STOFCY;[P1]STOCOU
+                    If fstat = 0
+                      If [P2]LPNNUM = ""
+                        [L]QTY_NO_CAJAS += [P1]QTYSTU
+                      Else
+                        [L]QTY_SI_CAJAS += [P1]QTYSTU
+                      Endif
+                    Endif
+                  Next
+                Filter [P1]
+                If [L]QTY_NO_CAJAS > 0
+                  PQTY(I) = min(PQTY(I),[L]QTY_NO_CAJAS) + [L]QTY_SI_CAJAS
+                Endif
+              Else
+                PQTY(I) = [F:YSOQ]QTYSTU - [F:YSOQ]DLVQTYSTU - [F:YSOQ]OPRQTYSTU - [F:YSOQ]ODLQTYSTU - [F:YSOQ]SHTQTYSTU
+              Endif
+
+
+              PLPNNUM(I)=""
+              PQTYLPN(I)=0
+              Filter [YLPN] Where [YLPN]ZSOHNUM = PSOHNUM and [YLPN]PRTFLG <> 2 Order By [YLPN]LPNNUM Desc
+              Read [YLPN] First
+              If fstat = 0
+                EXISTE_LPN="S"
+                PLPNNUM_USADO=[YLPN]LPNNUM
+              Endif
+              Filter [YLPN]
+
+              # Hay que mostrar la cantidad asignada en detalle con número de contenedor
+
+#              PQTYLPN(I) = [L]QTY_SI_CAJAS
+
+
+#              PQTYLPN(I)= PQTYLPN(I)+[L]QTY_SI_CAJAS
+#              I=I+1
+
+#              Filter [YI3PRVI] Where [YI3PRVI]SOHNUM = [F:YSOQ]SOHNUM and [YI3PRVI]SOPLIN = [F:YSOQ]SOPLIN and [YI3PRVI]SOPSEQ = [F:YSOQ]SOQSEQ
+#              Read [YI3PRVI] First
+#              If !fstat
+#                PQTYLPN(I)= PQTYLPN(I)+[YI3PRVI]SUMQTY + [L]QTY_SI_CAJAS
+#              Else
+#                PQTYLPN(I)= PQTYLPN(I)+[L]QTY_SI_CAJAS
+#              Endif
+#              Filter [YI3PRVI]
+
+              PQTYLPN(I)= func YX3MOBPREPICKING.CALCULA_CANTIDADES([F:YSOQ]SOHNUM, [F:YSOQ]SOPLIN, [F:YSOQ]SOQSEQ)
+              I=I+1
+
+
+           Endif #familia estadística 1
+        Endif #familia estadística 0
+       Endif    #YITM
+     Endif # PREPICKING
+   Endif # YITT
+  PRES="200"
+  PMESS="OK"
+Next
+
+#Si no hay caja, la creamos
+Local Char LPNNUM(20)
+Local Char RES(20)
+Local Char MENSAJE(100)
+
+If EXISTE_LPN="N" and rowcount([F:YSOQ]) > 0 and PRES="200" Then
+      Call GETLPNNUM(LPNNUM, RES, MENSAJE)
+      If RES = "200" Then
+        PLPNNUM_USADO=LPNNUM
+      Else
+        PRES=RES
+        PMESS=MENSAJE
+      Endif
+Endif
+
+Close Local File [YSOQ]
+Close Local File [YSTO]
+Close Local File [YLPN]
+Close Local File [YITM]
+Close Local File [YITT]
+Close Local File [P1]
+Close Local File [P2]
+End
+
+################################################################################
+#**
+#* APP: devuelve el número suigueinte del contador del LPN
+#*!
+Subprog GETLPNNUM(LPNNUM, PRES, PMESS)
+Variable Char LPNNUM
+Variable Char   PRES
+Variable Char   PMESS()
+Local Char CONTADOR
+Local Integer STAT
+
+  If !clalev([YTCTR]) Then : Local File TABCONTAINER  [YTCTR] : Endif
+
+  Read [F:YTCTR]TCTR0="PREPICKING"
+  If !fstat Then
+    CONTADOR = [F:YTCTR]LPNREFCOU
+    PRES="200"
+    PMESS="OK"
+  Else
+    CONTADOR = ""
+    PRES="100"
+    PMESS="NO HAY CONTADOR"
+  Endif
+
+  Call NUMERO(CONTADOR,"11",date$,"",LPNNUM,STAT) From SUBANM
+End LPNNUM
+
+
+######################################################################################
+#**
+#* APP: busca si existe el LPN
+#*
+#* @param PLPNNUM
+#* @param PRES
+#* @param PMESS
+#*!
+Subprog TESTLPN(PLPNNUM, PRES, PMESS)
+  Variable Char PLPNNUM
+  Variable Char PRES
+  Variable Char  PMESS
+
+  If !clalev([F:YLPN]) Then : Local File LPN  [F:YLPN] : Endif
+
+  Read[F:YLPN]LPN0=PLPNNUM
+  If !fstat Then
+    PRES="200"
+    PMESS="OK"
+  Else
+    PRES="100"
+    PMESS="No existe"
+  Endif
+
+Close Local File [F:YLPN]
+
+End
+
+######################################################################################
+#**
+#*
+#* APP: Testea el código de barras del artículo y la cantidad pendiente
+#*
+#* @param SOHNUM
+#* @param ITMREF
+#* @param PCODIGOBARRAS
+#* @param PLPNNUM: caja que le pasamos
+#* @param PQTY: cantidad a dar de alta
+#* @param PLPNNUMCAJ: caja en la que se encuentra.
+#* @param PQTYSTUCAJ: cantidad para el artículo que ya está en la caja
+#*
+#* @param PRES :
+#*  200_ ok, se da de alta
+#*
+#* @param PMESS
+#*
+#*
+#*!
+Subprog TESTCODIGOBARRAS(PSOHNUM, PSHIDAT, PTSICOD0, PTSICOD1, PCODIGOBARRAS, PLPNNUM, PQTY, PITMREF, PPCU, PSTU,PSTUCOE, PVCRDES, PRES, PMESS)
+  Value Char PSOHNUM()
+  Value Char PSHIDAT()
+  Value Char PTSICOD0()
+  Value Char PTSICOD1()
+  Value Char PCODIGOBARRAS()
+  Value Char PLPNNUM
+  Value Decimal PQTY
+  Variable Char PITMREF()
+  Variable Char PPCU()
+  Variable Char PSTU()
+  Variable Decimal PSTUCOE
+  Variable Char PVCRDES()
+  Variable Char  PRES()
+  Variable Char   PMESS()
+
+
+  Local  Integer CANTIDAD
+
+  If !clalev([YSOQ]) Then : Local File SORDERQ   [YSOQ]  : Endif
+  If !clalev([YSOP]) Then : Local File SORDERP   [YSOP]  : Endif
+  If !clalev([YITM]) Then : Local File ITMMASTER [YITM]  : Endif
+  If !clalev([YLPN]) Then : Local File LPN       [YLPN]  : Endif
+  If !clalev([YI3PR])Then : Local File YI3PREPA  [YI3PR] : Endif # @01@ - SCD - 03/06/2024 - Ajustes para I3
+
+
+  PRES="100"
+  PMESS="No se encuentró la referencia"
+
+  # Comprobamos si el EAN existe en la base de datos
+  Filter [YITM] Where EANCOD = PCODIGOBARRAS
+  Read [YITM] First
+  If fstat <> 0
+    PMESS = "El código EAN no se encuentra la base de datos de artículos."
+    Goto FIN_TEST
+  Endif
+  Filter [YITM]
+
+  I=0
+  CANTIDAD=1
+  Local Date DDD
+  DDD=gdat$(val(left$(PSHIDAT,2)), val(mid$(PSHIDAT,4,2)), val(right$(PSHIDAT,7)))
+  Filter [F:YSOQ] Where SOHNUM=PSOHNUM and SOQSTA <>3 and ALLQTYSTU > 0 and SHIDAT= DDD
+  For [F:YSOQ]
+    #segundo si el código EAN  existe")
+    Read [YITM]ITM0=[F:YSOQ]ITMREF
+    If !fstat Then
+      # Si cumple el requisito de las familias, salimos
+       If PTSICOD0 = "" or PTSICOD0=[F:YITM]TSICOD(0)
+         If PTSICOD1 = "" or PTSICOD0=[F:YITM]TSICOD(1)
+          # ean, lo encontramos
+          If [F:YITM]EANCOD=PCODIGOBARRAS Then
+            # Valores den SORDERQ
+            Read [F:YSOP]SOP3=[F:YSOQ]SOHNUM;[F:YSOQ]SOPLIN
+            If !fstat Then
+             PPCU=[F:YSOP]SAU
+             PSTU=[F:YSOP]STU
+             PSTUCOE=[F:YSOP]SAUSTUCOE
+             PVCRDES=left$([F:YSOQ]SOHNUM + ' ' +[F:YSOP]ITMDES1,80)
+            Else
+              PRES="110"
+              PMESS="Problemas con el pedido"
+              Break
+            Endif
+            PITMREF=[F:YITM]ITMREF
+
+# @01@ - SCD - 03/06/2024 - INI
+
+            If ((func YX3MOBPREPICKING.CALCULA_CANTIDADES([F:YSOQ]SOHNUM, [F:YSOQ]SOPLIN, [F:YSOQ]SOQSEQ))+PQTY) > [F:YSOQ]ALLQTYSTU Then
+              PRES="100"
+              PMESS="No se puede poner más de lo que hay asignado."
+              #Seguimos por si hay otro
+            Else
+              [YI3PR]LPNNUM=PLPNNUM
+              [YI3PR]SOHNUM=[F:YSOQ]SOHNUM
+              [YI3PR]SOPLIN=[F:YSOQ]SOPLIN
+              [YI3PR]SOPSEQ=[F:YSOQ]SOQSEQ
+              Read [YI3PR]YI3PR0 = PLPNNUM;[F:YSOQ]SOHNUM;[F:YSOQ]SOPLIN;[F:YSOQ]SOQSEQ
+              If !fstat
+                [YI3PR]LPNQTY+=PQTY
+                Rewrite [YI3PR]
+              Else
+                [YI3PR]LPNQTY=PQTY
+                Write [YI3PR]
+              Endif
+              If !fstat Then
+                PRES="200"
+                PMESS="Grabada correctamente"
+              Else
+                PRES="120"
+                PMESS="No se puede grabar la caja"
+              Endif
+              Break
+            Endif
+# @01@ - SCD - 03/06/2024 - FIN
+          Else
+            PMESS = "El código EAN leído no se encuentra pendiente en este pedido/fecha expedición"
+          Endif
+         Endif #TSICOD1
+       Endif  #TSICOD0
+    Endif      #EXISTE artículo
+  Next
+
+$FIN_TEST
+
+Close Local File [F:YITM]
+Close Local File [YSOP]
+Close Local File [YSOQ]
+Close Local File [YLPN]
+End
+
+
+Subprog FINALIZARCAJA(PLPNNUM, PUSR, PRES, PMESS)
+  Value Char PLPNNUM()
+  Value Char PUSR()
+  Variable Char PRES()
+  Variable Char PMESS()
+
+
+Local Char    INFNAM(30)
+Local Char    PACNUM(30)
+Local Char    DESTINO(30)
+Local Char    TCTRNUM(30)
+#Local Char    TBVAL(20)(1..20)
+#Local Char    TBPAR(20)(1..20)
+Local Integer LRESIMP : Raz LRESIMP # estado impresión factura
+
+
+  If !clalev([YLPN]) Then  : Local File LPN [YLPN]           : Endif
+  If !clalev([YTCTR]) Then : Local File TABCONTAINER [YTCTR] : Endif
+  #
+  # Buscamos el contador para el nuevo bulto
+  #
+  Local Integer I
+  I=0
+  Local Integer STAT
+
+  Read [F:YLPN]LPN0 = PLPNNUM
+  If !fstat Then
+    Read [F:YTCTR]TCTR0=[F:YLPN]TCTRNUM
+    If !fstat Then
+        INFNAM=[F:YTCTR]LBEFMT
+    Else
+      PRES="100"
+      PMESS="No está definida etiqueta"
+      End
+    Endif
+  Else
+      PRES="110"
+      PMESS="No se encuentra la caja"
+      End
+  Endif
+
+    Call PRINT_CAJA(INFNAM,PLPNNUM,PUSR,LRESIMP)
+
+    Trbegin [F:YLPN]
+    [F:YLPN]PRTFLG=2
+    Rewrite [F:YLPN]
+    If !fstat Then
+      Commit
+      PRES="200"
+      PMESS="Caja " + PLPNNUM + ' finalizada correctamente.'
+    Else
+      Rollback
+      PRES="100"
+      PMESS="Problema modificando impreso en: " + PLPNNUM
+      End
+    Endif
+  Close Local File [F:YLPN]
+  Close Local File [F:YTCTR]
+
+End
+
+#Subprog ASIGNACION_DETALLADA2(PEDIDO,CONTENEDOR, LRET, LMESS)
+#  Value Char PEDIDO
+#  Value Char CONTENEDOR
+#  Variable Integer LRET
+#  Variable Char LMESS
+#
+#  Local Char PLANTA(2)
+#  Local Integer LRET1
+#  Local Integer LRET2
+#  Local Integer LRET3
+#
+#  Local Decimal CANT_RUPTURA
+#
+#  # Apertura de tablas
+#  If !clalev([YSTO]) : Local File STOCK [YSTO] : Endif
+#  If !clalev([YSTA]) : Local File STOALL [YSTA] : Endif
+#  If !clalev([YSOQ]) : Local File SORDERQ [YSOQ] : Endif
+#
+#  Filter [YSOQ] Where SOHNUM = PEDIDO and YLPNNUM = CONTENEDOR
+#  For [YSOQ]
+#    PLANTA = [YSOQ]STOFCY
+#    Filter [YSTO] Where LPNNUM = CONTENEDOR and ITMREF = [YSOQ]ITMREF
+#    Read [YSTO] First
+#    If fstat = 0 Then
+#      # Primero comprobamos si existen cantidades en ruptura
+#      Raz CANT_RUPTURA
+#      Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YSOQ]SOPLIN and [YSTA]ALLTYP = 5
+#      For [YSTA]
+#        CANT_RUPTURA += [YSTA]QTYSTUACT
+#      Next
+#
+#      # Eliminamos la asignación global
+#      # Necesito saber el número de secuencia de la asignación
+#      Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YSOQ]SOPLIN and [YSTA]ALLTYP = 1
+#      Read [YSTA] First
+#      If fstat = 0 Then
+#        # Desasignamos sólo si tiene asignación goblal
+#          Call SUPALL(PLANTA, [YSOQ]ITMREF, 0.0, [YSTA]SEQ , LRET1) From STKALL
+#          Infbox('ASIGNACIÓN GLOBAL ELIMINADA')
+#        # A continuación hacemos la asignación detallada
+#        Call CREALL(2, PLANTA, [YSOQ]ITMREF, [YSTO]STOCOU, date$, [YSTO]QTYSTU, [YSTO]QTYSTU, 2, PEDIDO, [YSOQ]SOPLIN, [YSOQ]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","",
+#& "","",1,"",LRET2) From STKALL
+#          Infbox('FIN ASIGNACIÓN DETALLADA')
+#
+#        # Por último, actualizamos la línea de pedido
+#        Call MAJALLORD(PEDIDO, [YSOQ]SOPLIN, [YSOQ]SOPLIN, 2, 1, [YSTO]QTYSTU, CANT_RUPTURA, LRET3) From TRTVENALL
+#
+#        Filter [YSTA]
+#      Endif
+#
+#      Filter [YSTO]
+#    Endif
+#  Next
+#
+#  Filter [YSOQ]
+#
+#  # Resultados
+#  LRET = 1
+#  LMESS = "Si hemos llegado hasta aquí, se supone que está bien"
+#
+#  # Cierre de tablas
+#  Close Local File [YSTO]
+#  Close Local File [YSTA]
+#  Close Local File [YSOQ]
+#End
+
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+
+Subprog ASIGNACION_DETALLADA(PEDIDO,CONTENEDOR, LRET, LMESS)
+  Value Char PEDIDO
+  Value Char CONTENEDOR
+  Variable Integer LRET
+  Variable Char LMESS
+
+  Local Char PLANTA(2)
+  Local Integer LRET1
+  Local Integer LRET2
+  Local Integer LRET3
+
+  Local Decimal CANT_RUPTURA
+  # Apertura de tablas
+  If !clalev([YSTA])  : Local File STOALL           [YSTA]  : Endif
+  If !clalev([YI3PR]) : Local File YI3PREPA         [YI3PR] : Endif
+  If !clalev([YSTO])  : Local File STOCK            [YSTO]  : Endif
+  If !clalev([YI3T])  : Local File YI3TEST          [YI3T]  : Endif
+  If !clalev([YSOQ1]) : Local File SORDERQ          [YSOQ1] : Endif
+
+  Local Integer NUM_LINEAS : Raz NUM_LINEAS
+  Local Integer CONTADOR
+
+  [YI3T]PARAM = PEDIDO - " - " - CONTENEDOR - " - " -num$(LRET) - " - " -LMESS
+
+  Filter [YI3PR]
+  Filter [YSTA]
+  Filter [YI3PR] Where [YI3PR]LPNNUM = CONTENEDOR and [YI3PR]SOHNUM = PEDIDO
+    For [YI3PR]
+      Raz CANT_RUPTURA
+      Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YI3PR]SOPLIN and VCRSEQ = [YI3PR]SOPSEQ and [YSTA]ALLTYP = 5
+      For [YSTA]
+        CANT_RUPTURA += [YSTA]QTYSTUACT
+      Next
+      Filter [YSTA]
+
+      Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YI3PR]SOPLIN and VCRSEQ = [YI3PR]SOPSEQ and [YSTA]ALLTYP = 1
+        NUM_LINEAS = rowcount([YSTA])
+        CONTADOR = 1
+
+        For [YSTA]
+          Gosub GESTIONA_ASIGNACION
+          CONTADOR += 1
+        Next
+
+#        Read [YSTA] First
+#        If fstat = 0 Then
+#          Gosub GESTIONA_ASIGNACION
+
+#        Endif
+      Filter [YSTA]
+    Next
+  Filter [YI3PR]
+  # Resultados
+  LRET = 1
+  LMESS = "Si hemos llegado hasta aquí, se supone que está bien"
+
+  # Cierre de tablas
+  Close Local File [YSTA]
+  Close Local File [YI3PR]
+  Close Local File [YSTO]
+End
+
+$GESTIONA_ASIGNACION
+
+  Local Integer QTY_DETALLE : QTY_DETALLE=0
+
+
+  # Eliminamos la asignación global
+  # Necesito saber el número de secuencia de la asignación
+  # Desasignamos sólo si tiene asignación goblal
+  Call SUPALL([YSTA]STOFCY, [YSTA]ITMREF, [YSTA]STOCOU, [YSTA]SEQ , LRET1) From STKALL
+  # A continuación hacemos la asignación detallada
+  If CONTADOR = NUM_LINEAS
+    Filter [YSTO] Where LPNNUM = CONTENEDOR and ITMREF = [YSTA]ITMREF
+      Read [YSTO] First
+      If fstat = 0 Then
+        #Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, [YSTO]QTYSTU, [YSTO]QTYSTU, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
+        Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, [YI3PR]LPNQTY, [YI3PR]LPNQTY, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
+& LRET2) From STKALL
+        # Por último, actualizamos la línea de pedido
+        Read [YSOQ1]SOQ0 = PEDIDO;[YI3PR]SOPLIN; [YI3PR]SOPSEQ
+        If !fstat
+          Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, 2, 1, [YSOQ1]ALLQTYSTU, CANT_RUPTURA, LRET3) From TRTVENALL
+        Endif
+      Endif
+    Filter [YSTO]
+
+
+    Filter [YSTO] Where LPNNUM = '' and ITMREF = [YSTA]ITMREF
+      Read [YSTO] First
+      If fstat = 0 Then
+        QTY_DETALLE = func YX3MOBPREPICKING.QTY_SIN_CAJA(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPSEQ)
+        If [L]QTY_DETALLE > 0
+          Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, QTY_DETALLE, QTY_DETALLE, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
+& LRET2) From STKALL
+          # Por último, actualizamos la línea de pedido
+          Read [YSOQ1]SOQ0 = PEDIDO;[YI3PR]SOPLIN; [YI3PR]SOPSEQ
+          If !fstat
+            Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, 2, 1, [YSOQ1]ALLQTYSTU, CANT_RUPTURA, LRET3) From TRTVENALL
+          Endif
+        Endif
+      Endif
+    Filter [YSTO]
+
+    Delete [YI3PR] Where [YI3PR]LPNNUM = CONTENEDOR & [YI3PR]SOHNUM = PEDIDO & [YI3PR]SOPLIN = [YI3PR]SOPLIN & [YI3PR]SOPSEQ = [YI3PR]SOPSEQ
+  Endif
+
+Return
+
+#**
+#*  Funcion para devoler la suma de cantidades de aquellos (pedidos por linea) desde I3 + Sage
+#*
+#* @param PS_PEDIDO
+#* @param PI_LINEA
+#* @param PI_LINSEQ
+#*!
+Funprog CALCULA_CANTIDADES(PS_PEDIDO, PI_LINEA, PI_LINSEQ)
+  Value Char PS_PEDIDO
+  Value Integer PI_LINEA
+  Value Integer PI_LINSEQ
+  Local Integer SUMQTY
+
+  SUMQTY = 0
+
+  If !clalev([Y3STA])            Then : Local File STOALL       [Y3STA]    : Endif
+  If !clalev([Y3STO])           Then : Local File STOCK         [Y3STO]    : Endif
+
+  Filter [Y3STA] Where [Y3STA]VCRNUM = PS_PEDIDO and [Y3STA]VCRSEQ = PI_LINSEQ and [Y3STA]VCRLIN = PI_LINEA
+    For [Y3STA]
+      Case [Y3STA]ALLTYP
+        When 1
+          SUMQTY = func YX3MOBPREPICKING.CALCULA_I3(PS_PEDIDO, PI_LINEA, PI_LINSEQ)
+          Break
+        When 2
+          Read [Y3STO]STO0 = [Y3STA]STOFCY;[Y3STA]STOCOU
+          If fstat = 0
+            If [Y3STO]LPNNUM <> ""
+              SUMQTY += [Y3STA]QTYSTU
+            Else
+              SUMQTY = func YX3MOBPREPICKING.CALCULA_I3(PS_PEDIDO, PI_LINEA, PI_LINSEQ)
+              Break
+            Endif
+          Endif
+      Endcase
+    Next
+  Filter [Y3STA]
+
+End SUMQTY
+
+################################################################################################################
+
+#**
+#*  Funcion para devoler la suma de cantidades de aquellos (pedidos por linea) desde I3
+#*
+#* @param PS_PEDIDO
+#* @param PI_LINEA
+#* @param PI_LINSEQ
+#*!
+Funprog CALCULA_I3(PS_PEDIDO, PI_LINEA, PI_LINSEQ)
+  Value Char PS_PEDIDO
+  Value Integer PI_LINEA
+  Value Integer PI_LINSEQ
+
+  Local Integer SUMQTY
+
+  SUMQTY = 0
+
+  If !clalev([YI3PRVI])          Then : Local File YI3PRVI       [YI3PRVI]   : Endif
+
+  Filter [YI3PRVI] Where [YI3PRVI]SOHNUM = PS_PEDIDO and [YI3PRVI]SOPLIN = PI_LINEA and [YI3PRVI]SOPSEQ = PI_LINSEQ
+  Read [YI3PRVI] First
+  If !fstat
+    [L]SUMQTY = [YI3PRVI]SUMQTY
+  Else
+  Endif
+
+End SUMQTY
+
+################################################################################################################
+
+#**
+#*  Funcion para devoler la suma de cantidades de aquellos (pedidos por linea) desde I3
+#*
+#* @param PS_PEDIDO
+#* @param PI_LINEA
+#* @param PI_LINSEQ
+#*!
+Funprog QTY_SIN_CAJA(PS_PEDIDO, PI_LINEA, PI_LINSEQ)
+  Value Char PS_PEDIDO
+  Value Integer PI_LINEA
+  Value Integer PI_LINSEQ
+
+  Local Integer SUMQTY
+
+  SUMQTY = 0
+
+  If !clalev([YSTA1])  : Local File STOALL           [YSTA1]    : Endif
+  If !clalev([YSTO1])  : Local File STOCK             [YSTO1]   : Endif
+  If !clalev([YSOQ2])  : Local File SORDERQ             [YSOQ2]   : Endif
+
+  Read [YSOQ2]SOQ0 = PS_PEDIDO; PI_LINEA; PI_LINSEQ
+  If !fstat
+    Filter [YSTA1] Where VCRNUM = PS_PEDIDO and VCRLIN = PI_LINEA and VCRSEQ = PI_LINSEQ and ([YSTA1]ALLTYP = 2)
+      For [YSTA1]
+        Filter [YSTO1] Where LPNNUM <> '' and ITMREF = [YSTA1]ITMREF and [YSTO1]STOCOU = [YSTA1]STOCOU
+          For [YSTO1]
+            SUMQTY += [YSTO1]QTYSTUACT
+          Next
+        Filter [YSTO1]
+      Next
+    Filter [YSTA1]
+    Filter [YSTA1] Where VCRNUM = PS_PEDIDO and VCRLIN = PI_LINEA and VCRSEQ = PI_LINSEQ and ([YSTA1]ALLTYP = 5)
+      For [YSTA1]
+        SUMQTY += [YSTA1]QTYSTUACT
+      Next
+    Filter [YSTA1]
+    SUMQTY = [YSOQ2]ALLQTYSTU-SUMQTY
+  Endif
+
+
+End SUMQTY
+
+Subprog GETESTADOCAJA(PCOD_CAJA, PRES)
+  # Entrada
+  Value Char PCOD_CAJA
+  # Salida
+  Variable Integer PRES
+
+  PRES = 1
+
+  If !clalev([YLPN]) : Local File LPN [YLPN] : Endif
+
+  Read [YLPN]LPN0 = PCOD_CAJA
+  Infbox(PCOD_CAJA + " - " + num$(fstat))
+  If !fstat
+    PRES = [YLPN]PRTFLG
+    If PRES = 0
+      PRES = 1
+    Endif
+  Endif
+
+  Close Local File [YLPN]
+End
+
+Subprog PRINT_CAJA(PETAT, PNUM_CAJA, PUSR, PRES)
+  # Entrada
+  Value Char PETAT
+  Value Char PNUM_CAJA
+  Value Char PUSR
+  # Salida
+  Variable Integer PRES
+
+  Local Char VDES(15)   # Destino de impresión
+  Local Char TBPAR(30)(3)
+  Local Char TBVAL(30)(3)
+
+  TBPAR(1) = "usr"
+  TBVAL(1) = PUSR
+
+  TBPAR(2) = "etat"
+  TBVAL(2) = PETAT
+
+  TBPAR(1) = "numedt"
+  TBVAL(1) = PNUM_CAJA
+
+  VDES = func GETDESTINOINFORME(PETAT, PUSR)
+
+  If VDES <> "" Then
+    Call ETAT(PETAT,VDES,"",0,"",TBPAR,TBVAL) From AIMP3
+    PRES = fstat
+  Endif
+End
+
+Funprog GETDESTINOINFORME(PCOD_INFORME, PCOD_USUARIO)
+  # Entrada
+  Value Char PCOD_INFORME
+  Value Char PCOD_USUARIO
+
+  # Salida
+  Local Char LRET(50) : Raz LRET
+
+  If !clalev([YDU]) : Local File APRTAUS [YDU] : Endif
+  If !clalev([YDI]) : Local File AREPORT [YDI] : Endif
+
+  # Primero buscamos el destino por usuario
+  Read [YDU]AIA0 = PCOD_USUARIO;PCOD_INFORME;""
+  If !fstat
+    LRET = [YDU]PRT
+  Endif
+
+  # Si no lo encontramos, buscamos el destino predeterminado del informe
+  If LRET = "" Then
+    Read [YDI]ARP0 = PCOD_INFORME
+    LRET = [YDI]PRTDEF
+  Endif
+
+  Close Local File [YDU]
+  Close Local File [YDI]
+End LRET
+
+Subprog CONTROL_CONTRAMARCA_PRODUCCION(PCOD_PLANTA, PCOD_PEDIDO, PCOD_ARTICULO, PUNIDADES, PRES, PMESS, PNUM_SERIE)
+  # Entrada
+  Value Char PCOD_PLANTA
+  Value Char PCOD_PEDIDO
+  Value Char PCOD_ARTICULO
+  Value Decimal PUNIDADES
+  # Salida
+  Variable Integer PRES
+  Variable Char PMESS
+  Variable Char PNUM_SERIE()()
+
+  Local Decimal CANT_PENDIENTE : Raz CANT_PENDIENTE
+  Local Char TEMP_SERIES(25)(9999)
+
+  If !clalev ([YSOQ]) : Local File SORDERQ [YSOQ] : Endif
+  If !clalev ([YSTA]) : Local File STOALL [YSTA] : Endif
+  If !clalev ([YSTO]) : Local File STOCK [YSTO] : Endif
+
+  Local Integer I : Raz I
+  Local Integer J : Raz J
+
+  # Comprobamos que la cantidad total no supere la cantidad solicitada
+  Filter [YSOQ] Where STOFCY = PCOD_PLANTA and SOHNUM = PCOD_PEDIDO and ITMREF = PCOD_ARTICULO and FMI = 5 Order By SOPLIN
+  If rowcount([YSOQ]) = 0
+    PRES = 400
+    PMESS = "Pedido sin contramarca"
+  Else
+    For [YSOQ]
+      # Para cada línea busco la cantidad que no está en contendor
+      Filter [YSTA] Where VCRNUM = PCOD_PEDIDO and VCRLIN = [YSOQ]SOPLIN
+      For [YSTA]
+        Read [YSTO]STO0 = PCOD_PLANTA;[YSTA]STOCOU
+        If !fstat
+          If [YSTO]LPNNUM = "" Then
+            CANT_PENDIENTE += [YSTO]QTYSTU
+            TEMP_SERIES(I) = [YSTO]SERNUM
+            I += 1
+          Endif
+        Endif
+      Next
+      Filter [YSTA]
+    Next
+    Filter [YSOQ]
+
+    # Comprobamos si la cantidad solicitada NO supera la cantidad pendiente
+    If PUNIDADES > CANT_PENDIENTE Then
+      PRES = 401
+      PMESS = "La cantidad solicitada supera la cantidad pendiente."
+    Else
+      # Vamos guardando los números de serie que tendremos que meter en el contenedor
+      For J=0 To PUNIDADES - 1 Step 1
+        PNUM_SERIE(J) = TEMP_SERIES(J)
+      Next J
+
+      PRES = 200
+      PMESS = num$(J-1) + " registros a procesar"
+    Endif
+  Endif
+
+  Close Local File [YSOQ], [YSTA], [YSTO]
+End

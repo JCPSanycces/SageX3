@@ -1,0 +1,542 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#####################################################################################
+# Src: YENVMASEDI
+#-------------------------------------------------------------------------------------
+# (Importación masiva EDI)
+#-------------------------------------------------------------------------------------
+# Proyecto: Sanycces
+#-------------------------------------------------------------------------------------
+# Version: v12 2023R1
+#-------------------------------------------------------------------------------------
+# Fecha: 16-09-2024
+#-------------------------------------------------------------------------------------
+# Desarrollador: NUN28
+# Codigo Actividad:
+#######################################################################################
+# El proceso realiza la misma funcion del LIENS del especifico SPEZC
+# Recorre los pedidos que estan pendientes de generar y abro las mascaras ya que el
+# proceso rellena los campos de incidencia sobre la mascara para asi sacar sus valores
+#######################################################################################
+$LIENS_MASIV
+# Variables.....
+  Local Char WCONTADOR(20), WTEXTO(250)(0..3)
+  Local Char S_MOG_INVBPC(GLONBPC),S_MOG_TITLE(50),S_MOG_FTITLE(50),S_MOG_OBJ(50) #@01@
+  Local Char S_SQLMESS(250) #@01@
+  Local Integer STAT,I_OKMOG,I_ERRTYP #@01@
+  Local Decimal AF_DESC(3) #@01@
+#  Local Char CONT : CONT = 'EDI-2400000894'
+
+# Tablas...
+  If !clalev([F:ZOCTL])  : Local File ZOCRECTL  [F:ZOCTL]   : Endif
+  If !clalev([F:ZOCTL2]) : Local File ZOCRECTL  [F:ZOCTL2]  : Endif
+  If !clalev([F:ZOC1C])  : Local File ZOCERE1C  [F:ZOC1C]   : Endif
+  If !clalev([F:ZOC1C2]) : Local File ZOCERE1C  [F:ZOC1C2]  : Endif
+  If !clalev([F:ZOC1T])  : Local File ZOCERE1T  [F:ZOC1T]   : Endif
+  If !clalev([F:ZOC1P])  : Local File ZOCERE1P  [F:ZOC1P]   : Endif
+  If !clalev([F:ZOC1P2]) : Local File ZOCERE1P  [F:ZOC1P2]  : Endif
+  If !clalev([F:ZOC1L])  : Local File ZOCERE1L  [F:ZOC1L]   : Endif
+  #--
+  If !clalev([F:ZOCSOH]) : Local File ZOCSOH    [F:ZOCSOH]  : Endif
+  If !clalev([F:ZOCSOQ]) : Local File ZOCSOQ    [F:ZOCSOQ]  : Endif
+  If !clalev([F:ZOCSOH2]): Local File ZOCSOH    [F:ZOCSOH2] : Endif
+  If !clalev([F:ZOCSOQ2]): Local File ZOCSOQ    [F:ZOCSOQ2] : Endif
+  #--
+  If !clalev([F:ZECP])   : Local File EDICPYPAR [F:ZECP]    : Endif
+  If !clalev([F:ZEFP])   : Local File EDIFCYPAR [F:ZEFP]    : Endif
+  If !clalev([F:ZEBP])   : Local File EDIBPRPAR [F:ZEBP]    : Endif
+  #--
+  If !clalev([F:ZITU])   : Local File ITMBPC    [F:ZITU]    : Endif
+  If !clalev([F:ZITM])   : Local File ITMMASTER [F:ZITM]    : Endif
+  If !clalev([F:YBPC1])  : Local File BPCUSTOMER[F:YBPC1]   : Endif
+
+  If !clalev([F:YSOH1])  : Local File SORDER    [F:YSOH1]   : Endif
+  If !clalev([F:YSOQ1])  : Local File SORDERQ   [F:YSOQ1]   : Endif
+
+# Mascaras....
+  If clalev([M:ZOCERE1C])=0 : Local Mask ZOCERE1C       [M:ZOCERE1C] : Raz [M:ZOCERE1C] : Endif
+  If clalev([M:ZOCERE1T])=0 : Local Mask ZOCERE1T       [M:ZOCERE1T] : Raz [M:ZOCERE1T] : Endif
+  If clalev([M:ZOCERE1P])=0 : Local Mask ZOCERE1P       [M:ZOCERE1P] : Raz [M:ZOCERE1P] : Endif
+  If clalev([M:ZOCERE1L])=0 : Local Mask ZOCERE1L       [M:ZOCERE1L] : Raz [M:ZOCERE1L] : Endif
+  If clalev([M:ZOCERESO])=0 : Local Mask ZOCERESO       [M:ZOCERESO] : Raz [M:ZOCERESO] : Endif
+  If clalev([M:ZOCRECTL])=0 : Local Mask ZOCRECTL       [M:ZOCRECTL] : Raz [M:ZOCRECTL] : Endif
+
+  Default Mask [M:ZOCERE1C]
+  Default Mask [M:ZOCERE1T]
+  Default Mask [M:ZOCERE1P]
+  Default Mask [M:ZOCERE1L]
+  Default Mask [M:ZOCERESO]
+  Default Mask [M:ZOCRECTL]
+
+  # Adaptación codigo LIENS(SPEZOC).....
+For [F:ZOCTL] Where [F:ZOCTL]YESTADO = 1
+
+    Read [F:ZOC1C]ZOC1C0 = [F:ZOCTL]CONTADOR
+    If !fstat
+      [M:ZOCERE1C] = [F:ZOC1C]
+    Endif
+    Affzo [M:ZOCERE1C]
+
+    nolign = 1
+    Filter [F:ZOC1T] Where CONTADOR = [F:ZOCTL]CONTADOR
+    For [F:ZOC1T]
+      [M:ZOCERE1T]NBLIG = nolign
+      [M:ZOCERE1T] = [F:ZOC1T]
+      nolign += 1
+    Next
+
+    Filter [F:ZOC1T]
+    [M:ZOCERE1T]NBLIG = nolign-1
+    Affzo [M:ZOCERE1T]
+
+    nolign = 1
+    Filter [F:ZOC1P] Where CONTADOR = [F:ZOCTL]CONTADOR
+    For [F:ZOC1P]
+      [M:ZOCERE1P]NBLIG1 = nolign
+      [M:ZOCERE1P] = [F:ZOC1P]
+      nolign += 1
+    Next
+    Filter [F:ZOC1P]
+    [M:ZOCERE1P]NBLIG1 = nolign-1
+    Affzo [M:ZOCERE1P]
+
+    nolign = 1
+    Filter [F:ZOC1L] Where CONTADOR = [F:ZOCTL]CONTADOR
+    For [F:ZOC1L]
+      [M:ZOCERE1L]NBLIG2 = nolign
+      [M:ZOCERE1L] = [F:ZOC1L]
+      nolign += 1
+    Next
+    Filter [F:ZOC1L]
+    [M:ZOCERE1L]NBLIG2 = nolign-1
+    Affzo [M:ZOCERE1L]
+
+    Read [F:ZOCSOH]ZOCSOH0 = [F:ZOCTL]CONTADOR
+    If fstat
+      Gosub CARGA_SOH_W_MASIV
+      Gosub GUARDAR_MASIV
+    Else
+      Gosub CARGA_SOH_R_MASIV # -- Leer
+    Endif
+    If [M:ZOCRECTL]SOHNUM <> ""
+      Grizo [M:ZOCERESO]
+    Else
+      Actzo [M:ZOCERESO]
+    Endif
+
+    If [F:ZOCTL]YINCIDENCIA < 5
+        For I=0 To [M:ZOCERESO]NBLIG3-1
+            If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
+                [F:ZOCTL]YINCIDENCIA = 4
+                Rewrite [F:ZOCTL]
+                [M:ZOCRECTL]YINCIDENCIA = 4
+#                Infbox "INCIDENCIA: "-num$([M:ZOCRECTL]YINCIDENCIA)
+                Break
+            Endif
+
+            If [M:ZOCERESO]ITMREF(I) = ''
+                [F:ZOCTL]YINCIDENCIA = 3
+                Rewrite [F:ZOCTL]
+                [M:ZOCRECTL]YINCIDENCIA = 3
+#                Infbox "INCIDENCIA: "-num$([M:ZOCRECTL]YINCIDENCIA)
+                Break
+            Endif
+
+            If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I)
+                [F:ZOCTL]YINCIDENCIA = 2
+                Rewrite [F:ZOCTL]
+                [M:ZOCRECTL]YINCIDENCIA = 2
+#                Infbox "INCIDENCIA: "-num$([M:ZOCRECTL]YINCIDENCIA)
+            Endif
+        Next
+    Endif
+
+    If [M:ZOCERESO]BPCINV = ""
+        [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+        [F:ZOCSOH]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+        Rewrite [F:ZOCSOH]
+    Endif
+
+    Affzo [M:ZOCRECTL]
+    Affzo [M:ZOCERESO]
+
+    [L]S_SQLMESS = "SELECT CASE WHEN EXISTS (SELECT 1 FROM SANYCCES.ZOCERE1T WHERE CONTADOR_0 = '"+[F:ZOCTL]CONTADOR+
+&   "' AND CHARINDEX('PEDIDO ENTREGA DIRECTA',CONCAT(C3_0,C4_0,C5_0,C6_0,C7_0))>0) THEN 1 ELSE 0 END AS Encontrado"
+
+    For (Integer I_ENCONTRADO) From '5'  Sql [L]S_SQLMESS As [ZSQL]
+        If [ZSQL]I_ENCONTRADO
+            [M:ZOCERE1C]C10 = 'EDP'
+            [F:ZOC1C]C10 = 'EDP'
+            Rewrite [F:ZOC1C]
+            Affzo [M:ZOCERE1C]
+        Endif
+    Next
+
+    Raz [M:ZOCERE1C]
+    Raz [M:ZOCERE1T]
+    Raz [M:ZOCERE1P]
+    Raz [M:ZOCERE1L]
+    Raz [M:ZOCERESO]
+    Raz [M:ZOCRECTL]
+Next
+Return
+######################################################################################
+
+######################################################################################
+$CARGA_SOH_R_MASIV
+  #--
+
+  [M:ZOCERESO] = [F:ZOCSOH]
+  nolign = 0
+  Filter [F:ZOCSOQ] Where CONTADOR = [F:ZOCTL]CONTADOR
+
+  For [F:ZOCSOQ]
+    [M:ZOCERESO]NBLIG3 = nolign
+    [M:ZOCERESO]DTO1(nolign) =     [F:ZOCSOQ]DTO1
+    [M:ZOCERESO]DTO1S(nolign) =     [F:ZOCSOQ]DTO1S
+    [M:ZOCERESO]DTO2(nolign) =     [F:ZOCSOQ]DTO2
+    [M:ZOCERESO]DTO2S(nolign) =     [F:ZOCSOQ]DTO2S
+    [M:ZOCERESO]DTO3(nolign) =     [F:ZOCSOQ]DTO3
+    [M:ZOCERESO]DTO3S(nolign) =     [F:ZOCSOQ]DTO3S
+    [M:ZOCERESO]GROPRI(nolign) =     [F:ZOCSOQ]GROPRI
+    [M:ZOCERESO]GROPRIS(nolign) =     [F:ZOCSOQ]GROPRIS
+    [M:ZOCERESO]ITMCOMP(nolign) =     [F:ZOCSOQ]ITMCOMP
+    [M:ZOCERESO]ITMDES(nolign) =     [F:ZOCSOQ]ITMDES
+    [M:ZOCERESO]ITMREF(nolign) =     [F:ZOCSOQ]ITMREF
+    [M:ZOCERESO]NETPRI(nolign) =     [F:ZOCSOQ]NETPRI
+    [M:ZOCERESO]NETPRIS(nolign) =     [F:ZOCSOQ]NETPRIS
+    [M:ZOCERESO]QTY(nolign) =     [F:ZOCSOQ]QTY
+    [M:ZOCERESO]SAU(nolign) =     [F:ZOCSOQ]SAU
+    [M:ZOCERESO]SOHLIN(nolign) =     [F:ZOCSOQ]SOHLIN
+    nolign += 1
+  Next
+
+  Filter [F:ZOCSOQ]
+  [M:ZOCERESO]NBLIG3 = nolign
+  Affzo [M:ZOCERESO]
+
+  For I=0 To [M:ZOCERESO]NBLIG3-1
+  Call CALCULO_TARIFA_DESCUENTOS([M:ZOCERESO]BPCORD,[M:ZOCERESO]ITMREF(I),[M:ZOCERESO]SALFCY,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]QTY,[M:ZOCERESO]SAU(I),[M:ZOCERESO
+& ]GROPRIS(I),[M:ZOCERESO]NETPRIS(I),[L]AF_DESC)
+      [M:ZOCERESO]DTO1S(I)   = [L]AF_DESC(0)
+      [M:ZOCERESO]DTO2S(I)   = [L]AF_DESC(1)
+      [M:ZOCERESO]DTO3S(I)   = [L]AF_DESC(2)
+  Next
+
+  If [M:ZOCRECTL]SOHNUM <>"" Then
+#    Chgstl [M:ZOCRECTL]SOHNUM With "MTC2"
+    [M:ZOCERESO]SOHNUM = [M:ZOCRECTL]SOHNUM : Affzo [M:ZOCERESO]SOHNUM
+#    Chgstl [M:ZOCERESO]SOHNUM With "MTC2"
+  Else
+#    Chgstl [M:ZOCRECTL]SOHNUM With ""
+#    Chgstl [M:ZOCERESO]SOHNUM With ""
+  Endif
+  Affzo [M:ZOCERESO]
+Return
+######################################################################################
+
+######################################################################################
+$CARGA_SOH_W_MASIV
+
+  #--
+  Raz [M:ZOCERESO]
+  Raz WTEXTO
+  If [M:ZOCRECTL]SOHNUM<>"" Then
+    [M:ZOCERESO]SOHNUM = [M:ZOCRECTL]SOHNUM : Affzo [M:ZOCERESO]SOHNUM
+  Endif
+  #--
+  [M:ZOCERESO]SALFCY =  "11"    # hay que parametrizar, no puede estar fija
+  [M:ZOCERESO]SOHTYP =  "SON"
+  [M:ZOCERESO]ORDDAT    =  gdat$(val(mid$([M:ZOCERE1C]C5,7,2)),val(mid$([M:ZOCERE1C]C5,5,2)),val(mid$([M:ZOCERE1C]C5,1,4)))
+  [M:ZOCERESO]CUSORDREF =  [M:ZOCERE1C]C3
+  [M:ZOCERESO]CUR       =  [M:ZOCERE1C]C16
+  [M:ZOCERESO]DEMDLVDAT = gdat$(val(mid$([M:ZOCERE1C]C7,7,2)),val(mid$([M:ZOCERE1C]C7,5,2)),val(mid$([M:ZOCERE1C]C7,1,4)))
+
+  If [M:ZOCERESO]BPCORD <> ''
+      [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+  Endif
+
+  For I = 0 To [M:ZOCERE1T]NBLIG - 1
+    If vireblc([M:ZOCERE1T]C3(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C3(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C4(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C4(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C5(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C5(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C6(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C6(I)
+    Endif
+    If vireblc([M:ZOCERE1T]C7(I),4) <> ""
+      WTEXTO(I)   += [M:ZOCERE1T]C7(I)
+    Endif
+#    If dim(WTEXTO(0)) > 0 Then
+#      Chgstl [M:ZOCERE1T]NBLIG(I) With "MTC2"  # en VERDE
+#    Else
+#      Chgstl [M:ZOCERE1T]NBLIG(I) With ""  #
+#    Endif
+  Next
+  [M:ZOCERESO]TEXTOC1   = WTEXTO(0)
+
+  [M:ZOCERESO]TEXTOC2   = WTEXTO(1)+WTEXTO(2)
+  #--
+  #-- BY quien compra, es el cliente
+  #-- DP punto destino mercancia, dirección de entrega
+  #-- SU proveedor, es sanycess
+  #-- IV a quien se factura, cliente a facturar
+  #-- PR pagador, quien paga
+  For I = 0 To [M:ZOCERE1P]NBLIG1 - 1
+#    Chgstl [M:ZOCERE1P]NBLIG1(I)  With "" # LIMPIAMOS ESTILO
+    Case vireblc([M:ZOCERE1P]C2(I),4)
+      When "SU" : Gosub SEGSU
+
+# @01@ - SCD - 11/08/23 - INI
+#**@deprecated
+#*
+#*       When "DP" : Gosub SEGDP
+#*    #  When "BY" : Gosub SEGBY
+#*
+#*!
+#      When "DP" : Gosub SEGDP
+      When "BY" : Gosub SEGDP
+
+
+# @01@ - SCD - 11/08/23 - FIN
+
+    #  When "IV" : Gosub SEGIV
+    #  When "PR" : Gosub SEGPR
+    #  When Default
+    Endcase
+
+  Next
+  #--
+  nolign = 1
+  For I = 0 To [M:ZOCERE1L]NBLIG2 - 1
+    [M:ZOCERESO]NBLIG3 = nolign
+    # Read [F:ZITM]SPE_ITM9 = vireblc([M:ZOCERE1L]C3,4) # NUN05.14032023.OLD - No existen estos índices en la tabla
+    Filter [F:ZITM] Where EANCOD =  vireblc([M:ZOCERE1L]C3(I),4)
+    Read [F:ZITM] First
+    If !fstat
+      [M:ZOCERESO]ITMREF(I) = [F:ZITM]ITMREF
+#      Chgstl [M:ZOCERESO]ITMREF(I) With "MTC2"  # en VERDE
+      [M:ZOCERESO]ITMDES(I) = [F:ZITM]ITMDES1
+      [M:ZOCERESO]SAU(I)    = [F:ZITM]SAU
+#      Chgstl [M:ZOCERE1L]NBLIG2(I) With "MTC2"  # en VERDE
+    Else
+#      Chgstl [M:ZOCERESO]ITMREF(I) With "MTC1"  # en ROJO
+#      Chgstl [M:ZOCERE1L]NBLIG2(I) With "MTC1"  # en ROJO
+    Endif
+    Filter [F:ZITM]
+    [M:ZOCERESO]ITMCOMP(I)  = vireblc([M:ZOCERE1L]C10(I),4) #@01@ - Rellenamos el artículo comprador con la información del fichero
+    [M:ZOCERESO]SOHLIN(I)   = [M:ZOCERE1L]ERE1LLIN(I)
+    [M:ZOCERESO]QTY(I)      = [M:ZOCERE1L]C13(I)
+
+    #Precios del fichero ORDERS
+    If [M:ZOCERE1L]C22(I) = 0 Then
+      [M:ZOCERESO]GROPRI(I) = [M:ZOCERE1L]C23(I)
+    Else
+      [M:ZOCERESO]GROPRI(I)   = [M:ZOCERE1L]C22(I)
+    Endif
+    #@01@ - Se añaden los precios del ORDERS que faltaban y se calculan los precios con tarifas Sage
+    [M:ZOCERESO]DTO1(I)   = 0
+    [M:ZOCERESO]DTO2(I)   = 0
+    [M:ZOCERESO]DTO3(I)   = 0
+    [M:ZOCERESO]NETPRI(I) = [M:ZOCERE1L]C23(I)
+
+    #Precios calculados con tarifas Sage
+   Call CALCULO_TARIFA_DESCUENTOS([M:ZOCERESO]BPCORD,[M:ZOCERESO]ITMREF(I),[M:ZOCERESO]SALFCY,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]QTY,[M:ZOCERESO]SAU(I),[M:ZOCERESO]
+&  GROPRIS(I),[M:ZOCERESO]NETPRIS(I),[L]AF_DESC)
+    [M:ZOCERESO]DTO1S(I)   = [L]AF_DESC(0)
+    [M:ZOCERESO]DTO2S(I)   = [L]AF_DESC(1)
+    [M:ZOCERESO]DTO3S(I)   = [L]AF_DESC(2)
+
+    nolign += 1
+  Next
+  [M:ZOCERESO]NBLIG3 = nolign-1
+  Affzo [M:ZOCERESO]
+Return
+######################################################################################
+
+######################################################################################
+$GUARDAR_MASIV
+  #--
+  Delete [F:ZOCSOH] Where CONTADOR = [F:ZOCTL]CONTADOR
+  Delete [F:ZOCSOQ] Where CONTADOR = [F:ZOCTL]CONTADOR
+  #--
+  Raz [F:ZOCSOH]
+  [F:ZOCSOH]CONTADOR = [F:ZOCTL]CONTADOR
+  [F:ZOCSOH] = [M:ZOCERESO]
+  Write [F:ZOCSOH]
+  #--
+  For I = 0 To [M:ZOCERESO]NBLIG3 - 1
+    Raz [F:ZOCSOQ]
+    [F:ZOCSOQ]CONTADOR = [F:ZOCTL]CONTADOR
+    [F:ZOCSOQ]DTO1 = [M:ZOCERESO]DTO1(I)
+    [F:ZOCSOQ]DTO1S = [M:ZOCERESO]DTO1S(I)
+    [F:ZOCSOQ]DTO2 = [M:ZOCERESO]DTO2(I)
+    [F:ZOCSOQ]DTO2S = [M:ZOCERESO]DTO2S(I)
+    [F:ZOCSOQ]DTO3 = [M:ZOCERESO]DTO3(I)
+    [F:ZOCSOQ]DTO3S = [M:ZOCERESO]DTO3S(I)
+    [F:ZOCSOQ]GROPRI = [M:ZOCERESO]GROPRI(I)
+    [F:ZOCSOQ]GROPRIS = [M:ZOCERESO]GROPRIS(I)
+    [F:ZOCSOQ]ITMCOMP = [M:ZOCERESO]ITMCOMP(I)
+    [F:ZOCSOQ]ITMDES = [M:ZOCERESO]ITMDES(I)
+    [F:ZOCSOQ]ITMREF = [M:ZOCERESO]ITMREF(I)
+    [F:ZOCSOQ]NETPRI = [M:ZOCERESO]NETPRI(I)
+    [F:ZOCSOQ]NETPRIS = [M:ZOCERESO]NETPRIS(I)
+    [F:ZOCSOQ]QTY = [M:ZOCERESO]QTY(I)
+    [F:ZOCSOQ]SAU = [M:ZOCERESO]SAU(I)
+    [F:ZOCSOQ]SOHLIN = [M:ZOCERESO]SOHLIN(I)
+    nolign += 1
+    Write [F:ZOCSOQ]
+  Next
+
+ [F:ZOC1C] = [M:ZOCERE1C]
+ Rewrite [F:ZOC1C]
+
+Return
+
+######################################################################################
+
+######################################################################################
+$SEGDP
+  #--
+# @01@ - SCD - 11/08/23 - INI
+#**
+#*
+#* Filter [F:ZEBP] Where EDISDHCOD = vireblc([M:ZOCERE1P]C3(I),4)
+#*
+#*!
+Filter [F:ZEBP] Where EXCEDICOD = vireblc([M:ZOCERE1P]C3(I),4)
+# @01@ - SCD - 11/08/23 - FIN
+
+
+  Read [F:ZEBP] First
+  If !fstat Then
+    [M:ZOCERESO]BPCORD = [F:ZEBP]BPANUM
+    [M:ZOCERESO]BPAADD = [F:ZEBP]BPAADD
+    Chgstl [M:ZOCERESO]BPCORD With "MTC2"  # en VERDE
+    Chgstl [M:ZOCERE1P]NBLIG1(I)  With "MTC2"  # en VERDE
+    Chgstl [M:ZOCERESO]BPAADD With "MTC2"  # en VERDE
+  Else
+    Chgstl [M:ZOCERESO]BPCORD With "MTC1"  # en ROJO
+    Chgstl [M:ZOCERESO]BPAADD With "MTC1"  # en ROJO
+    Chgstl [M:ZOCERE1P]NBLIG1(I)  With "MTC1"  # en VERDE
+  Endif
+  Filter [F:ZEBP]
+Return
+######################################################################################
+
+######################################################################################
+$SEGSU
+Return
+######################################################################################
+
+######################################################################################
+Funprog CHECK_BPCINV(PS_BPCORD)
+  Value Char PS_BPCORD
+  Local Char L_BPCINV(GLONBPR)
+
+  If !clalev([F:YBPC])   : Local File BPCUSTOMER    [F:YBPC]   : Endif
+  Read [F:YBPC]BPC0 = PS_BPCORD
+  If !fstat
+    [L]L_BPCINV = [F:YBPC]BPCINV
+ Endif
+End [L]L_BPCINV
+######################################################################################
+
+######################################################################################
+#**Función para realizar el cálculo de tarifas y descuentos
+#*
+#* @param PS_BPC      Cliente de la tarifa
+#* @param PS_ITM      Código del artículo
+#* @param PS_SALFCY   Planta de venta
+#* @param PS_STOFCY
+#* @param PS_CUR
+#* @param PD_DAT
+#* @param PF_QTY
+#* @param PS_UOM
+#* @param PRF_GROPRI
+#* @param PRF_NETPRI
+#* @param PRAF_DESC
+#*!
+Subprog CALCULO_TARIFA_DESCUENTOS(PS_BPC,PS_ITM,PS_SALFCY,PS_STOFCY,PS_CUR,PD_DAT,PF_QTY,PS_UOM,PRF_GROPRI,PRF_NETPRI,PRAF_DESC)
+Value     Char    PS_BPC ()
+Value     Char    PS_ITM ()
+Value     Char    PS_SALFCY ()
+Value     Char    PS_STOFCY ()
+Value     Char    PS_CUR ()
+Value     Date    PD_DAT
+Value     Decimal PF_QTY
+Value     Char    PS_UOM ()
+Variable  Decimal PRF_GROPRI
+Variable  Decimal PRF_NETPRI
+Variable  Decimal PRAF_DESC
+
+Local   Integer AFF, NOL
+
+#--- pas d'appel du s/p si les on est dans les commandes
+If GFONCTION="GESSOH" : End : Endif
+
+NOL=nolign
+
+Gosub SIM_SPC_FILE From TRTPRICE
+Gosub SIM_SPC_GLOB From TRTPRICE
+Call TARIFCHGT(5)  From TRTPRICE
+
+If clalev([F:REP])=0 : Local File SALESREP [REP] : Endif
+
+
+If clalev([M:SOH0])=0 : Local Mask SOH0      [SOH0] : Raz [M:SOH0] : Endif
+If clalev([M:SOH1])=0 : Local Mask SOH1      [SOH1] : Raz [M:SOH1] : Endif
+If clalev([M:SOH2])=0 : Local Mask SOH2      [SOH2] : Raz [M:SOH2] : Endif
+If clalev([M:SOH3])=0 : Local Mask SOH3      [SOH3] : Raz [M:SOH3] : Endif
+If clalev([M:SOH4])=0 : Local Mask SOH4      [SOH4] : Raz [M:SOH4] : Endif
+
+Default Mask [SOH4]
+Default Mask [SOH3]
+Default Mask [SOH2]
+Default Mask [SOH1]
+Default Mask [SOH0]
+
+# Issue 74556 - 2011-07-04 by VPO : lecture ssi besoin
+If [F:BPC]BPCNUM<>[L]PS_BPC
+Read [BPC]BPC0=[L]PS_BPC : #Call LECTURE ("BPC",[L]BPC,"") From CONTOBJ
+Endif
+If [F:ITS]ITMREF<>[L]PS_ITM
+Read [ITS]ITS0=[L]PS_ITM : #Call LECTURE ("ITS",[L]ITM,"") From CONTOBJ
+Endif
+If [F:ITM]ITMREF<>[L]PS_ITM
+Read [ITM]ITM0=[L]PS_ITM : #Call LECTURE ("ITM",[L]ITM,"") From CONTOBJ
+Endif
+
+[M]BPCORD=[L]PS_BPC : [M]ORDDAT=[L]PD_DAT
+
+If [L]PS_SALFCY = "" [M]SALFCY=GFCYDEF(5) Else [M]SALFCY=[L]PS_SALFCY Endif
+If [L]PS_STOFCY = "" [M]STOFCY=GFCYDEF(7) Else [M]STOFCY=[L]PS_STOFCY Endif
+
+nolign=1
+[M:SOH4]ITMREF(0)=[L]PS_ITM
+[M:SOH4]SAU(0)=[L]PS_UOM
+[M:SOH4]QTY(0)=[L]PF_QTY
+
+Call ALICDE(1,"C",[M]BPCORD) From TRTVENCDE
+[M]CUR=[L]PS_CUR
+Call INIT_SOH(1,AFF) From SUBSOHB
+Call INIT_ITM (1,[M:SOH4]ITMREF(0)) From SUBSOHB
+
+Raz [L]PRF_GROPRI, [L]PRF_NETPRI
+Call RECH_TARIF (1,[M:SOH4]ITMREF(0),0,[M:SOH4]QTY(0),"SOH",[M:SOH4]GROPRI(0)) From TRTVENTAR
+[L]PRF_GROPRI=[M:SOH4]GROPRI(0)
+Call CLCNETPRI([M]QTY(0),[M:SOH0]CUR,0) From TRTVENPRI
+[L]PRF_NETPRI=[M]NETPRI(0)
+
+nolign=NOL
+
+PRAF_DESC(0) = [M:SOH4]DISCRGVAL1
+PRAF_DESC(1) = [M:SOH4]DISCRGVAL2
+PRAF_DESC(2) = [M:SOH4]DISCRGVAL3
+
+End
+#######################################################################################

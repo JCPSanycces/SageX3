@@ -1,0 +1,420 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+# @01@ - EQM - 30/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
+# @02@ - EQM - 16/09/2025 - Mejoras etiquetas
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+$ACTION
+Case ACTION
+  When "DEBUT"     :  Gosub DEBUT
+  When "AVANT_OK"  :  Gosub AVANT_OK
+  When "OK"        :  Gosub OK
+Endcase
+Return
+
+####################################
+$DEBUT
+# Cargo la pantalla
+Raz [M:YPSAP]
+
+[M:YPSAP]S_OF        = GL1LLE(0)
+[M:YPSAP]S_ARTICULO  = GL1LLE(1)
+[M:YPSAP]S_ARTICULOD = GL1LLE(2)
+[M:YPSAP]S_QTYL      = val(GL1LLE(3))
+[M:YPSAP]S_UNIDAD    = GL1LLE(4)
+[M:YPSAP]S_LINEA     = val(GL1LLE(6))
+
+If !clalev([K2]) : Local File MFGHEAD  [K2] : Endif
+Read [K2]MFG0 = GL1LLE(0)
+If fstat = 0
+  [M:YPSAP]S_QTYINOALTA = [K2]YQTYINICIADA - [K2]YQTYALTA
+Endif
+Close Local File [K2]
+
+# Ajusto etiquetas en función sea una baja parcial (GL1LLE(7)=1) o un alta parcial (GL1LLE(7)=2)
+If GL1LLE(7)="2"
+  Chgtzn[M:YPSAP]S_QTYI With "Ctd. a dar de alta"
+Endif
+
+# Para el caso de INICIO parcial...
+If GL1LLE(7)="1"
+  # Si el artículo tiene gestión de números de serie, los cargo en pantalla
+  If GL1LLE(5)= "2"
+    If !clalev([K1]) : Local File YMFGSERIE  [K1] : Endif
+
+    Local Integer YA_INICIADAS
+    Filter [K1] Where [K1]MFGNUM = [M:YPSAP]S_OF and [K1]MFGLIN = [M:YPSAP]S_LINEA and [K1]INICIADA = 2
+      [L]YA_INICIADAS = rowcount([K1])
+    Filter [K1]
+    [M:YPSAP]S_QTYP = [M:YPSAP]S_QTYL - [L]YA_INICIADAS
+
+    nolign = 1
+    Filter [K1] Where [K1]MFGNUM = [M:YPSAP]S_OF and [K1]MFGLIN = [M:YPSAP]S_LINEA and [K1]INICIADA <> 2 Order By [K1]NSERIE Asc
+    For [K1]
+      [M:YPSAP]S_NSERIE(nolign-1) = [K1]NSERIE
+      nolign +=1
+    Next
+    Filter [K1]
+
+    [M:YPSAP]PIE_S = nolign-1
+
+    Close Local File [K1]
+
+    If [M:YPSAP]PIE_S = 0 : Errbox "No hay números de serie para iniciar" : Endif
+
+  # Si el artículo NO tiene gestión de números de serie...
+  Elsif GL1LLE(5)= "1"
+    If !clalev([K2]) : Local File MFGHEAD  [K2] : Endif
+
+    Read [K2]MFG0 = [M:YPSAP]S_OF
+    If fstat = 0
+      [M:YPSAP]S_QTYP = [M:YPSAP]S_QTYL - [K2]YQTYINICIADA
+    Endif
+
+    Close Local File [K2]
+  Endif
+
+# Para el caso de ALTA parcial...
+Elsif GL1LLE(7)="2"
+  # Si el artículo tiene gestión de números de serie, cargo en pantalla los que NO están dado de alta y SI iniciados
+  If GL1LLE(5)= "2"
+    If !clalev([K1]) : Local File YMFGSERIE  [K1] : Endif
+
+    Local Integer YA_ALTA
+    Filter [K1] Where [K1]MFGNUM = [M:YPSAP]S_OF and [K1]MFGLIN = [M:YPSAP]S_LINEA and [K1]ALTA = 2
+      [L]YA_ALTA = rowcount([K1])
+    Filter [K1]
+    [M:YPSAP]S_QTYP = [M:YPSAP]S_QTYL - [L]YA_ALTA
+
+    nolign = 1
+    Filter [K1] Where [K1]MFGNUM = [M:YPSAP]S_OF and [K1]MFGLIN = [M:YPSAP]S_LINEA and [K1]ALTA <> 2 and [K1]INICIADA = 2 Order By [K1]NSERIE Asc
+    For [K1]
+      [M:YPSAP]S_NSERIE(nolign-1) = [K1]NSERIE
+      nolign +=1
+    Next
+    Filter [K1]
+
+    [M:YPSAP]PIE_S = nolign-1
+
+    Close Local File [K1]
+
+    If [M:YPSAP]PIE_S = 0 : Errbox "No hay números de serie para dar de alta" : Endif
+
+  # Si el artículo NO tiene gestión de números de serie...
+  Elsif GL1LLE(5)= "1"
+    If !clalev([K2]) : Local File MFGHEAD  [K2] : Endif
+
+    Read [K2]MFG0 = [M:YPSAP]S_OF
+    If fstat = 0
+      [M:YPSAP]S_QTYP = [M:YPSAP]S_QTYL - [K2]YQTYALTA
+    Endif
+
+    Close Local File [K2]
+  Endif
+
+Endif
+
+Affzo [M:YPSAP]
+Return
+
+
+####################################
+$AVANT_OK
+# Para el caso de INICIO parcial, debo comprobar que tengo suficiente cantidad asignada para todos los componentes de la orden
+# de forma proporcional para la cantidad que estoy lanzando
+Local Integer SIGO : SIGO = 2
+
+If !clalev([F:JJ0]): Local File MFGITM [JJ0] : Endif
+If !clalev([F:JJ1]): Local File MFGMAT [JJ1] : Endif
+
+Local Decimal QTY_NECESITO
+
+Filter [JJ0] Where [JJ0]MFGNUM = GL1LLE(0) and [JJ0]MFGLIN = val(GL1LLE(6))
+  For [JJ0]
+    Filter [JJ1] Where [JJ1]MFGNUM = [JJ0]MFGNUM and [JJ1]MFGLIN = [JJ0]MFGLIN and [JJ1]MATSTA < 2
+      For [JJ1]
+        If [JJ0]EXTQTY <> 0
+          [L]QTY_NECESITO = ([JJ1]RETQTY * [M:YPSAP]S_QTYI) / [JJ0]EXTQTY
+        Else
+          SIGO = 1
+        Endif
+
+        If [L]QTY_NECESITO > [JJ1]ALLQTY + [JJ1]USEQTY
+          SIGO = 1
+          Break 2
+        Endif
+
+      Next
+    Filter [JJ1]
+  Next
+Filter [JJ0]
+
+If SIGO = 1
+  Errbox "No hay suficiente cantidad asignada en todos los componentes para poder iniciar parcialmente la OF con la cantidad indicada"
+  FOK = 0
+  FIN = 0
+Elsif SIGO = 2
+  # Si el artículo tiene gestión de números de serie, controlo si la cantidad a iniciar no es la misma que seleccionada, muestro error
+  If GL1LLE(5)= "2"
+    If [M:YPSAP]S_QTYI <> [M:YPSAP]S_QTYS
+      # Para el caso de INICIO parcial...
+      If GL1LLE(7)="1"
+        Errbox "La cantidad a iniciar no es la misma que la cantidad seleccionada"
+      # Para el caso de ALTA parcial...
+      Elsif GL1LLE(7)="2"
+        Errbox "La cantidad a dar de alta no es la misma que la cantidad seleccionada"
+      Endif
+      FOK = 0
+      FIN = 0
+    Elsif GL1LLE(7)="2" and [M:YPSAP]S_QTYI > [M:YPSAP]S_QTYINOALTA
+      Errbox "La cantidad a dar de alta no puede ser superior a la iniciada pendiente de dar de alta"
+      FOK = 0
+      FIN = 0
+    Endif
+  Endif
+Endif
+
+Close Local File [JJ0]
+Close Local File [JJ1]
+Return
+
+
+####################################
+$OK
+# Seguridad. Mensaje info si la cantidad a iniciar es cero
+If [M:YPSAP]S_QTYI = 0
+  # Para el caso de INICIO parcial...
+  If GL1LLE(7)="1"
+    Errbox "No hay cantidad a iniciar. Ningún proceso realizado"
+  Elsif GL1LLE(7)="2"
+    Errbox "No hay cantidad a dar de alta. Ningún proceso realizado"
+  Endif
+  Return
+Endif
+
+# Para el caso de INICIO parcial...
+If GL1LLE(7)="1"
+
+  # Gestiono la impresión de números de serie y los consumos para los números de serie seleccionados
+  If !clalev([XP1]) : Local File ITMMASTER  [XP1] : Endif
+  If !clalev([XP2]) : Local File ZITMLOGO   [XP2] : Endif
+  If !clalev([XP3]) : Local File YMFGSERIE  [XP3] : Endif
+  If !clalev([XP4]) : Local File MFGHEAD    [XP4] : Endif
+  If !clalev([XP5]) : Local File MFGHEADTRK [XP5] : Endif
+  If !clalev([XP6]) : Local File MFGHEAD    [XP6] : Endif # @01@ - EQM
+  If !clalev([XP7]) : Local File MFGITM     [XP7] : Endif # @01@ - EQM
+  If !clalev([XP8]) : Local File SORDERQ    [XP8] : Endif # @01@ - EQM
+  If !clalev([XP9]) : Local File MFGMAT     [XP9] : Endif # @01@ - EQM
+  If !clalev([XP10]): Local File SORDERQ    [XP10]: Endif # @01@ - EQM
+  If !clalev([XP11]): Local File SORDERQ    [XP11]: Endif # @01@ - EQM
+  Local Integer NETI_COR # @02@ - EQM
+
+  # Gestiono la impresión
+  Local Integer OK9
+  Call OUINON("¿Quiere imprimir la documentación de las OFs seleccionadas?",OK9) From GESECRAN
+  If OK9 = 2
+    For LINE=0 To [M:YPSAP]PIE_S-1
+      If [M:YPSAP]S_SEL(LINE) = 2
+        # Gestiono la impresión
+        Read [XP6]MFG0=[M:YPSAP]S_OF  # @01@ - EQM
+        If !fstat
+            Call PRINT_OF(1,[XP6]PLNFCY,[XP6]MFGNUM,[M:YPSA]FECHA(I),[M:YPSAP]S_NSERIE(LINE),1) From SPEYPSA    #@02@ - EQM - Añado parámetros
+            Read [XP1]ITM0 = [M:YPSAP]S_ARTICULO
+            If fstat = 0
+              Read [XP2]ZITML0 = [XP1]TSICOD(1)    # Familia
+              If fstat = 0
+                NETI_COR = [XP2]QTYETQCOR # @02@ - EQM
+                If [XP2]QTYETQEAN13>0
+                    Call PRINT_ETI([XP6]MFGNUM,[XP2]ETQEAN13,1) From SPEYPSA                        #ETIQUETA PRODUCTO    # @01@ - EQM
+                Endif
+                If [XP2]QTYETQSER>0
+                    Call PRINT_ETI_SER([M:YPSAP]S_OF,[XP2]ETQSER,[M:YPSAP]S_NSERIE(LINE),1)         #ETIQUETA SERIE       # @01@ - EQM
+                Endif
+                If [XP2]QTYETQMOT>0
+                        #@02@ - EQM - 16/09/2025  AÑADIMOS QUE IMPRIMA TANTOS PDF COMO CANTIDAD A INICIAR
+                        Call PRINT_ETI([XP6]MFGNUM,[XP2]ETQMOTOR,1)   From SPEYPSA                      #ETIQUETA MOTOR       # @01@ - EQM
+                Endif
+                If [XP2]QTYETQCOR>0
+                    For [XP7] Where [XP7]MFGNUM=[XP6]MFGNUM
+                        Read [XP8]SOQ0 = [XP7]VCRNUMORI;[XP7]VCRLINORI;[XP7]VCRSEQORI
+                        If fstat = 0
+                          If [XP8]ZALTO <>0 or [XP8]ZANCHO<>0 or [XP8]ZLARGO <>0
+                            If [L]NETI_COR > 0
+                                Call PRINT_ETI([XP6]MFGNUM, [XP2]ETQCORTE,1)     From SPEYPSA        #ETIQUETA CORTE      # @01@ - EQM
+                            Endif
+                          Endif
+                        Endif
+                    Next
+                Endif
+#                For [XP9] Where [XP9]MFGNUM = [XP6]MFGNUM
+#                    If [XP9]ZASOCIADO = 2
+#                        Call PRINT_ETI_ASO([XP6]MFGNUM,[XP9]ITMREF,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+#                    Endif
+#                Next
+
+                For [XP11] Where [XP11]FMINUM=[XP6]MFGNUM
+                Read [XP11]
+                If !fstat
+                    For [XP10] Where  [XP10]SOHNUM=[XP11]SOHNUM and [XP10]ZLINASOC=[XP11]SOPLIN and [XP10]ZASOCIADO=2
+                    Read[XP10]
+                    If !fstat
+                        Call PRINT_ETI_ASO([XP10]SOHNUM,[XP10]ITMREF,[XP10]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM  From SPEYPSA
+                    Endif
+                    Next
+                Endif
+                Next
+
+              Endif
+            Endif
+        Endif
+      Endif
+    Next
+  Endif
+
+  # Gestiono la baja, solo un proceso con toda la cantidad iniciada
+  Local Integer LINICIADA : LINICIADA = 0
+  Call BAJA_CONSUMO(2,[M:YPSAP]S_QTYI,[M:YPSAP]S_QTYL,[M:YPSAP]S_OF,[M:YPSAP]S_LINEA,[M:YPSA]PLANTA,[M:YPSAP]S_ARTICULO, LINICIADA) From SPEYPSA
+
+  # Marco el número de serie como iniciada y la cantidad iniciada en la OF
+  # Marco como iniciada la OF, solamente si la cantidad iniciada = cantidad lanzada
+  If LINICIADA = 0 Then
+    Read [XP4]MFG0 = [M:YPSAP]S_OF
+    If fstat = 0
+      [XP4]YQTYINICIADA += [M:YPSAP]S_QTYI
+      If [XP4]YQTYINICIADA = [M:YPSAP]S_QTYL
+        [XP4]YINICIADA = 2
+      Endif
+      Trbegin [XP4]
+        Rewrite [XP4]
+      Commit
+    Endif
+
+    # Busco el número del seguimiento
+    Local Char LMTK
+    Filter [XP5] Where [XP5]MFGNUM = [M:YPSAP]S_OF and [XP5]MATTRKFLG = 2 Order By [XP5]MFGTRKNUM Desc
+    Read [XP5] First
+    If fstat = 0
+      [L]LMTK = [XP5]MFGTRKNUM
+      [XP5]YCANTIDAD = [M:YPSAP]S_QTYI
+      Trbegin [XP5]
+        Rewrite [XP5]
+      Commit
+    Endif
+    Filter [XP5]
+
+    For LINE=0 To [M:YPSAP]PIE_S-1
+      If [M:YPSAP]S_SEL(LINE) = 2
+        # Gestiono la impresión
+        Read [XP3]YMSE = [M:YPSAP]S_OF;[M:YPSAP]S_LINEA;[M:YPSAP]S_NSERIE(LINE)
+        If fstat = 0
+          [XP3]INICIADA  = 2
+          [XP3]MTKINICIO = [L]LMTK
+          Trbegin [XP3]
+            Rewrite [XP3]
+          Commit
+        Endif
+      Endif
+    Next
+  Endif
+
+  Close Local File [XP1]
+  Close Local File [XP2]
+  Close Local File [XP3]
+  Close Local File [XP4]
+  Close Local File [XP5]
+  Close Local File [XP6] # @01@ - EQM
+  Close Local File [XP7] # @01@ - EQM
+  Close Local File [XP8] # @01@ - EQM
+  Close Local File [XP9] # @01@ - EQM
+  Close Local File [XP10] # @01@ - EQM
+  Close Local File [XP11] # @01@ - EQM
+
+
+# Para el caso de ALTA parcial...
+Elsif GL1LLE(7)="2"
+  Global Char GNSERIE(25)(200)
+  # Sino tiene número de serie..
+  If GL1LLE(5) = "1"
+    Local Integer LALTA : LALTA = 0
+    Call ALTA_OF(2,[M:YPSAP]S_QTYI,[M:YPSAP]S_OF,[M:YPSAP]S_LINEA,[M:YPSA]PLANTA,[M:YPSAP]S_ARTICULO,LALTA) From SPEYPSA
+  Elsif GL1LLE(5) = "2"  # Sí que tiene número de serie..
+    Local Integer ICONT
+    For LINE=0 To [M:YPSAP]PIE_S-1
+      If [M:YPSAP]S_SEL(LINE) = 2
+        GNSERIE(ICONT) = [M:YPSAP]S_NSERIE(LINE)
+        ICONT +=1
+      Endif
+    Next
+    If ICONT > 0
+      Local Integer LALTA : LALTA = 0
+      Call ALTA_OF(2,[M:YPSAP]S_QTYI,[M:YPSAP]S_OF,[M:YPSAP]S_LINEA,[M:YPSA]PLANTA,[M:YPSAP]S_ARTICULO,LALTA) From SPEYPSA
+    Endif
+  Endif
+Endif
+Return
+
+
+
+
+#############################################
+Subprog PRINT_ETI_SER(EOF,EET,ENS,ENU)
+Value Char EOF
+Value Char EET
+Value Char ENS
+Value Integer ENU
+
+Global Char GREPORT : GREPORT = EET
+Global Integer GMUL : GMUL = ENU
+
+Local Char TBVAL(20)(20)
+Local Char TBPAR(20)(20)
+
+TBPAR(0) = "mfgnum"
+TBVAL(0) = EOF
+
+TBPAR(1) = "nser"
+TBVAL(1) = ENS
+
+Call ETAT(EET,"YPRODSANY",TBPAR,TBVAL) From ETAT
+End
+
+
+######################################################################################
+Subprog AM_S_SEL(VALEUR)
+Variable Integer VALEUR
+# Gestiono el valor del campo Ctd seleccionada
+If VALEUR = 2
+  [M:YPSAP]S_QTYS += 1
+  If [M:YPSAP]S_QTYS > [M:YPSAP]S_QTYP or [M:YPSAP]S_QTYS > [M:YPSAP]S_QTYI
+    # Para el caso de INICIO parcial...
+    If GL1LLE(7)="1"
+      Errbox "No es posible seleccionar este número de serie, ya que supera la cantidad pendiente o la cantidad a iniciar"
+    Elsif GL1LLE(7)="2"  # Para el caso de ALTA parcial...
+      Errbox "No es posible seleccionar este número de serie, ya que supera la cantidad pendiente o la cantidad a dar de alta"
+    Endif
+    VALEUR = 1
+    [M:YPSAP]S_QTYS -= 1
+  Endif
+Else
+  [M:YPSAP]S_QTYS -= 1
+Endif
+Affzo [M:YPSAP]S_QTYS
+End
+
+
+######################################################################################
+Subprog AM_S_QTYI(VALEUR)
+Variable Decimal VALEUR
+# No puedo indicar más cantidad que la pendiente
+If VALEUR > [M:YPSAP]S_QTYP
+  # Para el caso de INICIO parcial...
+  If GL1LLE(7)="1"
+    Errbox "No puede iniciar más cantidad que la pendiente"
+  Elsif GL1LLE(7)="2"  # Para el caso de ALTA parcial...
+    Errbox "No puede dar de alta más cantidad que la pendiente"
+  Endif
+  mkstat = 2
+Endif
+End
+
+
+######################################################################################

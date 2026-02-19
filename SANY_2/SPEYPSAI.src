@@ -1,0 +1,256 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+# Gestión de la máscara YPRODSANYI (Especifico) - EQM - 15/10/2025 Pantalla impresión
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+$ACTION
+Case ACTION
+  When "DEBUT"     :  Gosub DEBUT
+  When "OK"        :  Gosub OK
+Endcase
+Return
+
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+$DEBUT
+# Cargo la pantalla
+Raz [M:YPSAI]
+
+[M:YPSAI]S_OF        = GL1LLE(0)
+[M:YPSAI]S_ARTICULO  = GL1LLE(1)
+[M:YPSAI]S_ARTICULOD = GL1LLE(2)
+[M:YPSAI]S_UNIDAD    = GL1LLE(4)
+[M:YPSAI]S_LINEA     = val(GL1LLE(6))
+
+  # Si el artículo tiene gestión de números de serie, los cargo en pantalla
+If GL1LLE(5)= "2"
+
+    If !clalev([K1]) : Local File YMFGSERIE  [K1] : Endif
+
+    nolign = 1
+    Filter [K1] Where [K1]MFGNUM = [M:YPSAI]S_OF and [K1]MFGLIN = [M:YPSAI]S_LINEA  Order By [K1]NSERIE Asc
+    For [K1]
+      [M:YPSAI]S_NSERIE(nolign-1) = [K1]NSERIE
+      nolign +=1
+    Next
+    Filter [K1]
+
+    [M:YPSAI]PIE_S = nolign-1
+
+    Close Local File [K1]
+
+  # Si el artículo NO tiene gestión de números de serie...
+ Elsif GL1LLE(5)= "1"
+
+    If !clalev([K2]) : Local File MFGHEAD  [K2] : Endif
+
+    Read [K2]MFG0 = [M:YPSAI]S_OF
+    If fstat = 0
+      [M:YPSAI]S_QTYI = val(GL1LLE(3))
+    Endif
+
+    Close Local File [K2]
+Endif
+
+  Affzo [M:YPSAI]
+
+Return
+
+
+Return
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+$OK
+
+  # Seguridad. Mensaje info si la cantidad a iniciar es cero
+  If [M:YPSAI]S_QTYI = 0
+      Errbox "No hay cantidad a imprimir. Ningún proceso realizado"
+      Return
+  Endif
+
+  # Gestiono la impresión de números de serie y los consumos para los números de serie seleccionados
+  If !clalev([ZXP1]) : Local File ITMMASTER  [ZXP1] : Endif
+  If !clalev([ZXP2]) : Local File ZITMLOGO   [ZXP2] : Endif
+  If !clalev([ZXP3]) : Local File YMFGSERIE  [ZXP3] : Endif
+  If !clalev([ZXP4]) : Local File MFGHEAD    [ZXP4] : Endif
+  If !clalev([ZXP5]) : Local File MFGHEADTRK [ZXP5] : Endif
+  If !clalev([ZXP6]) : Local File MFGHEAD    [ZXP6] : Endif # @01@ - EQM
+  If !clalev([ZXP7]) : Local File MFGITM     [ZXP7] : Endif # @01@ - EQM
+  If !clalev([ZXP8]) : Local File SORDERQ    [ZXP8] : Endif # @01@ - EQM
+  If !clalev([ZXP9]) : Local File MFGMAT     [ZXP9] : Endif # @01@ - EQM
+  If !clalev([ZXP10]): Local File SORDERQ    [ZXP10]: Endif # @01@ - EQM
+  If !clalev([ZXP11]): Local File SORDERQ    [ZXP11]: Endif # @01@ - EQM
+  Local Integer NETI_COR # @02@ - EQM
+
+# Si el artículo tiene gestión de números de serie, los cargo en pantalla
+  If GL1LLE(5)= "2"
+      # Gestiono la impresión
+        For LINE=0 To [M:YPSAI]PIE_S-1
+          If [M:YPSAI]S_SEL(LINE) = 2
+            # Gestiono la impresión
+            Read [ZXP6]MFG0=[M:YPSAI]S_OF  # @01@ - EQM
+            If !fstat
+                Call PRINT_OF(1,[ZXP6]PLNFCY,[ZXP6]MFGNUM,[M:YPSA]FECHA(I),[M:YPSAI]S_NSERIE(LINE),1) From SPEYPSA    #@02@ - EQM - Añado parámetros
+                Read [ZXP1]ITM0 = [M:YPSAI]S_ARTICULO
+                If fstat = 0
+                  Read [ZXP2]ZITML0 = [ZXP1]TSICOD(1)    # Familia
+                  If fstat = 0
+                    NETI_COR = [ZXP2]QTYETQCOR # @02@ - EQM
+                    If [ZXP2]QTYETQEAN13>0
+                        Call PRINT_ETI([ZXP6]MFGNUM,[ZXP2]ETQEAN13,1) From SPEYPSA                        #ETIQUETA PRODUCTO    # @01@ - EQM
+                    Endif
+                    If [ZXP2]QTYETQSER>0
+                        Call PRINT_ETI_SER([M:YPSAI]S_OF,[ZXP2]ETQSER,[M:YPSAI]S_NSERIE(LINE),1)         #ETIQUETA SERIE       # @01@ - EQM
+                    Endif
+                    If [ZXP2]QTYETQMOT>0
+                            #@02@ - EQM - 16/09/2025  AÑADIMOS QUE IMPRIMA TANTOS PDF COMO CANTIDAD A INICIAR
+                            Call PRINT_ETI([ZXP6]MFGNUM,[ZXP2]ETQMOTOR,1)   From SPEYPSA                      #ETIQUETA MOTOR       # @01@ - EQM
+                    Endif
+                    If [ZXP2]QTYETQCOR>0
+                        For [ZXP7] Where [ZXP7]MFGNUM=[ZXP6]MFGNUM
+                            Read [ZXP8]SOQ0 = [ZXP7]VCRNUMORI;[ZXP7]VCRLINORI;[ZXP7]VCRSEQORI
+                            If fstat = 0
+                              If [ZXP8]ZALTO <>0 or [ZXP8]ZANCHO<>0 or [ZXP8]ZLARGO <>0
+                                If [L]NETI_COR > 0
+                                    Call PRINT_ETI([ZXP6]MFGNUM, [ZXP2]ETQCORTE,1)     From SPEYPSA        #ETIQUETA CORTE      # @01@ - EQM
+                                Endif
+                              Endif
+                            Endif
+                        Next
+                    Endif
+
+                    For [ZXP11] Where [ZXP11]FMINUM=[ZXP6]MFGNUM
+                    Read [ZXP11]
+                    If !fstat
+                        For [ZXP10] Where  [ZXP10]SOHNUM=[ZXP11]SOHNUM and [ZXP10]ZLINASOC=[ZXP11]SOPLIN and [ZXP10]ZASOCIADO=2
+                        Read[ZXP10]
+                        If !fstat
+                            Call PRINT_ETI_ASO([ZXP10]SOHNUM,[ZXP10]ITMREF,[ZXP10]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM  From SPEYPSA
+                        Endif
+                        Next
+                    Endif
+                    Next
+
+                  Endif
+                Endif
+            Endif
+          Endif
+        Next
+  Elsif GL1LLE(5)= "1" # Si el artículo no tiene gestión de números de serie
+      Read [ZXP6]MFG0=[M:YPSAI]S_OF  # @01@ - EQM
+      If !fstat
+          Call PRINT_OF(1,[ZXP6]PLNFCY,[ZXP6]MFGNUM,[M:YPSA]FECHA(I),"",[M:YPSAI]S_QTYI) From SPEYPSA    #@02@ - EQM - Añado parámetros
+          Read [ZXP1]ITM0 = [M:YPSAI]S_ARTICULO
+          If fstat = 0
+              Read [ZXP2]ZITML0 = [ZXP1]TSICOD(1)    # Familia
+              If fstat = 0
+                  NETI_COR = [ZXP2]QTYETQCOR # @02@ - EQM
+                  For XI=1 To [M:YPSAI]S_QTYI
+                      If [ZXP2]QTYETQEAN13>0
+                          Call PRINT_ETI([ZXP6]MFGNUM,[ZXP2]ETQEAN13,1) From SPEYPSA                        #ETIQUETA PRODUCTO    # @01@ - EQM
+                      Endif
+                      If [ZXP2]QTYETQSER>0
+                          Call PRINT_ETI_SER([M:YPSAI]S_OF,[ZXP2]ETQSER,"",1)         #ETIQUETA SERIE       # @01@ - EQM
+                      Endif
+                      If [ZXP2]QTYETQMOT>0
+                          #@02@ - EQM - 16/09/2025  AÑADIMOS QUE IMPRIMA TANTOS PDF COMO CANTIDAD A INICIAR
+                          Call PRINT_ETI([ZXP6]MFGNUM,[ZXP2]ETQMOTOR,[M:YPSAI]S_QTYI)   From SPEYPSA                      #ETIQUETA MOTOR       # @01@ - EQM
+                      Endif
+                      If [ZXP2]QTYETQCOR>0
+                          For [ZXP7] Where [ZXP7]MFGNUM=[ZXP6]MFGNUM
+                              Read [ZXP8]SOQ0 = [ZXP7]VCRNUMORI;[ZXP7]VCRLINORI;[ZXP7]VCRSEQORI
+                              If fstat = 0
+                                If [ZXP8]ZALTO <>0 or [ZXP8]ZANCHO<>0 or [ZXP8]ZLARGO <>0
+                                  If [L]NETI_COR > 0
+                                      Call PRINT_ETI([ZXP6]MFGNUM, [ZXP2]ETQCORTE,1)     From SPEYPSA        #ETIQUETA CORTE      # @01@ - EQM
+                                  Endif
+                                Endif
+                              Endif
+                          Next
+                      Endif
+                  Next
+                  For [ZXP11] Where [ZXP11]FMINUM=[ZXP6]MFGNUM
+                        Read [ZXP11]
+                        If !fstat
+                            For [ZXP10] Where  [ZXP10]SOHNUM=[ZXP11]SOHNUM and [ZXP10]ZLINASOC=[ZXP11]SOPLIN and [ZXP10]ZASOCIADO=2
+                                Read[ZXP10]
+                                If !fstat
+                                    Call PRINT_ETI_ASO([ZXP10]SOHNUM,[ZXP10]ITMREF,[ZXP10]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM  From SPEYPSA
+                                Endif
+                            Next
+                        Endif
+                   Next
+                Endif
+            Endif
+        Endif
+  Endif
+
+
+  Close Local File [ZXP1]
+  Close Local File [ZXP2]
+  Close Local File [ZXP3]
+  Close Local File [ZXP4]
+  Close Local File [ZXP5]
+  Close Local File [ZXP6] # @01@ - EQM
+  Close Local File [ZXP7] # @01@ - EQM
+  Close Local File [ZXP8] # @01@ - EQM
+  Close Local File [ZXP9] # @01@ - EQM
+  Close Local File [ZXP10] # @01@ - EQM
+  Close Local File [ZXP11] # @01@ - EQM
+
+
+Return
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+Subprog PRINT_ETI_SER(EOF,EET,ENS,ENU)
+
+Value Char EOF
+Value Char EET
+Value Char ENS
+Value Integer ENU
+
+Global Char GREPORT : GREPORT = EET
+Global Integer GMUL : GMUL = ENU
+
+Local Char TBVAL(20)(20)
+Local Char TBPAR(20)(20)
+
+TBPAR(0) = "mfgnum"
+TBVAL(0) = EOF
+
+TBPAR(1) = "nser"
+TBVAL(1) = ENS
+
+Call ETAT(EET,"YPRODSANY",TBPAR,TBVAL) From ETAT
+
+End
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+## Etiqueta añadida por el supervisor (pantalla YPRODSANYI) 22/10/2025 11:00:54 (NUN12)
+#/////////////////////////////////////////////////////////////////////////////////////////////#
+Subprog AM_S_QTYI(VALEUR)
+Variable Decimal VALEUR
+# No puedo indicar más cantidad que la lanzada
+If VALEUR > [M:YPSA]CANTIDAD
+    Errbox "No puede imprimir más cantidad que la lanzada"
+    mkstat = 2
+Endif
+End
+#///////////////#
+Subprog AM_S_SEL(VALEUR)
+Variable Integer VALEUR
+
+Local Integer YCANT : YCANT=1
+# Gestiono el valor del campo Ctd seleccionada
+If VALEUR = 2
+    For LINE=0 To [M:YPSAI]PIE_S-1
+        If [M:YPSAI]S_SEL(LINE) = 2
+            YCANT+=1
+        Endif
+    Next
+    If YCANT>[M:YPSAI]S_QTYI
+        Errbox "No es posible seleccionar este número de serie, ya que supera la cantidad a imprimir"
+        mkstat = 2
+        VALEUR =1
+
+    Endif
+Endif
+
+End
+#/////////////////////////////////////////////////////////////////////////////////////////////#

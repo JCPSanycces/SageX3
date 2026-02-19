@@ -1,0 +1,159 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "INIT"   :   Gosub INIT
+  When "OK"     :   Gosub OK
+Endcase
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+
+$INIT
+
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+
+$OK
+  Call ZCHARGEDICOM From ZCHARGEEDICOM
+
+  If [M:YED0]DUPLICADO = 2 and [M:YED0]NUMDEB<> '' and [M:YED0]NUMDEB = [M:YED0]NUMFIN Then
+    Local File ZOCCABF [F:ZOCCABF]
+    Update [F:ZOCCABF] Where NUMFAC = [M:YED0]NUMDEB With ENVIADOEDI = 1
+    Close Local File [F:ZOCCABF]
+  Endif
+
+  Call ZCREINVSERES From ZCREINVSERES
+
+
+#  Local Integer LRES
+#  Local Char LRUTA(250)
+
+  #LRUTA = filpath("","","") + "\IMP\BATCH\JOB\" + "SINV_" + num$(format$("YYYYMMDD",date$)) + num$(format$("hhmmss",date$)) + ".job"
+
+  #LRES = func CREAR_JOB(LRUTA)
+
+
+  #Sleep 20
+
+
+  #Infbox "Facturas generadas para SERES"
+
+
+
+
+Return
+
+
+#---------------------------------------------------------------------------------------------------#
+#                                           SUBPROGS                                                #
+#---------------------------------------------------------------------------------------------------#
+
+#**
+#* Importación de ficheros
+#*!
+Subprog IMPORT_FILE()
+
+  Call ZCHARGEDICOM From ZCHARGEEDICOM
+
+  Call ZCREINVSERES From ZCREINVSERES
+
+End
+
+
+#---------------------------------------------------------------------------------------------------#
+#**
+#* CREAR_JOB(ZMODIMP,ZNOMIMP,ZVOLFIL,ZRUTAJOB)
+#*
+#* @param ZMODIMP modelo de importación utilizado
+#* @param ZNOMIMP fichero a importar (ruta incluida)
+#* @param ZVOLFIL fichero a importar (ruta espacio almacenamiento incluida)
+#* @param ZRUTAJOB fichero job (ruta incluida)
+#* LLAMADA A CREAR JOB
+#* LFECHA = vireblc(num$(date$),4) : LFECHA = mid$(LFECHA,1,2)+mid$(LFECHA,4,2)+mid$(LFECHA,7,4)
+#LHORA = vireblc(num$(time$),4) : LHORA = mid$(LHORA,1,2)+mid$(LHORA,4,2)+mid$(LHORA,7,2)
+##ruta del fichero..
+#LFILE = LDIRIMPORT + "FI_SID_"+LFECHA+"_"+LHORA+".txt"
+#ZMODIMP = "ZSIHINTX2"
+#ZNOMIMP = LFILE
+#ZVOLFIL = "[IMPORT]/IMP/" + "FI_SID_"+LFECHA+"_"+LHORA+"+" .txt"
+#ZRUTAJOB= "E:\sage\NUNSYSEM\folders\ACRILATOS\IMP\BATCH\JOB" + "FI_SID_"+LFECHA+"_"+LHORA+"+".job"
+#Call CREAR_JOB(ZMODIMP,ZNOMIMP,ZVOLFIL,ZRUTAJOB) From ZSISLIB0
+#*
+#*!
+Funprog CREAR_JOB(ZRUTAJOB)
+  Value Char ZRUTAJOB()
+  Local Integer LRES
+
+  Openo ZRUTAJOB
+
+  Wrseq 'DOSSIER='+[S]nomap(0)
+  Wrseq 'LAN=SPA'
+  Wrseq 'UTIL='+GUSER
+  Wrseq 'PASSE=9B8E36ADE34FAD4002A67E5C'
+  Wrseq 'GRP='
+  Wrseq 'TACHE=EDIBAT'
+  Wrseq 'DATE='+num$(format$("YYYYMMDD",date$))
+  Wrseq 'HEURE='+num$(format$("hhmm",date$))
+  Wrseq 'ALLFLO=1'
+  Wrseq 'CATACT=1'
+  Wrseq 'CATCOD=SINVOICE'
+  Wrseq 'CATTYP=2'
+  Wrseq 'DATDEB='+num$(format$("YYYYMMDD",[M:YED0]DATDEB))
+  Wrseq 'DATFIN='+num$(format$("YYYYMMDD",[YED0]DATFIN))
+  Wrseq 'FLD(0)=INVSTA'
+  Wrseq 'FLD(1)=INVDAT'
+  Wrseq 'FLD(2)=NUM'
+  Wrseq 'FLD(3)=BPCORD'
+  Wrseq 'FLDNAM(0)=ESTADO'
+  Wrseq 'FLDNAM(1)=FECHA FACTURA'
+  Wrseq 'FLDNAM(2)=N.º FACTURA'
+  Wrseq 'FLDNAM(3)=CLIENTE PEDIDO'
+  Wrseq 'FLDTYPTYP(0)=1'
+  Wrseq 'FLDTYPTYP(1)=8'
+  Wrseq 'FLDTYPTYP(2)=7'
+  Wrseq 'FLDTYPTYP(3)=7'
+  Wrseq 'FLDVAL1(0)=1'
+  Wrseq 'FLDVAL1(1)='+num$(format$("YYYYMMDD",[M:YED0]DATDEB))
+  Wrseq 'FLDVAL1(2)='+[M:YED0]NUMDEB  # FAV112300040
+  Wrseq 'FLDVAL1(3)='+[M:YED0]BPCDEB  # FAV112300040
+  Wrseq 'FLDVAL2(0)=3'
+  Wrseq 'FLDVAL2(1)='+num$(format$("YYYYMMDD",[YED0]DATFIN))
+  Wrseq 'FLDVAL2(2)='+[M:YED0]NUMFIN  # FAV112300040
+  Wrseq 'FLDVAL2(3)='+[M:YED0]BPCFIN  # FAV112300040
+  Wrseq 'FLG(0)=1'
+  Wrseq 'FLG(1)=2'
+  Wrseq 'FLG(2)=1'
+  Wrseq 'FLG(3)=1'
+  Wrseq 'FLOCOD=SIHEDICOM'
+  Wrseq 'FLOREL=1'
+  Wrseq 'LASRUNDAT=2023-03-15T14:30:20Z'
+  Wrseq 'MANDATORY(0)=1'
+  Wrseq 'MANDATORY(1)=1'
+  Wrseq 'MANDATORY(2)=1'
+  Wrseq 'MANDATORY(3)=1'
+  Wrseq 'NBLIG=4'
+  Wrseq 'NUM=7'
+  Wrseq 'OPERATOR(0)=1'
+  Wrseq 'OPERATOR(1)=1'
+  Wrseq 'OPERATOR(2)=1'
+  Wrseq 'OPERATOR(3)=1'
+  Wrseq 'PARCOD=EDICOM'
+  Wrseq 'REPFLDVAL1(0)=1'
+  Wrseq 'REPFLDVAL1(1)='+num$(format$("YYYYMMDD",[M:YED0]DATDEB))
+  Wrseq 'REPFLDVAL1(2)='+[M:YED0]NUMDEB
+  Wrseq 'REPFLDVAL1(3)='+[M:YED0]BPCDEB
+  Wrseq 'REPFLDVAL2(0)=3'
+  Wrseq 'REPFLDVAL2(1)='+num$(format$("YYYYMMDD",[M:YED0]DATFIN))
+  Wrseq 'REPFLDVAL2(2)='+[M:YED0]NUMFIN
+  Wrseq 'REPFLDVAL2(3)='+[M:YED0]BPCFIN
+  Wrseq 'RUNDES=SALES INVOICE EDICOM (SERES)'
+  Wrseq 'TESTFLG=1'
+  Wrseq 'ZPARCOD=EDICOM CONNECTING BUSINESS'
+
+  Openo
+
+End LRES

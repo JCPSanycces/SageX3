@@ -1,0 +1,3593 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Plan de préparation
+#########################################################################
+# Plan de préparation d'expeditions                            TRTPREPA #
+#-----------------------------------------------------------------------#
+# Actions du GTRAITE                                                    #
+#########################################################################
+
+#########################################################################
+$OUVRE
+Global Char     GLOCCAT(4)     : # Pour filtrer les categories d'emplacements
+GLOCCAT = "12"
+
+If clalev([F:PRL]) =0 Local File STOPRELIS  [PRL]  Endif
+If clalev([F:PRH]) =0 Local File STOPREH    [PRH]  Endif
+If clalev([F:PRE]) =0 Local File STOPRED    [PRE]  Endif
+If clalev([F:PRW]) =0 Local File STOPREW    [PRW]  Endif
+If clalev([F:PRW1])=0 Local File STOPREW    [PRW1] Endif
+If clalev([F:REO]) =0 Local File STOREO     [REO]  Endif
+If clalev([F:STA]) =0 Local File STOALL     [STA]  Endif
+If clalev([F:STO]) =0 Local File STOCK      [STO]  Endif
+If clalev([F:STL]) =0 Local File STOLOT     [STL]  Endif
+If clalev([F:STS]) =0 Local File STOSER     [STS]  Endif
+If clalev([F:SWW]) =0 Local File STOWIPW    [SWW]  Endif
+If clalev([F:TRU]) =0 Local File TABALLRUL  [TRU]  Endif
+If clalev([F:SRU]) =0 Local File TABSTORUL  [SRU]  Endif
+If clalev([F:SRT]) =0 Local File STKTRS     [SRT]  Endif
+If clalev([F:TLO]) =0 Local File TABLOCTYP  [TLO]  Endif
+If clalev([F:STC]) =0 Local File STOLOC     [STC]  Endif
+If clalev([F:FCY]) =0 Local File FACILITY   [FCY]  Endif
+If clalev([F:ITG]) =0 Local File ITMCATEG   [ITG]  Endif
+If clalev([F:ITM]) =0 Local File ITMMASTER  [ITM]  Endif
+If clalev([F:ITF]) =0 Local File ITMFACILIT [ITF]  Endif
+If clalev([F:ITV]) =0 Local File ITMMVT     [ITV]  Endif
+If clalev([F:ITS]) =0 Local File ITMSALES   [ITS]  Endif
+If clalev([F:ITU]) =0 Local File ITMBPC     [ITU]  Endif
+If clalev([F:BPC]) =0 Local File BPCUSTOMER [BPC]  Endif
+If clalev([F:BPD]) =0 Local File BPDLVCUST  [BPD]  Endif
+If clalev([F:TFO]) =0 Local File TABFOR     [TFO]  Endif
+If clalev([F:PTO]) =0 Local File PARMTO     [PTO]  Endif
+If clalev([F:TCA]) =0 Local File TABCOUAFF  [TCA]  Endif
+#--- Issue 107634
+If clalev([F:BPA]) =0 Local File BPADDRESS  [BPA]  Endif
+
+If GMODU(5)=2
+   If clalev([F:SOQ])=0 Local File SORDERQ  [SOQ]  Endif
+   If clalev([F:SOP])=0 Local File SORDERP  [SOP]  Endif
+   If clalev([F:SOC])=0 Local File SORDERC  [SOC]  Endif
+   If clalev([F:SOH])=0 Local File SORDER   [SOH]  Endif
+   #--- Bug 70833
+   If clalev([F:SOQ1])=0 Local File SORDERQ  [SOQ1]  Endif
+   If clalev([F:SOP1])=0 Local File SORDERP  [SOP1]  Endif
+   #---
+Endif
+
+If clalev([M:ALP]) =0 Local Mask ALLPAR     [ALP]  Endif
+If clalev([M:SOW]) =0 Local Mask STOSORW    [SOW]  Endif
+If clalev([M:STW]) =0 Local Mask STOWORK    [STW]  Endif
+If clalev([M:SVW]) =0 Local Mask STOVALWORK [SVW]  Endif
+If clalev([M:SVWD])=0 Local Mask STOVALWORK [SVWD] Endif
+
+# Ouverture classe ecran pour les encours
+If clalev([M:ORDK])=0 Local Mask ORDK       [ORDK] Endif
+
+If clalev([M:PREC])=0 Local Mask PRECRI     [PREC] Endif
+
+If GWRHACT=2
+   If !clalev([F:WRH])  Local File WAREHOUSE  [WRH] : Endif
+   If !clalev([F:ITW])  Local File ITMWRH     [ITW] : Endif
+Endif
+
+Global Integer  GALLORD      : # Flag réallocation des commandes
+
+GSRTNUM = GFLAG
+
+Read [SRT] SRT0=10;GFLAG
+If fstat | [F:SRT]ENAFLG=1 OK=0 : Endif
+GPREPNUM = [F:SRT]SRTNUM
+#---
+# Inutile car supprimé lors de le validation de la livraison
+#---
+# Suppression des listes de prépa ne contenant que des BP annulés
+#Local Integer WPRH1, WPRL
+#If clalev([F:PRH1]) =0 Local File STOPREH   [PRH1] : WPRH1=1 Endif
+# Recherche des BP annulés pour supprimer les listes de prépa inutiles
+#For [PRH] Where DLVFLG=4
+#   WPRL=0
+   # Si le BP annulé est sur une liste de prépa, un regarde
+   # s'il y a des BP non annulés dan cette liste
+#   If [F:PRH]PRLNUM<>""
+#      For [PRH1] Where PRLNUM=[F:PRH]PRLNUM & DLVFLG<>4
+         # Il y en a au moins un --> on conserve la liste
+#         WPRL=1 : Break
+#      Next
+      # Il n'y en a pas --> on supprime la liste
+#      If WPRL=0 Delete [PRL] Where PRLNUM=[F:PRH]PRLNUM Endif
+#   Endif
+#Next
+#If WPRH1=1 Close Local File [PRH1] Endif
+
+Return
+
+
+$TIT_TRT
+    Call LECTEXTRA(TIT,"STKTRS","DESAXX","10",GPREPNUM) From ATEXTRA
+    If !clalev([F:AWI]) : Local File AWINDOW : Endif
+    Read [AWI]AWI0=BOITE
+    Call TEXTE([F:AWI]DES,GBIDC1) From OBJDIV
+    TIT = GBIDC1-GPREPNUM-":"-TIT
+Return
+
+
+#########################################################################
+$OUVRE_BOITE
+# Lecture du dictionnaire des fenetres pour recuperer l'ecran genere
+If clalev([F:AWI])=0 Local File AWINDOW [AWI] : Endif
+Local Char WNOMMSK(GLONAMK)
+If dim(GLBOI)>0 & GLBOI <> ""
+   BOITE = GLBOI
+   Kill GLBOI
+Endif
+Read [AWI] AWI0=BOITE
+If fstat
+   WNOMMSK="PREPLAN"
+Else
+   WNOMMSK=[F:AWI]NOMMSK(0)
+Endif
+Gosub CHANGE_AWI From TRTPREPA
+Call INIVAR From GLOBSTO
+
+Return
+
+#########################################################################
+# CHANGE_AWI                              Chargement traitement fenetre #
+#########################################################################
+$CHANGE_AWI
+Local Integer OK
+If clalev([F:AWI])=0  : Local File AWINDOW [AWI] : Endif
+Read [AWI]AWI0=BOITE
+If fstat
+   GMESSAGE = BOITE-":"-mess(6,126,1)
+   GERR = 1 : FIN = 1
+   Return
+Endif
+GBOITE = BOITE
+Call NOMTRTWIN(GBOITE,WINPROG) From MSKDIV
+Gosub DEFVAR From =WINPROG
+
+#If filinfo(filpath("TRT",WINPROG,"adx"),0)<0
+Call EXISTE_ADX("","",WINPROG,OK) From ORDSYS
+If OK=0
+   GMESSAGE = GBOITE-":"-mess(6,126,1)
+   GERR = 1 : FIN = 1
+Endif
+Return
+
+#########################################################################
+$DEBUT
+
+If dim(GSLTCCECODS)<=0 : Global Libelle  GSLTCCECODS : Endif
+
+Local Integer I, NOL, WPB, WRET, WERR, OK
+Local Integer WTRBEGIN, WWKEYD
+Local Integer WPRELIN, WRUP
+Local Char    WPRHNUM(GLONVCR)
+Local Char    WCRIT1(250), WCRIT2(250), WCRIT3(250)
+# Issue x3-80534 - 2018-09-25 by MAE : passage de SYMBOLE1 à 30
+#Local Char    SYMBOLE1(20), SYMBOLE2(40), SYMBOLE3(50)
+Local Char    SYMBOLE1(30), SYMBOLE2(40), SYMBOLE3(50)
+Local Char    WPARAM(10)
+Local Date    WSHIDAT, WDLVDAT
+Local Decimal WALLSTU, WSHTSTU, WMNT
+Local Decimal WDELTAQTY
+Local Integer WMAJ           : # 1=création 2=modification 3=suppression
+Local Integer WTYP           : # 1= + sur liste
+                               # 2= - sur liste + en prépa (créa BP depuis liste)
+                               # 3= - en prépa  + préparée
+                               # 4= +/- en prépa (modif BP)
+                               # 5= +/- préparé  (modif BP)
+Local Integer WALLTYPFLG     : # Type d'allocation (1=globale/2=détaillée)
+Local Integer WSTOSEQ
+Local Char    WSTOFCY(GLONFCY)
+Local Char    WITMREF(GLONITM)
+Local Char    WREOLOC(GLONEMP)
+Local Integer WSEQ
+Local Char    WFORMULE(250)    # hcb  80476
+Local Char    WMESS(120)
+Local Integer CDTSTA, WCDTUNL
+#--- Bug 70833
+Local Integer WNOLCPE
+Local Decimal WQTYCPE, WPREQTY, WPREQTA
+#---
+#--- Issue 117979
+Local Integer WKIT
+Local Decimal WQTYCPE, WQTYCPEOLD
+#---
+WSHIDAT = [31/12/2999]
+WDLVDAT = [31/12/2999]
+REP="" : GREP=""
+
+Raz [M:PREP]
+#--- Issue X3-54548
+#[M:PREP]DRNEND    = 3
+[M:PREP]DRNEND    =len(mess(0,409,1))
+#---
+[M:PREP]DLVPIOEND = 3
+If clalev([M:PREC])=0  Local Mask PREC   [PREC]  Endif  # hcb  92464
+Raz [M:PREC]
+If filinfo(filpath("ETM",GUSER+"_"+"STD","pre",0),0)>=0
+   Call LECMEMO("STD","[M:PREC]","pre") From GMEMO
+   # On applique le code mémo STD si c'est la transaction à laquelle il se rapporte
+   [M:PREP]        = [M:PREC]
+Endif
+[M:PREP]TRSCOD    = [F:SRT]TRSCOD
+[M:PREP]FLG1      = [F:SRT]SRUB1FLG
+[M:PREP]FLG2      = [F:SRT]SRUB2FLG
+[M:PREP]FLG3      = [F:SRT]SRUB3FLG
+[M:PREP]FLG4      = [F:SRT]SRUB4FLG
+GSLTCCECODS       = [F:SRT]CCECODS
+
+Diszo [M:PREP]LSTWIOFLG
+Affzo [M:PREP]1-99
+
+# Nettoyage de STOSORW
+Call RAZSTOSORW From STKSOR
+
+Return
+
+#########################################################################
+$SUIVANT
+
+If [M:PREP]PRLNUM="" Return Endif
+
+Filter [PRL] Where STOFCY=[M:PREP]STOFCY & PRLNUM>[M:PREP]PRLNUM Order By Key PRL0 Asc
+For [PRL]
+   [M:PREP]PRLNUM = [F:PRL]PRLNUM
+   Break
+Next
+Filter [PRL]
+Affzo [M:PREP]PRLNUM
+
+Gosub RAFFRAICHI
+
+Return
+
+#########################################################################
+$PRECEDENT
+
+If [M:PREP]PRLNUM="" Return Endif
+
+Filter [PRL] Where STOFCY=[M:PREP]STOFCY & PRLNUM<[M:PREP]PRLNUM Order By Key PRL0 Desc
+For [PRL]
+   [M:PREP]PRLNUM = [F:PRL]PRLNUM
+   Break
+Next
+Filter [PRL]
+Affzo [M:PREP]PRLNUM
+
+Gosub RAFFRAICHI
+
+Return
+
+#########################################################################
+$RAFFRAICHI
+
+
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Effzo [M:PREP]40
+# Nettoyage de STOSORW
+Call RAZSTOSORW From STKSOR
+# Chargement liste preparation
+Gosub LOAD_PRLNUM
+# Les bons de prepa sont generes
+If sum([M:PREP]PRHNUM)<>""
+   [M:PREP]LSTWIOFLG = 1
+   Diszo [M:PREP]LSTWIOFLG
+   # Ils ne sont pas encore livrables ou livrés ou annulés
+   If [M:PREP]NBLIG>0 & sum([M:PREP]DLVFLG)<=[M:PREP]NBLIG
+      Actzo [M:PREP]LOCDESH
+   Else
+      Diszo [M:PREP]LOCDESH
+   Endif
+Else
+   Actzo [M:PREP]LSTWIOFLG
+   Diszo [M:PREP]LOCDESH
+   If [M:PREP]LSTWIOFLG=2
+      Actzo [M:PREP]10
+   Else
+      Diszo [M:PREP]10
+   Endif
+Endif
+Effzo [M:PREP]10
+Affzo [M:PREP]LSTWIOFLG
+Affzo [M:PREP]LOCDESH
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+Return
+
+#########################################################################
+$APRES_MODIF
+
+# Apres modification 'liste preparation'
+If COUZON="PRLNUM"
+   #--- Issue 108260 by TS
+   If SYMBOLE1<>""
+      Unlock = SYMBOLE1
+      Raz SYMBOLE1
+   Endif
+   #---
+   # On a forcé mkstat à 4 après bouton 'annulation BP' --> ne rien faire
+   If CZ=[M:PREP]PRLNUM Return Endif
+
+   # Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+   Effzo [M:PREP]40
+   # Nettoyage de STOSORW
+   Call RAZSTOSORW From STKSOR
+
+   If CZ<>""
+      #--- Issue 108260 by TS
+      # Lock liste de préparation
+      SYMBOLE1 = "PRL"+CZ
+      Lock = SYMBOLE1
+      If fstat
+         # Modification en cours sur un autre poste
+         GMESSAGE="$STOPRELIS"-CZ-mess(10,100,1)
+         GERR=1 : FOK=0 : Return
+      Endif
+      #---
+      [M:PREP]PRLNUM = CZ
+      # Chargement liste preparation
+      Gosub LOAD_PRLNUM
+      # Les bons de prepa sont generes
+      If sum([M:PREP]PRHNUM)<>""
+         [M:PREP]LSTWIOFLG = 1
+         Diszo [M:PREP]LSTWIOFLG
+         # Ils ne sont pas encore livrables ou livrés ou annulés
+         If [M:PREP]NBLIG>0 & sum([M:PREP]DLVFLG)<=[M:PREP]NBLIG
+            Actzo [M:PREP]LOCDESH
+         Else
+            Diszo [M:PREP]LOCDESH
+         Endif
+      Else
+         Actzo [M:PREP]LSTWIOFLG
+         Diszo [M:PREP]LOCDESH
+         If [M:PREP]LSTWIOFLG=2
+            Actzo [M:PREP]10
+         Else
+            Diszo [M:PREP]10
+         Endif
+      Endif
+   Else
+      [M:PREP]LSTWIOFLG = 1
+      Diszo [M:PREP]LSTWIOFLG
+      Diszo [M:PREP]LOCDESH
+      Actzo [M:PREP]10
+   Endif
+   Effzo [M:PREP]10
+   Affzo [M:PREP]LSTWIOFLG
+   Affzo [M:PREP]LOCDESH
+   # Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+   Affzo [M:PREP]40
+
+Elsif COUZON="ALILOCDES"
+      GREP="M"
+      # Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+      Affzo [M:PREP]40
+      zonsui = zoncou
+Endif
+
+Return
+
+#########################################################################
+$AVANT_ENREG
+
+# Les bons de prepa sont generes
+If sum([M:PREP]PRHNUM)<>""
+   # Controle de coherence entre les quantites des lignes de bons de prepa
+   # et les quantites a sortir stockees dans STOSORW
+   Call CTLSTOSOR ("PREP","QTYSTU",[M:PREP]NBLIG,WRET) From STKECR
+   If WRET<>0
+      OK=0 : Return
+   Endif
+Endif
+
+Return
+
+#########################################################################
+$ENREG
+
+#--- Bug 78870
+Raz WSEQ
+# Lecture du dernier enregistrement de la liste
+Filter [PRL] Where PRLNUM=[M:PREP]PRLNUM
+Read [PRL]PRL0 Last
+If !fstat WSEQ=[F:PRL]PRLSEQ Endif
+#---
+
+# Les bons de prepa ne sont pas generes
+If sum([M:PREP]PRHNUM)=""
+
+   Gosub ENREG_STOPRELIS
+
+   # Rechargement liste preparation
+   # Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+   Effzo [M:PREP]40
+   Gosub LOAD_PRLNUM
+   Actzo [M:PREP]LSTWIOFLG
+   Diszo [M:PREP]LOCDESH
+   If [M:PREP]LSTWIOFLG=2
+      Actzo [M:PREP]10
+   Else
+      Diszo [M:PREP]10
+   Endif
+# Les bons de prepa sont generes
+Else
+
+   GALLORD=GRSTALLORD
+   Gosub ENREG_STOPREBON
+
+   # Rechargement liste preparation
+   # Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+   Effzo [M:PREP]40
+   Gosub LOAD_PRLNUM
+   [M:PREP]LSTWIOFLG = 1
+   Diszo [M:PREP]LSTWIOFLG
+   # Ils ne sont pas encore livrables ou livrés ou annulés
+   If [M:PREP]NBLIG>0 & sum([M:PREP]DLVFLG)<=[M:PREP]NBLIG
+      Actzo [M:PREP]LOCDESH
+   Else
+      Diszo [M:PREP]LOCDESH
+   Endif
+Endif
+
+# La liste de prépa est vide
+If [M:PREP]NBLIG=0
+   Effzo [M:PREP]PRLNUM
+   [M:PREP]LSTWIOFLG = 1
+   Diszo [M:PREP]LSTWIOFLG
+   Diszo [M:PREP]LOCDESH
+   Actzo [M:PREP]10
+Endif
+
+Effzo [M:PREP]10
+Affzo [M:PREP]LSTWIOFLG
+Affzo [M:PREP]LOCDESH
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+REP="" : GREP=""
+
+Return
+
+#########################################################################
+# Mise a jour de la liste de preparation suite a modification           #
+#########################################################################
+$ENREG_STOPRELIS
+
+Raz WSEQ
+# Lecture du dernier enregistrement de la liste
+Filter [PRL] Where PRLNUM=[M:PREP]PRLNUM
+Read [PRL]PRL0 Last
+If !fstat WSEQ=[F:PRL]PRLSEQ Endif
+
+For I=0 To [M:PREP]NBLIG-1
+
+   #--- Bug 78870
+   Gosub ENR_STOPRELIS
+
+Next I
+
+Return
+
+#########################################################################
+#--- Bug 78870
+$ENR_STOPRELIS
+
+WMAJ=0 : WDELTAQTY=0
+
+Call DEBTRANS From GLOCK
+Trbegin [PRL]
+
+nolign=I+1
+# La ligne existait deja
+If [M:PREP]CREFLG(I)<>0
+   # Elle a ete modifiee (normalement)
+   If [M:PREP]UPDFLG(I)<>0
+      # Elle a ete decochee --> suppression
+      If [M:PREP]COCHAGE(I)<>2
+         Readlock [PRL]PRL0=[M:PREP]PRLNUM;[M:PREP]PRLSEQ(I)
+         If !fstat
+            WDELTAQTY=[F:PRL]QTYSTU*(-1)
+            Delete [PRL]
+            If !fstat
+               WMAJ=3
+            Else
+               GOK=0
+               [M:PREP]COCHAGE(I)=2
+               Call FSTA("PRL") From GLOCK
+            Endif
+         Else
+            GOK=0
+         Endif
+      Else
+         Readlock [PRL]PRL0=[M:PREP]PRLNUM;[M:PREP]PRLSEQ(I)
+         If !fstat
+            WDELTAQTY=[M:PREP]QTYSTU(I)-[F:PRL]QTYSTU
+            # Si la quantité a été modifiée
+            If WDELTAQTY<>0 [F:PRL]QTYSTU=[M:PREP]QTYSTU(I) Endif
+            Rewrite [PRL]
+            If !fstat
+               WMAJ=2
+            Else
+               GOK=0
+               Call FSTA("PRL") From GLOCK
+            Endif
+         Else
+            GOK=0
+         Endif
+      Endif
+   Endif
+# C'est une nouvelle ligne et elle est cochée
+Elsif [M:PREP]COCHAGE(I)=2
+   [F:PRL] = [M:PREP]
+   WSEQ   += 1
+   [F:PRL]PRLSEQ = WSEQ
+   [F:PRL]CREDAT = date$
+   [F:PRL]CREUSR = GUSER
+   [F:PRL]EXPNUM = [C]EXPORT
+   [F:PRL]UPDUSR = ""
+   [F:PRL]UPDDAT = [0/0/0]
+   WDELTAQTY=[F:PRL]QTYSTU
+
+   Write [PRL]
+   If !fstat
+      WMAJ=1
+   Else
+      GOK=0
+      [M:PREP]COCHAGE(I)=1
+      Call FSTA("PRL") From GLOCK
+   Endif
+Endif
+
+If WMAJ<>0
+#                                                                hcb 88895 deb
+#   If find([M:PREP]ORITYP(I),1,2)
+#      Read [SOQ]SOQ0=[F:PRL]ORINUM;[F:PRL]ORILIN;[F:PRL]ORISEQ
+#      If fstat
+#         Call RSTA("SOQ",[F:PRL]ORINUM-num$([F:PRL]ORILIN)-num$([F:PRL]ORISEQ)) From GLOCK
+#         GOK = 0
+#      Endif
+# La commande a evolue  --> la quantite n'est plus disponible
+#      If WDELTAQTY>0 & [F:SOQ]QTYSTU-[F:SOQ]LPRQTYSTU
+#&                                   -[F:SOQ]OPRQTYSTU
+#&                                   -[F:SOQ]PREQTYSTU
+#&                                   -[F:SOQ]ODLQTYSTU
+#&                                   -[F:SOQ]DLVQTYSTU < WDELTAQTY
+#         [M:PREP]QTYSTU(I)    = [F:SOQ]QTYSTU-[F:SOQ]LPRQTYSTU
+#&                                            -[F:SOQ]OPRQTYSTU
+#&                                            -[F:SOQ]PREQTYSTU
+#&                                            -[F:SOQ]ODLQTYSTU
+#&                                            -[F:SOQ]DLVQTYSTU
+#         [M:PREP]QTYSTUMAX(I) = [M:PREP]QTYSTU(I)
+#         Call ERREUR([F:PRL]ORINUM-num$([F:PRL]ORILIN)-num$([F:PRL]ORISEQ)-":"-mess(10,100,1))
+#&             From GESECRAN
+#         GOK = 0
+#      Endif
+#   Endif
+#                                                                hcb 88895 fin
+
+   # Maj de la piece d'origine si la quantité a évoluée
+   If GOK=1 & WDELTAQTY<>0
+      Case [M:PREP]ORITYP(I)
+       When 1,2 : WTYP=1
+                  Call MAJ_SOQ (WTYP,[F:PRL]ORINUM,[F:PRL]ORILIN,[F:PRL]ORISEQ,[F:PRL]PCU,
+&                               [F:PRL]PCUSTUCOE,WDELTAQTY) From STKPREPA
+       When 3   : Call MAJ_REO (WMAJ,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]REOLOC,WDELTAQTY) From STKPREPA
+       When 4   : Call MAJ_STA (WMAJ,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]SEQ,WDELTAQTY) From STKPREPA
+      Endcase
+      If GOK=0
+         If WMAJ=1
+            [M:PREP]COCHAGE(I)=1
+         Elsif WMAJ=3
+            [M:PREP]COCHAGE(I)=2
+         Endif
+      Endif
+   Endif
+ Endif
+
+If GOK=1
+   Commit
+Else
+   Rollback
+Endif
+
+Return
+#---
+
+#########################################################################
+# Mise a jour des bons de preparation suite a modification              #
+#########################################################################
+$ENREG_STOPREBON
+
+For I=0 To [M:PREP]NBLIG-1
+
+   #--- Bug 78870
+   If [M:PREP]PRHNUM(I)=""
+      Gosub ENR_STOPRELIS
+   Else
+   #---
+
+      If [M:PREP]UPDFLG(I)=1
+
+         Call DEBTRANS From GLOCK
+         Trbegin [PRE]
+
+         WMAJ=0
+         Readlock [PRE]PRE0=[M:PREP]PRHNUM(I);[M:PREP]PRELIN(I)
+         If !fstat
+            Read [PRH]PRH0=[M:PREP]PRHNUM(I)
+            If !fstat
+               Raz [M:ALP]ALLQTY,[M:ALP]ALLQTYSHT
+               Raz [M:ALP]DESQTY,[M:ALP]DESQTYSHT
+               [M:ALP]MVTDES = [M:PREP]MVTDES(I)
+               WDELTAQTY = [M:PREP]QTYSTU(I)-[F:PRE]QTYSTU
+               # Article géré en stock
+               If [M:PREP]STOMGTCOD(I) <> 1
+                  [L]WSTOSEQ = [M:PREP]WSTOSEQ(I)
+                  #--- Issue 115937
+                  #[M:ALP]QTY   = [F:PRE]QTYSTU
+                  [M:ALP]QTY    = [M:PREP]QTYSTU(I)
+                  [M:ALP]ALLTYP = [M:PREP]ALLTYP(I)
+                  #---
+                  Gosub GESALL
+                  If GOK<=0
+                     # On remet les quantités à leur valeur initiale
+                     [M:PREP]QTYSTU(I) = [F:PRE]QTYSTU
+                     [M:PREP]ALLQTY(I) = [F:PRE]ALLQTY
+                     [M:PREP]SHTQTY(I) = [F:PRE]SHTQTY
+                     [M:PREP]ALLTYP(I) = [F:PRE]ALLTYP
+                     Goto NEXT_LIG
+                  #--- Issue 115937
+                  # Issue 120559 - 2017-01-03 by MAE : pas de réaffectation de ALLQTY si la qté n'a pas été modifiée
+                  Elsif WDELTAQTY<>0
+                     [M:PREP]ALLQTY(I) = [M:ALP]ALLQTY
+                     [M:PREP]SHTQTY(I) = [M:ALP]ALLQTYSHT
+                  #---
+                  Endif
+               Endif
+               [F:PRE]QTYSTU    = [M:PREP]QTYSTU(I)
+               [F:PRE]ALLQTY    = [M:PREP]ALLQTY(I)
+               [F:PRE]SHTQTY    = [M:PREP]SHTQTY(I)
+               [F:PRE]ALLTYP    = [M:PREP]ALLTYP(I)
+               [F:PRE]LOCDES    = [M:PREP]LOCDES(I)
+               [F:PRE]LOCTYPDES = [M:PREP]LOCTYPDES(I)
+               [F:PRE]PCK       = [M:PREP]PCK(I)
+               [F:PRE]PCKCAP    = [M:PREP]PCKCAP(I)
+               [F:PRE]PCKFLG    = [M:PREP]PCKFLG(I)
+               Rewrite [PRE]
+               If fstat
+                  GOK=0 : Call FSTA("PRE") From GLOCK
+                  Goto NEXT_LIG
+               Endif
+               Readlock [PRL]PRL0=[M:PREP]PRLNUM;[M:PREP]PRLSEQ(I)
+               If !fstat
+                  [F:PRL]QTYSTU += WDELTAQTY
+                  [F:PRL]PCK     = [M:PREP]PCK(I)
+                  [F:PRL]PCKCAP  = [M:PREP]PCKCAP(I)
+                  [F:PRL]PCKFLG  = [M:PREP]PCKFLG(I)
+                  Rewrite [PRL]
+                  If fstat
+                     GOK=0 : Call FSTA("PRL") From GLOCK
+                     Goto NEXT_LIG
+                  Endif
+               Else
+                  GOK=0 : Call RSTA("PRL",[M:PREP]PRLNUM-num$([M:PREP]PRLSEQ(I))) From GLOCK
+                  Goto NEXT_LIG
+               Endif
+
+               If WDELTAQTY <> 0
+                  Case [M:PREP]ORITYP(I)
+                   When 1,2 : If [M:PREP]DLVFLG(I)=2
+                                 WTYP=5
+                              Elsif [M:PREP]DLVFLG(I)<2
+                                 WTYP=4
+                             Endif
+                             Call MAJ_SOQ (WTYP,[F:PRL]ORINUM,[F:PRL]ORILIN,[F:PRL]ORISEQ,[F:PRL]PCU,
+&                                         [F:PRL]PCUSTUCOE,WDELTAQTY) From STKPREPA
+                   When 3   : Call MAJ_REO (WMAJ,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]REOLOC,WDELTAQTY) From STKPREPA
+                   When 4   : Call MAJ_STA (WMAJ,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]SEQ,WDELTAQTY) From STKPREPA
+                  Endcase
+                  If GOK<=0  Goto NEXT_LIG Endif
+               Endif
+            Else
+               GOK=0 : Call RSTA("PRH",[M:PREP]PRLNUM) From GLOCK
+            Endif
+         Else
+            GOK=0 : Call RSTA("PRE",[M:PREP]PRHNUM(I)-num$([M:PREP]PRELIN(I))) From GLOCK
+         Endif
+
+         $NEXT_LIG
+         [M:PREP]UPDFLG(I)=0
+         If GOK=1
+            Commit
+         Else
+            Rollback
+         Endif
+      Endif
+
+   #--- 78870
+   Endif
+
+Next I
+
+Return
+
+#########################################################################
+$GESALL
+#-----------------------------------------------#
+# Gestion des allocations suite à modification  #
+#-----------------------------------------------#
+Local Integer WTRT, WRET, WALLTYP
+# Gestion des signatures cdes
+Local Integer WGALLORD : # FLAG réallocation des commandes
+#--- Issue 115937
+Local Decimal LQTA, LSHT
+
+# Lecture de l'article si nécessaire
+If [F:ITM]ITMREF <> [F:PRE]ITMREF
+   Read [ITM]ITM0=[F:PRE]ITMREF
+   If fstat  GOK =  0
+      Call RSTA ("ITM",[F:PRE]ITMREF) From GLOCK
+      Return
+   Endif
+Endif
+
+[M:ALP]VCRTYP     = 3
+[M:ALP]VCRNUM     = [F:PRE]PRHNUM
+[M:ALP]VCRLIN     = [F:PRE]PRELIN
+[M:ALP]VCRSEQ     = 0
+[M:ALP]STOFCY     = [F:PRH]STOFCY
+[M:ALP]ITMREF     = [F:PRE]ITMREF
+[M:ALP]TYPQTY     = 2
+[M:ALP]BESDAT     = [F:PRH]SHIDAT
+Raz [M:ALP]ALLDAT, [M:ALP]DESQTY, [M:ALP]ALLQTY
+
+#--- Issue X3-38527
+#--- Issue 115937
+# Si modif allocation globale
+#If [M:ALP]ALLTYP=1 & [M:ALP]QTY<>0
+#  If WDELTAQTY<0
+#    Call DIMALL([M:ALP]VCRTYP,[M:ALP]VCRNUM,[M:ALP]VCRLIN,[M:ALP]VCRSEQ,
+#&								[M:ALP]ITMREF,0,abs(WDELTAQTY),LQTA,LSHT,WRET) From STKALL
+#    If WRET<>0  GOK=0 : Return  Endif
+#    [M:ALP]ALLQTY   =[F:PRE]ALLQTY-LQTA
+#    [M:ALP]ALLQTYSHT=[F:PRE]SHTQTY-LSHT
+#  Elsif WDELTAQTY>0
+#    Call DELALL([M:ALP]VCRTYP,[M:ALP]VCRNUM,[M:ALP]VCRLIN,[M:ALP]VCRSEQ,
+#&               [M:ALP]ITMREF,0,LQTA,LSHT,WRET) From STKALL
+#    If WRET<>0  GOK=0 : Return  Endif
+#    If [F:PRE]ORITYP=2
+#      [M:ALP]TRSTYP = 17
+#    Else
+#      [M:ALP]TRSTYP = 4
+#    Endif
+#    [M:ALP]PECRER    = 1
+#    [M:ALP]PECINTLOC = 2
+#    [M:ALP]PECSCOLOC = 1
+#    [M:ALP]PECPLFLOC = 2
+#    Call GENSTOALL("C",1,1,1,WRET) From STKALL
+#    If WRET<>0  GOK=0 : Return  Endif
+#  Endif
+#  Return
+#Endif
+#---
+#--- End issue X3-38527
+
+# Sans réallocation pièce origine
+WTRT=0
+Raz [M:ALP]VCRTYPORI,[M:ALP]VCRNUMORI,[M:ALP]VCRLINORI
+Raz [M:ALP]VCRSEQORI,[M:ALP]ALLTYPORI
+
+# Si préparation d'une commande
+If find([F:PRE]ORITYP,1,2)
+  # Alimentation type allocation commande
+  WALLTYP = GALLTYP
+  Read [SOQ]SOQ0=[F:PRE]ORINUM;[F:PRE]ORILIN;[F:PRE]ORISEQ
+  If fstat
+     Call RSTA ("SOQ",[F:PRE]ORINUM-num$([F:PRE]ORILIN)-num$([F:PRE]ORISEQ))
+&          From GLOCK
+     GOK=0 : Return
+  Endif
+  WALLTYP = [F:SOQ]ALLTYP
+  # Gestion des signatures
+  # --> Il faut lire la cde pour savoir si on peut la réallouer en cas de modif/suppression
+  If [F:SOH]SOHNUM<>[F:SOQ]SOHNUM
+      Read [SOH]SOH0=[F:SOQ]SOHNUM
+      If fstat
+          Call RSTA ("SOH",[F:SOQ]SOHNUM) From GLOCK
+          GOK=0 : Return
+      Endif
+  Endif
+  # Gestion des signatures cdes
+  # Si Cde non signée et pas d'encours si cde non signée ou pas d'allocation si cde non signée on ne va pas réallouer
+  WGALLORD=GALLORD
+  If [F:SOH]APPFLG<3 & (GSOHAPPORD=1 | GSOHAPPALL=1) WGALLORD=1 Endif
+  # Si augmentation de la qté préparée
+  If WDELTAQTY>0
+    # Désallocation commande origine
+    WTRT = 1
+    [M:ALP]VCRTYPORI  = 2
+    [M:ALP]VCRNUMORI  = [F:PRE]ORINUM
+    [M:ALP]VCRLINORI  = [F:PRE]ORILIN
+    [M:ALP]VCRSEQORI  = [F:PRE]ORISEQ
+    [M:ALP]ALLTYPORI  = WALLTYP
+    [M:ALP]DESQTY     = [F:PRE]QTYSTU
+  # Si diminution de la qté préparée et qté allouée origine sur la cde
+  Elsif WDELTAQTY <0 & find(WGALLORD,2,3) & [F:PRE]OALQTYSTU<>0
+    WTRT = 2
+    [M:ALP]VCRTYPORI  = 2
+    [M:ALP]VCRNUMORI  = [F:PRE]ORINUM
+    [M:ALP]VCRLINORI  = [F:PRE]ORILIN
+    [M:ALP]VCRSEQORI  = [F:PRE]ORISEQ
+    [M:ALP]ALLTYPORI  = WALLTYP
+    [M:ALP]DESQTY     = [F:PRE]QTYSTU
+    [M:ALP]ALLQTY     = [F:PRE]OALQTYSTU
+  Endif
+  #DLUBPC
+  [M:ALP]BPRNUM=[F:SOH]BPCORD
+Endif
+
+#MAE, le 08/09/08, affectation déplacée dans SUBPRHA pr suppression des BP
+#[M:ALP]QTY    = [F:PRE]QTYSTU
+
+# Mise à jour des allocations à partir de l'écran de travail STOSORW
+Call ENRSTOALL([L]WSTOSEQ,WTRT,WRET) From STKALL
+If WRET=0
+  # Mise a jour de la commande
+  If find([F:PRE]ORITYP,1,2)
+    # si désallocation de celle-ci
+    If WDELTAQTY>0
+      # [M:ALP]DESQTY & DESQTYSHT contiennent les qtes desallouees de la cde
+      WALLSTU = max(0,[F:SOQ]ALLQTYSTU-[M:ALP]DESQTY)
+      WSHTSTU = max(0,[F:SOQ]SHTQTYSTU-[M:ALP]DESQTYSHT)
+      Call MAJALLORD([F:SOQ]SOHNUM,[F:SOQ]SOPLIN,[F:SOQ]SOQSEQ,[F:SOQ]ALLTYP,
+&                    1,WALLSTU,WSHTSTU,WRET) From TRTVENALL
+      If WRET<>0  GOK=0 : Return  Endif
+    # si réallocation de celle-ci
+    Elsif WDELTAQTY <0 & find(WGALLORD,2,3) & [F:PRE]OALQTYSTU<>0
+      # [M:ALP]DESQTY & DESQTYSHT contiennent les qtes réallouees sur la cde
+      WALLSTU = [F:SOQ]ALLQTYSTU+[M:ALP]DESQTY
+      WSHTSTU = [F:SOQ]SHTQTYSTU+[M:ALP]DESQTYSHT
+      Call MAJALLORD([F:SOQ]SOHNUM,[F:SOQ]SOPLIN,[F:SOQ]SOQSEQ,[F:SOQ]ALLTYP,
+&                    1,WALLSTU,WSHTSTU,WRET) From TRTVENALL
+      If WRET<>0  GOK=0 : Return  Endif
+    Endif
+  Endif
+Else
+   GOK=0 : Return
+Endif
+
+Return
+
+#########################################################################
+$ABANDON
+
+# Nettoyage de STOSORW
+Call DELSTOSORW(-1,0,"PREP",[M:PREP]STOFCY,WRET) From STKSOR
+Gosub DECOCHAGE_PREP    # hcb 93069
+
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Effzo [M:PREP]40
+# Rechargement liste preparation
+Gosub LOAD_PRLNUM
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+REP="" : GREP=""
+
+Return
+
+#########################################################################
+$SETBOUT
+
+REP = GREP
+
+If !find("A",CHBOU) CHBOU+="A" Endif
+If !find("E",CHBOU) CHBOU+="E" Endif
+# ------------------------------------------------------------------------------------- #
+# Suppression des boutons                                                               #
+# ------------------------------------------------------------------------------------- #
+#     R : Recherche                                                                     #
+#     I : Tout inclure                                                                  #
+#     J : Tout exclure                                                                  #
+#     T : Criteres                                                                      #
+#     P : Liste preparations                                                            #
+#     Q : Bon de preparation                                                            #
+#     V : Livrable                                                                      #
+# ------------------------------------------------------------------------------------- #
+
+# Pas de bouton 'Enregistrer' et 'Abandon'
+# si pas de liste de preparation
+# ou pas de modification
+If [M:PREP]PRLNUM="" | REP<>"M"
+   Call VIREBOUT(CHBOU,"EA") From GOBJET
+Endif
+
+# Pas de bouton '<' et '>'
+# si pas de liste de preparation ou modification
+If [M:PREP]PRLNUM="" | REP="M"
+   Call VIREBOUT(CHBOU,"<>") From GOBJET
+Endif
+
+# Pas de boutons 'Tout inclure' et 'Tout exclure'
+# si bons preparation generes
+If sum([M:PREP]PRHNUM)<>"" | [M:PREP]NBLIG=0
+   Call VIREBOUT(CHMEN,"IJ") From GOBJET
+Endif
+
+# Pas de bouton 'Recherche'
+# si modification
+# ou liste de preparation sans 'inclure sans liste'
+If REP="M" | ([M:PREP]PRLNUM<>"" & [M:PREP]LSTWIOFLG<>2)
+   Call VIREBOUT(CHMEN,"R") From GOBJET
+Endif
+
+# Pas de bouton 'Criteres'
+# si modification
+# ou liste de preparation sans 'inclure sans liste'
+If REP="M" | ([M:PREP]PRLNUM<>"" & [M:PREP]LSTWIOFLG<>2)
+   Call VIREBOUT(CHMEN,"T") From GOBJET
+Endif
+
+# Pas de bouton 'Liste preparation'
+# si liste de preparation
+# ou aucune ligne cochee
+If [M:PREP]PRLNUM<>"" | [M:PREP]NBLIG=0 |
+&  !find(2,[M:PREP]COCHAGE(0..[M:PREP]NBLIG-1))
+   Call VIREBOUT(CHMEN,"P") From GOBJET
+Endif
+
+# Pas de bouton 'Bon preparation'
+# si modification
+# ou pas de liste de preparation
+# ou bon preparation deja generes
+If REP="M" | [M:PREP]PRLNUM="" | [M:PREP]NBLIG=0
+&          | !find("",[M:PREP]PRHNUM(0..[M:PREP]NBLIG-1))
+   Call VIREBOUT(CHMEN,"Q") From GOBJET
+Endif
+
+# Pas de bouton 'Livrable'
+# si modification
+# ou bons de preparation non generes
+# Issue X3-247305 by JOPAU : 'Deliverable' button not active in the Pick tickets function (GESPRH2)
+If func PORLEGLIB.PORLEG([M:PREP]STOFCY,"") =1 & func PORLEGLIB.DIGSIGN([M:PREP]STOFCY, "") & func PORLEGLIB.CHECK_PRH([M:PREP]PRHNUM) = 1
+    Call VIREBOUT(CHMEN,"V") From GOBJET
+# Issue end X3-247305
+Else
+  # ou bons prépa déjà livrables/livrés/annulés
+  If REP="M" | [M:PREP]NBLIG=0 | find("",[M:PREP]PRHNUM(0..[M:PREP]NBLIG-1))
+&            | !find(1,[M:PREP]DLVFLG(0..[M:PREP]NBLIG-1))
+     Call VIREBOUT(CHMEN,"V") From GOBJET
+  Endif
+Endif
+
+# SYMEU 08/12/2008 : branchement traçabilité pièces
+If find(GREP,"C","D") or find("CONSPIV",GNAVIG(1..GPILNAV)) or [M:PREP]PRLNUM="" Then
+   Call VIREBOUT(CHMEN,"N") From GOBJET
+Endif
+
+# Inutile car fait dans GSAISIE
+#Gosub SET_BOUT_SPE From GSAISIE
+
+Return
+
+#########################################################################
+$BOUTON
+#----------------------------
+# R : Rechercher
+# I : Tout inclure
+# J : Tout exclure
+# P : Creation liste prepa
+# Q : Generation bons prepa
+# V : Bons prepa livrables
+#----------------------------
+Case BOUT
+ When "R" : Gosub SEARCH
+ When "I" : Gosub ALL_INC
+ When "J" : Gosub ALL_EXC
+ When "T" : Affzo [M:PREP]10
+ When "P" : Gosub CRE_PRL
+ When "Q" : Gosub GEN_PRH
+ When "V" : Gosub LIV_PRH
+Endcase
+
+Return
+#########################################################################
+# Bouton "Rechercher"
+#########################################################################
+$SEARCH
+# Effacement du tableau, puis rechargement si liste preparation
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Gosub DECOCHAGE_PREP    # hcb 95511
+Effzo [M:PREP]40
+If [M:PREP]PRLNUM<>"" Gosub LOAD_PRLNUM Endif
+
+# Si pas module vente
+If GMODU(5)<>2 Goto SEARCH_SST Endif
+
+# Criteres commandes
+If [M:PREP]FLG1=2
+   WCRIT1 ="[F:SOQ]STOFCY=[M]STOFCY"
+   #--- Issue 112531 by TS
+   WCRIT1 +="&[F:SOQ]DLVFLG=2"
+   #---
+   If [M:PREP]FLG2=2
+      WCRIT1+="&((find([F:SOH]SOHCAT,1,2)&[F:SOQ]SOQSTA=1&[F:SOP]CONNUM='')|([F:SOH]SOHCAT=4&[F:SOQ]SOQSTA<3&[F:SOQ]CAD=1))"
+   Else
+      WCRIT1+="&(([F:SOH]SOHCAT=1&[F:SOQ]SOQSTA=1&[F:SOP]CONNUM='')|([F:SOH]SOHCAT=4&[F:SOQ]SOQSTA<3&[F:SOQ]CAD=1))"
+   Endif
+Elsif [M:PREP]FLG2=2
+   WCRIT1 ="[F:SOQ]STOFCY=[M]STOFCY"
+   #--- Issue 112531 by TS
+   WCRIT1 +="&[F:SOQ]DLVFLG=2"
+   #---
+   WCRIT1+="&[F:SOH]SOHCAT=2&[F:SOQ]SOQSTA=1&[F:SOP]CONNUM=''"
+Else
+   Goto SEARCH_SST
+Endif
+
+#WCRIT1+="&[F:SOQ]DEMSTA=1&[F:SOH]ORDSTA<>2&[F:SOH]DLVSTA<>3"
+#WCRIT2 ="[F:SOQ]SHIDAT-[F:ITF]PRPLTI<=[M:PREP]PREDAT"
+WCRIT2 ="[F:SOQ]DEMSTA=1&[F:SOH]ORDSTA<>2&[F:SOH]DLVSTA<>3&[F:SOH]APPFLG>2"
+
+If [M:PREP]SOHNUMSTR<>""
+   WCRIT2+="&[F:SOQ]SOHNUM>=[M]SOHNUMSTR"
+Endif
+If [M:PREP]SOHNUMEND<>""
+   WCRIT2+="&[F:SOQ]SOHNUM<=[M]SOHNUMEND"
+Endif
+If [M:PREP]BPCORDSTR<>""
+   WCRIT2+="&[F:SOQ]BPCORD>=[M]BPCORDSTR"
+Endif
+If [M:PREP]BPCORDEND<>""
+   WCRIT2+="&[F:SOQ]BPCORD<=[M]BPCORDEND"
+Endif
+If [M:PREP]BPTSTR<>""
+   WCRIT2+="&[F:SOQ]BPTNUM>=[M]BPTSTR"
+Endif
+If [M:PREP]BPTEND<>""
+   WCRIT2+="&[F:SOQ]BPTNUM<=[M]BPTEND"
+Endif
+WCRIT3 = "1=1"
+If [M:PREP]DRNSTR<>0
+   WCRIT3+="&[F:SOQ]DRN>=[M]DRNSTR"
+Endif
+If [M:PREP]DRNEND<>0
+   WCRIT3+="&[F:SOQ]DRN<=[M]DRNEND"
+Endif
+If [M:PREP]DLVPIOSTR<>0
+   WCRIT3+="&[F:SOQ]DLVPIO>=[M]DLVPIOSTR"
+Endif
+If [M:PREP]DLVPIOEND<>0
+   WCRIT3+="&[F:SOQ]DLVPIO<=[M]DLVPIOEND"
+Endif
+If [M:PREP]PRECODSTR<>""
+   WCRIT3+="&[F:SOQ]PRECOD>=[M]PRECODSTR"
+Endif
+If [M:PREP]PRECODEND<>""
+   WCRIT3+="&[F:SOQ]PRECOD<=[M]PRECODEND"
+Endif
+
+# X3-119756 : Management of draft sales orders / X3-81821 : Hide draft SO - Exclusion from the transformation document mass processes (LD 12/21/18)
+# Draft sales orders have to be excluded
+WCRIT3 += '& [F:SOH]DRAFTSTATUS=0'
+# X3-119756 : Management of draft sales orders / X3-81821 : Hide draft SO - Exclusion from the transformation document mass processes (LD 12/21/18)
+
+[L]WFORMULE = "1=1"
+If [M:PREP]FOR1<>""
+   Read [F:TFO]TFO0=26;[M]FOR1
+   If !fstat
+      [L]WFORMULE = [F:TFO]FORFOR
+   Endif
+Endif
+
+# Point d'entrée CRIT_SOQ : (Hcb demande 62891)
+Local Char CRITSOQ(250)
+Raz CRITSOQ
+# Issue X3-280767 - 2022-07-18 by SR :
+# Set the variable to 2 value, to force the urgent order lines to be taken into account regardless the lead time
+Local Integer WDLVPIO
+WDLVPIO = 1
+# End issue X3-280767
+GPOINT = "CRIT_SOQ" : Gosub ENTREE From EXEFNC
+If CRITSOQ = ""
+   CRITSOQ = "1=1"
+Endif
+
+Link [SOQ] With [SOH]SOH0=[SOQ]SOHNUM,
+&               [SOP]SOP0=[SOQ]SOHNUM;[SOQ]SOPLIN;[SOQ]SOQSEQ,
+&               [SOC]SOC0=[SOQ]SOHNUM;[SOQ]SOPLIN
+&          As [KSOQ]
+
+# Issue 55983 - 2013-03-12 by MAE : Ajout du critére de tri
+#MAE, bg 105612, ajout de SOHNUM et SOPLIN dans les order by
+Case [M:PREP]SRTCOD
+  When 1
+    Filter [KSOQ] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(WCRIT3)& evalue(CRITSOQ) & evalue([L]WFORMULE)
+&   Order By SOHNUM;SOPLIN
+  When 2
+    Filter [KSOQ] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(WCRIT3)& evalue(CRITSOQ) & evalue([L]WFORMULE)
+&   Order By SHIDAT;SOHNUM;SOPLIN
+  When 3
+      Filter [KSOQ] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(WCRIT3)& evalue(CRITSOQ) & evalue([L]WFORMULE)
+&   Order By ITMREF;SOHNUM;SOPLIN
+  When Default
+  Filter [KSOQ] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(WCRIT3)& evalue(CRITSOQ) & evalue([L]WFORMULE)
+&   Order By SOHNUM;SOPLIN
+Endcase
+
+Local Integer WALLCOMP #MAE, bg 94612
+#For [KSOQ] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(WCRIT3)& evalue(CRITSOQ) & evalue([L]WFORMULE)
+For [KSOQ]
+   If [F:SOQ]BPCORD=[M:PREP]BPCORDSTR & [F:SOQ]BPAADD<[M:PREP]BPAADDSTR
+      Goto NEXT_KSOQ
+   Endif
+   If [F:SOQ]BPCORD=[M:PREP]BPCORDEND & [M:PREP]BPAADDEND<>"" &
+&     [F:SOQ]BPAADD>[M:PREP]BPAADDEND
+      Goto NEXT_KSOQ
+   Endif
+   # Qte sur liste de preparation ou rien a preparer
+   If [F:SOQ]LPRQTYSTU<>0 |
+&     [F:SOQ]QTYSTU<=[F:SOQ]OPRQTYSTU+[F:SOQ]PREQTYSTU+[F:SOQ]ODLQTYSTU+[F:SOQ]DLVQTYSTU
+      Goto NEXT_KSOQ
+   Endif
+   # Uniquement quantités allouées
+   If [M:PREP]ALLFLG=2 & [F:SOQ]STOMGTCOD>1
+      If [F:SOQ]ALLQTYSTU+[F:SOQ]SHTQTYSTU=0
+         Goto NEXT_KSOQ
+      Endif
+   Endif
+   #MAE, bug 94612
+   # Si composé de kit, recherche si les composants sont alloués afin de savoir si on prend le composé ou non
+   WALLCOMP = 0
+   If find([F:SOP]LINTYP,2)&[M:PREP]ALLFLG=2
+    Filter [SOP1] Where SOHNUM=[F:SOP]SOHNUM & SOPLIN>[F:SOP]SOPLIN
+    For [SOP1]SOP0
+      If !(find([F:SOP1]LINTYP,3,4,5)) : Break :Endif
+      Read [SOQ1]SOQ0=[F:SOP1]SOHNUM;[F:SOP1]SOPLIN;[F:SOP1]SOPSEQ
+      #Si Quantité allouée = 0 ou composant non géré en stock=>on passe au suivant
+      #sinon, on garde le composé
+      #--- Issue 102867
+      #If ([F:SOQ1]ALLQTY = 0) |([F:SOQ1]STOMGTCOD=1)
+      If ([F:SOQ1]ALLQTY+[F:SOQ1]SHTQTYSTU=0) & ([F:SOQ1]STOMGTCOD>1)
+      #---
+        WALLCOMP = 1 : Break
+      Endif
+    Next
+    Filter [SOP1]
+    If WALLCOMP = 1 : Goto NEXT_KSOQ Endif
+   Endif
+   #Fin MAE, bug 94612
+   #--- Bug 76093
+   # Si le composé n'a pas été traité, il ne faut pas traiter les composants
+   If find([F:SOP]LINTYP,3,4,5,11,12,13) & WQTYCPE=0
+      Goto NEXT_KSOQ
+   Endif
+   #---
+   If func MANHLDLIB.BLK_ALLOC([F:SOH]HLDSTA,[F:SOH]HLDCOD) : Goto NEXT_KSOQ : Endif  # order holds
+   #--- Bug 70833
+   Read [ITM]ITM0=[F:SOQ]ITMREF
+   If fstat Goto NEXT_KSOQ Endif
+   #---
+   Read [ITF]ITF0=[F:SOQ]ITMREF;[F:SOQ]STOFCY
+   If fstat [F:ITF]PRPLTI=0 Endif
+   # Issue X3-280767 - 2022-07-18 by SR :
+   # If WDLVPIO was set to value 2 (by using the entry point CRIT_SOQ), urgent order lines must be selected regardless the lead time
+   #If [F:SOQ]SHIDAT-[F:ITF]PRPLTI>[M:PREP]PREDAT
+   If [F:SOQ]SHIDAT-[F:ITF]PRPLTI>[M:PREP]PREDAT & ([F:SOQ]DLVPIO = 1 | WDLVPIO <> 2)
+      Goto NEXT_KSOQ
+   Endif
+   #--- Issue 106897
+   GPE=0
+   GPOINT = "CTRL_ITM" : Gosub ENTREE From EXEFNC
+   If GPE=1 : GPE=0 : Goto NEXT_KSOQ : Endif
+   #---
+
+   If [M:PREP]NBLIG>=dim([M:PREP]COCHAGE)-1
+      Call ERREUR(mess(53,184,1)-mess(232,184,1)) From GESECRAN
+      Break
+   Endif
+   # Chargement de la ligne de commande
+   Gosub LOAD_SOQ
+
+$NEXT_KSOQ
+Next
+
+# Criteres sous-traitants
+$SEARCH_SST
+
+Local Integer WSTOMGTCOD
+
+# Traitement des manquants sous-traitants
+If [M:PREP]FLG4=2
+
+   WCRIT1 ="find([F:STA]VCRTYP,10,36)&[F:STA]STOFCY=[M]STOFCY"
+   WCRIT1+="&[F:STA]ALLTYP=4&[F:STA]SCOFLG=2"
+   WCRIT1+="&[F:STA]SRGQTYSTU=0"
+   WCRIT2 ="1=1"
+   If [M:PREP]BPCORDSTR<>""
+      WCRIT2+="&[F:STA]BPRNUM>=[M]BPCORDSTR"
+   Endif
+   If [M:PREP]BPCORDEND<>""
+      WCRIT2+="&[F:STA]BPRNUM<=[M]BPCORDEND"
+   Endif
+
+   If [M:PREP]PRECODSTR<>""
+      WCRIT2+="&[F:STA]PRECOD>=[M]PRECODSTR"
+   Endif
+   If [M:PREP]PRECODEND<>""
+      WCRIT2+="&[F:STA]PRECOD<=[M]PRECODEND"
+   Endif
+
+   [L]WFORMULE = "1=1"
+   If [M]FOR3<>""
+      Read [F:TFO]TFO0=25;[M]FOR3
+      If !fstat
+         [L]WFORMULE = [F:TFO]FORFOR
+      Endif
+   Endif
+
+   #--- Issue 121914
+   # Point d'entrée CRIT_STA
+   Local Char CRITSTA(250)
+   Raz CRITSTA
+   GPOINT = "CRIT_STA" : Gosub ENTREE From EXEFNC
+   If CRITSTA = ""
+      CRITSTA = "1=1"
+   Endif
+   For [STA] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(CRITSTA) & evalue([L]WFORMULE)
+   #For [STA] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue([L]WFORMULE)
+   #--- End issue 121914
+
+      # L'article doit etre livrable
+      Look [ITS]ITS0=[F:STA]ITMREF
+      If fstat Goto NEXT_KSTA Endif
+
+      If [F:STA]BPAADD=""
+         Read [BPC]BPC0=[F:STA]BPRNUM
+         If fstat | [F:BPC]BPDADD=""
+            Goto NEXT_KSTA
+         Else
+           [F:STA]BPAADD = [F:BPC]BPDADD
+         Endif
+      Endif
+
+      If [F:STA]BPRNUM=[M:PREP]BPCORDSTR & [F:STA]BPAADD<[M:PREP]BPAADDSTR
+         Goto NEXT_KSTA
+      Endif
+      If [F:STA]BPRNUM=[M:PREP]BPCORDEND & [M:PREP]BPAADDEND<>"" &
+&        [F:STA]BPAADD>[M:PREP]BPAADDEND
+         Goto NEXT_KSTA
+      Endif
+
+      # Lecture article et article-site
+      Raz WSTOMGTCOD
+      Read [ITM]ITM0=[F:STA]ITMREF
+      If fstat Goto NEXT_KSTA Endif
+      WSTOMGTCOD = [F:ITM]STOMGTCOD
+
+      Read [ITF]ITF0=[F:STA]ITMREF;[F:STA]STOFCY
+      If !fstat & [F:ITM]STOMGTCOD>1
+         WSTOMGTCOD = [F:ITF]STOMGTCOD
+      Endif
+
+      # Lecture client livre
+      Read [BPD]BPD0=[F:STA]BPRNUM;[F:STA]BPAADD
+      If fstat Goto NEXT_KSTA Endif
+
+      If [F:STA]BESDAT-[F:BPD]DAYLTI-[F:ITF]PRPLTI>[M:PREP]PREDAT
+         Goto NEXT_KSTA
+      Endif
+
+      If [F:BPD]DRN<[M:PREP]DRNSTR |
+&        ([M:PREP]DRNEND<>0 & [F:BPD]DRN>[M:PREP]DRNEND)
+         Goto NEXT_KSTA
+      Endif
+
+      If [M:PREP]NBLIG>=dim([M:PREP]COCHAGE)-1
+         Call ERREUR(mess(53,184,1)-mess(232,184,1)) From GESECRAN
+         Break
+      Endif
+      # Chargement du manquant
+      Gosub LOAD_SHT
+
+      $NEXT_KSTA
+   Next
+Endif
+
+# Traitement des reapprovisionnements d'emplacements sous-traitants
+If [M:PREP]FLG3=2
+   WCRIT1 ="[F:REO]STOFCY=[M]STOFCY&[F:REO]LOCCAT=4"
+   WCRIT1+="&[F:REO]QTYSTUORIA=0&[F:REO]STAFLG<>2"
+   WCRIT1+="&[F:REO]BESDAT-[F:BPD]DAYLTI-[F:ITF]PRPLTI<=[M:PREP]PREDAT"
+   WCRIT2 ="1=1"
+   If [M:PREP]BPCORDSTR<>""
+      WCRIT2+="&[F:REO]BPRNUM>=[M]BPCORDSTR"
+   Endif
+   If [M:PREP]BPCORDEND<>""
+      WCRIT2+="&[F:REO]BPRNUM<=[M]BPCORDEND"
+   Endif
+   If [M:PREP]DRNSTR<>0
+      WCRIT2+="&[F:BPD]DRN>=[M]DRNSTR"
+   Endif
+   If [M:PREP]DRNEND<>0
+      WCRIT2+="&[F:BPD]DRN<=[M]DRNEND"
+   Endif
+   If [M:PREP]PRECODSTR<>""
+      WCRIT2+="&[F:REO]PRECOD>=[M]PRECODSTR"
+   Endif
+   If [M:PREP]PRECODEND<>""
+      WCRIT2+="&[F:REO]PRECOD<=[M]PRECODEND"
+   Endif
+
+   [L]WFORMULE = "1=1"
+   If [M]FOR2<>""
+      Read [F:TFO]TFO0=20;[M]FOR2
+      If !fstat
+         [L]WFORMULE = [F:TFO]FORFOR
+      Endif
+   Endif
+
+   #--- Issue 121914
+   # Point d'entrée CRIT_REO
+   Local Char CRITREO(250)
+   Raz CRITREO
+   GPOINT = "CRIT_REO" : Gosub ENTREE From EXEFNC
+   If CRITREO = ""
+      CRITREO = "1=1"
+   Endif
+   #--- End issue 121914
+
+   Link [REO] With [BPD]BPD0=[REO]BPRNUM;[REO]BPAADD,
+&                  [ITF]ITF0=[REO]ITMREF;[REO]STOFCY
+&                  As [KREO]
+
+   #--- Issue 121914
+   For [KREO] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue(CRITREO) & evalue([L]WFORMULE)
+   #For [KREO] Where evalue(WCRIT1) & evalue(WCRIT2) & evalue([L]WFORMULE)
+   #--- End issue 121914
+
+      # L'article doit etre vendu
+      Look [ITS]ITS0=[F:REO]ITMREF
+      If fstat Goto NEXT_KREO Endif
+
+      If [F:REO]BPRNUM=[M:PREP]BPCORDSTR & [F:REO]BPAADD<[M:PREP]BPAADDSTR
+         Goto NEXT_KREO
+      Endif
+      If [F:REO]BPRNUM=[M:PREP]BPCORDEND & [M:PREP]BPAADDEND<>"" &
+&        [F:REO]BPAADD>[M:PREP]BPAADDEND
+         Goto NEXT_KREO
+      Endif
+
+      If [M:PREP]NBLIG>=dim([M:PREP]COCHAGE)-1
+         Call ERREUR(mess(53,184,1)-mess(232,184,1)) From GESECRAN
+         Break
+      Endif
+      Raz WSTOMGTCOD
+      Read [ITM]ITM0=[F:REO]ITMREF
+      If fstat Goto NEXT_KREO Endif
+      WSTOMGTCOD = [F:ITM]STOMGTCOD
+      If [F:ITM]STOMGTCOD>1
+         If [F:ITF]STOFCY<>[F:REO]STOFCY | [F:ITF]ITMREF<>[F:REO]ITMREF
+            Read [ITF]ITF0=[F:REO]ITMREF;[F:REO]STOFCY
+            If !fstat : WSTOMGTCOD = [F:ITF]STOMGTCOD : Endif
+         Else
+            WSTOMGTCOD = [F:ITF]STOMGTCOD
+         Endif
+      Endif
+      # Chargement du reappro
+      Gosub LOAD_REO
+
+      $NEXT_KREO
+   Next
+Endif
+
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+#--- Issue 90423 By TS
+# Point d'entrée pour trier le tableau
+GPOINT="ORD_PREP" :  Gosub ENTREE From EXEFNC
+#---
+
+Return
+
+#########################################################################
+# Chargement des lignes de commandes dans le tableau
+#########################################################################
+$LOAD_SOQ
+
+# Ouverture de la ligne
+nolign = [M:PREP]NBLIG
+Insa nolign,1,[M:PREP]NBLIG [M:PREP]NBLIG
+[M:PREP]NBLIG += 1
+nolign = [M:PREP]NBLIG
+NOL = nolign-1
+status = 0
+
+[M:PREP] = [F:SOQ]
+
+#-- X3-Suivi 75115 : Passage du Type livraison de commande à BP --#
+Local Char WJDE
+[M:PREP]SDHTYP(NOL) = [F:SOH]SDHTYP
+
+[M:PREP]COCHAGE(NOL) = 1
+Raz [M:PREP]PRHNUM(NOL)
+If [F:SOH]SOHCAT=2
+   [M:PREP]ORITYP(NOL) = 2
+Else
+   [M:PREP]ORITYP(NOL) = 1
+Endif
+[M:PREP]LINTYP(NOL)    = [F:SOP]LINTYP
+
+#--- Issue 115218
+If [M:PREP]LINTYP(NOL)=0 [M:PREP]LINTYP(NOL)=1 Endif
+#---
+[M:PREP]ORINUM(NOL)    = [F:SOQ]SOHNUM
+[M:PREP]ORILIN(NOL)    = [F:SOQ]SOPLIN
+[M:PREP]ORISEQ(NOL)    = [F:SOQ]SOQSEQ
+Raz [M:PREP]REOLOC(NOL)
+Raz [M:PREP]SEQ(NOL)
+
+# 88827 : La date besoin doit tjs être alimentée avec la date d'expédition pour respecter l'ordre chronologique des allocations
+#[M:PREP]BESDAT(NOL)    = max(date$,[F:SOQ]SHIDAT)
+[M:PREP]BESDAT(NOL)    = [F:SOQ]SHIDAT
+# 88827
+[M:PREP]DLVDAT(NOL)    = max(date$,[F:SOQ]DEMDLVDAT)
+[M:PREP]LOTFIL(NOL)    = [F:SOQ]LOT
+[M:PREP]LOCFIL(NOL)    = [F:SOQ]LOC
+[M:PREP]STAFIL(NOL)    = [F:SOQ]STA
+
+# La qte a preparer est la qte allouee + qte manquante (selon paramètre SHTDLV)
+# ou la qte a livrer (si non nulle et pas de gestion de stock)
+# sinon c'est la qte restant a livrer
+[M:PREP]QTYSTUMAX(NOL) = [F:SOQ]QTYSTU   -[F:SOQ]LPRQTYSTU-[F:SOQ]OPRQTYSTU
+&                       -[F:SOQ]PREQTYSTU-[F:SOQ]ODLQTYSTU-[F:SOQ]DLVQTYSTU
+[M:PREP]QTYSTU(NOL)    = [M:PREP]QTYSTUMAX(NOL)
+
+#--- Dem 67277
+#If [F:SOQ]STOMGTCOD=1
+#   If [F:SOQ]TDLQTY<>0
+#      [M:PREP]QTYSTU(NOL) = [F:SOQ]TDLQTYSTU
+#   Endif
+#Elsif [F:SOQ]ALLQTYSTU<>0 | [F:SOQ]SHTQTYSTU<>0
+#   [M:PREP]QTYSTU(NOL) = [F:SOQ]ALLQTYSTU + [F:SOQ]SHTQTYSTU
+#Endif
+If [F:SOQ]STOMGTCOD=1
+   If [F:SOQ]TDLQTY<>0
+      [M:PREP]QTYSTU(NOL) = [F:SOQ]TDLQTYSTU
+   Endif
+Elsif [F:SOQ]ALLQTYSTU<>0
+   [M:PREP]QTYSTU(NOL) = [F:SOQ]ALLQTYSTU
+   #--- Issue X3-52636
+   If [F:SOQ]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 & GSHTDLV=2) | GSHTDLV=3)
+   #If [F:SOQ]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 | GSHTDLV=2) | GSHTDLV=3)
+   #---
+      [M:PREP]QTYSTU(NOL) += [F:SOQ]SHTQTYSTU
+   Endif
+#--- Issue X3-52636
+Elsif [F:SOQ]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 & GSHTDLV=2) | GSHTDLV=3)
+#Elsif [F:SOQ]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 | GSHTDLV=2) | GSHTDLV=3)
+#---
+   [M:PREP]QTYSTU(NOL) = [F:SOQ]SHTQTYSTU
+#--- Issue X3-52636
+Elsif [F:SOQ]SHTQTYSTU<>0
+   [M:PREP]QTYSTU(NOL) = 0
+#---
+Endif
+#---
+#--- Bug 70833
+# Si composé de kit ou sous-traité, calcul de la quantité préparable
+# en fonction des disponibilités des composants
+If find([F:SOP]LINTYP,2,10)
+
+    #--- Issue 116484 puis X3-38704
+    Link [SOP1] With [SOQ1]SOQ0=[F:SOP1]SOHNUM;[F:SOP1]SOPLIN;[F:SOP1]SOPSEQ,
+&                    [ITM]ITM0 =[F:SOP1]ITMREF
+&               As   [XSOP]
+&            Where   [SOP1]SOHNUM=[F:SOP]SOHNUM & [SOP1]SOPLIN>[F:SOP]SOPLIN
+    Columns [XSOP]([SOQ1]QTYSTU,[SOQ1]LPRQTYSTU,[SOQ1]OPRQTYSTU,[SOQ1]PREQTYSTU,[SOQ1]ODLQTYSTU,[SOQ1]DLVQTYSTU,[SOQ1]STOMGTCOD,
+&                  [SOQ1]TDLQTY,[SOQ1]TDLQTYSTU,[SOQ1]ALLQTYSTU,[SOQ1]SHTQTYSTU,[ITM]NEGSTO,[F:SOP1]LINTYP)
+    For [XSOP]
+   #Filter [SOP1] Where SOHNUM=[F:SOP]SOHNUM & SOPLIN>[F:SOP]SOPLIN
+   #For [SOP1]SOP0
+      If !(find([F:SOP1]LINTYP,3,4,5,11,12,13)) : Break :Endif
+      #Read [SOQ1]SOQ0=[F:SOP1]SOHNUM;[F:SOP1]SOPLIN;[F:SOP1]SOPSEQ
+      #Read [ITM]ITM0 =[F:SOP1]ITMREF
+      #--- End Issue 116484 puis X3-38704
+
+      # Quantité composant à préparer / quantité composé à préparer
+      WPREQTY = [M:PREP]QTYSTU(NOL)*[F:SOQ1]QTYSTU/[F:SOQ]QTYSTU
+      # Issue 112478 - 2015-11-13 by MAE : Arrondi de la quantité composant à préparer
+      Call QTEARR(WPREQTY,[F:SOP1]STU) From TRTDIV
+      # Quantité composant préparable
+      WPREQTA = [F:SOQ1]QTYSTU   -[F:SOQ1]LPRQTYSTU-[F:SOQ1]OPRQTYSTU
+&              -[F:SOQ1]PREQTYSTU-[F:SOQ1]ODLQTYSTU-[F:SOQ1]DLVQTYSTU
+      If [F:SOQ1]STOMGTCOD=1
+         If [F:SOQ1]TDLQTY<>0
+            WPREQTA = [F:SOQ1]TDLQTYSTU
+         Endif
+      Elsif [F:SOQ1]ALLQTYSTU<>0
+         WPREQTA = [F:SOQ1]ALLQTYSTU
+         #--- Issue X3-52636
+         If [F:SOQ1]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 & GSHTDLV=2) | GSHTDLV=3)
+         #If [F:SOQ1]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 | GSHTDLV=2) | GSHTDLV=3)
+         #---
+            WPREQTA += [F:SOQ1]SHTQTYSTU
+         Endif
+      #--- Issue X3-52636
+      Elsif [F:SOQ1]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 & GSHTDLV=2) | GSHTDLV=3)
+      #Elsif [F:SOQ1]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 | GSHTDLV=2) | GSHTDLV=3)
+      #---
+         WPREQTA = [F:SOQ1]SHTQTYSTU
+      #--- Issue X3-52636
+      Elsif [F:SOQ1]SHTQTYSTU<>0
+         WPREQTA = 0
+      #---
+      Endif
+      # Si quantité composant préparable < quantité composant à préparer
+      # Recalcul quantité composé à préparer (diminution)
+      If WPREQTA < WPREQTY
+         [M:PREP]QTYSTU(NOL) = WPREQTA*[F:SOQ]QTYSTU/[F:SOQ1]QTYSTU
+         # Issue 112478 - 2015-11-13 by MAE : Arrondi de la quantité composé à préparer
+         Call QTEARR2([M:PREP]QTYSTU(NOL),[F:SOP]STU,3) From TRTDIV
+         [M:PREP]QTYSTUMAX(NOL) = [M:PREP]QTYSTU(NOL)
+      Endif
+   Next
+   #--- Issue 116484
+   #Filter [SOP1]
+   Columns [XSOP]
+   #---
+   WNOLCPE = NOL
+   WQTYCPE = [F:SOQ]QTYSTU
+# Si composant de kit ou de sous-traité, calcul de la quantité du composant
+# à partir de la quantité composé
+Elsif find([F:SOP]LINTYP,3,4,5,11,12,13)
+   [M:PREP]QTYSTU(NOL) = [M:PREP]QTYSTU(WNOLCPE)*[F:SOQ]QTYSTU/WQTYCPE
+   [M:PREP]QTYSTUMAX(NOL) = [M:PREP]QTYSTU(NOL)
+Endif
+#---
+
+[M:PREP]CUR(NOL) = [F:SOH]CUR
+
+If [F:SOH]SOHCAT=4
+   [M:PREP]ITMDES1(NOL)   = [F:SOC]ITMDES1
+   [M:PREP]STU(NOL)       = [F:SOC]STU
+   [M:PREP]PCU(NOL)       = [F:SOC]SAU
+   [M:PREP]PCUSTUCOE(NOL) = [F:SOC]SAUSTUCOE
+Else
+   [M:PREP]ITMDES1(NOL)   = [F:SOP]ITMDES1
+   [M:PREP]STU(NOL)       = [F:SOP]STU
+   [M:PREP]PCU(NOL)       = [F:SOP]SAU
+   [M:PREP]PCUSTUCOE(NOL) = [F:SOP]SAUSTUCOE
+Endif
+If dim([M:PREP]LOT)>0     Raz [M:PREP]LOT(NOL)     Endif
+If dim([M:PREP]SLO)>0     Raz [M:PREP]SLO(NOL)     Endif
+If dim([M:PREP]SERNUM)>0  Raz [M:PREP]SERNUM(NOL)  Endif
+If dim([M:PREP]SERNUMF)>0 Raz [M:PREP]SERNUMF(NOL) Endif
+If dim([M:PREP]LOC)>0     Raz [M:PREP]LOC(NOL)     Endif
+If dim([M:PREP]PALNUM)>0  Raz [M:PREP]PALNUM(NOL)  Endif
+If dim([M:PREP]CTRNUM)>0  Raz [M:PREP]CTRNUM(NOL)  Endif
+Raz [M:PREP]STA(NOL)
+Raz [M:PREP]WSTOSEQ(NOL)
+Raz [M:PREP]UPDFLG(NOL)
+Raz [M:PREP]CREFLG(NOL)
+[M:PREP]DLVFLG(NOL)=1
+
+If [M:PREP]PCK(NOL)=""
+   Call ALI_PCK([M:PREP]STOFCY,[M:PREP]ITMREF(NOL),[M:PREP]BPCORD(NOL),
+&               [M:PREP]PCU(NOL),[M:PREP]PCUSTUCOE(NOL),[M:PREP]PCK(NOL),
+&               [M:PREP]PCKCAP(NOL)) From STKPREPA
+Endif
+
+
+[M:PREP]PCKFLG       (NOL) = [F:ITF]PCKFLG
+If [M:PREP]PCKFLG    (NOL)  < 2
+   Raz [M:PREP]PCK   (NOL)
+   Raz [M:PREP]PCKCAP(NOL)
+Endif
+
+#--- Issue 116057
+GPOINT="ALI-PREP-SOQ" : Gosub ENTREE From EXEFNC
+
+Return
+
+#########################################################################
+# Chargement des manquants sous-traitants dans le tableau
+#########################################################################
+$LOAD_SHT
+
+# Ouverture de la ligne
+nolign = [M:PREP]NBLIG
+Insa nolign,1,[M:PREP]NBLIG [M:PREP]NBLIG
+[M:PREP]NBLIG += 1
+nolign = [M:PREP]NBLIG
+NOL = nolign-1
+status = 0
+
+[M:PREP] = [F:STA]
+
+[M:PREP]COCHAGE(NOL) = 1
+Raz [M:PREP]PRHNUM(NOL)
+
+[M:PREP]ORITYP(NOL)  = 4
+[M:PREP]LINTYP(NOL)  = 1
+
+Raz [M:PREP]ORINUM(NOL)
+Raz [M:PREP]ORILIN(NOL)
+Raz [M:PREP]ORISEQ(NOL)
+[M:PREP]REOLOC(NOL) = [F:STA]LOC
+# 88827 : La date besoin doit tjs être alimentée avec la date besoin pour respecter l'ordre chronologique
+#[M:PREP]BESDAT(NOL) = max(date$,[F:STA]BESDAT-[F:BPD]DAYLTI)
+[M:PREP]BESDAT(NOL) = [F:STA]BESDAT-[F:BPD]DAYLTI
+# 88827
+[M:PREP]DLVDAT(NOL) = max(date$,[F:STA]BESDAT)
+Raz [M:PREP]LOTFIL(NOL)
+Raz [M:PREP]LOCFIL(NOL)
+Raz [M:PREP]STAFIL(NOL)
+#[M:PREP]ITMDES1(NOL)   = [F:ITM]ITMDES1
+Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[M:PREP]ITMDES1(NOL), "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+[M:PREP]STOMGTCOD (NOL)= WSTOMGTCOD
+[M:PREP]QTYSTU(NOL)    = [F:STA]QTYSTUACT
+[M:PREP]STU(NOL)       = [F:ITM]STU
+[M:PREP]PCU(NOL)       = [F:ITM]STU
+[M:PREP]PCUSTUCOE(NOL) = 1
+[M:PREP]QTYSTUMAX(NOL) = [M:PREP]QTYSTU(NOL)
+[M:PREP]BPCORD(NOL)    = [F:BPD]BPCNUM
+[M:PREP]BPAADD(NOL)    = [F:BPD]BPAADD
+[M:PREP]DRN(NOL)       = [F:BPD]DRN
+[M:PREP]BPTNUM(NOL)    = [F:BPD]BPTNUM
+[M:PREP]CUR(NOL)       = GLOCALDEV
+If dim([M:PREP]LOT)>0     Raz [M:PREP]LOT(NOL)     Endif
+If dim([M:PREP]SLO)>0     Raz [M:PREP]SLO(NOL)     Endif
+If dim([M:PREP]SERNUM)>0  Raz [M:PREP]SERNUM(NOL)  Endif
+If dim([M:PREP]SERNUMF)>0 Raz [M:PREP]SERNUMF(NOL) Endif
+If dim([M:PREP]LOC)>0     Raz [M:PREP]LOC(NOL)     Endif
+If dim([M:PREP]PALNUM)>0  Raz [M:PREP]PALNUM(NOL)  Endif
+If dim([M:PREP]CTRNUM)>0  Raz [M:PREP]CTRNUM(NOL)  Endif
+Raz [M:PREP]STA(NOL)
+Raz [M:PREP]WSTOSEQ(NOL)
+Raz [M:PREP]UPDFLG(NOL)
+Raz [M:PREP]CREFLG(NOL)
+[M:PREP]DLVFLG(NOL)=1
+
+If [M:PREP]PCK(NOL)=""
+   Call ALI_PCK([M:PREP]STOFCY,[M:PREP]ITMREF(NOL),[M:PREP]BPCORD(NOL),
+&               [M:PREP]PCU(NOL),[M:PREP]PCUSTUCOE(NOL),[M:PREP]PCK(NOL),
+&               [M:PREP]PCKCAP(NOL)) From STKPREPA
+Endif
+[M:PREP]PCKFLG       (NOL) = [F:ITF]PCKFLG
+If [M:PREP]PCKFLG    (NOL)  < 2
+   Raz [M:PREP]PCK   (NOL)
+   Raz [M:PREP]PCKCAP(NOL)
+Endif
+
+# Issue 277765
+GPOINT="ALI-PREP-SHT" : Gosub ENTREE From EXEFNC
+
+
+Return
+
+#########################################################################
+# Chargement des reappros sous-traitants dans le tableau
+#########################################################################
+$LOAD_REO
+
+# Ouverture de la ligne
+nolign = [M:PREP]NBLIG
+Insa nolign,1,[M:PREP]NBLIG [M:PREP]NBLIG
+[M:PREP]NBLIG += 1
+nolign = [M:PREP]NBLIG
+NOL = nolign-1
+status = 0
+
+[M:PREP] = [F:REO]
+
+[M:PREP]COCHAGE(NOL) = 1
+Raz [M:PREP]PRHNUM(NOL)
+
+[M:PREP]ORITYP(NOL)  = 3
+[M:PREP]LINTYP(NOL)  = 1
+
+Raz [M:PREP]ORINUM(NOL)
+Raz [M:PREP]ORILIN(NOL)
+Raz [M:PREP]ORISEQ(NOL)
+Raz [M:PREP]SEQ   (NOL)
+[M:PREP]REOLOC    (NOL) = [F:REO]LOC
+# 88827 : La date besoin doit tjs être alimentée avec la date besoin pour respecter l'ordre chronologique
+#[M:PREP]BESDAT    (NOL) = max(date$,[F:REO]BESDAT-[F:BPD]DAYLTI)
+[M:PREP]BESDAT    (NOL) = [F:REO]BESDAT-[F:BPD]DAYLTI
+# 88827
+[M:PREP]DLVDAT    (NOL) = max(date$,[F:REO]BESDAT)
+Raz [M:PREP]LOTFIL(NOL)
+Raz [M:PREP]LOCFIL(NOL)
+Raz [M:PREP]STAFIL(NOL)
+#[M:PREP]ITMDES1(NOL)    = [F:ITM]ITMDES1
+Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[M:PREP]ITMDES1(NOL), "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+[M:PREP]STOMGTCOD (NOL) = WSTOMGTCOD
+[M:PREP]QTYSTUMAX (NOL) = [M:PREP]QTYSTU(NOL)
+[M:PREP]BPCORD    (NOL) = [F:REO]BPRNUM
+[M:PREP]DRN       (NOL) = [F:BPD]DRN
+[M:PREP]BPTNUM    (NOL) = [F:BPD]BPTNUM
+[M:PREP]CUR       (NOL) = GLOCALDEV
+If dim([M:PREP]LOT)>0     Raz [M:PREP]LOT(NOL)     Endif
+If dim([M:PREP]SLO)>0    Raz [M:PREP]SLO(NOL)     Endif
+If dim([M:PREP]SERNUM)>0  Raz [M:PREP]SERNUM(NOL)  Endif
+If dim([M:PREP]SERNUMF)>0 Raz [M:PREP]SERNUMF(NOL) Endif
+If dim([M:PREP]LOC)>0     Raz [M:PREP]LOC(NOL)     Endif
+If dim([M:PREP]PALNUM)>0  Raz [M:PREP]PALNUM(NOL)  Endif
+If dim([M:PREP]CTRNUM)>0  Raz [M:PREP]CTRNUM(NOL)  Endif
+Raz [M:PREP]STA(NOL)
+Raz [M:PREP]WSTOSEQ(NOL)
+Raz [M:PREP]UPDFLG(NOL)
+Raz [M:PREP]CREFLG(NOL)
+[M:PREP]DLVFLG(NOL)=1
+
+If [M:PREP]PCK(NOL)=""
+   Call ALI_PCK([M:PREP]STOFCY,[M:PREP]ITMREF(NOL),[M:PREP]BPCORD(NOL),
+&               [M:PREP]PCU(NOL),[M:PREP]PCUSTUCOE(NOL),[M:PREP]PCK(NOL),
+&               [M:PREP]PCKCAP(NOL)) From STKPREPA
+Endif
+[M:PREP]PCKFLG       (NOL) = [F:ITF]PCKFLG
+If [M:PREP]PCKFLG    (NOL)  < 2
+   Raz [M:PREP]PCK   (NOL)
+   Raz [M:PREP]PCKCAP(NOL)
+Endif
+
+Return
+
+#########################################################################
+# Chargement du tableau a partir d'une liste de preparation
+#########################################################################
+$LOAD_PRLNUM
+
+Raz [M:PREP]LOCDESH
+Raz [M:PREP]LOCTYPDESH
+
+Filter [PRL] Where PRLNUM=[M:PREP]PRLNUM
+&            Order By Key PRL2
+For [PRL]
+   If [M:PREP]NBLIG>=dim([M:PREP]COCHAGE)-1
+      Call ERREUR(mess(53,184,1)-mess(232,184,1)) From GESECRAN
+      Break
+   Endif
+
+   # Ouverture de la ligne
+   nolign = [M:PREP]NBLIG
+   Insa nolign,1,[M:PREP]NBLIG [M:PREP]NBLIG
+   [M:PREP]NBLIG += 1
+   nolign = [M:PREP]NBLIG
+   NOL = nolign-1
+   status = 0
+
+   [M:PREP] = [F:PRL]
+
+   [M:PREP]COCHAGE(NOL) = 2
+   [M:PREP]ALLTYP(NOL)  = [M:PREP]ALLTYPFLG
+   Raz [M:PREP]ALLQTY(NOL)
+   Raz [M:PREP]SHTQTY(NOL)
+
+   Case [F:PRL]ORITYP
+    When 1,2 : Read [F:SOQ]SOQ0=[F:PRL]ORINUM;[F:PRL]ORILIN;[F:PRL]ORISEQ
+               If fstat
+                  # Ligne commande non trouvee --> pas de chargement
+                  Goto NEXT_PRL
+               Else
+                  #--- Issue 113252
+                  [M:PREP]SHIDAT   (NOL) = [F:SOQ]SHIDAT
+                  [M:PREP]LOTFIL   (NOL) = [F:SOQ]LOT
+                  [M:PREP]LOCFIL   (NOL) = [F:SOQ]LOC
+                  [M:PREP]STAFIL   (NOL) = [F:SOQ]STA
+                  [M:PREP]QTYSTUMAX(NOL) = [F:SOQ]QTYSTU-[F:SOQ]LPRQTYSTU
+&                                                       -[F:SOQ]OPRQTYSTU
+&                                                       -[F:SOQ]PREQTYSTU
+&                                                       -[F:SOQ]ODLQTYSTU
+&                                                       -[F:SOQ]DLVQTYSTU
+&                                                       +[F:PRL]QTYSTU
+                  [M:PREP]STOMGTCOD(NOL) = [F:SOQ]STOMGTCOD
+                  #--- Bug 72139
+                  [M:PREP]SOHCAT(NOL)    = [F:SOQ]SOHCAT
+               Endif
+               If [F:SOQ]SOHCAT=4
+                  Read [SOC]SOC0=[M:PREP]ORINUM(NOL);[M:PREP]ORILIN(NOL)
+                  If !fstat [M:PREP]ITMDES1(NOL)=[F:SOC]ITMDES1 Endif
+               Else
+                  Read [SOP]SOP0=[M:PREP]ORINUM(NOL);[M:PREP]ORILIN(NOL);[M:PREP]ORISEQ(NOL)
+                  If !fstat [M:PREP]ITMDES1(NOL)=[F:SOP]ITMDES1 Endif
+               Endif
+               If [F:PRL]PRHNUM=""
+                  [M:PREP]ALLTYP(NOL)    = [F:SOQ]ALLTYP
+                  [M:PREP]ALLQTY(NOL)    = [F:SOQ]ALLQTYSTU
+                  [M:PREP]SHTQTY(NOL)    = [F:SOQ]SHTQTYSTU
+               Endif
+    When 3,4 : Raz [M:PREP]LOTFIL(NOL)
+               Raz [M:PREP]LOCFIL(NOL)
+               Raz [M:PREP]STAFIL(NOL)
+               [M:PREP]QTYSTUMAX(NOL) = [M:PREP]QTYSTU(NOL)
+               Read [ITM]ITM0=[F:PRL]ITMREF
+               If fstat
+                  # Article non trouve --> pas de chargement
+                  Goto NEXT_PRL
+               Else
+                  #[M:PREP]ITMDES1(NOL)  =[F:ITM]ITMDES1
+                  Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[M:PREP]ITMDES1(NOL), "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+                  [M:PREP]STOMGTCOD(NOL)=[F:ITM]STOMGTCOD
+                  If [F:ITM]STOMGTCOD>1
+                     If [F:ITF]STOFCY<>[F:PRL]STOFCY | [F:ITF]ITMREF<>[F:PRL]ITMREF
+                        Read [ITF]ITF0=[F:PRL]ITMREF;[F:PRL]STOFCY
+                        If !fstat
+                           [M:PREP]STOMGTCOD(NOL)=[F:ITF]STOMGTCOD
+                        Endif
+                     Endif
+                  Endif
+               Endif
+   Endcase
+
+   Raz [M:PREP]WSTOSEQ(NOL)
+   Raz [M:PREP]UPDFLG(NOL)
+   [M:PREP]CREFLG(NOL) = nolign
+   #--- Bug 82815
+   #--- Pour la préparation en VT
+   #If GVTMOD=1
+   #   [M:PREP]DLVFLG(NOL) = [F:PRE]FLGVT+1
+   #   [M:PREP]WSTOSEQ(NOL)= 1
+   # Else
+   #   [M:PREP]DLVFLG(NOL) = 1
+   #Endif
+   [M:PREP]DLVFLG(NOL) = 1
+   #---
+   # Alimentation zone stock
+   If [F:PRL]PRHNUM<>""
+      Read [PRH]PRH0=[F:PRL]PRHNUM
+      If !fstat
+         [M:PREP]DLVFLG(NOL)=[F:PRH]DLVFLG
+      Endif
+      Call RECSTOSOR(2,"PREP",NOL,[F:PRL]STOFCY,[F:PRL]ITMREF,
+&                    3,[F:PRL]PRHNUM,[F:PRL]PRELIN,"",WRET) From STKECR
+
+      Read [PRE]PRE0=[F:PRL]PRHNUM;[F:PRL]PRELIN
+      If !fstat
+         #--- Bug 82815
+         #--- Pour la préparation en VT
+         If GVTMOD=1
+           [M:PREP]DLVFLG(NOL) = [F:PRE]FLGVT+1
+           [M:PREP]WSTOSEQ(NOL)= 1
+         #--- Bug 89586
+         #Else
+         #  [M:PREP]DLVFLG(NOL) = 1
+         #---
+         Endif
+         #---
+         [M:PREP]ALLTYP(NOL)    = [F:PRE]ALLTYP
+         [M:PREP]ALLQTY(NOL)    = [F:PRE]ALLQTY
+         [M:PREP]SHTQTY(NOL)    = [F:PRE]SHTQTY
+         [M:PREP]LOCDES(NOL)    = [F:PRE]LOCDES
+         [M:PREP]LOCTYPDES(NOL) = [F:PRE]LOCTYPDES
+         # Flag ligne annulée
+         [M:PREP]FLGANN(NOL) = [F:PRE]FLGANN
+
+         # Alimentation emplacement destination entête
+         If [M:PREP]LOCDESH=""
+            [M:PREP]LOCDESH    = [M:PREP]LOCDES(NOL)
+            [M:PREP]LOCTYPDESH = [M:PREP]LOCTYPDES(NOL)
+         Elsif [M:PREP]LOCDESH<>[M:PREP]LOCDES(NOL)
+            [M:PREP]LOCDESH    = "$"
+            [M:PREP]LOCTYPDESH = ""
+         Endif
+      Endif
+      # On surcharge le code mvt de la trs par celui déjà utilisé dans le BP
+      [M:PREP]TRSCOD=[F:PRH]TRSCOD
+   Endif
+
+   #--- Issue X3-125364 & Issue X3-190496
+   GPOINT="MOD_PREP" : Gosub ENTREE From EXEFNC
+
+   $NEXT_PRL
+Next
+Filter [PRL]
+
+Return
+
+#########################################################################
+# Bouton "Tout inclure"
+#########################################################################
+$ALL_INC
+
+For I=0 To [M:PREP]NBLIG-1
+  #--- Issue X3-95328
+  If [M:PREP]QTYSTU(I)>0
+
+    If [M:PREP]COCHAGE(I)<>2 [M:PREP]UPDFLG(I)=1 Endif
+    If [M:PREP]ITMREF(I) <> ""                                  # hcb 93069 deb puis 110986
+      Raz GERR
+      Call MAJ_STA_STAFLG(I,2)  From TRTPREPA
+      If GERR=0
+        [M:PREP]COCHAGE(I)=2
+      Endif
+    Endif                                                       # hcb 93069 fin
+  #--- Issue X3-95328
+  Endif
+
+Next I
+If [M:PREP]PRLNUM<>"" GREP="M" Endif
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+Return
+
+#########################################################################
+# Bouton "Tout exclure"
+#########################################################################
+$ALL_EXC
+
+For I=0 To [M:PREP]NBLIG-1
+   If [M:PREP]COCHAGE(I)=2 [M:PREP]UPDFLG(I)=1 Endif
+   [M:PREP]COCHAGE(I)=1
+   If [M:PREP]ITMREF(I) <> ""                                     # hcb 93069 deb puis 110986
+      Call MAJ_STA_STAFLG(I,[M:PREP]COCHAGE(I))  From TRTPREPA
+   Endif                                                          # hcb 93069 fin
+Next I
+If [M:PREP]PRLNUM<>"" GREP="M" Endif
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+Return
+
+#########################################################################
+# Bouton "Liste de preparation"
+#########################################################################
+$CRE_PRL
+
+If [M:PREP]NBLIG=0 | [M:PREP]PRLNUM<>"" |
+&  !find(2,[M:PREP]COCHAGE(0..[M:PREP]NBLIG-1))
+   Return
+Endif
+
+#--- Bug 54603
+# Lecture affectation compteur
+Call LECTCA(7,OK) From SUBTCA
+
+Call DEBTRANS From GLOCK
+Trbegin [PRL]
+
+Call NUMERO([F:TCA]CODNUM(22),[M:PREP]STOFCY,date$,"",[M:PREP]PRLNUM,WRET) From SUBANM
+If WRET<>0
+   GERR=1 : GMESSAGE=mess(60,199,1)
+   Goto AB_STD
+Else
+   Commit
+Endif
+
+Raz [F:PRL]
+Raz WSEQ, WPB
+
+For I=0 To [M:PREP]NBLIG-1
+   nolign = I+1
+   If [M:PREP]COCHAGE(I)=2
+      #--- Issue 113235 puis 121522
+      #  If [M:PREP]ORITYP(NOL)<3    # hcb 119227
+      #   NOL=I
+      #   GERR=0
+      #   Gosub CTR_QTE_SOQ
+      #   If GERR<>0
+      #      [M:PREP]COCHAGE(I)=1
+      #      Goto CRE_PRL_NEXT
+      #   Endif
+      #Endif                       # hcb 119227
+      #---
+      $CRE_PRL_NEW
+      Call DEBTRANS From GLOCK
+      Trbegin [PRL]
+      [F:PRL] = [M:PREP]
+      WSEQ   += 1
+      [F:PRL]PRLSEQ = WSEQ
+      [F:PRL]CREDAT = date$
+      [F:PRL]CREUSR = GUSER
+      [F:PRL]EXPNUM = [C]EXPORT
+      [F:PRL]UPDUSR = ""
+      [F:PRL]UPDDAT = [0/0/0]
+
+      Write [PRL]
+      If fstat
+         [M:PREP]COCHAGE(I)=1 : WPB=1
+         GOK=0    : Call FSTA("PRL") From GLOCK
+         Rollback : Goto CRE_PRL_NEXT
+      Endif
+
+      WDELTAQTY = [F:PRL]QTYSTU
+
+#      #--- Bug 80357
+#      If find([M:PREP]ORITYP(I),1,2)
+#         Read [SOQ]SOQ0=[F:PRL]ORINUM;[F:PRL]ORILIN;[F:PRL]ORISEQ
+#         If fstat
+#            Call RSTA("SOQ",[F:PRL]ORINUM-num$([F:PRL]ORILIN)-num$([F:PRL]ORISEQ)) From GLOCK
+#            GOK = 0
+#         Endif
+#         # La commande a evolue  --> la quantite n'est plus disponible
+#         If WDELTAQTY>0 & [F:SOQ]QTYSTU-[F:SOQ]LPRQTYSTU
+#&                                      -[F:SOQ]OPRQTYSTU
+#&                                      -[F:SOQ]PREQTYSTU
+#&                                      -[F:SOQ]ODLQTYSTU
+#&                                      -[F:SOQ]DLVQTYSTU < WDELTAQTY
+#            [M:PREP]QTYSTU(I)    = [F:SOQ]QTYSTU-[F:SOQ]LPRQTYSTU
+#&                                               -[F:SOQ]OPRQTYSTU
+#&                                               -[F:SOQ]PREQTYSTU
+#&                                               -[F:SOQ]ODLQTYSTU
+#&                                              -[F:SOQ]DLVQTYSTU
+#            [M:PREP]QTYSTUMAX(I) = [M:PREP]QTYSTU(I)
+#            Call ERREUR([F:PRL]ORINUM-num$([F:PRL]ORILIN)-num$([F:PRL]ORISEQ)-":"-mess(10,100,1))
+#&                From GESECRAN
+#            GOK = 0
+#         Endif
+#      Endif
+#      #---
+
+      WMAJ = 1
+      Case [F:PRL]ORITYP
+       When 1,2 : WTYP=1
+                  Call MAJ_SOQ (WTYP,[F:PRL]ORINUM,[F:PRL]ORILIN,[F:PRL]ORISEQ,[F:PRL]PCU,
+&                               [F:PRL]PCUSTUCOE,WDELTAQTY) From STKPREPA
+       When 3   : Call MAJ_REO (WMAJ,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]REOLOC,WDELTAQTY) From STKPREPA
+       When 4   : Call MAJ_STA (WMAJ,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]SEQ,WDELTAQTY) From STKPREPA
+      Endcase
+      If GOK=0
+         [M:PREP]COCHAGE(I)=1 : WPB=1
+         Rollback : Goto CRE_PRL_NEXT
+      Elsif GOK=-1
+         Rollback
+         Call ROLL From GLOCK
+         If GROLL
+            [M:PREP]COCHAGE(I)=1 : WPB=1
+            Goto CRE_PRL_NEXT
+         Else
+            Goto CRE_PRL_NEW
+         Endif
+      Endif
+      [M:PREP]PRLSEQ(I) = [F:PRL]PRLSEQ
+      Commit
+   Endif
+$CRE_PRL_NEXT
+Next I
+
+# Il y a eu des problemes, la liste de preparation est vide
+If !find(2,[M:PREP]COCHAGE(0..[M:PREP]NBLIG-1))
+   Raz [M:PREP]PRLNUM
+Endif
+# Il y a eu des problemes, reaffichage du tableau
+If WPB=1
+  # Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+   Affzo [M:PREP]40
+Else
+   Gosub RAFFRAICHI
+Endif
+
+Affzo [M:PREP]PRLNUM
+#--- Issue 114092
+If [M:PREP]PRLNUM<>""
+  # Lock liste de préparation
+  SYMBOLE1 = "PRL"+[M:PREP]PRLNUM
+  Lock = SYMBOLE1
+Endif
+#---
+Return
+
+#########################################################################
+# Bouton "Bons de preparation"
+#########################################################################
+$GEN_PRH
+#--- 78338
+Local Decimal WPREQTYSTU
+Local Integer WOK : WOK=1
+#---
+
+# Recuperation du parametre stock : MARGE alerte peremption jours
+#Call PARAM([M:PREP]STOFCY,"MARPER",WPARAM) From ADOVAL      # hcb v6per
+#GSMARPER = val(WPARAM)                                      # hcb v6per
+
+# Récupération du paramètre vente : Suivi texte préparation
+Global Libelle GSALTEXPRP
+Call PARAM([M:PREP]STOFCY,"SALTEXPRP",WPARAM) From ADOVAL
+GSALTEXPRP = val(WPARAM)
+
+#LTA.sn 79065
+# Charge GLOCUSATAX
+# Call PARAM([M:PREP]STOFCY,"USATAX",WPARAM) From ADOVAL   # 106867.o
+# GLOCUSATAX = val(WPARAM)   # 106867.o
+#LTA.en 79065
+#                                         hcb 94266 deb
+Call PARAML([M:PREP]STOFCY,"LOKORD",WPARAM) From ADOVAL
+GLOKORD = val(WPARAM)
+#                                         hcb 94266 fin
+
+#------------------------------------------------------------#
+# Chargement flag déblocage crédit autorisé                  #
+#------------------------------------------------------------#
+# Issue X3-275684 - 2022-04-28 by MUARN : need to read parameter by site
+#Call PARAMUTIL("SCDTUNL",WPARAM,"","") From SUBAUS
+Call PARAMUTIL("SCDTUNL",WPARAM,"",[M:PREP]STOFCY) From SUBAUS
+# End issue X3-275684
+WCDTUNL=val(WPARAM)
+If WCDTUNL=0 WCDTUNL=1 Endif
+
+# Issue X3-259425 - 20211109 by LD
+# We fed a grid with all the elts having grouping equal to "No if difference"
+# To not grouping on the same pick ticket and therefore on the same delivery
+# 2 sales order having an elt with different value
+Gosub OPEN_SFI From TRTX3CPY
+
+Local Integer RCNTDFI : RCNTDFI= nbrecord([F:SFI])
+# FQ 66266 To avoid case where SFOOTINV has no record
+If RCNTDFI<=5 : RCNTDFI = 10 : Endif
+Local Integer GRUNON([L]RCNTDFI), I1, I2, PDESVCR
+PDESVCR=2
+I2=0
+Read [SFI]First
+While fstat=0
+    I1=find([L]PDESVCR, [F:SFI]DESVCR(0..dim([F:SFI]DESVCR)-1))
+    If I1>0 & [F:SFI]GRUFLG(I1-1) = 2
+        [L]GRUNON(I2)=[F:SFI]SFINUM
+        I2+=1
+    Endif
+    Read [F:SFI] Next
+Wend
+# End issue X3-259425 - 20211109 by LD
+
+Raz WWKEYD
+#----------------------------------
+# Generation du fichier de travail
+#----------------------------------
+Call DEBTRANS From GLOCK
+Trbegin [PRW]
+
+For I=0 To [M:PREP]NBLIG-1
+   If [M:PREP]PRHNUM(I)<>"" | [M:PREP]COCHAGE(I)<>2 Goto NEXT_PREP Endif
+   nolign=I+1
+   Raz [F:PRW]
+   [F:PRW]PRONUM = adxuid(1)
+
+   Case [M:PREP]ORITYP(I)
+    When 1,2 : Read [SOH]SOH0=[M:PREP]ORINUM(I)
+               If fstat
+                  Call RSTA("SOH",[M:PREP]ORINUM(I)) From GLOCK
+                  GOK=0 : Break
+               Endif
+
+               # Issue X3-223150.sn 2021-03-10 by CATUA
+               # If order is on manual hold
+               # Prompt error then move to the next preparation
+               # Do not create pick list
+               Raz WMESS
+               If [F:SOH]HLDSTA>1
+                  # Manual order hold
+                  WMESS=mess(14,492,1)-mess(98,197,1)-":"-[F:SOH]SOHNUM
+                  Call ERREUR(WMESS) From GESECRAN
+                  Goto NEXT_PREP
+               Endif
+               # Issue X3-223150.en
+
+               # Contrôle état crédit commande courante
+               Call SDCDTSTA([F:SOH]SOHNUM,[F:SOH]BPCORD,[F:SOH]CHGTYP,0,"",[F:SOH]ORDDAT,[F:SOH]UNL, 2,
+&                             CDTSTA,WMNT,WMNT) From TRTVENCDT
+               # Acompte non versé, mais pas de blocage
+               If CDTSTA=4 & GLOKORD<>2 CDTSTA=1 Endif
+               # Si dépassement en-cours mais pas de blocage on continue
+               If CDTSTA=3 & WCDTUNL=2  CDTSTA=1 Endif
+               If CDTSTA<>1
+                  WMESS=mess(98,197,1)-":"-[F:SOH]SOHNUM-mess(99,197,1)-":"-[F:SOH]BPCORD
+                  Call ERREUR(WMESS) From GESECRAN
+                  Raz WMESS
+                  If    CDTSTA = 2  WMESS = mess(100,197,1)
+                  Elsif CDTSTA = 3  WMESS = mess(101,197,1)
+                  Elsif CDTSTA = 5  WMESS = mess(5,2092,1)
+                  Elsif GLOKORD = 2 WMESS = mess(102,197,1) Endif
+                  If WMESS<>"" Call ERREUR("         "+WMESS) From GESECRAN Endif
+                  Goto NEXT_PREP
+               Endif
+
+               Read [SOQ]SOQ0=[M:PREP]ORINUM(I);[M:PREP]ORILIN(I);[M:PREP]ORISEQ(I)
+               If fstat
+                  Call RSTA("SOQ",[M:PREP]ORINUM(I)-num$([M:PREP]ORILIN(I))-num$([M:PREP]ORISEQ(I))) From GLOCK
+                  GOK=0 : Break
+               Endif
+               If [F:SOH]SOHCAT=4
+                  Read [SOC]SOC0=[M:PREP]ORINUM(I);[M:PREP]ORILIN(I)
+                  If fstat
+                     Call RSTA("SOC",[M:PREP]ORINUM(I)-num$([M:PREP]ORILIN(I))) From GLOCK
+                     GOK=0 : Break
+                  Endif
+                  #--- Issue 107634
+                  Read [BPA]BPA0=1;[F:SOC]BPCORD;[F:SOC]BPAADD
+                  If fstat : Raz [F:BPA] : Endif
+                  Read [BPD]BPD0=[F:SOC]BPCORD;[F:SOC]BPAADD
+                  If fstat : Raz [F:BPD] : Endif
+                  #---
+               Else
+                  Read [SOP]SOP0=[M:PREP]ORINUM(I);[M:PREP]ORILIN(I);[M:PREP]ORISEQ(I)
+                  If fstat
+                     Call RSTA("SOP",[M:PREP]ORINUM(I)-num$([M:PREP]ORILIN(I))-num$([M:PREP]ORISEQ(I))) From GLOCK
+                     GOK=0 : Break
+                  Endif
+               Endif
+
+               # Lock fichier entete commande
+               #SYMBOLE1 = "SOH"+[F:SOH]SOHNUM
+               #Lock = SYMBOLE1
+               #If fstat
+               #   # Modification en cours sur un autre poste
+               #   Call ECR_TRACE("$SORDER"-[F:SOH]SOHNUM-mess(10,100,1),1) From GESECRAN
+               #   OK=1
+               #Endif
+
+               [F:PRW] = [F:SOH]
+               [F:PRW] = [F:SOQ]
+               [F:PRW]ORI1   = [M:PREP]ORINUM(I)
+               [F:PRW]ORI2   = num$([M:PREP]ORILIN(I))
+               #--- Issue 92881 by TS
+               [F:PRW]ORI2   = string$(10-len([F:PRW]ORI2),"0")+[F:PRW]ORI2
+               [F:PRW]ORI3   = [M:PREP]ORISEQ(I)
+               [F:PRW]WKEY   = num$([M:PREP]ORITYP(I))
+               [F:PRW]WKEY  += "~"+[F:SOQ]BPCORD
+               [F:PRW]WKEY  += "~"+[F:SOQ]BPAADD
+               [F:PRW]WKEY  += "~"+[F:SOH]SALFCY
+               [F:PRW]WKEY  += "~"+[F:SOH]BPCINV
+               If [M:PREP]ORDRUP=2
+                  [F:PRW]WKEY += "~"+[F:SOH]SOHNUM
+               Endif
+               If [M:PREP]SHIRUP=2
+                  [F:PRW]WKEY += "~"+format$("D:DDMMYYYY",[M:PREP]BESDAT(I))
+               Endif
+               [F:PRW]WKEY  += "~"+[F:SOQ]BPTNUM
+               [F:PRW]WKEY  += "~"+[F:SOH]CUR
+               [F:PRW]WKEY  += "~"+num$([F:SOH]PRITYP)
+               [F:PRW]WKEY  += "~"+[F:SOH]PJT
+               #--- Issue 117870
+               # Si kit, le code préparation n'est pas un critère de rupture
+               If [F:SOH]SOHCAT<>4 & find([F:SOP]LINTYP,2,3,4,5)
+                  [F:PRW]WDATA  = ""
+               Else
+                  [F:PRW]WDATA  = [F:SOQ]PRECOD
+               Endif
+               #[F:PRW]WDATA  = [F:SOQ]PRECOD
+               #---
+               [F:PRW]WDATA += "~"+num$([F:SOQ]DRN)
+               [F:PRW]WDATA += "~"+[F:SOH]BPCPYR
+               [F:PRW]WDATA += "~"+[F:SOH]BPCGRU
+               #--- Issue 107634
+               If [F:SOH]SOHCAT=4
+                  [F:PRW]WDATA += "~"+toupper(vireblc([F:BPD]BPDNAM(0),4))
+               Else
+                  [F:PRW]WDATA += "~"+toupper(vireblc([F:SOH]BPDNAM(0),4))
+               Endif
+               #[F:PRW]WDATA += "~"+toupper(vireblc([F:SOH]BPDNAM(0),4))
+               #---
+               [F:PRW]WDATA += "~"+toupper(vireblc([F:SOH]BPINAM(0),4))
+               [F:PRW]WDATA += "~"+[F:SOH]PTE
+               [F:PRW]WDATA += "~"+num$([F:SOH]BETFCY)
+               [F:PRW]WDATA += "~"+num$([F:SOH]BETCPY)
+               [F:PRW]WDATA += "~"+[F:SOH]ORIFCY
+               [F:PRW]WDATA += "~"+format$("D:DDMMYYYY",[F:SOH]LNDRTNDAT)
+               [F:PRW]WDATA += "~"+[F:SOH]DEP
+               [F:PRW]WDATA += "~"+num$([F:SOH]IME)
+               [F:PRW]WDATA += "~"+[F:SOQ]MDL
+               If [F:SOH]SOHCAT=4
+                  [F:PRW]WDATA += "~"+[F:SOC]VACBPR
+                  [F:PRW]WDATA += "~"+[F:SOC]BPIEECNUM
+                  [F:PRW]WDATA += "~"+[F:SOC]EECICT
+                  [F:PRW]WDATA += "~"+num$([F:SOC]EECLOC)
+               Else
+                  [F:PRW]WDATA += "~"+[F:SOH]VACBPR
+                  [F:PRW]WDATA += "~"+[F:SOH]BPIEECNUM
+                  #--- Issue 107634
+                  [F:PRW]WDATA += "~"+[F:SOH]EECICT
+                  #---
+                  [F:PRW]WDATA += "~"+num$([F:SOH]EECLOC)
+               Endif
+
+               # If func AFNC.ACTIV("LTA") & GLOCUSATAX :  [F:PRW]WDATA +="~"+[F:SOH]SSTENTCOD : Endif    #LTA.n 79065   # 106867.o
+               If func AFNC.ACTIV("LTA")  :  [F:PRW]WDATA +="~"+[F:SOH]SSTENTCOD : Endif    #LTA.n 79065   # 106867.n
+
+               #-- X3-Suivi 75115 : Passage du Type livraison de commande à BP --#
+               [F:PRW]WDATA += "~"+[F:SOH]SDHTYP
+
+               # Issue X3-259425 - 20211109 by LD
+               # Add all the sales order's elts having grouping rule equal to "No if difference" as grouping criteria
+               Local Integer WI, WJ : WI=0
+               While [L]GRUNON(WI)>0 and WI<RCNTDFI-1
+                   WJ=find([L]GRUNON(WI), [F:SOH]INVDTA)
+                   If WJ>0
+                     If [F:SOH]DLVSTA>1
+                       # The sales order is partially delivered
+                       # The elt is on the 1rst delivery so for the other deliveries the amount is 0
+                       [F:PRW]WDATA += "~" + "0"
+                     Else
+                       [F:PRW]WDATA += "~" + vireblc( num$( [F:SOH]INVDTAAMT(WJ-1) ) ,4 )
+                     Endif
+                   Endif
+                   WI+=1
+               Wend
+               # End issue X3-259425 - 20211109 by LD
+
+               #--- Issue 107634
+               If [F:SOH]SOHCAT=4
+                  [F:PRW]WDATA2  = toupper(vireblc([F:BPA]BPAADDLIG(0),4))
+                  [F:PRW]WDATA2 += toupper(vireblc([F:BPA]POSCOD,4))
+                  [F:PRW]WDATA2 += toupper(vireblc([F:BPA]CTY,4))
+                  [F:PRW]WDATA2 += toupper(vireblc([F:BPA]SAT,4))
+               Else
+                  [F:PRW]WDATA2  = toupper(vireblc([F:SOH]BPDADDLIG(0),4))
+                  [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPDPOSCOD,4))
+                  [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPDCTY,4))
+                  [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPDSAT,4))
+               Endif
+               #[F:PRW]WDATA2  = toupper(vireblc([F:SOH]BPDADDLIG(0),4))
+               #[F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPDPOSCOD,4))
+               #[F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPDCTY,4))
+               #[F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPDSAT,4))
+               #---
+               [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPIADDLIG(0),4))
+               [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPIPOSCOD,4))
+               [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPICTY,4))
+               [F:PRW]WDATA2 += toupper(vireblc([F:SOH]BPISAT,4))
+               [F:PRW]DLVDAT  = [F:SOQ]DEMDLVDAT
+               If [F:SOH]SOHCAT=4
+                  [F:PRW]ITMDES1 = [F:SOC]ITMDES1
+               Else
+                  [F:PRW]ITMDES1 = [F:SOP]ITMDES1
+               Endif
+    When 3   : Read [REO]REO0=[M:PREP]STOFCY;[M:PREP]REOLOC(I);[M:PREP]ITMREF(I)
+               If fstat
+                  Call RSTA("REO",[M:PREP]STOFCY-[M:PREP]REOLOC(I)-[M:PREP]ITMREF(I)) From GLOCK
+                  GOK=0 : Break
+               Endif
+               Read [ITM]ITM0=[M:PREP]ITMREF(I)
+               If fstat
+                  Call RSTA("ITM",[M:PREP]ITMREF(I)) From GLOCK
+                  GOK=0 : Break
+               Endif
+
+               # Lock fichier reapprovisionnement
+               #SYMBOLE2 = "REO"+[F:REO]STOFCY+[F:REO]LOC+[F:REO]ITMREF
+               #Lock = SYMBOLE2
+               #If fstat
+               #   # Modification en cours sur un autre poste
+               #   Call ECR_TRACE("$STOREO"-[F:REO]STOFCY-[F:REO]LOC-[F:REO]ITMREF-mess(10,100,1),1) From GESECRAN
+               #   OK=1
+               #Endif
+
+               [F:PRW] = [F:REO]
+               [F:PRW]ORI1    = [M:PREP]ITMREF(I)
+               [F:PRW]ORI2    = [M:PREP]REOLOC(I)
+               [F:PRW]WKEY    = num$([M:PREP]ORITYP(I))
+               [F:PRW]WKEY   += "~"+[M:PREP]BPCORD(I)
+               [F:PRW]WKEY   += "~"+[M:PREP]BPAADD(I)
+               [F:PRW]WKEY   += "~~"
+               If [M:PREP]SHIRUP=2
+                  [F:PRW]WKEY += "~"+format$("D:DDMMYYYY",[M:PREP]BESDAT(I))
+               Endif
+               [F:PRW]WKEY   += "~"+[M:PREP]BPTNUM(I)
+               [F:PRW]WKEY   += "~~~"
+               [F:PRW]WDATA   = [M:PREP]PRECOD(I)
+               [F:PRW]WDATA  += "~"+num$([M:PREP]DRN(I))
+               #--- Issue 113252
+               [M:PREP]SHIDAT(I) = [M:PREP]BESDAT(I)
+               [F:PRW]SHIDAT     = [M:PREP]BESDAT(I)
+               [F:PRW]DLVDAT     = [M:PREP]DLVDAT(I)
+               #[F:PRW]ITMDES1 = [F:ITM]ITMDES1
+               Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[F:PRW]ITMDES1, "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+
+    When 4   : Read [STA]STA0=[M:PREP]STOFCY;[M:PREP]ITMREF(I);0;[M:PREP]SEQ(I)
+               If fstat
+                  Call RSTA("STA",[M:PREP]STOFCY-[M:PREP]ITMREF(I)-num$(0)-num$([M:PREP]SEQ(I))) From GLOCK
+                  GOK=0 : Break
+               Endif
+               Read [ITM]ITM0=[M:PREP]ITMREF(I)
+               If fstat
+                  Call RSTA("ITM",[M:PREP]ITMREF(I)) From GLOCK
+                  GOK=0 : Break
+               Endif
+
+               # Lock fichier allocation
+               #SYMBOLE3 = "STA"+[F:STA]STOFCY+[F:STA]ITMREF+num$(0)+num$([F:STA]SEQ)
+               #Lock = SYMBOLE3
+               #If fstat
+               #   # Modification en cours sur un autre poste
+               #   Call ECR_TRACE("$STOREO"-[F:STA]STOFCY-[F:STA]ITMREF-num$(0)-num$([F:STA]SEQ)-mess(10,100,1),1) From GESECRAN
+               #   OK=1
+               #Endif
+
+               [F:PRW] = [F:STA]
+               [F:PRW]ORI1    = [M:PREP]ITMREF(I)
+               [F:PRW]ORI3    = [M:PREP]SEQ(I)
+               [F:PRW]WKEY    = num$([M:PREP]ORITYP(I)-1)
+               [F:PRW]WKEY   += "~"+[M:PREP]BPCORD(I)
+               [F:PRW]WKEY   += "~"+[M:PREP]BPAADD(I)
+               [F:PRW]WKEY   += "~~"
+               If [M:PREP]SHIRUP=2
+                  [F:PRW]WKEY += "~"+format$("D:DDMMYYYY",[M:PREP]BESDAT(I))
+               Endif
+               [F:PRW]WKEY   += "~"+[M:PREP]BPTNUM(I)
+               [F:PRW]WKEY   += "~~~"
+               [F:PRW]WDATA   = [M:PREP]PRECOD(I)
+               [F:PRW]WDATA  += "~"+num$([M:PREP]DRN(I))
+               #--- Issue 113252
+               [M:PREP]SHIDAT(I) = [M:PREP]BESDAT(I)
+               [F:PRW]SHIDAT     = [M:PREP]BESDAT(I)
+               [F:PRW]DLVDAT     = [M:PREP]DLVDAT(I)
+               #[F:PRW]ITMDES1 = [F:ITM]ITMDES1
+               Call CHARGE_DEFITMDES("DES1AXX",GLANGUE,[F:ITM]ITMREF,[F:PRW]ITMDES1, "[F:ITM]") From TRTX3 # FGR 30/06/2009 : X3SUIVI56189
+               #--- Bug 81161
+               [F:PRW]TYPSCO = [F:STA]VCRTYP
+               [F:PRW]NUMSCO = [F:STA]VCRNUM
+               [F:PRW]LINSCO = [F:STA]VCRLIN
+               [F:PRW]SEQSCO = [F:STA]VCRSEQ
+               #---
+   Endcase
+
+   [F:PRW] = [M:PREP]
+
+   #--- Bug 74318
+   GPOINT="ALIM_WDATA2" : Gosub ENTREE From EXEFNC
+
+   If [F:PRW]WDATA<>""
+      Filter [PRW1] Where PRONUM=[F:PRW]PRONUM & WKEY=[F:PRW]WKEY & WDATA=[F:PRW]WDATA & WDATA2=[F:PRW]WDATA2
+      Read [PRW1] First
+      If fstat
+         WWKEYD +=1
+         [F:PRW]WKEYD=WWKEYD
+      Else
+         [F:PRW]WKEYD=[F:PRW1]WKEYD
+      Endif
+      Filter [PRW1]
+   Endif
+
+   Write [PRW]
+   If fstat
+      GOK=0 : Call FSTA("PRW") From GLOCK : Break
+   Endif
+
+$NEXT_PREP
+Next I
+
+If GOK=0 Rollback : Goto GEN_PRH_FIN Endif
+
+Commit
+
+#------------------------------------
+# Exploitation du fichier de travail
+#------------------------------------
+Raz WTRBEGIN
+Raz [F:PRW1]
+
+#--- Bug 54603
+# Lecture affectation compteur
+Call LECTCA(7,OK) From SUBTCA
+
+#                                                 # hcb 110824 deb
+GPOINT = "AUTPRWSEL"
+GPE = 0
+Gosub ENTREE From EXEFNC
+If GPE = 0
+    Filter [PRW] Where PRONUM=adxuid(1) Order By Key PRW1
+Endif
+#For [PRW]PRW1 Where PRONUM=adxuid(1)
+For [PRW]
+#                                                 # hcb 110824 fin
+
+
+   If [F:PRW1]WKEY   <> [F:PRW]WKEY
+&   | [F:PRW1]WDATA  <> [F:PRW]WDATA
+&   | [F:PRW1]WDATA2 <> [F:PRW]WDATA2
+      #--- Bug 77335
+      #If [F:PRW1]WKEY<>""
+      If [F:PRW1]WKEY<>"" & WTRBEGIN<>0
+      #---
+         Gosub ENTETE_BON
+         If GOK<1 Break Endif
+      Endif
+      Gosub CHRONO_BON
+      If GOK<1 Break Endif
+      Gosub CHG_ENTETE_BON
+      [F:PRH]TRSCOD = [M:PREP]TRSCOD
+      Goto  GEN_PRH_SUI
+   Endif
+   If find([F:PRW1]ORITYP,1,2)
+      #--- Issue X3-56312
+      If [F:PRW1]ORI1 <> [F:PRW]ORI1
+&      & ([F:PRW1]ODL=2 | find([F:PRW1]IME,2,3) | [F:PRW]ODL=2 | find([F:PRW]IME,2,3))
+#      If [F:PRW1]ORI1 <> [F:PRW]ORI1
+#&      & ([F:PRW1]ODL=2 | find([F:PRW1]IME,2,3))
+      #---
+         #--- Bug 77335
+         #If [F:PRW1]WKEY<>""
+         If [F:PRW1]WKEY<>"" & WTRBEGIN<>0
+         #---
+            Gosub ENTETE_BON
+            If GOK<1 Break Endif
+         Endif
+         Gosub CHRONO_BON
+         If GOK<1 Break Endif
+         Gosub CHG_ENTETE_BON
+         [F:PRH]TRSCOD = [M:PREP]TRSCOD
+         Goto  GEN_PRH_SUI
+      Endif
+   Endif
+
+   $GEN_PRH_SUI
+   #--- Bug 78338
+   WOK=1
+   # Creation detail bon de preparation
+   Gosub DETAIL_BON
+   If GOK<1 Break Endif
+   #--- Bug 78338
+   ##--- Dem 67277
+   #If [F:PRE]QTYSTU=0 Goto NEXT_PRW Endif
+   If WOK<>1 Goto NEXT_PRW Endif
+   #---
+   [F:PRW1] = [F:PRW]
+   $NEXT_PRW
+Next
+Filter [PRW]                                      # hcb 110824
+
+If GOK<1 Rollback : Goto GEN_PRH_FIN Endif
+
+If WTRBEGIN=1
+   Gosub ENTETE_BON
+   If GOK<1 Rollback : Goto GEN_PRH_FIN Endif
+Endif
+
+# Bon prepa generes --> plus de rajout sur la liste
+Diszo [M:PREP]LSTWIOFLG
+Affzo [M:PREP]LSTWIOFLG
+# Bon prepa generes --> accès à l'emplacement destination
+Actzo [M:PREP]LOCDESH
+Affzo [M:PREP]LOCDESH
+
+$GEN_PRH_FIN
+# --> deverrouillage des commandes, reapprovisionnement et allocations
+#For [PRW]
+#   Case [F:PRW]ORITYP
+#    When 1,2 : SYMBOLE = "SOH"+[F:PRW]ORI1
+#    When 3   : SYMBOLE = "REO"+[F:PRW]STOFCY+[F:PRW]ORI2+[F:PRW]ORI1
+#    When 4   : SYMBOLE = "STA"+[F:PRW]STOFCY+[F:PRW]ORI1+num$(0)+num$([F:PRW]ORI3)
+#   Endcase
+#   Unlock = SYMBOLE
+#Next
+
+#-----------------------------------
+# Suppression du fichier de travail
+#-----------------------------------
+Gosub DEL_PRW
+
+# Rechargement de l'ecran PREPLAN
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Effzo [M:PREP]40
+Gosub LOAD_PRLNUM
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+Return
+
+#########################################################################
+# Recuperation compteur bon de preparation
+#########################################################################
+$CHRONO_BON
+
+Call DEBTRANS From GLOCK
+Trbegin [PRH]
+Call NUMERO([F:TCA]CODNUM(23),[F:PRW]STOFCY,date$,"",WPRHNUM,WRET) From SUBANM
+If WRET<>0
+   GOK =0 : GERR=1 : GMESSAGE=mess(60,199,1)
+   Goto AB_STD
+Else
+   Commit
+Endif
+
+Return
+
+#########################################################################
+# Creation detail bon de preparation
+#########################################################################
+$DETAIL_BON
+#--- Issue 121743
+Local Decimal WQTY, WQTYSTU, WQTYARR
+
+#--- Issue 117979
+If WKIT=1 & find([F:PRW]LINTYP,3,4,5)
+   #If WQTYCPE=0
+   #   Return
+   #Else
+      [F:PRW]QTYSTU=[F:PRW]QTYSTU*WQTYCPE/WQTYCPEOLD
+      Call QTEARR([F:PRW]QTYSTU,[F:PRW]STU) From TRTDIV
+   #Endif
+Else
+  WKIT=0
+Endif
+#---
+
+If WTRBEGIN=0
+   Call DEBTRANS From GLOCK
+   Trbegin [PRH]
+   WTRBEGIN=1
+Endif
+
+#--- Bug 87329
+#  Dans le PE lire l'article et s'il est géré
+#  avec no série en sortie ([F:ITM]SERMGTCOD=2) mettre GPE=1
+Local Integer I, WSER : WSER=1
+Raz GPE                                               # hcb 93508
+GPOINT="CRE_PRE_SERNUM" : Gosub ENTREE From EXEFNC
+If GPE=1 WSER=[F:PRW]QTYSTU Endif
+For I=1 To WSER
+#---
+  WPRELIN += 1
+  Raz [F:PRE]
+  [F:PRE] = [F:PRW]
+  [F:PRE]PRHNUM = WPRHNUM
+  [F:PRE]PRELIN = WPRELIN
+  #--- Bug 87329
+  If WSER>1 [F:PRE]QTYSTU=1 Endif
+
+  Case [F:PRW]ORITYP
+   When 1,2 : [F:PRE]ORINUM = [F:PRW]ORI1
+              [F:PRE]ORILIN = val([F:PRW]ORI2)
+              [F:PRE]ORISEQ = [F:PRW]ORI3
+              #--- Bug 78338
+              If [F:SOH]SOHNUM<>[F:PRE]ORINUM Read [SOH]SOH0=[F:PRE]ORINUM Endif
+   When 3   : [F:PRE]REOLOC = [F:PRW]ORI2
+   When 4   : [F:PRE]SEQ    = [F:PRW]ORI3
+              #--- Bug 81161
+              [F:PRE]ORITYPSCO = [F:PRW]TYPSCO
+              [F:PRE]ORINUM    = [F:PRW]NUMSCO
+              [F:PRE]ORILIN    = [F:PRW]LINSCO
+              [F:PRE]ORISEQ    = [F:PRW]SEQSCO
+              #---
+  Endcase
+
+  # Texte détail BP
+  Call CHARGETXTPRE([F:PRH]BPCORD,[F:PRE]ITMREF) From STKPREPA
+
+  # Lecture liste prépa
+  Readlock [PRL]PRL0=[F:PRW]PRLNUM;[F:PRW]PRLSEQ
+  If fstat
+    GOK=0 : Call RSTA("PRL",[F:PRW]PRLNUM-num$([F:PRW]PRLSEQ)) From GLOCK
+    #--- Issue 93664
+    Raz WTRBEGIN : Break
+    #Raz WTRBEGIN : Return
+    #---
+  Endif
+  [F:PRE]PCK    = [F:PRL]PCK
+  [F:PRE]PCKCAP = [F:PRL]PCKCAP
+  [F:PRE]PCKFLG = [F:PRL]PCKFLG
+
+  #--- Dem 67277
+  #[F:PRE]CREDAT = date$
+  #[F:PRE]CREUSR = GUSER
+  #[F:PRE]EXPNUM = [C]EXPORT
+  #[F:PRE]UPDUSR = ""
+  #[F:PRE]UPDDAT = [0/0/0]
+  #Write [PRE]
+  #If fstat
+  #   GOK=0    : Call FSTA("PRE") From GLOCK
+  #   Raz WTRBEGIN : Return
+  #Endif
+  #---
+
+  # On stocke les dates expedition et livraison les + petites dans l'entete
+  WSHIDAT=min(WSHIDAT,[F:PRW]SHIDAT)
+  WDLVDAT=min(WDLVDAT,[F:PRW]DLVDAT)
+
+  Read [ITM]ITM0=[F:PRW]ITMREF
+  If fstat
+    GOK=0 : Call RSTA("ITM",[F:PRW]ITMREF) From GLOCK
+    #--- Issue 93664
+    Raz WTRBEGIN : Break
+    #Raz WTRBEGIN : Return
+    #---
+  Endif
+
+    #--- Issue 117979
+    # Si composé kit et quantité à préparer du composé <> quantité préparable,
+    # il faut dérouler le fichier de travail sur les composants afin de recalculer
+    # leur quantité à préparer en fonction de la quantité à préparer du composé
+    If [F:PRW]LINTYP=2 & [F:PRW]QTYSTU<>[F:PRE]QTYSTU
+       WQTYCPE   =[F:PRE]QTYSTU
+       WQTYCPEOLD=[F:PRW]QTYSTU
+       WKIT=1
+    Endif
+    #---
+
+  #--- Dem 67277
+  # Maj liste prepa
+  #[F:PRL]PRHNUM = [F:PRE]PRHNUM
+  #[F:PRL]PRELIN = [F:PRE]PRELIN
+  #Rewrite [PRL]
+  #If fstat
+  #   GOK=0    : Call FSTA("PRL") From GLOCK
+  #   Raz WTRBEGIN : Return
+  #Endif
+  #---
+
+  # Si gestion de stock
+  If [F:PRE]STOMGTCOD<>1
+
+    #--- Dem 67277
+    #Readlock [PRE]PRE0=WPRHNUM;WPRELIN
+    #If fstat
+    #   GOK=0 : Call RSTA("PRE",WPRHNUM-num$(WPRELIN)) From GLOCK
+    #   Raz WTRBEGIN : Return
+    #Endif
+    #---
+
+    WALLTYPFLG = [M]ALLTYPFLG
+
+    # Allocation du stock
+    Case [F:PRW]ORITYP
+     When 1,2 : WPREQTYSTU = [F:PRE]QTYSTU             : #--- Bug 78338
+                Gosub ALL_SOQ_PRE From STKPREPA
+                Call DELSTOSORW(-1,0,"PREP",[M]STOFCY,WRET) From STKSOR
+     When 3,4 : Gosub ALL_REO_PRE From STKPREPA
+    Endcase
+
+    If GOK<=0
+      #--- Issue 93664
+      Raz WTRBEGIN : Break
+      #Raz WTRBEGIN : Return
+      #---
+    Endif
+
+    #--- Bug 78338
+    ##--- Dem 67277
+    #If [F:PRE]QTYSTU=0
+    #   #--- Bug 76093
+    #   #WPRELIN -= 1 : Return
+    #   WPRELIN -= 1
+    #   If WPRELIN=0
+    #      Rollback : Raz WTRBEGIN
+    #   Endif
+    #   Return
+    #   #---
+    #Endif
+
+    #--- Issue 103798
+    #If [F:PRE]QTYSTU=0 | (find([F:PRW]ORITYP,1,2) & [F:SOH]DME>1 & [F:PRE]QTYSTU<WPREQTYSTU)
+    If [F:PRE]QTYSTU=0
+    #---
+      WPRELIN -= 1 : WOK = 0
+
+      #--- Bug 88254
+      #If WPRELIN=0
+      #  Rollback : Raz WTRBEGIN
+      #Endif
+
+      #--- Issue 100959 by TS
+      # Rollback pour annuler les maj d'allocations
+      # Puis Commit pour supprimer l'enreg PRL
+      If WPRELIN=0
+        Rollback
+        Call DEBTRANS From GLOCK
+        Trbegin [PRH]
+      Endif
+      #---
+
+#      Delete [PRL]                            # hcb 88913
+      WDELTAQTY = -[F:PRL]QTYSTU
+      Case [F:PRL]ORITYP
+       When 1,2 : WTYP=1
+                  Call MAJ_SOQ (1,[F:PRL]ORINUM,[F:PRL]ORILIN,[F:PRL]ORISEQ,[F:PRL]PCU,
+&                              [F:PRL]PCUSTUCOE,WDELTAQTY) From STKPREPA
+       When 3   : Call MAJ_REO (3,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]REOLOC,WDELTAQTY) From STKPREPA
+       When 4   : Call MAJ_STA (3,[F:PRL]STOFCY,[F:PRL]ITMREF,[F:PRL]SEQ,WDELTAQTY) From STKPREPA
+      Endcase
+
+
+      # Si erreur sur maj cde,réo ou all, on remet GOK=1 pour passer à l'enr suivant
+      If GOK=0 GOK=1 Endif
+      #---
+      Delete [PRL]    # hcb 88913
+
+      #--- Issue 100959 by TS
+      #--- On ne vient pas du plan de préparation
+      If GFONC1<>"FUNPREP"
+        Case [F:PRL]ORITYP
+          When 1,2 : Call ECR_TRACE("   "+mess([F:PRL]ORITYP,2747,1)-":"-[F:PRL]ORINUM-"-"-mess(80,197,1)-
+&                          ":"-[F:PRL]ITMREF-"***"-mess(53,197,1)-"***",0) From GESECRAN
+          When 3,4 : Call ECR_TRACE("   "+mess([F:PRL]ORITYP,2747,1)-"-"-mess(80,197,1)-":"-[F:PRL]ITMREF-
+&                          mess(44,197,1)-":"-[F:PRL]REOLOC-"***"-mess(53,197,1)-"***",0) From GESECRAN
+        Endcase
+      Endif
+      #---
+
+      #--- Issue 98044
+      If WPRELIN=0
+        Raz WTRBEGIN
+        #--- Issue 98799
+        WSHIDAT = [31/12/2999]
+        WDLVDAT = [31/12/2999]
+        #---
+        Commit
+      Endif
+      #---
+
+#     Return          # hcb 88913
+      Break           # hcb 88913
+
+      Return
+    Endif
+    #---
+
+  #--- Bug 70836
+  Endif
+
+  #--- Bug 71514
+  GPOINT = "BEFWRIPRE" : Gosub ENTREE From EXEFNC
+
+  # Ecriture detail preparation ---
+  [F:PRE]CREDAT = date$
+  [F:PRE]CREUSR = GUSER
+  [F:PRE]EXPNUM = [C]EXPORT
+  [F:PRE]UPDUSR = ""
+  [F:PRE]UPDDAT = [0/0/0]
+  Write [PRE]
+  If fstat
+    GOK=0    : Call FSTA("PRE") From GLOCK
+    #--- Issue 93664
+    Raz WTRBEGIN : Break
+    #Raz WTRBEGIN : Return
+    #---
+  Endif
+  # Reecriture detail preparation ---
+  #Rewrite [PRE]
+  #If fstat
+  #   GOK=0    : Call FSTA("PRE") From GLOCK
+  #   Raz WTRBEGIN : Return
+  #Endif
+  #---
+  #--- Bug 70836
+  #Endif
+
+#--- Bug 87329
+Next I
+#--- Issue 93664
+If WOK=0 | GOK<=0
+#If WOK = 0                # hcb 88913
+#---
+   Return                  # hcb 88913
+Endif                      # hcb 88913
+
+If WSER>1 [F:PRE]QTYSTU=[F:PRW]QTYSTU Endif
+#---
+
+# Maj qté préparée ligne de commande et en-cours
+If find([F:PRW]ORITYP,1,2)
+   WDELTAQTY = [F:PRE]QTYSTU
+   #--- Dem 67277
+   #WTYP=2
+   WTYP=7
+   #---
+   Call MAJ_SOQ (WTYP,[F:PRL]ORINUM,[F:PRL]ORILIN,[F:PRL]ORISEQ,[F:PRL]PCU,
+&                [F:PRL]PCUSTUCOE,WDELTAQTY) From STKPREPA
+   If GOK<=0
+      Raz WTRBEGIN : Return
+   Endif
+Endif
+
+#--- Dem 67277
+# Maj liste prepa
+[F:PRL]QTYSTU = [F:PRE]QTYSTU
+[F:PRL]PRHNUM = [F:PRE]PRHNUM
+[F:PRL]PRELIN = [F:PRE]PRELIN
+Rewrite [PRL]
+If fstat
+   GOK=0    : Call FSTA("PRL") From GLOCK
+   Raz WTRBEGIN : Return
+Endif
+#---
+
+Return
+
+#########################################################################
+# Chargement entete bon de preparation
+#########################################################################
+$CHG_ENTETE_BON
+
+Raz [F:PRH]
+[F:PRH] = [F:PRW]
+[F:PRH]CPY    = GSOCIETE
+[F:PRH]PRHNUM = [L]WPRHNUM
+[F:PRH]DLVFLG = 1
+[F:PRH]PACFLG = 1
+[F:PRH]PRNNPR = 1
+
+Case [F:PRW]ORITYP
+ When 1,2,3 : [F:PRH]ORIPRH = [F:PRW]ORITYP
+ When 4     : [F:PRH]ORIPRH = 3
+Endcase
+
+# Texte entête ou pied BP
+Call CHARGETXTPRH([F:PRH]BPCORD,[F:PRH]BPAADD) From STKPREPA
+
+Return
+
+#########################################################################
+# Creation entete bon de preparation
+#########################################################################
+$ENTETE_BON
+#--- Issue 86757
+Local Char    WORINUM
+Local Integer WOK
+#---
+
+#--- Dem 67277
+# Il y a au moins une ligne de préparation
+If WPRELIN>0
+#---
+  [F:PRH]SHIDAT = WSHIDAT
+  [F:PRH]DLVDAT = WDLVDAT
+
+  #--- Bug 71514
+  GPOINT = "BEFWRIPRH" : Gosub ENTREE From EXEFNC
+
+  [F:PRH]CREDAT = date$
+  [F:PRH]CREDATTIM  = datetime$                        # hcb X3-67533
+  [F:PRH]CREUSR = GUSER
+  [F:PRH]EXPNUM = [C]EXPORT
+  [F:PRH]UPDUSR = ""
+  [F:PRH]UPDDAT = [0/0/0]
+  Write [PRH]
+  If fstat
+    GOK=0    : Call FSTA("PRH") From GLOCK
+    Raz WTRBEGIN : Return
+  Endif
+#--- Dem 67277
+Endif
+
+WSHIDAT = [31/12/2999]
+WDLVDAT = [31/12/2999]
+#--- Issue 86757
+#Raz WPRELIN
+Raz WTRBEGIN
+Commit
+
+#--- Issue 86757
+If WPRELIN>0
+  For [PRE]PRE0 Where PRHNUM=[F:PRH]PRHNUM & ORITYP<3
+    If [F:PRE]ORINUM<>WORINUM
+      Call MAJSTASOH([F:PRE]ORINUM,WOK) From TRTVENCDE
+      WORINUM = [F:PRE]ORINUM
+    Endif
+  Next
+Endif
+Raz WPRELIN
+#---
+
+Return
+
+#########################################################################
+# Effacement fichier de travail
+#########################################################################
+$DEL_PRW
+
+Call DEBTRANS From GLOCK
+Trbegin [PRW]
+GOK = 1
+Delete [PRW] Where PRONUM=adxuid(1)
+If fstat
+   GOK= 0 : Call RSTA("PRW",num$(adxuid(1))) From GLOCK : Goto AB_STD
+Endif
+Commit
+Return
+
+#########################################################################
+# Bouton "Livrable"
+#########################################################################
+$LIV_PRH
+Local Decimal LQTA, LSHT
+Local Integer LRET, LNBR, LNBJ
+#--- Issue 100703 by TS
+Local Decimal WQTYSTUARR
+Local Integer WPCURUL
+#---
+#--- Issue X3-197020 by TS
+Local Integer WDLVFLG
+
+Raz WERR
+
+# Bons prépa non générés
+If find("",[M:PREP]PRHNUM(0..[M:PREP]NBLIG-1))
+   Call ERREUR (mess(267,184,1)) From GESECRAN
+   Return
+Endif
+# Allocations globales
+J=0
+While J<[M:PREP]NBLIG
+   I=find(1,[M:PREP]ALLTYP(J..[M:PREP]NBLIG-1))
+   If I=0
+      J=[M:PREP]NBLIG
+   Elsif [M:PREP]STOMGTCOD(I-1+J)>1
+      Call ERREUR([M:PREP]PRHNUM(I-1+J)-[M:PREP]ITMREF(I-1+J)-":"-mess(268,184,1))
+&          From GESECRAN
+      #MAE, bg 100731
+      WERR=1 : Break
+      #J=[M:PREP]NBLIG
+   Else
+      J+=I
+   Endif
+Wend
+
+# Stock négatif interdit
+For I=0 To [M:PREP]NBLIG-1
+   #--- Issue X3-191666
+   If [F:ITM]ITMREF<>[M:PREP]ITMREF(I)
+      Read [ITM]ITM0=[M:PREP]ITMREF(I)
+   Endif
+   #---
+   # La ligne n'est pas annulée
+   If [M:PREP]FLGANN(I)=0
+      If [M:PREP]SHTQTY(I)<>0
+         # Changement d'emplacement, préparation non livrable
+         If [M:PREP]LOCDES(I)<>""
+            Call ERREUR([M:PREP]PRHNUM(I)-[M:PREP]ITMREF(I)-":"-mess(323,184,1))
+&                From GESECRAN
+            WERR=1 : Break
+         Else
+            # Stock négatif interdit, préparation non livrable
+            #--- Issue X3-191666
+            #Read [ITM]ITM0=[M:PREP]ITMREF(I)
+            If [F:ITM]NEGSTO<>2
+               Call ERREUR([M:PREP]PRHNUM(I)-[M:PREP]ITMREF(I)-":"-mess(269,184,1))
+&                          From GESECRAN
+               WERR=1 : Break
+            Endif
+         Endif
+      Endif
+
+      #--- Issue 100703 by TS
+      # Emplacement destination renseigné
+      If [M:PREP]LOCDES(I)<>""
+        #--- Issue X3-191666
+        #If [F:ITM]ITMREF<>[M:PREP]ITMREF(I)
+        #   Read [ITM]ITM0=[M:PREP]ITMREF(I)
+        #Endif
+        #---
+        # Vérification que l'on peut faire le changement d'emplacement
+        # sans altérer les allocations
+        For [STA]STA2 Where ITMREF=[M:PREP]ITMREF(I) & VCRTYP=3 &
+&                           VCRNUM=[M:PREP]PRHNUM(I) & VCRLIN=[M:PREP]PRELIN(I)
+          Read [STO]STO0=[F:STA]STOFCY;[F:STA]STOCOU
+          If fstat
+            Call RSTA("STO",[F:STA]STOFCY-[F:STA]ITMREF-num$([F:STA]STOCOU)) From GLOCK
+            WERR=1 : Break 2
+          Endif
+          If [F:STO]PCU<>[F:ITM]STU &
+&           mod([F:STO]QTYSTU-[F:STA]QTYSTU,[F:STO]PCUSTUCOE)
+            If find([F:STO]PCU,[F:ITM]PCU)
+              [L]WPCURUL=[F:ITM]PCURUL(find([F:STO]PCU,[F:ITM]PCU)-1)
+              If [L]WPCURUL<1 | [L]WPCURUL>3  [L]WPCURUL=1 : Endif
+            Else
+              [L]WPCURUL=1
+            Endif
+            # Pas de changement d'emplacement si déconditionnement partiel
+            If [L]WPCURUL=1
+              Call CTRQTYPCU([F:STO]PCU,[F:STO]PCUSTUCOE,[F:STA]QTYSTU,[L]WQTYSTUARR) From STKLIB
+              If [F:STA]QTYSTU<>[L]WQTYSTUARR
+                Call ERREUR([M:PREP]PRHNUM(I)-[M:PREP]ITMREF(I)-":"-mess(419,184,1))
+&                    From GESECRAN
+                WERR=1 : Break 2
+              Endif
+            # Pas de changement d'emplacement si rompu (recalcul du coef UC/US)
+            Elsif [L]WPCURUL=2
+              If [F:STA]QTYSTU<>[F:STO]QTYSTU
+                Call ERREUR([M:PREP]PRHNUM(I)-[M:PREP]ITMREF(I)-":"-mess(419,184,1))
+&                    From GESECRAN
+                WERR=1 : Break 2
+              Endif
+            Endif
+          Endif
+        Next
+      Endif
+      #---
+      #--- Issue 110327
+      If [F:ITM]SERMGTCOD=4
+         Raz LRET
+         Call VERF_ALL_STS(3,[M:PREP]PRHNUM,[M:PREP]PRELIN(I),[M:PREP]ITMREF(I),LRET) From STKALL
+         If LRET<>0
+            Call ERREUR([M:PREP]PRHNUM-[M:PREP]ITMREF(I)-":"-mess(312,184,1)) From GESECRAN
+            WERR=1 : Break
+         Endif
+      Endif
+      #---
+   Endif
+Next I
+
+If WERR<>0 Return Endif
+
+Call DEBTRANS From GLOCK
+Trbegin [PRH]
+
+Raz WPRHNUM
+
+Filter [PRL] Where PRLNUM=[M:PREP]PRLNUM Order By PRHNUM
+For [PRL]
+   # Lecture du détail bon de préparation
+   Read [PRE]PRE0=[F:PRL]PRHNUM;[F:PRL]PRELIN
+   If fstat
+      GOK=0 : Call RSTA("PRE",[F:PRE]PRHNUM+num$([F:PRE]PRELIN)) From GLOCK
+      Break
+   Endif
+
+   # Si rupture Bon Prépa, maj de celui-ci
+   If [F:PRL]PRHNUM<>WPRHNUM
+      #--- Issue X3-197020 by TS
+      WDLVFLG=0
+      #---
+      WPRHNUM = [F:PRL]PRHNUM
+      Readlock [PRH]PRH0=[F:PRL]PRHNUM
+      If fstat
+         GOK=0 : Call RSTA("PRH",[F:PRL]PRHNUM) From GLOCK
+         Break
+      Endif
+      # Le Bon de prépa est déjà livrable/livré/annulé
+      #--- Issue X3-197020 by TS
+      #If [F:PRH]DLVFLG>=2 Goto NEXT_PRL2 Endif
+      If [F:PRH]DLVFLG>=2 : WDLVFLG=1 : Goto NEXT_PRL2 : Endif
+      #---
+      #--- Issue 111700
+      GPE=0
+      GPOINT="LIV_PRH" : Gosub ENTREE From EXEFNC
+      If GPE=1 Goto NEXT_PRL2 Endif
+      #---
+
+      [F:PRH]DLVFLG=2
+      Rewrite [PRH]
+      If fstat
+         GOK=0 : Call FSTA("PRH") From GLOCK
+         Break
+      Endif
+   Endif
+   #--- Issue X3-197020 by TS
+   # Le Bon de prépa était déjà livrable/livré/annulé
+   If [F:PRH]DLVFLG>=2 & WDLVFLG=1 Goto NEXT_PRL2 Endif
+   #---
+   # Si la ligne est annulée
+   If [F:PRE]FLGANN<>0 Goto NEXT_PRL2 Endif
+
+   # Traitement des changements d'emplacements
+   If [F:PRE]LOCDES<>""
+      Raz [M:STW]
+      [M:STW]STOFCY  = [F:PRL]STOFCY
+      [M:STW]TRSTYP  = 7
+      [M:STW]ITMREF  = [F:PRE]ITMREF
+      [M:STW]LOCENT  = [F:PRE]LOCDES
+      [M:STW]MVTDES  = ""
+      [M:STW]CUR     = GLOCALDEV
+      [M:STW]ENTCOD  = ""
+      [M:STW]PJT     = ""
+      [M:STW]BPRNUM  = ""
+      [M:STW]IPTDAT  = date$
+      [M:STW]PRIORDH = 0
+      [M:STW]PIOQTY  = 3
+      [M:STW]VCRTYP  = 3               : # Bon de préparation
+      [M:STW]VCRNUM  = [F:PRE]PRHNUM
+      [M:STW]VCRLIN  = [F:PRE]PRELIN
+      Call ALISTOWORK( 1,0,LQTA,LSHT,LNBR,LNBJ,LRET) From STKINT
+      # Mise à jour des stock
+      If LRET=0
+         Call MAJ_STOCK From STKMAJ
+      Endif
+      If LRET<>0 | GOK<1
+         GOK=0 : Break
+      Endif
+   Endif
+
+   # Maj de la quantité préparée
+   If find([F:PRL]ORITYP,1,2)
+      # Maj des qtés en prépa et préparées de la commande
+      WTYP=3
+      Call MAJ_SOQ (WTYP,[F:PRL]ORINUM,[F:PRL]ORILIN,[F:PRL]ORISEQ,[F:PRE]PCU,
+&                   [F:PRE]PCUSTUCOE,[F:PRE]QTYSTU) From STKPREPA
+      If GOK=0 Break Endif
+   Endif
+   $NEXT_PRL2
+Next
+Filter [PRL]
+If GOK=1
+   Commit
+Else
+   Rollback
+Endif
+
+# Rechargement de l'ecran PREPLAN
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Effzo [M:PREP]40
+Gosub LOAD_PRLNUM
+# Issue 55983 - 2013-03-14 by MAE : Modif ordre bloc(30=>40)
+Affzo [M:PREP]40
+
+Return
+
+#########################################################################
+
+$CHARGE_STOSOR
+#-----------------------------------------------------------------------#
+# Chargement des parametres dans masque STOSOR pour saisie des sorties  #
+# Cette etiquette est appelee depuis CHARGE_PARAM From TRTSTOSORA       #
+#-----------------------------------------------------------------------#
+
+# Composant d'un kit/sous-traité
+If find([M:PREP]LINTYP(LNOL),3,4,5,11,12,13)
+   GTYPLIG=1
+Else
+   GTYPLIG=0
+Endif
+
+[M:SOR]WSTOSEQ   = [M:PREP]WSTOSEQ(LNOL)
+Case [M:PREP]ORITYP(LNOL)
+ When 1   : [M:SOR]TRSTYP= 4
+ When 2   : [M:SOR]TRSTYP=17
+ When 3,4 : [M:SOR]TRSTYP=20
+Endcase
+[M:SOR]TRSCOD    = [M:PREP]TRSCOD
+
+[M:SOR]TRFFCY    = ""
+[M:SOR]BETCPY    = 1
+#--- Bug 84873
+If [M:PREP]ORITYP(LNOL)<3
+   Read [SOH]SOH0=[M:PREP]ORINUM(LNOL)
+   # Si inter-site et intra-société
+   If !fstat & [F:SOH]BETFCY=2 & [F:SOH]BETCPY<>2
+      Read [BPD]BPD0=[F:SOH]BPCORD;[F:SOH]BPAADD
+      If !fstat
+         [M:SOR]TRFFCY = [F:BPD]RCPFCY
+         [M:SOR]BETCPY = [F:SOH]BETCPY
+      Endif
+   Endif
+Endif
+#---
+
+[M:SOR]BPRNUM    = [M:PREP]BPCORD
+[M:SOR]CUR       = [M:PREP]CUR
+[M:SOR]VCRTYP    = 3
+[M:SOR]VCRNUM    = [M:PREP]PRHNUM(LNOL)
+[M:SOR]VCRLIN    = [M:PREP]PRELIN(LNOL)
+[M:SOR]MVTDES    = [M:PREP]MVTDES(LNOL)
+[M:SOR]STU       = [M:PREP]STU(LNOL)
+[M:SOR]PCU       = [M:PREP]PCU(LNOL)
+[M:SOR]PCUSTUCOE = [M:PREP]PCUSTUCOE(LNOL)
+[M:SOR]SORQTY    = [M:PREP]QTYSTU(LNOL)
+[M:SOR]SORQTYACT = [M:PREP]QTYSTU(LNOL)
+[M:SOR]RETDAT    = [M:PREP]BESDAT(LNOL)
+[M:SOR]DLVDAT    = [M:PREP]DLVDAT(LNOL)
+[M:SOR]PECINTLOC = 2
+[M:SOR]PECPLFLOC = 2
+[M:SOR]PECSCOLOC = 1
+[M:SOR]PECQLYCTL = 1
+[M:SOR]STOLOC    = ""
+[M:SOR]XLOT      = [M:PREP]LOTFIL(LNOL)
+[M:SOR]XLOC      = [M:PREP]LOCFIL(LNOL)
+[M:SOR]XSTA      = [M:PREP]STAFIL(LNOL)
+[M:SOR]CCECODS   = GSLTCCECODS
+If dim([M:PREP]WRH)>0 [M:SOR]XWRH=[M:PREP]WRH(LNOL) Endif
+
+[M:SOR]GLOALLQTY = 0
+[M:SOR]GLOSHTQTY = 0
+For [STA]STA1 Where VCRTYP=3 & VCRNUM=[M:SOR]VCRNUM & VCRLIN=[M:SOR]VCRLIN
+&                 & VCRSEQ=0 & find(ALLTYP,1,5)
+   If [F:STA]ALLTYP=1
+      [M:SOR]GLOALLQTY += [F:STA]QTYSTUACT
+   Elsif [F:STA]ALLTYP=5
+      [M:SOR]GLOSHTQTY += [F:STA]QTYSTUACT
+   Endif
+Next
+
+#--- Bug 85510
+# Si transaction avec emp dest saisissable et BP non livrable
+If [F:SRT]FLGLOCDES=2 & [M:PREP]DLVFLG<>2
+   [M:SOR]FLGSAISER=1
+Endif
+#---
+
+Return
+
+#########################################################################
+
+$APRES_STOSOR
+#-----------------------------------------------------------------------#
+# Mise a jour complementaires apres enregistrement
+# - Recalcul des quantites sorties US, UC de la ligne de document
+# - Realimentation des zones dependant de la quantite
+# - Coloriage de la ligne document si la quantite est nulle
+# - etc ...
+#
+#   [M:SOR]NBLIG     contient le nombre de ligne de stock traite
+#   [M:SOR]SORQTY    contient la quantite US qui etait a sortir
+#   [M:SOR]SORQTYACT contient la quantite en UA qui etait a sortir
+#   [M:SOR]PECQTY    contient la quantite US sortie
+#   [M:SOR]PECQTYACT contient la quantite en UA sortie
+#   [M:SOR]SHTQTY    contient la quantite manquante
+#-----------------------------------------------------------------------#
+
+If WGENR=1
+   [M:PREP]ALLTYP(LNOL) = 2
+   [M:PREP]ALLQTY(LNOL) = [M:SOR]PECQTYACT
+   [M:PREP]SHTQTY(LNOL) = [M:SOR]SHTQTY
+Endif
+
+Return
+
+#########################################################################
+$AB_STD
+Rollback
+Return
+#                                                                                        hcb 93069 deb
+
+#########################################################################
+# MAJ_STA_STAFLG                                    gestion  Lock logique
+#########################################################################
+Subprog MAJ_STA_STAFLG (NOL,COCHAGE)
+Value    Integer NOL
+Value    Integer COCHAGE
+Case [M:PREP]ORITYP(NOL)
+     When 1,2
+       #--- Issue X3-59901
+       #--- Issue X3-189003 by TS
+       #If [F:SOQ]SOHNUM<>[M:PREP]ORINUM(NOL) | [F:SOQ]SOPLIN<>[M:PREP]ORILIN(NOL)
+         Read [SOQ]SOQ0=[M:PREP]ORINUM(NOL);[M:PREP]ORILIN(NOL);[M:PREP]ORISEQ(NOL)
+         If fstat
+           Call RSTA ("SOQ",[M:PREP]ORINUM(NOL)-num$([M:PREP]ORILIN(NOL))-num$([M:PREP]ORISEQ(NOL))) From GLOCK
+           GERR =1
+           End
+         Endif
+       #--- Issue X3-189003 by TS
+       #Endif
+       #---
+# Commande / commande de pret
+        If COCHAGE       = 2
+          # Issue 115951 - 2016-04-14 by MAE
+          Gosub CTR_SOQ_CONTREMARQUE
+          If GERR = 2
+            #pas de message car ils sont gérés dans le CTR_SOQ_CONTREMARQUE
+            End
+          Endif
+          # End issue 1115951
+#                                                              hcb 95774 deb
+           #--- Issue 113235
+           Gosub CTR_QTE_SOQ    # hcb 100020 désactivation du controle aucune piste de l origine
+           If GERR = 2
+             #--- Issue X3-230552 by TS
+             If [M:PREP]QTYSTUMAX(NOL)<=0
+               Call ERREUR(mess(250,184,1)-": 0") From GESECRAN
+               End
+             Endif
+             #---
+             #--- Issue 121522
+             Local Integer OK : OK = 1
+             Call AVERTIR(mess(250,184,1)-":"-num$([M:PREP]QTYSTUMAX(NOL)),OK) From GESECRAN
+             If OK=2
+               GERR=0
+             Else
+               End
+             Endif
+             #Call ERREUR([M:PREP]ORINUM(NOL)+"\"+num$([M:PREP]ORILIN(NOL))+"\"+num$([M:PREP]ORISEQ(NOL))-":"-mess(416,184,1)) From GESECRAN
+           #--- Issue X3-38443
+           Elsif GERR=1
+             End
+           #---
+           Endif
+           #Else
+           #--- End issue 121522
+              SYMBOLE2 = "SOQ"+[M:PREP]ORINUM(NOL)+"\"+num$([M:PREP]ORILIN(NOL))+"\"+num$([M:PREP]ORISEQ(NOL))
+              Lock = SYMBOLE2
+              If fstat
+                 GERR=1
+                 Call ERREUR([M:PREP]ORINUM(NOL)+"\"+num$([M:PREP]ORILIN(NOL))+"\"+num$([M:PREP]ORISEQ(NOL))-":"-mess(10,100,1)) From GESECRAN
+                 End
+              Endif
+           #--- Issue 113235 puis 121522
+           #Endif
+           #---
+           #--- X3-136058
+           Local Integer I, OK
+           Read [SOH]SOH0=[F:SOQ]SOHNUM
+           #--- Issue X3-246223 by TS
+           #If !fstat & [F:SOH]DME=3 & [F:SOH]LINNBR-[F:SOH]DLVLINNBR>1
+           #   If [F:SOH]LINNBR-[F:SOH]DLVLINNBR > sigma(I=0,[M:PREP]NBLIG-1,[M:PREP]ORINUM(I)=[F:SOQ]SOHNUM)
+           If !fstat & [F:SOH]DME=3 & [F:SOH]LINNBR-[F:SOH]CLELINNBR>1
+              If [F:SOH]LINNBR-[F:SOH]CLELINNBR > sigma(I=0,[M:PREP]NBLIG-1,[M:PREP]ORINUM(I)=[F:SOQ]SOHNUM)
+           #---
+                 OK=2
+                 Call AVERTIR(mess(567,192,1),OK) From GESECRAN
+                 If OK<>2 : GERR=1 : End : Endif
+              Endif
+           Endif
+           #---
+        Else
+            SYMBOLE2 = "SOQ"+[M:PREP]ORINUM(NOL)+"\"+num$([M:PREP]ORILIN(NOL))+"\"+num$([M:PREP]ORISEQ(NOL))
+           Unlock = SYMBOLE2
+        Endif
+#                                                               hcb 95774 fin
+     When 3
+# Reappro sous-traitance
+        If COCHAGE       = 2
+SYMBOLE2 = "PREP"+[M:PREP]STOFCY+"\"+num$([M:PREP]ORITYP(NOL))+"\"+[M:PREP]ITMREF(NOL)+"\"+[M:PREP]REOLOC(NOL)+"\"+[M:PREP]BPCORD(NOL)
+           Lock = SYMBOLE2
+           If fstat
+              GERR=1
+Call ERREUR([M:PREP]STOFCY+"\"+num$([M:PREP]ORITYP(NOL))+"\"+[M:PREP]ITMREF(NOL)+"\"+[M:PREP]REOLOC(NOL)+"\"+[M:PREP]BPCORD(NOL)-":"-mess(10,100,1)) From GESECRAN
+              End
+           Endif
+        Else
+SYMBOLE2 = "PREP"+[M:PREP]STOFCY+"\"+num$([M:PREP]ORITYP(NOL))+"\"+[M:PREP]ITMREF(NOL)+"\"+[M:PREP]REOLOC(NOL)+"\"+[M:PREP]BPCORD(NOL)
+           Unlock = SYMBOLE2
+        Endif
+
+     When 4
+# Manquant sous-traitant
+        If COCHAGE       = 2
+SYMBOLE2 = "PREP"+[M:PREP]STOFCY+"\"+num$([M:PREP]ORITYP(NOL))+"\"+[M:PREP]ITMREF(NOL)+"\"+[M:PREP]REOLOC(NOL)+"\"+num$([M:PREP]SEQ(NOL))
+           Lock = SYMBOLE2
+           If fstat
+              GERR=1
+Call ERREUR([M:PREP]STOFCY+"\"+num$([M:PREP]ORITYP(NOL))+"\"+[M:PREP]ITMREF(NOL)+"\"+[M:PREP]REOLOC(NOL)+"\"+num$([M:PREP]SEQ(NOL))-":"-mess(10,100,1)) From GESECRAN
+              End
+           Endif
+        Else
+SYMBOLE2 = "PREP"+[M:PREP]STOFCY+"\"+num$([M:PREP]ORITYP(NOL))+"\"+[M:PREP]ITMREF(NOL)+"\"+[M:PREP]REOLOC(NOL)+"\"+num$([M:PREP]SEQ(NOL))
+           Unlock = SYMBOLE2
+        Endif
+     When Default
+Endcase
+
+End
+
+
+#########################################################################
+# DECOCHAGE_PREP
+#########################################################################
+$DECOCHAGE_PREP
+For I=0 To [M:PREP]NBLIG-1
+   If [M:PREP]COCHAGE(I)=2 & [M:PREP]UPDFLG(I)=1
+   # Issue 112190 - 2015-11-04 by MAE :
+       #If [M:PREP]ITMREF(nolign-1) <> ""
+       If [M:PREP]ITMREF(I) <> ""
+          Call MAJ_STA_STAFLG(I,1)  From TRTPREPA
+       Endif
+   Endif
+Next I
+
+Return
+
+#                                                                                             hcb 93069 fin
+#                                                                                             hcb 95774 deb
+
+#########################################################################
+# controle quantité  à préparer SOQ
+#########################################################################
+$CTR_QTE_SOQ
+
+Local Decimal WQTYSTUMAX
+Local Decimal WQTYSTU
+Local Integer WNON
+
+#--- Issue X3-59901
+#Read [SOQ]SOQ0=[M:PREP]ORINUM(NOL);[M:PREP]ORILIN(NOL);[M:PREP]ORISEQ(NOL)
+#If fstat
+#   Call RSTA ("SOQ",[F:PRE]ORINUM-num$([M:PREP]ORILIN(NOL))-num$([M:PREP]ORISEQ(NOL))) From GLOCK
+#   GERR =1
+#   Return
+#Endif
+#---
+# Lecture de l'article si nécessaire
+If [F:ITM]ITMREF <> [M:PREP]ITMREF(NOL)
+   Read [ITM]ITM0=[M:PREP]ITMREF(NOL)
+   If fstat  GERR = 1
+      Call RSTA ("ITM",[M:PREP]ITMREF(NOL)) From GLOCK
+      Return
+   Endif
+Endif
+
+# La qte a preparer est la qte allouee + qte manquante (selon paramètre SHTDLV)
+# ou la qte a livrer (si non nulle et pas de gestion de stock)
+# sinon c'est la qte restant a livrer
+WQTYSTUMAX = [F:SOQ]QTYSTU   -[F:SOQ]LPRQTYSTU-[F:SOQ]OPRQTYSTU
+&                       -[F:SOQ]PREQTYSTU-[F:SOQ]ODLQTYSTU-[F:SOQ]DLVQTYSTU
+
+#--- Issue 121522
+[M:PREP]QTYSTUMAX(NOL) = WQTYSTUMAX
+#---
+
+#--- Issue 118263
+If [M:PREP]PRLNUM<>"" : WQTYSTUMAX += [M:PREP]QTYSTU(NOL) : Endif
+
+WQTYSTU    = WQTYSTUMAX
+
+#--- Issue 121522
+#If [F:SOQ]STOMGTCOD=1
+#   If [F:SOQ]TDLQTY<>0
+#      WQTYSTU = [F:SOQ]TDLQTYSTU
+#   Endif
+#Elsif [F:SOQ]ALLQTYSTU<>0
+#   WQTYSTU = [F:SOQ]ALLQTYSTU
+#   If [F:SOQ]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 | GSHTDLV=2) | GSHTDLV=3)
+#      WQTYSTU += [F:SOQ]SHTQTYSTU
+#   Endif
+#Elsif [F:SOQ]SHTQTYSTU<>0 & (([F:ITM]NEGSTO=2 | GSHTDLV=2) | GSHTDLV=3)
+#   WQTYSTU = [F:SOQ]SHTQTYSTU
+#Endif
+#--- Issue 116984
+#WQTYSTU=min(WQTYSTU,WQTYSTUMAX)
+#--- End issue 121522
+
+#--- Issue 113235
+#If [M:PREP]QTYSTU(NOL) <> WQTYSTU
+If [M:PREP]QTYSTU(NOL) > WQTYSTU
+#---
+   GERR = 2
+Endif
+
+#--- Issue X3-38443
+GPOINT="INCLUDE_SOQ" : Gosub ENTREE From EXEFNC
+#---
+
+Return
+# Issue 115951  - 2016-04-14 by MAE : controle sur les commandes de contremarque
+#########################################################################
+# controle sur les commandes de contremarque
+#########################################################################
+$CTR_SOQ_CONTREMARQUE
+Local Integer OK
+
+#--- Issue X3_59901 : remplacement des [F:SOH]SHIDAT par [F:SOQ]SHIDAT
+
+ # Ligne gérée en contremarque et commande d'achat non générée
+      If [F:SOQ]FMI > 1 & [F:SOQ]FMI < 4 & [F:SOQ]FMINUM = ""
+         If [F:SOQ]ALLQTY=0
+             # Il n'y a rien d'alloué : On bloque la préparation
+             If GERR=2 GMESSAGE+=" \ " Endif
+             GERR=2 :  GMESSAGE+=[F:SOQ]ITMREF-format$(GFMDAT,[F:SOQ]SHIDAT)
+                       GMESSAGE+="\"+mess(111,192,1)
+             Return
+         Else
+            # Il y a des allocations : Elles ont été genérées manuellement : On demande si on veut livrer
+               Call OUINON(mess(160,197,1)+"\"+mess(112,191,1),OK) From GESECRAN
+               If OK=1
+                   GERR = 2
+                   Return
+               Endif
+         Endif
+      Endif
+      # Ligne gérée avec contremarque receptionnée et pas de quantité allouée
+      If [F:SOQ]FMI=3 & [F:SOQ]ALLQTY=0
+            Call OUINON(mess(140,192,1)+"\"+mess(112,191,1),OK) From GESECRAN
+            If OK=1
+               GERR= 2
+               Return
+            Endif
+      Endif
+      # Ligne gérée avec un ordre de production et OF non généré
+      If [F:SOQ]FMI = 5 & [F:SOQ]FMINUM = ""
+         If [F:SOQ]ALLQTY=0
+            # Il n'y a rien d'alloué : On bloque la préparation
+            If GERR=2 GMESSAGE+=" \ " Endif
+            GERR=2 :  GMESSAGE+=[F:SOQ]ITMREF-format$(GFMDAT,[F:SOQ]SHIDAT)
+            GMESSAGE+="\"+mess(138,192,1)
+            Return
+         Else
+            # Il y a des allocations : Elles ont été genérées manuellement : On demande si on veut livrer
+               Call OUINON(mess(201,197,1)+"\"+mess(112,191,1),OK) From GESECRAN
+               If OK=1
+                  GERR = 2
+                  Return
+               Endif
+         Endif
+      Endif
+      # Ligne gérée avec un ordre de production  et pas de quantité allouée
+      If [F:SOQ]FMI=5 & [F:SOQ]ALLQTY=0
+            Call OUINON(mess(140,192,1)+"\"+mess(112,191,1),OK) From GESECRAN
+            If OK=1
+              GERR= 2
+              Return
+            Endif
+      Endif
+Return
+# End issue 115951
+#                                                                                             hcb 95774 fin

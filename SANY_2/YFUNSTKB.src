@@ -1,0 +1,30 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+$ACTION
+Case ACTION
+  When "CALMFGLOT"    :   Gosub CALMFGLOT
+  When "BEFWRISUG"    :   Gosub BEFWRISUG
+Endcase
+Return
+
+
+###############################################
+$CALMFGLOT
+# Si el modo de aprovisionamiento es PERIODICO y el modo de sugerencias es de COMPRA, redondeo la cantidad en función del lote técnico
+If [F:ITF]REOMGTCOD = 5 and [F:ITF]REOCOD = 2 & [F:ITF]MFGLOTQTY <> 0 & mod(WQTY,[F:ITF]MFGLOTQTY) <> 0
+  S = int(WQTY/[F:ITF]MFGLOTQTY) + 1
+  WQTY = S * [F:ITF]MFGLOTQTY
+  GPE = 1
+Endif
+Return
+
+
+###############################################
+$BEFWRISUG
+# Si el modo de aprovisionamiento es PERIODICO, descarto los aprovisionamientos que no sean porque la cantidad disponible sea inferior al limite de aprovisionamiento
+If [F:ITF]REOMGTCOD = 5
+  If WDIS >= WSEU
+    Raz [M:ORDK]
+    GPOINT = ""
+  Endif
+Endif
+Return

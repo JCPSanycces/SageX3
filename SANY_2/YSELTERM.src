@@ -1,0 +1,38 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "SEL_TABLE" : Gosub SEL_TABLE
+Endcase
+
+Return
+
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
+$SEL_TABLE
+
+    If !clalev([YTRSV]) : Local File YTERMSERV [YTRSV] : Endif
+
+    Filter [YTRSV] Where [YTRSV]YTRANS = [M:PRH0]BPTNUM
+
+
+    ORDRE = "YCODTERMINO"
+    START = "YCODTERMINO"
+    SENS  = 2
+
+    NBCOL = 0
+    TIT(NBCOL) = "Selección término del servicio"
+
+    NBCOL += 1
+    TIT(NBCOL) = "Transportista"
+    COL(NBCOL) = "YTRANS"
+
+    NBCOL += 1
+    TIT(NBCOL) = "Código término"
+    COL(NBCOL) = "YCODTERMINO"
+
+    NBCOL += 1
+    TIT(NBCOL) = "Descripción término"
+    COL(NBCOL) = "YDESTERM"
+
+Return

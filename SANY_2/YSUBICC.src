@@ -1,0 +1,14 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "QTYCALC"    :   Gosub QTYCALC
+Endcase
+Return
+
+#######################################
+$QTYCALC
+# Para cálculo de coste estándar actualizado fuerzo cantidad de calculo a 1
+If [M:DIA]CSTTYP = 2
+  [F:MAW]MATQTYTOP = 1
+Endif
+Return

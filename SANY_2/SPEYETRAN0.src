@@ -1,0 +1,27 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara YETIQTRAN (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YETIQTRAN) 09/12/2025 11:44:15 (NUN40)
+######################################################################################
+Subprog AM_YENTREGA(VALEUR)
+Variable Char    VALEUR()
+End
+
+Subprog AM_YCLIENTE(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+######################################################################################
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YETIQTRAN1) 09/12/2025 11:44:15 (NUN40)
+######################################################################################
+Subprog AM_YTRANSPORT(VALEUR)
+Variable Char    VALEUR()
+End
+
+
+######################################################################################
+

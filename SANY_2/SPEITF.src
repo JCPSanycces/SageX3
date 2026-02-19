@@ -1,0 +1,13 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+Case ACTION
+  When "LIENS"    :   Gosub LIENS
+Endcase
+Return
+
+#####################################
+$LIENS
+# Muestro la demanda (pestaña de Planificación)
+[M:ITF2]YDEMANDA  = func SPEYRUSA.GET_DEMANDA([M:ITF0]STOFCY,[M:ITF0]ITMREF)
+Affzo [M:ITF2]YDEMANDA
+Return

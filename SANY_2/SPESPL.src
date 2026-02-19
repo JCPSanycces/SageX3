@@ -1,0 +1,154 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara SPLW (Especifico)
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SPLW) 21/12/2023 12:24:13 (NUN04)
+######################################################################################
+$ACTION
+Case ACTION
+  When "SEL_TABLE"        : Gosub SEL_TABLE
+  When "STYLE"            : Gosub STYLE
+Endcase
+Return
+
+######################################################################################
+$STYLE
+# Muestro u oculto el campo descripción del artículo en base a la tarifa
+If find([M:SPLW]PLI,'T13','T15','T23','T25','T27','T30','T35','T40','T45','T50','T68','T70','T71','T75','T80') <> 0
+  Chgfmt [M:SPLW]YDESCRIPCION  With "K:100X"
+Else
+  Chgfmt [M:SPLW]YDESCRIPCION  With "-K:1X"
+Endif
+
+# Muestro el valor del campo descripción
+If find([M:SPLW]PLI,'T13','T15','T23','T25','T27','T30','T35','T40','T45','T50','T68','T70','T71','T75','T80') <> 0
+  If clalev([HH1]) = 0 : Local File ITMMASTER [HH1] : Endif
+  If clalev([HH2]) = 0 : Local File ATEXTRA   [HH2] : Endif
+  Local Char CLAVEB
+  For G=0 To [M:SPLW]NBLIG-1
+    [L]CLAVEB = ""
+    If find([M:SPLW]PLI,'T40','T45','T50','T68','T75','T80') <> 0
+      [L]CLAVEB = [M:SPLW]CRIT1(G)
+    Elsif find([M:SPLW]PLI,'T13','T15','T20','T23','T25','T28','T29','T30','T35','T58','T60','T63','T65','T70','T71') <> 0
+      [L]CLAVEB = [M:SPLW]CRIT2(G)
+    Endif
+    Filter [HH1] Where [HH1]SEAKEY = [L]CLAVEB
+    Read [HH1] First
+    If fstat = 0
+      Read [HH2]AXX0="ITMMASTER";"DES1AXX";"SPA";[HH1]ITMREF;""
+      If fstat = 0
+        [M:SPLW]YDESCRIPCION(G) = [HH2]TEXTE
+        Affzo [M:SPLW]YDESCRIPCION(G)
+      Endif
+    Endif
+    Filter [HH1]
+  Next
+Endif
+Return
+
+
+
+######################################################################################
+$SEL_TABLE
+Case COUZON
+  When "CRIT1"  : Gosub S_CRIT1
+  When "CRIT2"  : Gosub S_CRIT2
+Endcase
+Return
+
+
+######################################################################################
+$S_CRIT1
+# Selección de clave de búsqueda en algunas tarifas (CRITERIO 1)
+If find([M:SPLW]PLI,'T40','T45','T50','T68','T70','T75','T80') <> 0
+  TIT(0) = "Selección clave de búsqueda"
+  ORDRE = "SEAKEY"
+  START = "SEAKEY"
+  SENS  = 1
+  DEFPAGE = 5
+  OBJET = "ITM"
+  SIZCOL = 600
+  SIZLIG = 150
+
+  GSELFAC = 1
+
+  Default File [ITM]
+  Filter [ITM]
+
+  VALEUR = [ITM]SEAKEY
+Elsif find([M:SPLW]PLI,'T10') <> 0
+  Call SELECT("REP", "", VALEUR, "") From SELOBJ
+Elsif find([M:SPLW]PLI,'T13','T15','T20','T23','T25','T28','T29','T58','T60','T63','T65') <> 0
+  Call SELECT("BPC", "", VALEUR, "") From SELOBJ
+Elsif find([M:SPLW]PLI,'T27','T30','T35') <> 0
+  Call SELECT("ADI", "", VALEUR, "34") From SELOBJ
+Endif
+Return
+
+
+######################################################################################
+$S_CRIT2
+# Selección de clave de búsqueda en algunas tarifas (CRITERIO 2)
+If find([M:SPLW]PLI,'T13','T15','T23','T25','T27','T30','T35') <> 0
+  TIT(0) = "Selección clave de búsqueda"
+  ORDRE = "SEAKEY"
+  START = "SEAKEY"
+  SENS  = 1
+  DEFPAGE = 5
+  OBJET = "ITM"
+  SIZCOL = 600
+  SIZLIG = 150
+
+  GSELFAC = 1
+
+  Default File [ITM]
+  Filter [ITM]
+
+  VALEUR = [ITM]SEAKEY
+Endif
+Return
+
+
+######################################################################################
+Subprog AP_CRIT1(VALEUR)
+Variable Char    VALEUR()
+# Traigo la descripción del artículo a partir de la clave de búsqueda
+If VALEUR <> "" and find([M:SPLW]PLI,'T40','T45','T50','T68','T70','T75','T80') <> 0
+  If clalev([HH1]) = 0 : Local File ITMMASTER [HH1] : Endif
+  If clalev([HH2]) = 0 : Local File ATEXTRA   [HH2] : Endif
+
+  Filter [HH1] Where [HH1]SEAKEY = VALEUR
+  Read [HH1] First
+  If fstat = 0
+    Read [HH2]AXX0="ITMMASTER";"DES1AXX";"SPA";[HH1]ITMREF;""
+    If fstat = 0
+      [M:SPLW]YDESCRIPCION(nolign-1) = [HH2]TEXTE
+      Affzo [M:SPLW]YDESCRIPCION(nolign-1)
+    Endif
+  Endif
+  Filter [HH1]
+Endif
+End
+
+
+######################################################################################
+Subprog AP_CRIT2(VALEUR)
+Variable Char    VALEUR()
+# Traigo la descripción del artículo a partir de la clave de búsqueda
+If VALEUR <> "" and find([M:SPLW]PLI,'T13','T15','T23','T25','T27','T30','T35') <> 0
+  If clalev([HH1]) = 0 : Local File ITMMASTER [HH1] : Endif
+  If clalev([HH2]) = 0 : Local File ATEXTRA   [HH2] : Endif
+
+  Filter [HH1] Where [HH1]SEAKEY = VALEUR
+  Read [HH1] First
+  If fstat = 0
+    Read [HH2]AXX0="ITMMASTER";"DES1AXX";"SPA";[HH1]ITMREF;""
+    If fstat = 0
+      [M:SPLW]YDESCRIPCION(nolign-1) = [HH2]TEXTE
+      Affzo [M:SPLW]YDESCRIPCION(nolign-1)
+    Endif
+  Endif
+  Filter [HH1]
+Endif
+
+End

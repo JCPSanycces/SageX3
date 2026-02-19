@@ -1,0 +1,214 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#-- Fuente: ZCNSRUPSPE - Consulta Rupturas Stocks
+$ACTION
+  #--
+  Case ACTION
+    When "OUVRE"      : Gosub OUVRE
+    When "LECTURE"    : Gosub LECTURE
+    When "FERME"      : Gosub FERME
+    When Default
+  Endcase
+Return
+
+#--------------------------------------------------------------------------------------------  acciones de objeto
+$OUVRE
+  #--
+  If !clalev([F:SOQ]) : Local File SORDERQ   [SOQ] : Endif    #-- pedidos de venta
+  If !clalev([F:POQ]) : Local File PORDERQ   [POQ] : Endif    #-- pedidos de compra
+  If !clalev([F:ITM]) : Local File ITMMASTER [ITM] : Endif    #-- articulos
+  If !clalev([F:ITV]) : Local File ITMMVT    [ITV] : Endif    #-- movimientos de artículos
+  If !clalev([F:ITP]) : Local File ITMBPS    [ITP] : Endif    #-- articulos proveedor
+  If !clalev([F:MFI]) : Local File MFGITM    [MFI] : Endif    #-- of articulos
+  If !clalev([F:SHD]) : Local File SHIPMENTD [SHD] : Endif    #-- expedidiones detalle
+
+  #--
+  Local Char CRITERE(250), CRITERE1(250), CRITERE2(250)
+  Local Integer SOQQTY, POQQTY
+  #--
+  NAVIG = ""
+  #--
+  Gosub DEFCRIT
+Return
+
+$LECTURE
+  #--
+  Gosub CRITERIOS
+  Gosub LOAD_RUP    #-- carga rupturas
+Return
+
+$FERME
+  #--
+  Raz [M:ZCRUP1] : Raz [M:ZCRUP2]
+Return
+
+#--------------------------------------------------------------------------------------------  acciones de campo
+
+
+#--------------------------------------------------------------------------------------------  procesos
+$DEFCRIT
+  #--
+  Local Char A_MESSAGE(250)
+  Local Integer I_MONTH, I_YEAR, I_BRETOUR
+  #--
+  Raz [M:ZCRUP1]
+  Raz A_MESSAGE
+  I_BRETOUR = 1
+  I_MONTH = month(date$)
+  I_YEAR = year(date$)
+  If I_MONTH < 0
+      I_YEAR  = I_YEAR - 1
+      I_MONTH = I_MONTH + 12
+  Endif
+  #--
+  [M:ZCRUP1]DATMAX = datesyst
+  Affzo [M:ZCRUP1]1-99
+  #--
+  [M:ZCRUP2]NBLIG = 1
+  Affzo [M:ZCRUP2]NBLIG
+  #--
+  Affzo [M:ZCRUP1]
+Return
+
+$CRITERIOS
+  #--
+  CRITERE  = "1=1" : CRITERE1 = "1=1" : CRITERE2 = "1=1"
+  #-- familias estadisitcas
+  If [M:ZCRUP1]TSICOD(0) <> "" : CRITERE += "&[F:ITM]TSICOD(0)=[M:ZCRUP1]TSICOD(0)" : Endif
+  If [M:ZCRUP1]TSICOD(1) <> "" : CRITERE += "&[F:ITM]TSICOD(1)=[M:ZCRUP1]TSICOD(1)" : Endif
+  If [M:ZCRUP1]TSICOD(2) <> "" : CRITERE += "&[F:ITM]TSICOD(2)=[M:ZCRUP1]TSICOD(2)" : Endif
+  If [M:ZCRUP1]TSICOD(3) <> "" : CRITERE += "&[F:ITM]TSICOD(3)=[M:ZCRUP1]TSICOD(3)" : Endif
+  If [M:ZCRUP1]TSICOD(4) <> "" : CRITERE += "&[F:ITM]TSICOD(4)=[M:ZCRUP1]TSICOD(4)" : Endif
+  #-- fecha
+  If [M:ZCRUP1]DATMAX <> [00/00/00]
+    CRITERE1 += "& [F:SOQ]DEMDLVDAT <= [M:ZCRUP1]DATMAX "
+    CRITERE2 += "& [F:MFI]STRDAT <= [M:ZCRUP1]DATMAX "
+  Endif
+Return
+
+$LOAD_RUP
+  #--
+  Local Integer I_LIGNEWHERE, I_LINEA
+  Local Char A_WHERE(250)(20), A_AND
+  #--
+  Raz I_LIGNEWHERE
+  #-- criterios
+  [M:ZCRUP2]NBLIG = 0
+  #--
+  If A_WHERE(0) = "" : A_WHERE = "1=1" : Endif
+  # ------------------------------------------------------- #
+  # CHGPAG = 1    :    Recherche                            #
+  # ------ = 2    :    Suite                                #
+  #        = 3    :    F5 (Rafraichissement page courante)  #
+  # CHGPAG = -1   :    Dernier                              #
+  # ------ = -2   :    Retour (Page précédente)             #
+  # ------------------------------------------------------- #
+  #-- Application des Filtres
+  If CHGPAG > 0
+      SUITE=1
+      If    CHGPAG = 1 : RETOUR = 1 : Elsif CHGPAG = 2 : RETOUR = 2 : Endif
+      Filter [F:ITM] Where evalue(CRITERE)
+  Else
+      RETOUR=1
+      If    CHGPAG = -1 : SUITE = 1 : Else  SUITE = 2 : Endif
+      Filter [F:ITM] Where evalue(CRITERE)
+  Endif
+  #--
+  If CHGPAG<>2 & CHGPAG<>-2 : Raz [M:ZCRUP2]: Endif
+  nolign = 0
+  For [F:ITM]
+                              # If [F:ITM]ITMREF = "PL92612090" or [F:ITM]ITMREF = "PL92616090" #-- PRUEBAS PARA UN ARTÍCULO
+    Filter [F:ITP] Where ITMREF = [F:ITM]ITMREF
+    Read [F:ITP] First
+    If !fstat
+      If mkstat = 0
+        If NBLU = 1
+           If CHGPAG=2 | CHGPAG=-2 : Raz [M:ZCRUP2] : Endif
+           NBLU = 2
+        Endif
+        If CHGPAG > 0
+           If NOL >= MAXLIG-1 : SUITE=2 : Break : Endif
+           NOL    += 1
+           nolign += 1
+        Else
+           If NOL <= 0 : RETOUR=2 : Break : Endif
+           NOL    -= 1
+        Endif
+        [M:ZCRUP2] = [F:ITM]
+        Gosub STOCK_FISICO
+        Gosub PEDIDOS_COMPRA
+          #-- jap
+          #[M:ZCRUP2]NBLIG = nolign-1 : Affzo [M:ZCRUP2]
+          #-- jap
+
+      Endif
+    Endif
+                                                   #  Endif
+  Next
+  [M:ZCRUP2]NBLIG = nolign
+  Filter  [F:ITM]
+  #--
+  Affzo [M:ZCRUP2]
+Return
+
+#--
+$STOCK_FISICO
+  #-- stock fisico
+  Read [F:ITV]ITV0 = [M:ZCRUP2]ITMREF(nolign-1);"ES011"
+  If !fstat
+    [M:ZCRUP2] = [F:ITV]
+  Endif
+  #-- lineas de pedido pendientes de servir
+  Raz SOQQTY
+  Filter [F:SOQ] Where evalue(CRITERE1) & ITMREF = [M:ZCRUP2]ITMREF(nolign-1) and SOQSTA <> 3
+  For [F:SOQ]
+    SOQQTY   += [F:SOQ]QTY
+  Next
+  Filter [F:SOQ]
+  [M:ZCRUP2]SOQQTY(nolign-1) = SOQQTY
+  #-- articulos en of en firme
+  Raz MFIQTY
+  Filter [F:MFI] Where evalue(CRITERE2) & ITMREF = [M:ZCRUP2]ITMREF(nolign-1) and MFGSTA = 1
+  For [F:MFI]
+    MFIQTY   += [F:MFI]UOMEXTQTY
+  Next
+  Filter [F:MFI]
+  [M:ZCRUP2]MFIQTY(nolign-1) = MFIQTY
+Return
+
+#--
+$PEDIDOS_COMPRA
+  #--
+  Raz POQQTY
+  Filter [F:POQ] Where [F:POQ]ORDDAT <= [M:ZCRUP1]DATMAX & ITMREF = [M:ZCRUP2]ITMREF(nolign-1) and LINCLEFLG <> 2
+  For [F:POQ]
+    POQQTY   += [F:POQ]QTYUOM
+    Gosub EXPEDICIONES
+    #--  jap
+               [M:ZCRUP2] = [F:ITM]
+               [M:ZCRUP2]POHNUM(nolign-1)    = [F:POQ]POHNUM
+               [M:ZCRUP2]POQQTY(nolign-1)    = POQQTY
+               [M:ZCRUP2]EXTRCPDAT(nolign-1) = [F:POQ]EXTRCPDAT
+               [M:ZCRUP2]SOQQTY(nolign-1)    = SOQQTY
+               [M:ZCRUP2]MFIQTY(nolign-1)    = MFIQTY
+               NOL    += 1
+               nolign += 1
+    #-- jap
+  Next
+  Filter [F:POQ]
+    #-- jap
+      #[M:ZCRUP2]POQQTY(nolign-1) = POQQTY
+      #[M:ZCRUP2]EXTRCPDAT(nolign-1) = [F:POQ]EXTRCPDAT
+    #-- JAP
+Return
+
+#--
+$EXPEDICIONES
+  #--
+  Read [F:SHD]SHD2 = [F:POQ]POHNUM;[F:POQ]POPLIN;[F:POQ]POQSEQ
+  If !fstat
+    [M:ZCRUP2]                     = [F:SHD]
+    [M:ZCRUP2]EXTRCPDATC(nolign-1) = [F:SHD]EXTRCPDAT
+  Endif
+Return

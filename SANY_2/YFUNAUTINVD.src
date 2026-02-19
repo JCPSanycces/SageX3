@@ -1,0 +1,36 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# Puntos de entrada para la facturación automática desde las entregas
+# @01@ - SCD - 26/09/2024 - Facturas y abonos simplificados(R5)
+
+$ACTION
+Case ACTION
+  When "AUTINVDEND"  :  Gosub AUTINVDEND
+Endcase
+Return
+
+##########################################
+$AUTINVDEND
+# Gestión del campo Tipo Factura Española
+If clalev([F:ZT1]) = 0 : Local File BPARTNER   [ZT1] : Endif
+If clalev([F:ZT2]) = 0 : Local File BPCUSTOMER [ZT2] : Endif
+
+Read [ZT1]BPR0 = [M:SIH0]BPCINV
+If fstat = 0
+  If [ZT1]BPRACC = 2 and [ZT1]DOCTYP = 6
+    Read [ZT2]BPC0 = [M:SIH0]BPCINV
+    If fstat = 0 and [ZT2]BPCTYP = 2
+      [M:SIH0]INVTYPSPA = 2
+      [F:SIH]INVTYPSPA  = 2
+# @01@ - SCD - 26/09/2024 - INI
+      If [M:SIH0]INVTYP = 2
+        [M:SIH0]INVTYPSPA = 7
+        [F:SIH]INVTYPSPA  = 7
+      Endif
+# @01@ - SCD - 26/09/2024 - FIN
+
+    Endif
+  Endif
+Endif
+Close Local File [ZT1]
+Close Local File [ZT2]
+Return

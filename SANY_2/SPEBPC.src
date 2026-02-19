@@ -1,0 +1,202 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$ Clientes
+###
+# ZPR09 - Etiquetas - Acciones para gestion del fichero logo por cliente
+# NUN05 - comentamos desarrollo porque da un error. Creemos que este desarrollo se arrastra de otra instalación y no sirve.
+##############################################################################
+$ACTION
+  Case ACTION
+      When "LIENS"      :    Gosub LIENS
+      When "INICRE0"    :    Gosub INICRE
+      When "INIMOD"     :    Gosub INIMOD
+      When "APRES_CRE"  :    Gosub APRES
+      When "APRES_MOD"  :    Gosub APRES
+  Endcase
+Return
+
+##################################################
+$APRES
+# Actualizo el campo SPE donde guardo la razón social concatenada
+Read [YBPR]BPR0 = [F:BPC]BPCNUM
+If fstat = 0 #and [YBPR]YRAZSOC = ""
+  [YBPR]YRAZSOC = [BPR]BPRNAM(0) + [BPR]BPRNAM(1)
+  Rewrite [YBPR]
+Endif
+
+Return
+
+
+##################################################
+$INIMOD
+  If !clalev([F:CBB]): Local File CBLOB : Endif
+If len([M:BPRC]ZBPCLOG)<>0
+    Readlock [CBB]CBB0="BPCLOG";[F:BPC]BPCNUM;""
+    Case fstat
+        When 0 :
+            [F:CBB]BLOB = [M:BPRC]ZBPCLOG
+            Call REWCBB From TRTX3BLB
+        When 5 :
+            Raz [F:CBB]
+            [F:CBB]CODBLB = "BPCLOG"
+            [F:CBB]IDENT1 = [F:BPC]BPCNUM
+            [F:CBB]TYPBLB = 3
+            [F:CBB]BLOB = [M:BPRC]ZBPCLOG
+            Call ECRCBB From TRTX3BLB
+    Endcase
+Else
+    Delete [CBB] Where CODBLB="BPCLOG" & IDENT1=[F:BPC]BPCNUM
+Endif
+Return
+
+##################################################
+$INICRE
+  If !clalev([F:CBB]): Local File CBLOB : Endif
+If len([M:BPRC]BPCLOG)<>0
+    Raz [F:CBB]
+    [F:CBB]CODBLB = "BPCLOG"
+    [F:CBB]IDENT1 = [F:BPC]BPCNUM
+    [F:CBB]TYPBLB = 3
+    [F:CBB]BLOB = [M:BPRC]ZBPCLOG
+    Call ECRCBB From TRTX3BLB
+    If fstat
+        GOK=0
+    Endif
+Endif
+Return
+
+
+##################################################
+$LIENS
+  If !clalev([F:CBB]): Local File CBLOB : Endif
+  Read [CBB]CBB0="BPCLOG";[F:BPC]BPCNUM;""
+  If !fstat
+   [M:BPRC]ZBPCLOG = [F:CBB]BLOB
+   Affzo [M:BPRC]ZBPCLOG
+  Endif
+
+
+Return
+
+
+######################################################################################
+Subprog AM_XYCONCERTA(VALEUR)
+Variable Integer VALEUR
+# Guardo valor de pantalla
+[M]YCONCERTA([M]XNUMLIG) = VALEUR
+[M:BPC4]FLMOD([M]XNUMLIG) = 1
+End
+
+
+######################################################################################
+Subprog AM_XYCONTACTO(VALEUR)
+Variable Char    VALEUR()
+# Guardo valor de pantalla
+[M]YCONTACTO([M]XNUMLIG) = VALEUR
+[M:BPC4]FLMOD([M]XNUMLIG) = 1
+End
+
+
+######################################################################################
+Subprog AM_XYOBSERVA(VALEUR)
+Variable Char    VALEUR()
+# Guardo valor de pantalla
+[M]YOBSERVA([M]XNUMLIG) = VALEUR
+[M:BPC4]FLMOD([M]XNUMLIG) = 1
+End
+
+######################################################################################
+Subprog AS_NBDLV
+# Muestro valores de la dirección de entrega
+Gosub SETNOL From SUBBPC
+[M:BPC4]XNUMLIG = nolign-1
+#  # If Web Service mode and adding a new address
+  If  GWEBSERV & nolign > 0 & [M:BPC4]BPAADD(XNUMLIG) = "" & [M:BPC4]XBPAADD  <> ""
+       [M:BPC4]BPAADD(XNUMLIG) = [M:BPC4]XBPAADD
+       Gosub CHARGE_ZONE_BPAADD From SUBBPC
+  Endif
+
+Gosub CHARGE_BPD
+
+# Bloqueo STD
+GPE = 1
+End
+
+######################################################################################
+$CHARGE_BPD
+  [M:BPC4]XENAFLG      = [M:BPC4]ENAFLG(NOL)
+  [M:BPC4]XBPDADDFLG   = [M:BPC4]BPDADDFLG(NOL)
+  [M:BPC4]XBPAADD      = [M:BPC4]BPAADD(NOL)
+  #[M:BPC4]XBPADES      = [M:BPC4]BPADES(NOL)     # Issue SAM119072 - 2016-12-06 by FGR : rename field BPADES in BPADESBPC4
+  [M:BPC4]XBPADES      = [M:BPC4]BPADESBPC4(NOL)  # Issue SAM119072 - 2016-12-06 by FGR : rename field BPADES in BPADESBPC4
+  [M:BPC4]XBPDNAM0     = [M:BPC4]BPDNAM0(NOL)
+  [M:BPC4]XBPDNAM1     = [M:BPC4]BPDNAM1(NOL)
+  [M:BPC4]XVACBPR      = [M:BPC4]VACBPD(NOL)
+  If dim([M:BPC4]XSSTENTCOD) > 0
+    [M:BPC4]XSSTENTCOD = [M:BPC4]SSTENTCOD(NOL)
+    #116311.so - JOBRO
+    #When ENTCOD field exists, hide it and ShortDescript if the country is unsupported by SST
+    #If !(func TRTADRLIB.CHKADR_CRY([M:BPC4]BPDCRY(NOL)))
+    #  Chgfmt [M:BPC4]XSSTENTCOD  With "-K:5B" # Hide enterable {use M:BPC4 with Chgfrmt}
+    #  Chgfmt [M:BPC4]ZXSSTENTCOD With "-KP:12X"
+    #Else
+    #  Chgfmt [M:BPC4]XSSTENTCOD  With "K:5B" # Show enterable
+    #  Chgfmt [M:BPC4]ZXSSTENTCOD With "KP:12X" #Protected
+    #Endif
+    #116311.eo - JOBRO
+  Endif
+  [M:BPC4]XLAN         = [M:BPC4]LAN(NOL)
+  [M:BPC4]XSTOFCY      = [M:BPC4]STOFCY(NOL)
+  [M:BPC4]XRCPFCY      = [M:BPC4]RCPFCY(NOL)
+  If dim([M:BPC4]XBPCLOC)>0
+    [M:BPC4]XBPCLOC    = [M:BPC4]BPCLOC(NOL)
+  Endif
+  If dim([M:BPC4]XSCOLOC)>0
+    [M:BPC4]XSCOLOC    = [M:BPC4]SCOLOC(NOL)
+  Endif
+  [M:BPC4]XDRN         = [M:BPC4]DRN(NOL)
+  [M:BPC4]XDLVPIO      = [M:BPC4]DLVPIO(NOL)
+  [M:BPC4]XBPTNUM      = [M:BPC4]BPTNUM(NOL)
+  [M:BPC4]XMDL         = [M:BPC4]MDL(NOL)
+  [M:BPC4]XDAYLTI      = [M:BPC4]DAYLTI(NOL)
+  [M:BPC4]XUVYDAY1     = [M:BPC4]UVYDAY1(NOL) : [M:BPC4]XUVYDAY2     = [M:BPC4]UVYDAY2(NOL)
+  [M:BPC4]XUVYDAY3     = [M:BPC4]UVYDAY3(NOL) : [M:BPC4]XUVYDAY4     = [M:BPC4]UVYDAY4(NOL)
+  [M:BPC4]XUVYDAY5     = [M:BPC4]UVYDAY5(NOL) : [M:BPC4]XUVYDAY6     = [M:BPC4]UVYDAY6(NOL)
+  [M:BPC4]XUVYDAY7     = [M:BPC4]UVYDAY7(NOL)
+  [M:BPC4]XUVYCOD      = [M:BPC4]UVYCOD(NOL)
+  [M:BPC4]XEECICT      = [M:BPC4]EECICT(NOL)
+  [M:BPC4]XICTCTY      = [M:BPC4]ICTCTY(NOL)
+  [M:BPC4]XBPDCRY      = [M:BPC4]BPDCRY(NOL)  : [M:BPC4]XBPDPOSCOD = [M:BPC4]BPDPOSCOD(NOL)
+  [M:BPC4]XFFWNUM      = [M:BPC4]FFWNUM(NOL)  : [M:BPC4]XFFWADD    = [M:BPC4]FFWADD(NOL)
+  If dim([M:BPC4]XEECINCRAT)>0 & dim([M:BPC4]EECINCRAT)>0
+    [M:BPC4]XEECINCRAT = [M:BPC4]EECINCRAT(NOL)
+  Endif
+  If dim([M:BPC4]XEECLOC)>0 & dim([M:BPC4]EECLOC)>0
+    [M:BPC4]XEECLOC    = [M:BPC4]EECLOC(NOL)
+  Endif
+  If dim([M:BPC4]XEECNUM)>0 & dim([M:BPC4]EECNUM)>0
+    [M:BPC4]XEECNUM    = [M:BPC4]EECNUM(NOL)
+  Endif
+  [M:BPC4]XNPRFLG      = [M:BPC4]NPRFLG(NOL)
+  [M:BPC4]XNDEFLG      = [M:BPC4]NDEFLG(NOL)
+  [M:BPC4]XPRPTEX      = [M:BPC4]PRPTEX(NOL)
+  [M:BPC4]XDLVTEX      = [M:BPC4]DLVTEX(NOL)
+  [M:BPC4]XYCONCERTA   = [M:BPC4]YCONCERTA(NOL)         # Campo SPE Sanycces
+  [M:BPC4]XYCONTACTO   = [M:BPC4]YCONTACTO(NOL)         # Campo SPE Sanycces
+  [M:BPC4]XYOBSERVA    = [M:BPC4]YOBSERVA(NOL)          # Campo SPE Sanycces
+  [M:BPC4]TWPRPTEX      = 2
+  If [M:BPC4]XPRPTEX = "" [M:BPC4]TWPRPTEX = 1 Endif
+  [M:BPC4]TWDLVTEX = 2
+  If [M:BPC4]XDLVTEX = "" [M:BPC4]TWDLVTEX = 1 Endif
+# particularité pour le représentant (nb par code activité)
+  If func AFNC.ACTIV("RED")>0 : [M:BPC4]XREP0 = [M:BPC4]REP0(NOL) : Endif
+  If func AFNC.ACTIV("RED")>1 : [M:BPC4]XREP1 = [M:BPC4]REP1(NOL) : Endif
+  If [M:BPC4]XFFWNUM="" Diszo [M:BPC4]XFFWADD Else Actzo [M:BPC4]XFFWADD Endif
+  If [M:BPC4]XSTOFCY=""
+    If dim([M:BPC4]XBPCLOC)>0 : Diszo [M:BPC4]XBPCLOC  : Endif
+    If dim([M:BPC4]XSCOLOC)>0 : Diszo [M:BPC4]XSCOLOC  : Endif
+  Else
+    If dim([M:BPC4]XBPCLOC)>0 : Actzo [M:BPC4]XBPCLOC  : Endif
+    If dim([M:BPC4]XSCOLOC)>0 : Actzo [M:BPC4]XSCOLOC  : Endif
+  Endif
+  Affzo [M:BPC4]10, 15, 20, 25, 30, 35, 40, 45,21     # Bloque 21 es SPE Sanycces
+Return
+# FGR 03/11/2014 : X3SUIVI103732 : ajout de [M:BPC4] au lieu de [M] (fin)

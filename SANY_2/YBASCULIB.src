@@ -1,0 +1,163 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#####################################################################
+# LIBRERIA PARA LA COMUNICACIÓN CON LA BÁSCULA EN SANYCCES
+# 1. DESARROLLO Y076
+#####################################################################
+
+
+  Call ENV_FILEBASCULA('DPR112300000022') From YBASCULIB
+
+End
+
+#**
+#* Proceso que comprueba que el documento está marcado como entregable y que el transportisca
+#* está en la tabla varia 6010
+#*
+#* @param PPRHNUM
+#*!
+Subprog ENV_FILEBASCULA(PPRHNUM)
+  Value Char PPRHNUM
+
+  Local File STOPREH    [F:YPRH] # cabecera doc. de preparación
+  Local File STOPRED    [F:YPRD] # detalle
+  Local File SORDER     [F:YSOH] # CABECERA DE PEDIDOS DE VENTA
+  Local File BPADDRESS  [F:YBPA] # direcciones
+
+  Local Char LTRANSPOR        # Codigo transportista
+
+  Read [F:YPRH]PRH0=PPRHNUM
+  If !fstat Then # A
+    If [F:YPRH]DLVFLG=2 Then # B # SI EL DOCUMENTO ES ENTREGABLE
+      Gosub GET_TRANSPORTISTA
+      If LTRANSPOR <> '' Then # C
+        LRES = func YBASCULIB.GET_CLIDACHSER(LTRANSPOR)
+        If LRES = 1 Then # D
+          Gosub GEN_FILEBASCULA
+        Endif # D
+      Endif # C
+    Endif  # B
+  Endif # A
+
+  Close Local File [F:YPRH], [F:YPRD], [F:YSOH], [F:YBPA]
+
+
+
+End
+#####################################################################
+#**
+#* Función que nos devuelve si el cliente Dachser
+#* Si - Devuelve 1
+#* No - Devuelve 0
+#*
+#* @param PBCPNUM
+#*!
+Funprog GET_CLIDACHSER(PBPCNUM)
+  Value Char PBPCNUM
+  Local Integer LRES : LRES = 0
+  Local File ATABDIV [YATA]
+
+  Filter [F:YATA] Where NUMTAB = 6010 and A1 = PBPCNUM
+  For [F:YATA]
+    LRES = 1
+    Break
+  Next
+
+  Close Local File [YATA]
+
+End LRES
+
+#####################################################################
+#**
+#* Etiqueta que busca información del pedido de venta - cabecera
+#*!
+$GET_TRANSPORTISTA
+
+  # Sacamos el transportista del primer pedido de las líneas del documento
+  Read [F:YPRD]PRE0=PPRHNUM
+  Read [F:YPRD] First
+  If !fstat Then
+    Read [F:YSOH]SOH0=[F:YPRD]ORINUM
+    Read [F:YSOH] First
+    If !fstat Then
+      LTRANSPOR = [F:YSOH]BPTNUM
+    Else
+      LTRASNPOR = ''
+    Endif
+  Endif
+
+Return
+#####################################################################
+#**
+#* Proceso que genera el fichero para enviar a la báscula.
+#* *
+#* @param PRHNUM
+#*!
+$GEN_FILEBASCULA
+
+  Local Char LFILE(250)
+  Local Char FECHA(250),HORA(250)
+  Local Char LDESDIR(32)
+  Local Char LCAMPOS(10)(30)
+
+  FECHA = vireblc(num$(date$),4) : FECHA = mid$(FECHA,7,4)+mid$(FECHA,4,2)+mid$(FECHA,1,2)
+  HORA = vireblc(num$(time$),4) : HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
+  PATHFILE = filpath("","IMP","")
+  #FECHA = vireblc(num$(date$),4) : FECHA = mid$(FECHA,1,2)+mid$(FECHA,4,2)+mid$(FECHA,7,4)
+  #HORA = vireblc(num$(time$),4) : HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
+  LFILE = PATHFILE + "\" + PPRHNUM + "_" + FECHA + "_" + HORA + ".csv"
+
+  Read [F:YBPA]BPA0=1;[F:YSOH]BPCORD;[F:YSOH]BPAADD
+  If !fstat Then
+    LDESDIR = [F:YBPA]BPADES
+  Endif
+
+  Gosub OPEN_FILE
+
+  LCAMPOS(0) = "TRS"                             # ID_TRANS
+  LCAMPOS(1) = [F:YPRH]PRHNUM                    # REFERENCIA
+  LCAMPOS(2) = ""                                # REFERENCIA 2
+  LCAMPOS(3) = "430416372"                       # NREMITENTE 430416372 430410563 430410629
+  LCAMPOS(4) = LDESDIR                           # CNOMBRE - Nombre dirección
+  LCAMPOS(5) = [F:YSOH]BPCADDLIG(0)              # CDIRECCION
+  LCAMPOS(6) = [F:YSOH]BPCCTY                    # CPOBLACION
+  LCAMPOS(7) = [F:YSOH]BPCPOSCOD                 # CPOSTAL
+  LCAMPOS(8) = [F:YSOH]BPCCRY                    # CPAIS
+  LCAMPOS(9) = "1"                               # BULTOS
+  LCAMPOS(10) = "1"                               # KILOS
+  LCAMPOS(11) = "1"                               # VOLUMEN
+  LCAMPOS(12) = "1"                               # TIPO DE MERCANCIA 1 PAQUETE 2 PALET
+  LCAMPOS(13) = ""                                # OBS 1
+  LCAMPOS(14) = ""                                # OBS 2
+  LCAMPOS(15) = "P"                               # PORTES SIEMPRE VALOR P
+  LCAMPOS(16) = "00000.00"                        # REEMBOLSO - FIJO
+  LCAMPOS(17) = "P"                               # RCOMISION - FIJO
+  LCAMPOS(18) = "0"                               # VALSEGUR - ¿¿??
+  LCAMPOS(19) = ""                                # TXTSEGUR - ¿¿??
+  LCAMPOS(20) = "001"                             # PRODUCTO - SI ES PARA PARTICULAR ¿¿??
+  LCAMPOS(21) = ""                                # fecha_ea - vacio
+  LCAMPOS(22) = [F:YBPA]TEL                       # TELEFONO DIRECCIÓN PEDDO
+  LCAMPOS(23) = [F:YBPA]WEB(0)                    # TELEFONO DIRECCIÓN PEDDO
+  LCAMPOS(24) = ""                                # IMPRESCINDIBLE CONCERTAR "VACIO" O "S"
+  LCAMPOS(25) = ""                                # VACIO O S
+  LCAMPOS(26) = ""                                # NOMBRE DE LA PERSONA A LA QUE SE... ¿¿??
+
+  Wrseq LCAMPOS(0),LCAMPOS(1),LCAMPOS(2),LCAMPOS(3),LCAMPOS(4),LCAMPOS(5),LCAMPOS(6),LCAMPOS(7),LCAMPOS(8),LCAMPOS(9),
+&       LCAMPOS(10),LCAMPOS(11),LCAMPOS(12),LCAMPOS(13),LCAMPOS(14),LCAMPOS(15),LCAMPOS(16),LCAMPOS(17),LCAMPOS(18),LCAMPOS(19),
+&       LCAMPOS(20),LCAMPOS(21),LCAMPOS(22),LCAMPOS(23),LCAMPOS(24),LCAMPOS(25),LCAMPOS(26)
+
+  Openo
+
+
+
+
+Return
+
+
+
+########################################################
+$OPEN_FILE
+  adxifs = "|"
+  adxirs = chr$(13)+chr$(10)
+  Openo LFILE
+  # Iomode adxium (50)
+Return
