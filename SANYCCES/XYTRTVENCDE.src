@@ -52,9 +52,8 @@ $EXEC
        Local Clbfile   BODY(0)
        Local Char      ATTACHMENTS(250)(1..)
        Read [YYAUT]CODUSR =GUSER
-       A_USER(1)="marta.bermejo@nunsys.com"
-       A_USER(2)="raul.arribas@nunsys.com"
-       A_USER(3)="d.pons@sanycces.es"
+       A_USER(1)="b.serrano@sanycces.es"
+       A_USER(2)="d.pons@sanycces.es"
        HEADER="Alguna linea con contramarca generada del pedido "+[M:SOH0]SOHNUM+" se ha intentado saldar"
        ISSUERMAIL="d.pons@sanycces.es"
        TRACE = 2
@@ -92,9 +91,8 @@ $EXEC
        Local Clbfile   BODY(0)
        Local Char      ATTACHMENTS(250)(1..)
          Read [YYAUT]CODUSR =GUSER
-       A_USER(1)="marta.bermejo@nunsys.com"
-       A_USER(2)="raul.arribas@nunsys.com"
-       A_USER(3)="d.pons@sanycces.es"
+       A_USER(1)="b.serrano@sanycces.es"
+       A_USER(2)="d.pons@sanycces.es"
        HEADER="Alguna linea con contramarca generada del pedido "+[M:SOH0]SOHNUM+" se ha intentado saldar"
        ISSUERMAIL="d.pons@sanycces.es"
        TRACE = 2
