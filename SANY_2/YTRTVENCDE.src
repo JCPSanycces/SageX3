@@ -2,6 +2,7 @@
 $ACTION
 Case ACTION
   When "ALISQDSOH"    :   Gosub ALISQDSOH
+  When "BEFREWSOH"    :   Gosub BEFREWSOH
 Endcase
 Return
 
@@ -96,4 +97,33 @@ Else
     Affzo  [M:SOH4]WALLQTYSTU(NOL)
   Endif
 Endif
+Return
+
+$BEFREWSOH
+  If !clalev([YTRA]): Local File YTRAN [YTRA]      : Endif
+  If !clalev([YBPD]): Local File BPDLVCUST [YBPD]  : Endif
+  If !clalev([YBPC]): Local File BPCUSTOMER [YBPC] : Endif
+
+  # Conector transportista: Servicio y términos por defecto
+  Read [YBPD]BPD0 = [SOH]BPCORD;[SOH]BPAADD
+  If !fstat and [YBPD]YCONCERTA = 2 and [SOH]BPTNUM = 'NA000008' # Dachser
+    [SOH]YSERVDEF = 'A'
+    [SOH]YTERMDEF = '031'
+  Else
+    Read [YTRA]YTRAN0 = [SOH]BPTNUM
+    If !fstat
+      [SOH]YSERVDEF = [YTRA]YSERVDEF
+      [SOH]YTERMDEF = [YTRA]YTERMDEF
+      Affzo [M:SOH2]YSERVDEF,YTERMDEF
+    Else
+      [SOH]YSERVDEF = ''
+      [SOH]YTERMDEF = ''
+    Endif
+  Endif
+
+  # Envío mail tracking
+  Read [YBPC]BPC0 = [SOH]BPCORD
+  If !fstat
+    [SOH]YMAILTRACK = [YBPC]YMAILTRACK
+  Endif
 Return
