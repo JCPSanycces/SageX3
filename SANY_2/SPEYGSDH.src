@@ -734,7 +734,7 @@ $TEST_SDH
       Local Char CRITERIOS1(250) : CRITERIOS1="1=1"
       Global Integer CUANTOS
       Global Integer LINE
-      Global Char LPEDIDO(30)(1..30)
+      Global Char LPEDIDO(30)(1..500)
 
       CRITERIOS1 += " & [Y01]DLVFLG=2"                  # Estado del vale = entregable
       CRITERIOS1 += " & [Y01]STOFCY=[M:YGSDH]PLANTA"    # Planta
