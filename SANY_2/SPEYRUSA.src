@@ -2,9 +2,11 @@
 #//////////////////////////////////////////////////////////////////////////////////////////////#
 # @01@ - RAP - 20/09/2024 - Añado funcionalidad para el campo CFECHARECD y filtrar en f. recepcion pedido
 # @02@ - AAS - 17/02/2026 - Nuevo filtro CCOMPRADOR
+# 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
 #//////////////////////////////////////////////////////////////////////////////////////////////#
 
 $ACTION
+#If GUSER="SN070" Infbox ACTION Endif
 Case ACTION
   When "DEBUT"      :  Gosub DEBUT
   When "BOUTON"     :  Gosub BOUTON
@@ -20,6 +22,15 @@ Raz [M:YRUSA]
 [M:YRUSA]PIE_R = 0
 Grizo [M:YRUSA]CTIPODOC
 Affzo [M:YRUSA]
+
+# 26001.ini
+  If GFONCTION = "YEXP" Then
+    [M:YRUSA]CARTICULO = [M:YEXP]YARTICULO(nolign-1)
+    Affzo [M:YRUSA]CARTICULO
+    Gosub BUSCAR
+  Endif
+# 26001.fin
+
 Return
 
 

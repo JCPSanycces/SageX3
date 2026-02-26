@@ -1,6 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$ 
 #@001@ - RAP- 120924 - Añado filtro para no cargar las lineas si el estado es saldada
 #@002@ - SCD- 100226 - Se permite a SN031 poder darle al boton modificar
+# 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
 
 ######################################################################################
 $ACTION
@@ -490,6 +491,14 @@ Else
 Endif
 
 GBOUT5 = ""
+
+# 26001.ini
+  If [M:YEXP]YCTRUPTURA(nolign-1) = 0 Then
+    GBOUT6 = ""
+  Else
+    GBOUT6 = "Ruptura Sanycces:" - [M:YEXP]YARTICULO(nolign-1)
+  Endif
+# 26001.fin
 End
 
 ######################################################################################

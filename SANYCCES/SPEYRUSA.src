@@ -1,6 +1,8 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+#//////////////////////////////////////////////////////////////////////////////////////////////#
 #@001@ - RAP - 20/09/2024 - Añado funcionalidad para el campo CFECHARECD y filtrar en f. recepcion pedido
-
+# 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
+#//////////////////////////////////////////////////////////////////////////////////////////////#
 
 $ACTION
 Case ACTION
@@ -18,6 +20,15 @@ Raz [M:YRUSA]
 [M:YRUSA]PIE_R = 0
 Grizo [M:YRUSA]CTIPODOC
 Affzo [M:YRUSA]
+
+# 26001.ini
+  If GFONCTION = "YEXP" Then
+    [M:YRUSA]CARTICULO = [M:YEXP]YARTICULO(nolign-1)
+    Affzo [M:YRUSA]CARTICULO
+    Gosub BUSCAR
+  Endif
+# 26001.fin
+
 Return
 
 
