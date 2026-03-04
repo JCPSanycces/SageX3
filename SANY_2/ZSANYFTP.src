@@ -1,0 +1,81 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+Local Char    PORT(100)       : PORT      = '2221'
+Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+Local Char    FTPFOLDER(100)  : FTPFOLDER = ''
+Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
+Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS','','')
+Local Char    LINDEX(100)     : LINDEX    = 'prueba1'
+Local Integer RESULT
+
+Call SFTPPUTMOV_B2B(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+End
+
+##########################################################################################################
+Subprog SFTPPUTMOV_B2B(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+Value     Char    SERVER()          # dirección del servidor ftp
+Value     Char    PORT()            # puerto ftp
+Value     Char    USER()            # usuario
+Value     Char    PWD()             # contraseña
+Value     Char    FTPFOLDER()       # carpeta destino en el servidor ftp
+Value     Char    LPATH()           # carpeta origen en el servidor local
+Value     Char    LPATHDES()        # carpeta de enviados en el servidor local
+Value     Char    LINDEX()          # índice de referencia para el envío
+Variable  Integer RESULT            # resultado del proceso
+
+Local     Integer I
+Local     Integer STAT
+Local     Char    LFILES(GDIMFIC)(1..)
+Local     Char    FILELIST(GDIMFIC)(1..)
+Local     Char    ORDRE(250)
+Local     Char    LFILENAME(250)
+
+  RESULT = -1
+
+#Check if destination directory exists and creates it if not
+  STAT = filinfo (LPATHDES,7)
+  If STAT = -27 : End : Endif
+  If STAT = -20 : Call SYSTEME (adxmac(0),'ae_mkdir'-'"'+LPATHDES+'"',"",STAT) From ORDSYS : Endif
+
+#Delete files if they are present from a previous execution
+  If Delfile (filpath(LPATHDES,"FtpPut",'bat')) = -27 : End : Endif
+  If Delfile (filpath(LPATHDES,"PutLog",'txt')) = -27 : End : Endif
+
+  Sleep 5
+
+#Check the files to upload
+  ORDRE = "dir /b /a-d-s-h "+LPATH+"\"+LINDEX+".csv"+" 2>nul"
+  Call SYSTEME2 (adxmac(0),ORDRE,"",RESULT,LFILES) From ORDSYS
+
+  If RESULT > 0
+    For I = 1 To RESULT
+
+      LFILENAME = LFILES(I)
+
+#Create the command file to upload the files
+      Openo filpath(LPATHDES,"FtpPut","bat",nomap)
+      adxifs = ';'
+      adxirs = chr$(13) + chr$(10)
+      adxium = 50
+
+      Wrseq '"C:\WinSCP\WinSCP.com" /log="' + LPATHDES + '\PutLog.txt" /ini=nul /command "option batch continue" "option confirm off" "open sftp://' + USER + ':' + PWD  + '@' + SERVER +
+&           ':' + PORT + ' -hostkey=""ssh-rsa 3072 69AIZg4NZcsJeet8bmpp9EZ/QCrD8rJHsCm2ce5q49k"""' +
+&           ' "cd ' + FTPFOLDER + '" "put ' + LPATH + '\' + left$(LFILENAME,len(LFILENAME)-4) + '.*" "exit" "/log=' + LPATHDES + '\PutLog.txt"'
+
+      Openo
+
+      System CHAINE = filpath(LPATHDES,"FtpPut","bat")
+
+#Clean the script files
+      If Delfile (filpath(LPATHDES,"FtpPut",'bat')) = -27 : RESULT = -2 : End : Endif
+      If Delfile (filpath(LPATHDES,"PutLog",'txt')) = -27 : RESULT = -2 : End : Endif
+
+#Move de uploaded files
+      ORDRE = "MOVE "+LPATH+"\"+left$(LFILENAME,len(LFILENAME)-4)+".* "+LPATHDES
+      Call SYSTEME2(adxmac(0),ORDRE,"",STAT,LFILENAME) From ORDSYS
+
+    Next
+  Endif
+
+End
