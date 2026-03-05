@@ -14,6 +14,7 @@
 #  @11@ - JMF - 20-02-2026 - Controlar cambio concertación
 #  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No)
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
+# 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
 #####################################################################################################
 
 $ACTION
@@ -1363,3 +1364,18 @@ Subprog C_YMAIL(VALEUR)
 End
 ######################################################################################
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios - FIN
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH4) 05/03/2026 15:06:35 (SN070)
+######################################################################################
+Subprog AM_ITMDES(VALEUR)
+Variable Char    VALEUR()
+# 26002.ini
+  If VALEUR <> '' Then
+    [M:SOH4]ZITMDESMODIF(nolign-1) = 2
+  Else
+    [M:SOH4]ZITMDESMODIF(nolign-1) = 1
+  Endif
+  Affzo [M:SOH4]ZITMDESMODIF(nolign-1)
+# 26002.fin
+End
