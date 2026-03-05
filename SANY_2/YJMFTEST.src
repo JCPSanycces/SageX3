@@ -596,14 +596,39 @@
 #  Call GUARDAR_SEGUIMIENTO(PNUM_DOCUMENTO, PREFERENCIA, PESTADO, PFECHA, PHORA, PPERSONA, RES) From YINTTRANS
 #  Infbox(num$(RES))
 
+#  # Entrada
+#  Local Char PDIR : PDIR = "MRW"
+#  Local Char PFICHERO(50) : PFICHERO = "ETIQ_DPR132500099_20251205130151.pdf"
+#  Local Char PDESTINO : PDESTINO = "IMPMRW"
+#  # Salida
+#  Local Integer RES
+#
+#  Call IMPRIMIR_ETIQUETA(PDIR, PFICHERO, PDESTINO, RES) From YINTTRANS
+#
+#  Infbox(num$(RES))
+
+##  Local Char CADENA(255) : CADENA = "josefos@gmail.com"
+#  Local Char CADENA(255) : CADENA = "josefosmico@gmail.com;josemaria.fos@nunsys.com"
+##  Local Char CADENA(255) : CADENA = "josefosmico@gmail.com;josemaria.fos@nunsys.com;marta.bermejo@nunsys.com"
+#  Local Char RES(150)(10)
+#
+#  Call SPLIT(CADENA, ";", RES) From YINTTRANS
+#  Infbox(RES(0))
+#  Infbox(RES(1))
+#  Infbox(RES(2))
+
   # Entrada
-  Local Char PDIR : PDIR = "MRW"
-  Local Char PFICHERO(50) : PFICHERO = "ETIQ_DPR132500099_20251205130151.pdf"
-  Local Char PDESTINO : PDESTINO = "IMPMRW"
+  Local Char PCOD_PREPARACION : PCOD_PREPARACION = "DPR112515215"
   # Salida
-  Local Integer RES
+  Local Integer PRES
+  Local Char PMESS
 
-  Call IMPRIMIR_ETIQUETA(PDIR, PFICHERO, PDESTINO, RES) From YINTTRANS
+  Call ENVIO_TRACKING_CLIENTE(PCOD_PREPARACION, PRES, PMESS) From YINTTRANS
+  Infbox(num$(PRES) + " - " + PMESS)
 
-  Infbox(num$(RES))
+#  # Entrada
+#  Local Char PCOD_PEDIDO : [L]PCOD_PEDIDO = "PDV112520182"
+#  Local Char ESTADO : ESTADO = "ENVIADO"
+#
+#  Call UPD_ULTIMO_ESTADO_PEDIDO(PCOD_PEDIDO, ESTADO) From YINTTRANS
 End

@@ -12,6 +12,8 @@
 #  @07@ - JLP - 10-06-2025 - Bloqueo en las lineas que son asociadas y Bloqueos asociados en PDV
 #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
 #  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista
+#  @11@ - JMF - 20-02-2026 - Controlar cambio concertación
+#  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
 #####################################################################################################
 
 $ACTION
@@ -1311,25 +1313,22 @@ Variable Char    VALEUR()
   If !clalev([YSER]) : Local File YTRASERV [YSER]  : Endif
 
   Read [YBPD]BPD0 = [M:SOH0]BPCORD;[M:SOH1]BPAADD
-    If !fstat and [YBPD]YCONCERTA = 2 and VALEUR = 'NA000008'
-      Read [YSER]YTRAN0 = VALEUR;'A'
-        If !fstat
-          [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
-          [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
-        Endif
-    Else
-
+  If !fstat and [YBPD]YCONCERTA = 2 and VALEUR = 'NA000008'
+    [M:SOH2]YSERVDEF = 'A'
+    [M:SOH2]YTERMDEF = '031'
+    Affzo [M:SOH2]YSERVDEF,YTERMDEF
+  Else
     Read [YTRA]YTRAN0 = VALEUR
-      If !fstat
-        [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
-        [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
-        Affzo [M:SOH2]YSERVDEF,YTERMDEF
-      Else
-        [M:SOH2]YSERVDEF = ''
-        [M:SOH2]YTERMDEF = ''
-        Affzo [M:SOH2]YSERVDEF,YTERMDEF
-      Endif
+    If !fstat
+      [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
+      [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
+      Affzo [M:SOH2]YSERVDEF,YTERMDEF
+    Else
+      [M:SOH2]YSERVDEF = ''
+      [M:SOH2]YTERMDEF = ''
+      Affzo [M:SOH2]YSERVDEF,YTERMDEF
     Endif
+  Endif
 End
 #  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
 ######################################################################################
@@ -1358,3 +1357,54 @@ Variable Char    VALEUR()
 End
 #  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
 ######################################################################################
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YSOH5) 20/02/2026 11:47:39 (NUN21)
+######################################################################################
+#  @11@ - JMF - 20-02-2026 - Controlar cambio concertación - INI
+Subprog AM_YCONCERTA(VALEUR)
+  Variable Integer VALEUR
+
+  If [M:SOH2]BPTNUM = "NA000008"
+    If VALEUR = 1
+      [M:SOH2]YSERVDEF = 'Y'
+    Else
+      [M:SOH2]YSERVDEF = 'A'
+    Endif
+    Affzo [M:SOH2]YSERVDEF
+  Endif
+End
+#  @11@ - JMF - 20-02-2026 - Controlar cambio concertación - FIN
+######################################################################################
+
+#  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios - INI
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YSOH5) 26/02/2026 15:13:39 (NUN21)
+######################################################################################
+Subprog C_YCONTACTO(VALEUR)
+  Variable Char    VALEUR()
+
+  If [M:YSOH5]YCONCERTA = 2 and VALEUR = ''
+    Infbox ("Para pedidos con Concertación, es obligatorio indicar el Contacto")
+    mkstat = 2
+  Endif
+End
+
+Subprog C_YTELEFONO(VALEUR)
+  Variable Char    VALEUR()
+
+  If [M:YSOH5]YCONCERTA = 2 and VALEUR = ''
+    Infbox ("Para pedidos con Concertación, es obligatorio indicar el Teléfono")
+    mkstat = 2
+  Endif
+End
+
+Subprog C_YMAIL(VALEUR)
+  Variable Char    VALEUR()
+  If [M:YSOH5]YCONCERTA = 2 and VALEUR = ''
+    Infbox ("Para pedidos con Concertación, es obligatorio indicar el Mail")
+    mkstat = 2
+  Endif
+End
+######################################################################################
+#  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios - FIN

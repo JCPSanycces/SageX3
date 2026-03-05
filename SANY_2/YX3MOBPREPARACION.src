@@ -1385,7 +1385,7 @@ End
 #* imprime la etiqueta
 #*
 #*!
-Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR,  PRES, PMESS)
+Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR, PDESTINO, PRES, PMESS)
   # Entrada
   Value Char PPACNUM()
   Value Char PPCK()
@@ -1399,6 +1399,7 @@ Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI
   Value Decimal PPCKHEI
   Value Char PCAMION()
   Value Char PUSR
+  Value Char PDESTINO
   # Salida
   Variable Char PRES
   Variable Char PMESS
@@ -1445,7 +1446,13 @@ Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI
           If LCERRADO <> 2 Then
             Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
 
-            Local Char LDEST(50) : LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
+            Local Char LDEST(50)
+            LDEST = PDESTINO
+
+            If LDEST = "" Then
+              LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
+            Endif
+
             If LDEST <> ""
               DESTINO = LDEST
             Endif
@@ -1495,11 +1502,13 @@ End
 #* @param PMESS, mensaje
 #*!
 
-Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
+Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION, PIMP_ETIQUETAS, PIMP_DOCS, PRES, PMESS)
   # Entrada
   Value Char PPRHNUM()
   Value Char PUSR()
   Value Integer PCAMION
+  Value Char PIMP_ETIQUETAS
+  Value Char PIMP_DOCS
   # Salida
   Variable Char PRES()
   Variable Char PMESS()
@@ -1517,7 +1526,6 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
 
 
     # @05@ - JMF
-#    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and ([F:YYPR2]QTYSTU-[F:YYPR2]YQTYSTU) > 0 and [YYPR2]ALLQTY<>0
     Filter [F:YYPR2] Where PRHNUM=PPRHNUM and [YYPR2]ALLQTY<>0
     For [F:YYPR2]
       Local Decimal CANT_EMPAQUETADA
@@ -1636,7 +1644,7 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
               Local Char INFORME_PREP(20) : INFORME_PREP = "Y_SAN_DOCP_PRU"
               Local Integer LRES_IMPR_PREP : Raz LRES_IMPR_PREP
 
-              Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, LRES_IMPR_PREP)
+              Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
               #@04@ - Fin
 
               YGUSERI3 = PUSR
@@ -1672,7 +1680,7 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
                   DEL_STA = Delfile(YNOMFIC)
                   If DEL_STA = 0 or DEL_STA = -20 Then
                     # Generamos PDF
-                    Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, LRES_IMPR_PREP)
+                    Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
                     # Esperamos a que se cree el fichero
                     Local Integer I, J
                     For I = 0 To 30
@@ -1722,26 +1730,30 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
                     Next I
                   Endif
                 When Default:
-                  Local Char LMESS(250)
+                  If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+                  Local Char LMENSAJE(255) : Raz LMENSAJE
 
-                  If !clalev([YTRAN]) : Local File YTRAN [YTRA] : Endif
-
-                  Read [YTRAN]YTRAN0 = [YPRH]BPTNUM
+                  Read [YTRA]YTRAN0 = [YPRH]BPTNUM
                   If !fstat
                     Case [YTRA]YFUNC
-                      When 1:
-                        Call ENVIO('mrw', 'x3_mrw_client.exe', 2, LMESS) From YINTTRANS #MRW
-                        If LMESS = "Ok"
-                          PRES = "200"
-                        Else
-                         PRES = "125"
+                      When 1: # MRW
+                        Call ENVIO('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
+                        If LMENSAJE <> "Ok"
+                          PRES = "125"
+                          PMESS = [L]LMENSAJE
+                          Goto TERMINAR
                         Endif
-                        Goto FIN_TERMINAR
-                      #When 2: Call ENVIO('dachser', 'x3_dachser_client.exe', 2, LMESS) #DACHSER
+                      When 2: # DACHSER
+                        Call ENVIO('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
+                        If LMENSAJE <> "Ok" and LMENSAJE <> ""
+                          PRES = "125"
+                          PMESS = [L]LMENSAJE
+                          Goto TERMINAR
+                        Endif
                     Endcase
                   Endif
 
-                  Close Local File [YTRAN]
+                  Close Local File [YTRA]
               Endcase
 
               # Generamos la/s entrega/s
@@ -1763,7 +1775,7 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
         PMESS="No existe: "+PPRHNUM
       Endif
     Endif
-$FIN_TERMINAR
+$TERMINAR
   Close Local File [F:YPRH], [F:YYPR2], [YBPT], [YSPA], [YBPA]
 End
 
@@ -2230,12 +2242,13 @@ End LRET
 #* @param PUSR Código del usuario
 #* @return RES resultado de la ejecución de la función
 #*!
-Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, RES)
+Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, PDESTINO, RES)
   # Entrada
   Value Char VPRH
   Value Char VINF
   Value Integer VPDF
   Value Char PUSR
+  Value Char PDESTINO
   # Salida
   Variable Integer RES
 
@@ -2252,7 +2265,11 @@ Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, RES)
     TBPAR(2) = "EAN13"
     TBVAL(2) = "1"
 
-    VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
+    VDES = PDESTINO
+
+    If VDES = "" Then
+      VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
+    Endif
 
     If VINF <> "" and VDES <> ""
       If VPDF = 2 Then
@@ -2314,4 +2331,39 @@ Subprog GETBLOQUEOSPEDIDOS(PNUM_VALE, BLOQUEOS)
   Next
 
   Close Local File [YLCK]
+End
+
+Subprog GETBASCULAS(COD_BASCULA, BASCULA, DESTINO_ETIQUETAS, DESTINO_DOCS, DESTINO_TRANSPORTISTA, DEFECTO)
+  # Salida
+  Variable Char COD_BASCULA
+  Variable Char BASCULA
+  Variable Char DESTINO_ETIQUETAS
+  Variable Char DESTINO_DOCS
+  Variable Char DESTINO_TRANSPORTISTA
+  Variable Integer DEFECTO
+
+  If !clalev([YATE]) : Local File ATEXTRA [YATE] : Endif
+  If !clalev([YATA]) : Local File ATABDIV [YATA] : Endif
+
+  Local Integer K : Raz K
+
+  Local Integer TABLA_VARIA : [L]TABLA_VARIA = 6025
+
+  Filter [YATE] Where CODFIC = 'ATABDIV' and ZONE = 'LNGDES' and LANGUE = 'SPA' and IDENT1 = num$([L]TABLA_VARIA)
+  For [YATE]
+    COD_BASCULA(K) = [YATE]IDENT2
+    BASCULA(K)     = [YATE]TEXTE
+    Read [YATA]CODE=[L]TABLA_VARIA;[YATE]IDENT2
+    If !fstat
+      DESTINO_ETIQUETAS(K)     = [YATA]A1
+      DESTINO_DOCS(K)          = [YATA]A2
+      DESTINO_TRANSPORTISTA(K) = [YATA]A3
+      DEFECTO(K)               = int([YATA]N1)
+    Endif
+
+    K += 1
+  Next
+
+  Close Local File [YATE]
+  Close Local File [YATA]
 End
