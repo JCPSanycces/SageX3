@@ -13,6 +13,7 @@
 #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
 #  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista
 #  @11@ - JMF - 20-02-2026 - Controlar cambio concertación
+#  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No)
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
 # 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
 #####################################################################################################
@@ -637,6 +638,18 @@ Endif
 
 Close Local File [PP1]
 Close Local File [PP2]
+
+#  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No) - INI
+  If !clalev([YBPC]) : Local File BPCUSTOMER [YBPC] : Endif
+
+  Read [YBPC]BPC0 = VALEUR
+  If !fstat
+    [M:YSOH5]YMAILTRACK = [YBPC]YMAILTRACK
+    Affzo [M:YSOH5]YMAILTRACK
+  Endif
+
+  Close Local File [YBPC]
+#  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No) - FIN
 
 # Bloqueo STD
 GPE = 1

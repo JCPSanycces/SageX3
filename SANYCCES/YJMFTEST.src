@@ -555,12 +555,12 @@
 #  Call TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS) From YX3MOBPREPARACION
 #  Infbox(PMESS)
 #
-  # Entrada
-  Local Date FECHA : FECHA = [13/02/2026]
-  # Salida
-  Local Char FICHERO(100)
-  Call DESCARGAR_MANIFIESTO_DACHSER(FECHA, FICHERO) From YINTTRANS
-  Infbox(FICHERO)
+#  # Entrada
+#  Local Date FECHA : FECHA = [13/02/2026]
+#  # Salida
+#  Local Char FICHERO(100)
+#  Call DESCARGAR_MANIFIESTO_DACHSER(FECHA, FICHERO) From YINTTRANS
+#  Infbox(FICHERO)
 
 #  # Entrada
 #  Local Char PCOD_TRANSPORTISTA : PCOD_TRANSPORTISTA = "NA000008"
@@ -575,4 +575,77 @@
 #  Local Char APIKEY
 #
 #  Call GET_DATOS_TRANSPORTISTA(PCOD_TRANSPORTISTA, URL, URL_TRK, FRANQUICIA, COD_ABONADO, COD_DEPARTAMENTO, USUARIO, PASSW, APIKEY) From YINTTRANS
+#
+#  # Entrada
+#  Local Char PCOD_PEDIDO : [L]PCOD_PEDIDO = "PDV112520182"
+#  Local Char ESTADO : ESTADO = "ENVIADO"
+#
+#  Call UPD_ULTIMO_ESTADO_PEDIDO(PCOD_PEDIDO, ESTADO) From YINTTRANS
+
+  # Entrada
+#  Local Char PCOD_PREPARACION : PCOD_PREPARACION = "DPR112605616"
+#  # Salida
+#  Local Integer PRES
+#  Local Char PMESS
+#
+#  Call ENVIO_TRACKING_CLIENTE(PCOD_PREPARACION, PRES, PMESS) From YINTTRANS
+#  Infbox(num$(PRES) + " - " + PMESS)
+
+#  # Entrada
+#  Local Char PDIR : PDIR = "DACHSER"
+#  Local Char PFICHERO(50) : PFICHERO = "ETIQ_DPR112605616_20260224085349.pdf"
+#  Local Char PDESTINO : PDESTINO = "BASCULA"
+#  # Salida
+#  Local Integer RES
+#
+#  Call IMPRIMIR_ETIQUETA(PDIR, PFICHERO, PDESTINO, RES) From YINTTRANS
+
+#  # Entrada
+#  Local Char PCOD_PEDIDO : [L]PCOD_PEDIDO = "PDV112607059"
+#  Local Char ESTADO : ESTADO = "entregsdfs"
+#
+#  Call UPD_ULTIMO_ESTADO_PEDIDO(PCOD_PEDIDO, ESTADO) From YINTTRANS
+
+#  # Entrada
+#  Local Char PPACNUM(30) : [L]PPACNUM = ""
+#  Local Char PPCK(30) : [L]PPCK = ""
+#  Local Char PLBLFMT(30) : [L]PLBLFMT = ""
+#  Local Decimal PNETWEI : [L]PNETWEI = 0.0
+#  Local Decimal  PBRWEI : [L]PBRWEI = 0.0
+#  Local Decimal PPCKWEI : [L]PPCKWEI = 0.0
+#  Local Decimal PVOL : [L]PVOL = 0.0
+#  Local Decimal  PPCKLEN : [L]PPCKLEN = 0.0
+#  Local Decimal PPCKWID : [L]PPCKWID = 0.0
+#  Local Decimal PPCKHEI : [L]PPCKHEI = 0.0
+#  Local Char PCAMION(2) : [L]PCAMION = ""
+#  Local Char PUSR(15) : PUSR = ""
+#  Local Char PDESTINO(50) : [L]PDESTINO = ""
+#  # Salida
+#  Local Char PRES(10)
+#  Local Char PMESS(100)
+#
+#  Call FINALIZARBULTO_MANUAL(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR, PDESTINO, PRES, PMESS) From YX3MOBPREPARACION
+#  Infbox([L]PMESS)
+
+#  # Entrada
+#  Local Char PPRHNUM(50) : [L]PPRHNUM = ""
+#  Local Char PUSR(10) : [L]PUSR = ""
+#  Local Integer PCAMION : [L]PCAMION = 0
+#  Local Char PIMP_ETIQUETAS(50) : [L]PIMP_ETIQUETAS = ""
+#  Local Char PIMP_DOCS(50) : [L]PIMP_DOCS = ""
+#  # Salida
+#  Local Char PRES(50)
+#  Local Char PMESS(100)
+#
+#  Call TERMINARPREPARACION_MAN(PPRHNUM, PUSR, PCAMION, PIMP_ETIQUETAS, PIMP_DOCS, PRES, PMESS) From YX3MOBPREPARACION
+#  Infbox(PMESS)
+
+  # Entrada
+  Local Char PCOD_PREPARACION : [L]PCOD_PREPARACION = "DPR112607067"
+  # Salida
+  Local Integer PRES
+  Local Char PMESS
+
+  Call ENVIO_TRACKING_CLIENTE(PCOD_PREPARACION, PRES, PMESS) From YINTTRANS
+  Infbox(num$(PRES) + " - " + PMESS)
 End

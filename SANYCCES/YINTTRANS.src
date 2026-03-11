@@ -33,7 +33,7 @@ Subprog GET_DATOS_TRANSPORTISTA(PCOD_TRANSPORTISTA, URL, URL_TRK, FRANQUICIA, CO
   Close Local File [YTRAN]
 End
 
-Subprog GET_DOCUMENTO_ENVIO(PCOD_DOCUMENTO, FECHA_ENVIO, OBSERVACIONES, NOMBRE_CLIENTE, DIRECCION, COD_POSTAL, LOCALIDAD, COD_PAIS, PAIS, CONTACTO, TELEFONO, MAIL, NUM_BULTOS, COD_SERVICIO, 
+Subprog GET_DOCUMENTO_ENVIO(PCOD_DOCUMENTO, FECHA_ENVIO, OBSERVACIONES, NOMBRE_CLIENTE, DIRECCION, COD_POSTAL, LOCALIDAD, COD_PAIS, PAIS, CONTACTO, TELEFONO, MAIL, NUM_BULTOS, COD_SERVICIO,
 & DESC_SERVICIO, COD_TERMINO_SERVICIO, ORDER_GROUP_DACHSER, FECHA_ENTREGA, PACKING_BULTO, ALTO_BULTO, LARGO_BULTO, ANCHO_BULTO, PESO_BULTO)
   # Entrada
   Value Char PCOD_DOCUMENTO
@@ -228,10 +228,15 @@ Subprog IMPRIMIR_ETIQUETA(PDIR, PFICHERO, PDESTINO, RES)
   Variable Integer RES
 
   Local Char LRES(250)
+  Local Char PRINT_SETTINGS(50) : Raz [L]PRINT_SETTINGS
+
+  If toupper(PDIR) = "DACHSER" Then
+    [L]PRINT_SETTINGS = '-print-settings "noscale,portrait" '
+  Endif
 
   GSILENCE = 1
 
-  System LRES = "C:\Sumatra\SumatraPDF.exe -print-to " + PDESTINO + " " + filpath("", "", "") + "\FILES\" + PDIR + "\" + PFICHERO
+  System LRES = "C:\Sumatra\SumatraPDF.exe -print-to " + PDESTINO + " " + [L]PRINT_SETTINGS + filpath("", "", "") + "\FILES\" + PDIR + "\" + PFICHERO
 
   GSILENCE = 0
 End
@@ -365,9 +370,9 @@ Subprog MOSTRAR_SEGUIMIENTO()
         When 1:
           Call SEGUIMIENTO('mrw', 'x3_mrw_tracking.exe') # MRW
           Call ABRIR_MODAL_SEGUIMIENTO()
-#        When 2:
-#          Call SEGUIMIENTO('dachser', 'x3_dachser_tracking.exe') # DACHSER
-#          Call ABRIR_MODAL_SEGUIMIENTO()
+        When 2:
+          Call SEGUIMIENTO('dachser', 'x3_dachser_tracking.exe') # DACHSER
+          Call ABRIR_MODAL_SEGUIMIENTO()
         When Default:
           Infbox("El transportista no tiene ningún método de integración asociado")
       Endcase
@@ -452,4 +457,175 @@ Subprog DESCARGAR_MANIFIESTO_DACHSER(FECHA, FICHERO)
   Endif
 
   Close Local File [YTRA]
+End
+
+Subprog ENVIO_TRACKING_CLIENTE(PCOD_PREPARACION, PRES, PMESS)
+  # Entrada
+  Value Char PCOD_PREPARACION
+  # Salida
+  Variable Integer PRES
+  Variable Char PMESS
+
+  PRES = 200
+  PMESS = "OK"
+
+  If !clalev([YSTH]) : Local File STOPREH [YSTH]    : Endif
+  If !clalev([YSTD]) : Local File STOPRED [YSTD]    : Endif
+  If !clalev([YSOH]) : Local File SORDER [YSOH]     : Endif
+  If !clalev([YTRA]) : Local File YTRAN [YTRA]      : Endif
+  If !clalev([YTRK]) : Local File YTRKENVIOS [YTRK] : Endif
+  If !clalev([YBPR]) : Local File BPARTNER [YBPR]   : Endif
+
+  Read [YSTH]PRH0 = PCOD_PREPARACION
+  If !fstat
+    Read [YTRA]YTRAN0 = [YSTH]BPTNUM
+    # Si el transportsita tiene conector asociado y existe URL de seguimiento
+    If !fstat and [YTRA]YURLSEG <> "" Then
+      # Buscamos número de seguimiento para la preparación
+      Filter [YTRK] Where VCRNUM = PCOD_PREPARACION and YNUMSOL <> '' Order By CREDATTIM Desc
+      Read [YTRK] First
+      If !fstat
+        Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255)
+        Raz GYRECIPIENT1
+        Raz GYRECIPIENT2
+        Raz GYRECIPIENT3
+        Global Char GYOBJECT(100) : Raz GYOBJECT
+        Global Char GYPEDIDOSVALE(255) : Raz GYPEDIDOSVALE
+        Global Char GYURLTRACKING(255) : Raz GYURLTRACKING
+        Global Char GYNUMSEGUIMIENTO(30) : Raz GYNUMSEGUIMIENTO
+        Global Char GYNOMBRECLIENTE(100) : Raz GYNOMBRECLIENTE
+        Global Char GYNOMBRETRANSPORTISTA(100) : Raz GYNOMBRETRANSPORTISTA
+
+        # 1. Obtenemos el/los pedido/s correspondientes a la preparación
+        Local Char LPEDIDO(25)
+        Local Char LPRIMER_PEDIDO(25)
+        Local Char LPEDIDO_CLIENTE(25)
+        Filter [YSTD] Where PRHNUM = PCOD_PREPARACION
+        For [YSTD]
+          If LPEDIDO <> [YSTD]ORINUM
+            Read [YSOH]SOH0 = [YSTD]ORINUM
+            If !fstat
+              If [V]GYPEDIDOSVALE = "" Then
+                If [YSOH]CUSORDREF <> ""
+                  [V]GYPEDIDOSVALE = [YSOH]CUSORDREF
+                Else
+                  [V]GYPEDIDOSVALE = [YSOH]SOHNUM
+                Endif
+                [L]LPRIMER_PEDIDO = [YSTD]ORINUM
+              Else
+                If [YSOH]CUSORDREF <> ""
+                  [V]GYPEDIDOSVALE += ' - ' + [YSOH]CUSORDREF
+                Else
+                  [V]GYPEDIDOSVALE += ' - ' + [YSOH]SOHNUM
+                Endif
+              Endif
+            Endif
+            LPEDIDO = [YSTD]ORINUM
+          Endif
+        Next
+
+        Local Char LDESTINATARIOS(100)(3)
+        Read [YSOH]SOH0 = [L]LPRIMER_PEDIDO
+        If !fstat
+          # Solo enviaremos el mail al cliente si el pedido tiene marcada la casilla 'Mail tacking' y existe mail
+          If [YSOH]YMAILTRACK = 2 and [YSOH]YMAIL <> '' Then
+            # 2. Obtenemos el/los destinatario/s del correo
+            Call SPLIT([YSOH]YMAIL, ";", [L]LDESTINATARIOS)
+            GYRECIPIENT1 = [L]LDESTINATARIOS(0)
+            GYRECIPIENT2 = [L]LDESTINATARIOS(1)
+            GYRECIPIENT3 = [L]LDESTINATARIOS(2)
+
+            # 3. Componemos el asunto del correo
+            If instr(1, [V]GYPEDIDOSVALE, " - ") = 0 Then
+              # Sólo un pedido
+              GYOBJECT = "Aviso de envío de su pedido " + GYPEDIDOSVALE
+            Else
+              GYOBJECT = "Aviso de envío de sus pedidos " + GYPEDIDOSVALE
+            Endif
+
+            # 4. Obtenemos la URL y el número de seguimiento
+            GYNUMSEGUIMIENTO = [YTRK]YNUMSOL
+            GYURLTRACKING = [YTRA]YURLSEG
+            If [YSTH]BPTNUM = 'NA000008' # Dachser
+              GYURLTRACKING += '?javalocale=es_ES&search=' + [YTRK]YNUMSOL
+            Endif
+
+            # 5. Informamos el nombre del cliente y el del transportista
+            GYNOMBRECLIENTE = [YSOH]BPCNAM
+            Read [YBPR]BPR0 = [YSTH]BPTNUM
+            If !fstat
+              If [YBPR]BPRSHO <> "" Then
+                GYNOMBRETRANSPORTISTA = [YBPR]BPRSHO
+              Else
+                GYNOMBRETRANSPORTISTA = [YBPR]BPRNAM
+              Endif
+            Endif
+
+            # 6. Llamamos a la regla de workflow para el envío del mail de seguimiento
+            Call WORKFLOW(1,"YST","",GUSER) From AWRK
+          Endif
+        Else
+          PRES = 120
+          PMESS = "Pedido inexistente"
+        Endif
+      Endif
+    Else
+      PRES = 130
+      PMESS = "Solicitud de transporte no enviada"
+    Endif
+  Else
+    PRES = 100
+    PMESS = "Documento de preparación inexistente"
+  Endif
+
+  Close Local File [YSTH]
+  Close Local File [YSTD]
+  Close Local File [YSOH]
+  Close Local File [YTRA]
+  Close Local File [YTRK]
+  Close Local File [YBPR]
+End
+
+Subprog SPLIT(CADENA, CARACTER, LISTA)
+  # Entrada
+  Value Char CADENA
+  Value Char CARACTER
+  # Salida
+  Variable Char LISTA
+
+  Local Integer POS : Raz POS
+  Local Integer I
+
+  For I=0 To 2
+    POS = instr(1, CADENA, CARACTER)
+    If POS = 0
+      LISTA(I) = CADENA
+      Break
+    Else
+      LISTA(I) = left$(CADENA, POS - 1)
+      CADENA = mid$(CADENA, POS+1, len(CADENA) - POS + 2)
+    Endif
+  Next I
+End
+
+Subprog UPD_ULTIMO_ESTADO_PEDIDO(PCOD_PEDIDO, ESTADO)
+  # Entrada
+  Value Char PCOD_PEDIDO
+  Value Char ESTADO
+
+  If !clalev([YSOH]) : Local File SORDER [YSOH] : Endif
+
+  Read [YSOH]SOH0 = PCOD_PEDIDO
+  If !fstat
+    Trbegin [YSOH]
+    [YSOH]YULTESTADO = ESTADO
+    Rewrite [YSOH]
+    If !fstat
+      Commit
+    Else
+      Rollback
+    Endif
+  Endif
+
+  Close Local File [YSOH]
 End

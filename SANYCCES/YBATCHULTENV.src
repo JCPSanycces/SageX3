@@ -1,0 +1,38 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+  Local Char LREQ(255)(0..2)
+  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+  Local Char USUARIO : USUARIO = "NUN21"
+  Local Char PASSW : PASSW = "Jf04092023"
+  Local Char POOL : POOL = "POOLSANYCCES"
+
+  LREQ(0) = "SELECT DISTINCT D.ORINUM_0, C.PRHNUM_0, C.BPTNUM_0 FROM " + nomap + ".STOPRED D INNER JOIN " + nomap + ".STOPREH C ON D.PRHNUM_0 = C.PRHNUM_0 AND C.DLVFLG_0 = 3 "
+  LREQ(1) = "WHERE D.PRHNUM_0 IN (SELECT DISTINCT VCRNUM_0 From " + nomap + ".YTRKENVIOS) AND C.DLVDAT_0 >= DATEADD(d, -15, GETDATE()) "
+  LREQ(2) = "AND D.ORINUM_0 NOT IN (SELECT DISTINCT SOHNUM_0 FROM " + nomap +
+& ".SORDER WHERE upper(YULTESTADO_0) LIKE '%ENTREGADO%' or upper(YULTESTADO_0) LIKE '%CANCELADO%' or UPPER(YULTESTADO_0) LIKE '%ANULADO%')"
+
+#  Local Integer LINFO_FICHERO : [L]LINFO_FICHERO = -1
+  Local Char LFICHERO(100)
+
+  For (Char COD_PEDIDO, Char COD_PREPARACION, Char COD_TRANSPORTISTA) From "5" Sql LREQ As [YSQL]
+    Case COD_TRANSPORTISTA
+      When "NA002854": #MRW
+#        [L]LFICHERO = filpath("", "", "") + '\FILES\MRW\x3_ultimo_estado_mrw.exe'
+#        While [L]LINFO_FICHERO < 0
+#          [L]LINFO_FICHERO = filinfo([L]LFICHERO, 7)
+#        Wend
+#        [L]LINFO_FICHERO = -1
+        [L]LFICHERO = filpath("", "", "") + '\FILES\MRW\x3_ultimo_estado_mrw.exe'
+        System [L]LFICHERO + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + COD_PREPARACION + '" "' + COD_PEDIDO + '" "' +
+& COD_TRANSPORTISTA + '"'
+      When "NA000008" : #Dachser
+#        [L]LFICHERO = filpath("", "", "") + '\FILES\DACHSER\x3_ultimo_estado_dachser.exe'
+#        While [L]LINFO_FICHERO < 0
+#          [L]LINFO_FICHERO = filinfo([L]LFICHERO, 7)
+#        Wend
+#        [L]LINFO_FICHERO = -1
+        [L]LFICHERO = filpath("", "", "") + '\FILES\DACHSER\x3_ultimo_estado_dachser.exe'
+        System [L]LFICHERO + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + COD_PREPARACION + '" "' + COD_PEDIDO + '" "' + COD_TRANSPORTISTA + '"'
+    Endcase
+    Sleep 0.5
+  Next
+End

@@ -459,6 +459,43 @@ Subprog SEGUIMIENTO(PDIR, PEJECUTABLE)
   Close Local File [YHIS]
 End
 
+Subprog DESCARGAR_MANIFIESTO_DACHSER(FECHA, FICHERO)
+  # Entrada
+  Value Date FECHA
+  # Salida
+  Variable Char FICHERO
+
+  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+  Local Char USUARIO : USUARIO = "NUN21"
+  Local Char PASSW : PASSW = "Jf04092023"
+  Local Char POOL : POOL = "POOLSANYCCES"
+  Local Char DIR(150)
+  Local Char MES : MES = '00' + num$(month(FECHA))
+  Local Char DIA : DIA = '00' + num$(day(FECHA))
+  Local Char STR_FECHA: STR_FECHA = num$(year(FECHA)) + '-' + right$(MES, len(MES) - 1) + '-' + right$(DIA, len(DIA) - 1)
+  Local Char LTRAN : LTRAN = "NA000008"
+  Local Char LRES(255)
+
+  If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+  Read [YTRA]YTRAN0 = LTRAN
+  If !fstat
+    DIR = [YTRA]YRUTADOCS
+  Endif
+
+  # Descarga manifiesto
+  System FICHERO = '\\localhost\files\dachser\x3_dachser_manifiesto.exe "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + LTRAN + '" "' +  DIR + '" "' + STR_FECHA + '"'
+
+  # Impresión manifiesto
+  Local Char RUTA_FICHERO(255) : [L]RUTA_FICHERO = filpath("", "", "") + "\FILES\DACHSER\DOCS\" + FICHERO
+  If filinfo([L]RUTA_FICHERO, 7) > 0 Then
+    System LRES = 'C:\Sumatra\SumatraPDF.exe -print-to ' + [YTRA]YIMPDOCS + ' ' + [L]RUTA_FICHERO
+  Else
+    Infbox("No se encontró el fichero del manifiesto.")
+  Endif
+
+  Close Local File [YTRA]
+End
+
 Subprog ENVIO_TRACKING_CLIENTE(PCOD_PREPARACION, PRES, PMESS)
   # Entrada
   Value Char PCOD_PREPARACION
@@ -499,14 +536,26 @@ Subprog ENVIO_TRACKING_CLIENTE(PCOD_PREPARACION, PRES, PMESS)
         # 1. Obtenemos el/los pedido/s correspondientes a la preparación
         Local Char LPEDIDO(25)
         Local Char LPRIMER_PEDIDO(25)
+        Local Char LPEDIDO_CLIENTE(25)
         Filter [YSTD] Where PRHNUM = PCOD_PREPARACION
         For [YSTD]
           If LPEDIDO <> [YSTD]ORINUM
-            If [V]GYPEDIDOSVALE = "" Then
-              [V]GYPEDIDOSVALE = [YSTD]ORINUM
-              [L]LPRIMER_PEDIDO = [YSTD]ORINUM
-            Else
-              [V]GYPEDIDOSVALE += ' - ' + [YSTD]ORINUM
+            Read [YSOH]SOH0 = [YSTD]ORINUM
+            If !fstat
+              If [V]GYPEDIDOSVALE = "" Then
+                If [YSOH]CUSORDREF <> ""
+                  [V]GYPEDIDOSVALE = [YSOH]CUSORDREF
+                Else
+                  [V]GYPEDIDOSVALE = [YSOH]SOHNUM
+                Endif
+                [L]LPRIMER_PEDIDO = [YSTD]ORINUM
+              Else
+                If [YSOH]CUSORDREF <> ""
+                  [V]GYPEDIDOSVALE += ' - ' + [YSOH]CUSORDREF
+                Else
+                  [V]GYPEDIDOSVALE += ' - ' + [YSOH]SOHNUM
+                Endif
+              Endif
             Endif
             LPEDIDO = [YSTD]ORINUM
           Endif
