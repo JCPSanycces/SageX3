@@ -1,4 +1,4 @@
-#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$ Pedidos
 #####################################################################################################
 #-- C.A. --> ZVE06 - EDI importacion de pedidos SERES  - JAP <10/2022>
 #--
@@ -616,6 +616,7 @@ If fstat = 0
   [M:YSOH5]YCONCERTA = [PP1]YCONCERTA
   [M:YSOH5]YCONTACTO = [PP1]YCONTACTO
   [M:YSOH5]YOBSERVA  = [PP1]YOBSERVA
+#  [M:YSOH5]YMAILTRACK = []
   Affzo [M:YSOH5]YCONCERTA
   Affzo [M:YSOH5]YCONTACTO
   Affzo [M:YSOH5]YOBSERVA
