@@ -2,6 +2,7 @@
 # Gestión de la máscara SQH2 (Especifico)
 # @01@ - JLP - 14/05/2024 - Rellenar campos con los datos del cliente
 # @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+# 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla SQH2) 24/08/2023 08:26:19 (NUN04)
@@ -31,10 +32,16 @@ Return
 #  @02@ - SCD - 23/04/2025 - INI
 $APRES_MOD
   Gosub RECALCULA_TOTALES
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 
 $APRES_CRE
   Gosub RECALCULA_TOTALES
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 #  @02@ - SCD - 23/04/2025 - FIN
 
@@ -228,3 +235,78 @@ $ACTUALIZAR_PRECIOS_ASOCIADOS
 Return
 
 #  @02@ - SCD - 23/04/2025 - FIN
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# 2026-00006
+$UPD_KITS_REPORT
+
+Local Integer LCONPRI,LCONSEC,LLINEAPADRE
+Local Char    LITMPADRE(50),LDTOPADRE(50)
+
+  If !clalev([F:ZSQD0]) Then : Local File SQUOTED   [F:ZSQD0] : Endif
+  If !clalev([F:ZSQD1]) Then : Local File SQUOTED   [F:ZSQD1] : Endif
+  If !clalev([F:ZITM0]) Then : Local File ITMMASTER [F:ZITM0] : Endif
+
+  For [L]LCONPRI=0 To [M:SQH2]NBLIG-1
+    Raz LITMPADRE,LDTOPADRE
+    If [M:SQH2]LINTYP([L]LCONPRI) = 9 Then
+      Read [F:ZITM0]ITM0 = [M:SQH2]ITMREF([L]LCONPRI)
+      If [F:ZITM0]TSICOD(0) = '001' Then
+        [L]LLINEAPADRE  = [M:SQH2]SQDLIN([L]LCONPRI)
+        [L]LITMPADRE    = [M:SQH2]ITMREF([L]LCONPRI)
+        If [M:SQH2]DISCRGVAL1([L]LCONPRI) <> 0 Then
+          [L]LDTOPADRE    = num$([M:SQH2]DISCRGVAL1([L]LCONPRI))
+        Endif
+        If [M:SQH2]DISCRGVAL2([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SQH2]DISCRGVAL2([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SQH2]DISCRGVAL2([L]LCONPRI))
+          Endif
+        Endif
+        If [M:SQH2]DISCRGVAL3([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SQH2]DISCRGVAL3([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SQH2]DISCRGVAL3([L]LCONPRI))
+          Endif
+        Endif
+        Read [F:ZSQD0]SQD0 = [M:SQH0]SQHNUM;[M:SQH2]SQDLIN([L]LCONPRI)
+        [F:ZSQD0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSQD0]ZVARESTDTO  = [L]LDTOPADRE
+        If !adxlog Then : Trbegin [F:ZSQD0] : Endif
+        Rewrite [F:ZSQD0]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+        [L]LCONPRI += 1
+        For [L]LCONSEC=[L]LCONPRI To [M:SQH2]NBLIG-1
+          If [M:SQH2]LINTYP([L]LCONSEC) = 8 Then
+            Read [F:ZSQD1]SQD0 = [M:SQH0]SQHNUM;[M:SQH2]SQDLIN([L]LCONSEC)
+            [F:ZSQD1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+            [F:ZSQD1]ZVARESTDTO  = [L]LDTOPADRE
+            If !adxlog Then : Trbegin [F:ZSQD1] : Endif
+            Rewrite [F:ZSQD1]
+            If !fstat Then
+              Commit
+            Else
+              Rollback
+            Endif
+          Else
+            [L]LCONPRI = [L]LCONSEC + 1
+            Goto NEXT_COMPUESTO
+          Endif
+        Next
+$NEXT_COMPUESTO
+      Endif
+    Endif
+  Next
+
+  Close Local File [ZSQD0],[ZSQD1],[ZITM0]
+
+Return

@@ -5,6 +5,7 @@
 # @03@ - EQM - 10/07/2024 - Modificación datos con entrega validada
 # @04@ - JLP - 26/08/2024 - Incidencia que no carga correctamente la informacion del transporte
 # @05@ - DSR - 23/12/2024 - Actualización de la cantidad preparada en la línea del pedido de las entregas generadas con el SPE
+# 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 ###########################################################################
 $ACTION
 
@@ -15,6 +16,7 @@ $ACTION
       When "LIENS"     : Gosub LIENS     # @04@ - JLP - 26/08/2024
     # When "EXEBOUT"   : Gosub EXEBOUT    # @02@ NUN22
       When "APRES_CRE" : Gosub APRES_CRE # # @05@ - DSR - 23/12/2024
+      When "APRES_MOD" : Gosub APRES_MOD
     Endcase
 
 Return
@@ -60,8 +62,17 @@ If [L]SIGO_MAJ = 2
     Filter [YY2]
 Endif
 
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 
+#############################################################################
+$APRES_MOD
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
+Return
 
 #############################################################################
 
@@ -192,6 +203,83 @@ $AVANT_MOD
         Endif
     Endif
 Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# 2026-00006
+$UPD_KITS_REPORT
+
+Local Integer LCONPRI,LCONSEC,LLINEAPADRE
+Local Char    LITMPADRE(50),LDTOPADRE(50)
+
+  If !clalev([F:ZSDD0]) Then : Local File SDELIVERYD  [F:ZSDD0] : Endif
+  If !clalev([F:ZSDD1]) Then : Local File SDELIVERYD  [F:ZSDD1] : Endif
+
+  For [L]LCONPRI=0 To [M:SDH1]NBLIG-1
+    Raz LITMPADRE,LDTOPADRE
+    If [M:SDH1]LINTYP([L]LCONPRI) = 9 Then
+      If [M:SDH1]TSICOD1([L]LCONPRI) = '001' Then
+        [L]LLINEAPADRE  = [M:SDH1]SDDLIN([L]LCONPRI)
+        [L]LITMPADRE    = [M:SDH1]ITMREF([L]LCONPRI)
+        If [M:SDH1]DISCRGVAL1([L]LCONPRI) <> 0 Then
+          [L]LDTOPADRE    = num$([M:SDH1]DISCRGVAL1([L]LCONPRI))
+        Endif
+        If [M:SDH1]DISCRGVAL2([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SDH1]DISCRGVAL2([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SDH1]DISCRGVAL2([L]LCONPRI))
+          Endif
+        Endif
+        If [M:SDH1]DISCRGVAL3([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SDH1]DISCRGVAL3([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SDH1]DISCRGVAL3([L]LCONPRI))
+          Endif
+        Endif
+        Read [F:ZSDD0]SDD0 = [M:SDH0]SDHNUM;[M:SDH1]SDDLIN([L]LCONPRI)
+        [F:ZSDD0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSDD0]ZVARESTDTO  = [L]LDTOPADRE
+        If !adxlog Then : Trbegin [F:ZSDD0] : Endif
+        Rewrite [F:ZSDD0]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+        [L]LCONPRI += 1
+        For [L]LCONSEC=[L]LCONPRI To [M:SDH1]NBLIG-1
+          If [M:SDH1]LINTYP([L]LCONSEC) = 8 Then
+            Read [F:ZSDD1]SDD0 = [M:SDH0]SDHNUM;[M:SDH1]SDDLIN([L]LCONSEC)
+            [F:ZSDD1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+            [F:ZSDD1]ZVARESTDTO  = [L]LDTOPADRE
+            If !adxlog Then : Trbegin [F:ZSDD1] : Endif
+            Rewrite [F:ZSDD1]
+            If !fstat Then
+              Commit
+            Else
+              Rollback
+            Endif
+          Else
+            [L]LCONPRI = [L]LCONSEC + 1
+            Goto NEXT_COMPUESTO
+          Endif
+        Next
+$NEXT_COMPUESTO
+      Endif
+    Endif
+  Next
+
+  Close Local File [ZSDD0],[ZSDD1]
+
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
 #############################################################################
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla SDH2) 10/07/2024 11:06:04 (NUN12)

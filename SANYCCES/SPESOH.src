@@ -16,6 +16,7 @@
 #  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No)
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
 # 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
+# 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 #####################################################################################################
 
 $ACTION
@@ -127,12 +128,16 @@ $VERIF_CRE
   Affzo [M:YSOH5]YAPPWIP, YUSUARIOWIP
   GPE = 1
   #  @01@ -SCD - 14/06/2024 - FIN
-
 Return
+
 #######################################################
 #  @09@ - SCD - 23/04/2025 - INI
 $APRES_MOD
   Gosub RECALCULA_TOTALES
+
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 #######################################################
 $APRES_MODIF
@@ -143,6 +148,10 @@ Return
 #######################################################
 $APRES_CRE
   Gosub RECALCULA_TOTALES
+
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 #  @09@ - SCD - 23/04/2025 - FIN
 #######################################################
@@ -1437,3 +1446,87 @@ Variable Char    VALEUR()
   Affzo [M:SOH4]ZITMDESMODIF(nolign-1)
 # 26002.fin
 End
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# 2026-00006
+$UPD_KITS_REPORT
+
+
+Local Integer LCONPRI,LCONSEC,LLINEAPADRE
+Local Char    LITMPADRE(50),LDTOPADRE(50)
+
+  If !clalev([F:ZSOQ0]) Then : Local File SORDERQ [F:ZSOQ0] : Endif
+  If !clalev([F:ZSOP0]) Then : Local File SORDERP [F:ZSOP0] : Endif
+  If !clalev([F:ZSOQ1]) Then : Local File SORDERQ [F:ZSOQ1] : Endif
+  If !clalev([F:ZSOP1]) Then : Local File SORDERP [F:ZSOP1] : Endif
+
+  For [L]LCONPRI=0 To [M:SOH4]NBLIG-1
+    Raz LITMPADRE,LDTOPADRE
+    If [M:SOH4]LINTYP([L]LCONPRI) = 9 Then
+      If [M:SOH4]TSICOD1([L]LCONPRI) = '001' Then
+        [L]LLINEAPADRE  = [M:SOH4]SOPLIN([L]LCONPRI)
+        [L]LITMPADRE    = [M:SOH4]ITMREF([L]LCONPRI)
+        If [M:SOH4]DISCRGVAL1([L]LCONPRI) <> 0 Then
+          [L]LDTOPADRE    = num$([M:SOH4]DISCRGVAL1([L]LCONPRI))
+        Endif
+        If [M:SOH4]DISCRGVAL2([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SOH4]DISCRGVAL2([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SOH4]DISCRGVAL2([L]LCONPRI))
+          Endif
+        Endif
+        If [M:SOH4]DISCRGVAL3([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SOH4]DISCRGVAL3([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SOH4]DISCRGVAL3([L]LCONPRI))
+          Endif
+        Endif
+        Read [F:ZSOQ0]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+        Read [F:ZSOP0]SOP0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+        [F:ZSOQ0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSOQ0]ZVARESTDTO  = [L]LDTOPADRE
+        [F:ZSOP0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSOP0]ZVARESTDTO  = [L]LDTOPADRE
+        If !adxlog Then : Trbegin [F:ZSOQ0] : Endif
+        Rewrite [F:ZSOQ0]
+        Rewrite [F:ZSOP0]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+        [L]LCONPRI += 1
+        For [L]LCONSEC=[L]LCONPRI To [M:SOH4]NBLIG-1
+          If [M:SOH4]LINTYP([L]LCONSEC) = 8 Then
+            Read [F:ZSOQ1]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONSEC);[M:SOH4]SOPLIN([L]LCONSEC)
+            Read [F:ZSOP1]SOP0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONSEC);[M:SOH4]SOPLIN([L]LCONSEC)
+            [F:ZSOQ1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+            [F:ZSOQ1]ZVARESTDTO  = [L]LDTOPADRE
+            [F:ZSOP1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+            [F:ZSOP1]ZVARESTDTO  = [L]LDTOPADRE
+            If !adxlog Then : Trbegin [F:ZSOQ1] : Endif
+            Rewrite [F:ZSOQ1]
+            Rewrite [F:ZSOP1]
+            If !fstat Then
+              Commit
+            Else
+              Rollback
+            Endif
+          Else
+            [L]LCONPRI = [L]LCONSEC + 1
+            Goto NEXT_COMPUESTO
+          Endif
+        Next
+$NEXT_COMPUESTO
+      Endif
+    Endif
+  Next
+
+  Close Local File [ZSOQ0],[ZSOP0],[ZSOQ1],[ZSOP1]
+
+Return

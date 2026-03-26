@@ -7,6 +7,7 @@
 # @05@ - SCD - 26/09/2024 - Facturas y abonos simplificados(R5)
 # @06@ - JLP - 09/12/2025 - Incidencia al rescatar una factura en el campo de enviada
 # @07@ - JMF - 13/01/2026 - Incidencia al rescatar una factura en los campos YLIQFLG Y YLIQDAT
+# 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla SIH0) 10/01/2023 09:25:57 (NUN04)
@@ -19,6 +20,8 @@ Case ACTION
     When "FILGAUCHE": Gosub FILGAUCHE # @02@ - VEG
     When "INICRE"   : Gosub INICRE
     When "STATUT"   : Gosub STATUT # @01@-JLP-18/04/2024
+    When "APRES_CRE": Gosub APRES_CRE
+    When "APRES_MOD": Gosub APRES_MOD
     When Default
 Endcase
 Return
@@ -27,7 +30,6 @@ Return
 $SETBOUT
 CHMEN += 'SZ'
 Gosub SET_BOUT_SPE From GSAISIE
-
 Return
 
 ######################################################################################
@@ -136,6 +138,21 @@ Endif
 Gosub COMP_QTY_LIN # @03@ - EQM
 
 Return
+
+######################################################################################
+$APRES_CRE
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
+Return
+
+######################################################################################
+$APRES_MOD
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
+Return
+
 ######################################################################################
 Subprog AM_BPCINV(VALEUR)
 Variable Char    VALEUR()
@@ -181,7 +198,9 @@ Endif
 
 End
 
-
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
 ######################################################################################
 $COMP_QTY_LIN
 
@@ -269,3 +288,73 @@ $COMP_QTY
 Return
 ######################################################################################
 # @03@ - FIN
+
+##############################################################
+# 2026-00006
+$UPD_KITS_REPORT
+
+Local Integer LCONPRI,LCONSEC,LLINEAPADRE
+Local Char    LITMPADRE(50),LDTOPADRE(50)
+
+  If !clalev([F:ZSID0]) Then : Local File SINVOICED [F:ZSID0] : Endif
+  If !clalev([F:ZSID1]) Then : Local File SINVOICED [F:ZSID1] : Endif
+
+  For [L]LCONPRI=0 To [M:SIH4]NBLIG-1
+    Raz LITMPADRE,LDTOPADRE
+    If [M:SIH4]LINTYP([L]LCONPRI) = 9 Then
+      If [M:SIH4]TSICOD1([L]LCONPRI) = '001' Then
+        [L]LLINEAPADRE  = [M:SIH4]SIDLIN([L]LCONPRI)
+        [L]LITMPADRE    = [M:SIH4]ITMREF([L]LCONPRI)
+        If [M:SIH4]DISCRGVAL1([L]LCONPRI) <> 0 Then
+          [L]LDTOPADRE    = num$([M:SIH4]DISCRGVAL1([L]LCONPRI))
+        Endif
+        If [M:SIH4]DISCRGVAL2([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SIH4]DISCRGVAL2([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SIH4]DISCRGVAL2([L]LCONPRI))
+          Endif
+        Endif
+        If [M:SIH4]DISCRGVAL3([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SIH4]DISCRGVAL3([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SIH4]DISCRGVAL3([L]LCONPRI))
+          Endif
+        Endif
+        Read [F:ZSID0]SID0 = [M:SIH0]NUM;[M:SIH4]SIDLIN([L]LCONPRI)
+        [F:ZSID0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSID0]ZVARESTDTO  = [L]LDTOPADRE
+        If !adxlog Then : Trbegin [F:ZSID0] : Endif
+        Rewrite [F:ZSID0]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+        [L]LCONPRI += 1
+        For [L]LCONSEC=[L]LCONPRI To [M:SIH4]NBLIG-1
+          If [M:SIH4]LINTYP([L]LCONSEC) = 8 Then
+            Read [F:ZSID1]SID0 = [M:SIH0]NUM;[M:SIH4]SIDLIN([L]LCONSEC)
+            [F:ZSID1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+            [F:ZSID1]ZVARESTDTO  = [L]LDTOPADRE
+            If !adxlog Then : Trbegin [F:ZSID1] : Endif
+            Rewrite [F:ZSID1]
+            If !fstat Then
+              Commit
+            Else
+              Rollback
+            Endif
+          Else
+            [L]LCONPRI = [L]LCONSEC + 1
+            Goto NEXT_COMPUESTO
+          Endif
+        Next
+$NEXT_COMPUESTO
+      Endif
+    Endif
+  Next
+
+  Close Local File [ZSID0],[ZSID1]
+
+Return
