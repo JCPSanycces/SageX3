@@ -16,6 +16,7 @@
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
 # 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
+# 2026-00007 - JCP.27032026.Servicio de trasportista
 #####################################################################################################
 
 $ACTION
@@ -122,6 +123,20 @@ $VERIF_CRE
   Affzo [M:YSOH5]YAPPWIP, YUSUARIOWIP
   GPE = 1
   #  @01@ -SCD - 14/06/2024 - FIN
+
+# 2026-00007.ini
+  If GNAVIG(GPILNAV-1) = "GESSQH" and [M:SOH2]BPTNUM <> "" Then
+    If !clalev([F:YTRAN0]) Then : Local File YTRAN [F:YTRAN0] : Endif
+    Read [F:YTRAN0]YTRAN0 = [M:SOH2]BPTNUM
+    If !fstat Then
+      [M:SOH2]YSERVDEF  = [F:YTRAN0]YSERVDEF
+      [M:SOH2]YTERMDEF  = [F:YTRAN0]YTERMDEF
+      Affzo [M:SOH2]YSERVDEF
+      Affzo [M:SOH2]YTERMDEF
+    Endif
+    Close Local File [YTRAN0]
+  Endif
+# 2026-00007.fin
 Return
 
 #######################################################
