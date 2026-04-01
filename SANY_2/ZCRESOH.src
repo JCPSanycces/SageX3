@@ -1,4 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# 2026-00012 - JCP.01042026.Importar los pedidos EDI
+##############################################################################
+
 Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,STOFCY,CUR,TEXTOC1,TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR)
   #--
   Value    Char    SALFCY()
@@ -84,6 +87,12 @@ $ECR_HEAD
   Wrseq "E";                             Using [ZCRE]
   Wrseq SALFCY;                          Using [ZCRE] #--
   Wrseq SOHTYP;                          Using [ZCRE] #--
+# 2026-00012.ini
+  Local Integer STAT
+  If SOHNUM = ""
+    Call NUMERO("ZPDV",SALFCY,date$,"null",SOHNUM,STAT) From SUBANM
+  Endif
+# 2026-00012.fin
   Wrseq SOHNUM;                          Using [ZCRE] #--
   Wrseq BPCORD;                          Using [ZCRE] #--
   Wrseq BPAADD;                          Using [ZCRE] #--
