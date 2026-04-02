@@ -14,9 +14,9 @@ Return
 #########################################################################
 $SEL_TABLE
 # 2026-00013.ini
-#If GFONCTION = 'YGENSDH'
-If find(GFONCTION,'YGENSDH','CONSCSO','CONSCSP')
+Return
 # 2026-00013.fin
+If GFONCTION = 'YGENSDH'
   Return
 Endif
 Case TABLE
