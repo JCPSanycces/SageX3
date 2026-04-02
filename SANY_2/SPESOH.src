@@ -17,6 +17,7 @@
 # 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 # 2026-00007 - JCP.27032026.Servicio de trasportista
+# 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
 #####################################################################################################
 
 $ACTION
@@ -24,6 +25,7 @@ $ACTION
 Case ACTION
   When "INICRE"      : Gosub INICRE
   When "VERIF_CRE"   : Gosub VERIF_CRE   #  @01@ -SCD - 14/06/2024 - INI
+  When "VERIF_MOD"   : Gosub VERIF_MOD
   When "CREATION"    : Gosub CREATION #--ZVE06
   When "LIENS_LIG"   : Gosub LIENS_LIG
   When "LIENS"       : Gosub LIENS #  @04@ - EQM
@@ -137,6 +139,45 @@ $VERIF_CRE
     Close Local File [YTRAN0]
   Endif
 # 2026-00007.fin
+
+# 2026-00010.ini
+  If [M:SOH2]BPTNUM = "NA000008" Then
+    If [M:SOH2]YSERVDEF = "" and [M:SOH2]YTERMDEF = "" Then
+      OK=0
+      Call ERREUR("Para el transportista NA000008 se deben informar los campos 'Servicio' y 'Término'") From GESECRAN
+      Return
+    Endif
+  Endif
+  If [M:SOH2]BPTNUM = "NA002854" Then
+    If [M:SOH2]YSERVDEF = "" Then
+      Call ERREUR("Para el transportista NA002854 se debe informar el campo 'Servicio'") From GESECRAN
+      OK=0
+      Return
+    Endif
+  Endif
+# 2026-00010.fin
+Return
+
+#######################################################
+$VERIF_MOD
+# 2026-00010.ini
+  If [M:SOH2]BPTNUM = "NA000008" Then
+    If [M:SOH2]YSERVDEF = "" or [M:SOH2]YTERMDEF = "" Then
+      OK=0
+      Call ERREUR("Para el transportista NA000008 se deben informar los campos 'Servicio' y 'Término'") From GESECRAN
+      zonsui = "[M:SOH2]YSERVDEF"
+      Return
+    Endif
+  Endif
+  If [M:SOH2]BPTNUM = "NA002854" Then
+    If [M:SOH2]YSERVDEF = "" Then
+      Call ERREUR("Para el transportista NA002854 se debe informar el campo 'Servicio'") From GESECRAN
+      zonsui = "[M:SOH2]YSERVDEF"
+      OK=0
+      Return
+    Endif
+  Endif
+# 2026-00010.fin
 Return
 
 #######################################################
