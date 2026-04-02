@@ -1,4 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# 2026-00013 - JCP.02042026.Ventana emergente del Cliente en Consulta Lineas Pedido
+############################################################################################
+
 # Selección automática de clientes a partir del campo SPE con las dos razones sociales concatenadas
 $ACTION
 Case ACTION
@@ -10,7 +13,10 @@ Return
 
 #########################################################################
 $SEL_TABLE
-If GFONCTION = 'YGENSDH'
+# 2026-00013.ini
+#If GFONCTION = 'YGENSDH'
+If find(GFONCTION,'YGENSDH','CONSCSO','CONSCSP')
+# 2026-00013.fin
   Return
 Endif
 Case TABLE
