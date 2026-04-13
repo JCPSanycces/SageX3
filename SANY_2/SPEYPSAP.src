@@ -2,8 +2,10 @@
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 # @01@ - EQM - 30/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
 # @02@ - EQM - 16/09/2025 - Mejoras etiquetas
+# @03@ - JLP - 01/04/2026 - Ajuste desarrollo para impresion etiquetas sin numero de serie
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
+#If GUSER ='NUN28' : Infbox ACTION : Endif
 Case ACTION
   When "DEBUT"     :  Gosub DEBUT
   When "AVANT_OK"  :  Gosub AVANT_OK
@@ -114,6 +116,7 @@ Elsif GL1LLE(7)="2"
 Endif
 
 Affzo [M:YPSAP]
+
 Return
 
 
@@ -212,11 +215,13 @@ If GL1LLE(7)="1"
   Local Integer OK9
   Call OUINON("¿Quiere imprimir la documentación de las OFs seleccionadas?",OK9) From GESECRAN
   If OK9 = 2
+  If GL1LLE(5)= "2" # @03@ - JLP - 01/04/2026 - Ajuste desarrollo para impresion etiquetas sin numero de serie
     For LINE=0 To [M:YPSAP]PIE_S-1
       If [M:YPSAP]S_SEL(LINE) = 2
         # Gestiono la impresión
         Read [XP6]MFG0=[M:YPSAP]S_OF  # @01@ - EQM
         If !fstat
+#            If GUSER = 'NUN28' : Infbox [XP6]PLNFCY - [XP6]MFGNUM - [M:YPSA]FECHA(I) - [M:YPSAP]S_NSERIE(LINE)  : Endif
             Call PRINT_OF(1,[XP6]PLNFCY,[XP6]MFGNUM,[M:YPSA]FECHA(I),[M:YPSAP]S_NSERIE(LINE),1) From SPEYPSA    #@02@ - EQM - Añado parámetros
             Read [XP1]ITM0 = [M:YPSAP]S_ARTICULO
             If fstat = 0
@@ -268,6 +273,56 @@ If GL1LLE(7)="1"
         Endif
       Endif
     Next
+# @03@ - JLP - 01/04/2026 - Ajuste desarrollo para impresion etiquetas sin numero de serie - INI
+  Elsif GL1LLE(5)= "1" # Si el artículo no tiene gestión de números de serie
+      Read [XP6]MFG0=[M:YPSAP]S_OF  # @01@ - EQM
+      If !fstat
+          Call PRINT_OF(1,[XP6]PLNFCY,[XP6]MFGNUM,[M:YPSA]FECHA(I),"",[M:YPSAP]S_QTYI) From SPEYPSA    #@02@ - EQM - Añado parámetros
+          Read [XP1]ITM0 = [M:YPSAP]S_ARTICULO
+          If fstat = 0
+              Read [XP2]ZITML0 = [XP1]TSICOD(1)    # Familia
+              If fstat = 0
+                  NETI_COR = [XP2]QTYETQCOR # @02@ - EQM
+                  For XI=1 To [M:YPSAP]S_QTYI
+                      If [XP2]QTYETQEAN13>0
+                          Call PRINT_ETI([XP6]MFGNUM,[XP2]ETQEAN13,1) From SPEYPSA                        #ETIQUETA PRODUCTO    # @01@ - EQM
+                      Endif
+                      If [XP2]QTYETQSER>0
+                          Call PRINT_ETI_SER([M:YPSAP]S_OF,[XP2]ETQSER,"",1)         #ETIQUETA SERIE       # @01@ - EQM
+                      Endif
+                      If [XP2]QTYETQMOT>0
+                          #@02@ - EQM - 16/09/2025  AÑADIMOS QUE IMPRIMA TANTOS PDF COMO CANTIDAD A INICIAR
+                          Call PRINT_ETI([XP6]MFGNUM,[XP2]ETQMOTOR,[M:YPSAP]S_QTYI)   From SPEYPSA                      #ETIQUETA MOTOR       # @01@ - EQM
+                      Endif
+                      If [XP2]QTYETQCOR>0
+                          For [XP7] Where [XP7]MFGNUM=[XP6]MFGNUM
+                              Read [XP8]SOQ0 = [XP7]VCRNUMORI;[XP7]VCRLINORI;[XP7]VCRSEQORI
+                              If fstat = 0
+                                If [XP8]ZALTO <>0 or [XP8]ZANCHO<>0 or [XP8]ZLARGO <>0
+                                  If [L]NETI_COR > 0
+                                      Call PRINT_ETI([XP6]MFGNUM, [XP2]ETQCORTE,1)     From SPEYPSA        #ETIQUETA CORTE      # @01@ - EQM
+                                  Endif
+                                Endif
+                              Endif
+                          Next
+                      Endif
+                  Next
+                  For [XP11] Where [XP11]FMINUM=[XP6]MFGNUM
+                        Read [XP11]
+                        If !fstat
+                            For [XP10] Where  [XP10]SOHNUM=[XP11]SOHNUM and [XP10]ZLINASOC=[XP11]SOPLIN and [XP10]ZASOCIADO=2
+                                Read[XP10]
+                                If !fstat
+                                    Call PRINT_ETI_ASO([XP10]SOHNUM,[XP10]ITMREF,[XP10]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM  From SPEYPSA
+                                Endif
+                            Next
+                        Endif
+                   Next
+                Endif
+            Endif
+        Endif
+  Endif
+# @03@ - JLP - 01/04/2026 - Ajuste desarrollo para impresion etiquetas sin numero de serie - FIN
   Endif
 
   # Gestiono la baja, solo un proceso con toda la cantidad iniciada

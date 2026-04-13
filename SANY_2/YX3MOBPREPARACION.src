@@ -1731,29 +1731,36 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION, PIMP_ETIQUETAS, PIMP_DOCS, P
                   Endif
                 When Default:
                   If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+                  If !clalev([YTRK]) : Local File YTRKENVIOS [YTRK] : Endif
+
                   Local Char LMENSAJE(255) : Raz LMENSAJE
 
                   Read [YTRA]YTRAN0 = [YPRH]BPTNUM
                   If !fstat
-                    Case [YTRA]YFUNC
-                      When 1: # MRW
-                        Call ENVIO('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
-                        If LMENSAJE <> "Ok"
-                          PRES = "125"
-                          PMESS = [L]LMENSAJE
-                          Goto TERMINAR
-                        Endif
-                      When 2: # DACHSER
-                        Call ENVIO('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
-                        If LMENSAJE <> "Ok" and LMENSAJE <> ""
-                          PRES = "125"
-                          PMESS = [L]LMENSAJE
-                          Goto TERMINAR
-                        Endif
-                    Endcase
+                    Filter [YTRK] Where VCRNUM = [YPRH]PRHNUM and YNUMSOL <> ''
+                    If rowcount(YTRK) = 0 Then
+                      Case [YTRA]YFUNC
+                        When 1: # MRW
+                          Call ENVIO('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
+                          If LMENSAJE <> "Ok"
+                            PRES = "125"
+                            PMESS = [L]LMENSAJE
+                            Goto TERMINAR
+                          Endif
+                        When 2: # DACHSER
+                          Call ENVIO('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
+                          If LMENSAJE <> "Ok" and LMENSAJE <> ""
+                            PRES = "125"
+                            PMESS = [L]LMENSAJE
+                            Goto TERMINAR
+                          Endif
+                      Endcase
+                    Endif
+                    Filter [YTRK]
                   Endif
 
                   Close Local File [YTRA]
+                  Close Local File [YTRK]
               Endcase
 
               # Generamos la/s entrega/s

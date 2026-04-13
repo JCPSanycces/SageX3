@@ -1756,13 +1756,102 @@ Subprog GETLISTCONTENEDORES(QUERY, PPCK, PLANDESSHO, PLBLFMT, PPCKWEI, PPCKLEN, 
   Close Local File [F:YTPA]
 End
 
+##**
+##* Sub rellena los datos del bulto que faltan
+##* lo da por terminado
+##* imprime la etiqueta
+##*
+##*!
+#Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR,  PRES, PMESS)
+#  # Entrada
+#  Value Char PPACNUM()
+#  Value Char PPCK()
+#  Value Char PLBLFMT()
+#  Value Decimal PNETWEI
+#  Value Decimal  PBRWEI
+#  Value Decimal PPCKWEI
+#  Value Decimal PVOL
+#  Value Decimal  PPCKLEN
+#  Value Decimal PPCKWID
+#  Value Decimal PPCKHEI
+#  Value Char PCAMION()
+#  Value Char PUSR
+#  # Salida
+#  Variable Char PRES
+#  Variable Char PMESS
+#
+#  Local Char INFNAM
+#  Local Char DESTINO
+#  Local Decimal  PESONETO
+#  Local Char PRELPN
+#  Local Integer LCERRADO
+#
+#  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
+#  If !clalev([JMF1]) Then : Local File YSPACKD     [JMF1] : Endif
+#
+#  Filter [JMF1] Where PACNUM = PPACNUM
+#  Read [JMF1] First
+#  If !fstat Then
+#    Local Char HORA(6)
+#    HORA = num$(time$)
+#    HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,2)
+#
+#    PRES="100"
+#    PMESS="No se encuentra el bulto/paquete"
+#    Filter [F:YSPH] Where PACNUM=PPACNUM
+#      For [F:YSPH]
+#        LCERRADO = [YSPH]YCERRADO
+#
+#        Trbegin [F:YSPH]
+#        [F:YSPH]PCK=PPCK
+#        [F:YSPH]NETWEI=PNETWEI
+#        [F:YSPH]YBRWEI=PBRWEI
+#        [F:YSPH]YPCKHEI=PPCKHEI
+#        [F:YSPH]YPCKLEN=PPCKLEN
+#        [F:YSPH]YPCKWID=PPCKWID
+#        [F:YSPH]YPCKHEI=PPCKHEI
+#        [F:YSPH]VOL=PVOL
+#        [F:YSPH]YCAMION=PCAMION
+#        [F:YSPH]YFECHA = date$
+#        [F:YSPH]YHORA = HORA
+#        [F:YSPH]YCERRADO=2 #CERRAMOS EL BULTO
+#        Rewrite [F:YSPH]
+#        If !fstat Then
+#          Commit
+#
+#          If LCERRADO <> 2 Then
+#            Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
+#
+#            Local Char LDEST(50) : LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
+#            If LDEST <> ""
+#              DESTINO = LDEST
+#            Endif
+#
+#            Call IMPETIQSPACK(PPACNUM, INFNAM,DESTINO)
+#          Endif
+#
+#
+#          PRES="200"
+#          PMESS="OK"
+#
+#        Else
+#          Rollback
+#        Endif
+#      Next
+#    Filter [F:YSPH]
+#  Endif
+#
+#  Close Local File [YSPH]
+#  Close Local File [JMF1]
+#End
+
 #**
 #* Sub rellena los datos del bulto que faltan
 #* lo da por terminado
 #* imprime la etiqueta
 #*
 #*!
-Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR,  PRES, PMESS)
+Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR, PDESTINO, PRES, PMESS)
   # Entrada
   Value Char PPACNUM()
   Value Char PPCK()
@@ -1776,6 +1865,7 @@ Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI
   Value Decimal PPCKHEI
   Value Char PCAMION()
   Value Char PUSR
+  Value Char PDESTINO
   # Salida
   Variable Char PRES
   Variable Char PMESS
@@ -1822,7 +1912,13 @@ Subprog FINALIZARBULTO(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI
           If LCERRADO <> 2 Then
             Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
 
-            Local Char LDEST(50) : LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
+            Local Char LDEST(50)
+            LDEST = PDESTINO
+
+            If LDEST = "" Then
+              LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
+            Endif
+
             If LDEST <> ""
               DESTINO = LDEST
             Endif
@@ -1872,11 +1968,301 @@ End
 #* @param PMESS, mensaje
 #*!
 
-Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
+#Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
+#  # Entrada
+#  Value Char PPRHNUM()
+#  Value Char PUSR()
+#  Value Integer PCAMION
+#  # Salida
+#  Variable Char PRES()
+#  Variable Char PMESS()
+#
+#  Local Char LOK(1)
+#  Local Char LNUM_ENTREGA(25) : Raz LNUM_ENTREGA
+#
+#  If !clalev([YPRH])  Then : Local File STOPREH      [YPRH]  : Endif
+#  If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
+#  If !clalev([YBPT])  Then : Local File BPCARRIER    [YBPT]  : Endif
+#  If !clalev([YSPA])  Then : Local File YSPACK       [YSPA]  : Endif
+#  If !clalev([YBPA])  Then : Local File BPADDRESS [YBPA]  : Endif
+#
+#    LOK="S"
+#
+#
+#    # @05@ - JMF
+##    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and ([F:YYPR2]QTYSTU-[F:YYPR2]YQTYSTU) > 0 and [YYPR2]ALLQTY<>0
+#    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and [YYPR2]ALLQTY<>0
+#    For [F:YYPR2]
+#      Local Decimal CANT_EMPAQUETADA
+#      CANT_EMPAQUETADA = func GETCANTIDADEMPAQUETADA(PPRHNUM, [YYPR2]PRELIN)
+#      If [F:YYPR2]QTYSTU - [L]CANT_EMPAQUETADA > 0 Then
+#        LOK="N"
+#        PRES="175"
+#        PMESS="Preparación sin terminar. No se puede finalizar."
+#        Break
+#      Endif
+#    Next
+#    Filter [F:YYPR2]
+#
+#    # Solamente lo marco entregable si el transportista tiene en el campo Modo de Entrega = Entregable directo
+#    If LOK="S"
+#      Read [YPRH]PRH0=PPRHNUM
+#      If !fstat Then
+#        Read [YBPT]BPT0 = [YPRH]BPTNUM
+#        If fstat = 0
+#          If [YBPT]YMODENTREGA <> 1
+#            LOK="N"
+#            PRES = "200"
+#            PMESS = "Modo de entrega NO directo. No se realiza ninguna acción adicional."
+#          Endif
+#        Else
+#          LOK="N"
+#        Endif
+#      Else
+#        LOK="N"
+#      Endif
+#    Endif
+#
+#    Local Char HORA(6)
+#    HORA = num$(time$)
+#    HORA = mid$(HORA, 1, 2) + mid$(HORA, 4, 2) + mid$(HORA, 7, 2)
+#
+#    # JMF - 20.06.24 - Guardamos la fecha y la hora de finalización de la preparación en los bultos
+#    Filter [YSPA] Where VCRNUM = PPRHNUM
+#    For [YSPA]
+#      Trbegin [YSPA]
+#      [YSPA]YFECHAP = date$
+#      [YSPA]YHORAP = HORA
+#      Rewrite [YSPA]
+#      If !fstat
+#        Commit
+#      Else
+#        Rollback
+#      Endif
+#    Next
+#    Filter [YSPA]
+#
+## @01@ - SCD - 25/06/2024 - INI
+#
+#    Read [F:YPRH]PRH0=PPRHNUM
+#    If !fstat Then
+#      [F:YPRH]YESTADOPREP = 3
+#      Rewrite [F:YPRH]
+#    Endif
+#
+## @01@ - SCD - 25/06/2024 - FIN
+#
+#    # -----------------------------------
+#
+#    If LOK="S" Then
+#      #Modificación 10/12/24. Actualizo las líneas del pedido de venta
+#      If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
+#      If !clalev([SOH])  Then : Local File SORDER   [SOH]  : Endif
+#      If !clalev([SOQ])  Then : Local File SORDERQ  [SOQ]  : Endif
+#      If !clalev([SOP])  Then : Local File SORDERP  [SOP]  : Endif
+#      If clalev([M:ORDK])=0 Local Mask ORDK [ORDK] Endif
+#
+#      Filter [F:YYPR2] Where PRHNUM=PPRHNUM
+#        For [F:YYPR2]
+#          If find([F:YYPR2]ORITYP,1,2)
+#           Call MAJ_SOQ (3,[F:YYPR2]ORINUM,[F:YYPR2]ORILIN,[F:YYPR2]ORISEQ,[F:YYPR2]PCU,[F:YYPR2]PCUSTUCOE,[F:YYPR2]QTYSTU) From STKPREPA
+#           If GOK=0 Break Endif
+#          Endif
+#        Next
+#      Filter [F:YYPR2]
+#
+#      If GOK = 0
+#        End
+#      Endif
+#      #Modificación 10/12/24. Fin
+#
+#      Local Integer I
+#      I=0
+#      Read [F:YPRH]PRH0=PPRHNUM
+#      If !fstat Then
+#        Trbegin [F:YPRH]
+#        [F:YPRH]DLVFLG = 2
+#        [F:YPRH]YCAMION = PCAMION
+#        Rewrite [F:YPRH]
+#        If !fstat Then
+#          Commit
+#
+#          # Si hemos llegado hasta aquí es porque el transportista tiene en el campo Modo de Entrega = Entregable directo,
+#          # por lo que actualizamos todos los bultos a Cargado = Sí
+#          Filter [YSPA] Where VCRNUM = PPRHNUM
+#          For [YSPA]
+#            Trbegin [YSPA]
+#            [YSPA]YCARGADO = 2
+#            Rewrite [YSPA]
+#            If !fstat Then
+#              Commit
+#            Else
+#              Rollback
+#            Endif
+#          Next
+#
+#          # @02@ - JMF - 15/07/2024 - Si la entrega es automática, generamos entregas
+#          If [YBPT]YMODENTREGA = 1 Then
+#            If [YBPT]YDOCUMENTA = 1 Then
+#
+#              #@04@ - Inicio
+#              Local Char INFORME_PREP(20) : INFORME_PREP = "Y_SAN_DOCP_PRU"
+#              Local Integer LRES_IMPR_PREP : Raz LRES_IMPR_PREP
+#
+#              Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, LRES_IMPR_PREP)
+#              #@04@ - Fin
+#
+#              YGUSERI3 = PUSR
+#
+#              # @05@ - Envío de documento de preparación a Dascher o transportistas con envío por email (ej: General Courier)
+#              Case [YBPT]YTIPENVAGE
+#                When 1: # Generación fichero integración con Dachser
+#                  Local Integer LERR
+#                  Local Char LOK
+#                  Call DACHSER_CHECK(PPRHNUM,LERR) From YENVDACH
+#
+#                  # Si todo OK, genero fichero
+#                  If LERR = 0
+#                    LOK = ""
+#                    Call DACHSER_GENERA_FICHERO(PPRHNUM,LOK) From YENVDACH
+#                    If LOK = 'N'
+#                      Call TRAZA_DACHSER(PPRHNUM,4,GUSER,2) From YENVDACH
+#                    Else
+#                      [F:YPRH]YDACESTADO  = 5
+#                      [F:YPRH]YDACFECHA   = date$
+#                      [F:YPRH]YDACHORA    = time$
+#                      [F:YPRH]YDACUSUARIO = GUSER
+#                      Trbegin [F:YPRH]
+#                        Rewrite [F:YPRH]
+#                      Commit
+#                      Call TRAZA_DACHSER(PPRHNUM,5,GUSER,0) From YENVDACH
+#                    Endif
+#                  Endif
+#                When 2: # Email
+#                  #Borramos primero el fichero
+#                    Local Char YNOMFIC(255) : YNOMFIC = filpath("FILES/SDH","preparacion_sanycces_" + PUSR, "pdf")
+#                    Local Integer DEL_STA
+#                    DEL_STA = Delfile(YNOMFIC)
+#                    If DEL_STA = 0 or DEL_STA = -20 Then
+#                      # Generamos PDF
+#                      Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, LRES_IMPR_PREP)
+#                      # Esperamos a que se cree el fichero
+#                      Local Integer I, J
+#                      For I = 0 To 30
+#                        Sleep 1
+#                        J = filinfo(YNOMFIC, 7)
+#                        If J > 0 Then
+#                          Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255), GYRECIPIENT4(255), GYRECIPIENT5(255), GYOBJETC(100),GYMAILTEXT(255), GYFILE(255), GYENTREGA(25)
+#
+#                          GYENTREGA = [F:YPRH]PRHNUM
+#
+#                          Read [YBPA]BPA0 = 1;[YPRH]BPTNUM;[YBPT]BPAADD
+#                          If !fstat Then
+#                            GYRECIPIENT1 = "cargas@sanycces.es"
+#
+#                            If [YBPA]WEB(0) <> "" Then
+#                              GYRECIPIENT2 = [YBPA]WEB(0)
+#                            Endif
+#                            If [YBPA]WEB(1) <> "" Then
+#                              GYRECIPIENT3 = [YBPA]WEB(1)
+#                            Endif
+#                            If [YBPA]WEB(2) <> "" Then
+#                              GYRECIPIENT4 = [YBPA]WEB(2)
+#                            Endif
+#                            If [YBPA]WEB(3) <> "" Then
+#                              GYRECIPIENT5 = [YBPA]WEB(3)
+#                            Endif
+#
+#                            GYOBJETC    = "SANYCCES - Preparación " + GYENTREGA
+#                            #GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
+#                            GYFILE = YNOMFIC
+#
+#                            Call WORKFLOW(1,"YMA","",PUSR) From AWRK
+#                          Endif
+#
+#                          Kill GYRECIPIENT1
+#                          Kill GYRECIPIENT2
+#                          Kill GYRECIPIENT3
+#                          Kill GYRECIPIENT4
+#                          Kill GYRECIPIENT5
+#                          Kill GYOBJETC
+#                          Kill GYMAILTEXT
+#                          Kill GYFILE
+#                          Kill GYENTREGA
+#
+#                          Break
+#                        Endif
+#                      Next I
+#                    Endif
+#                When Default:
+#                  If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+#                  Local Char LMENSAJE(255) : Raz LMENSAJE
+#
+#                  Read [YTRA]YTRAN0 = [YPRH]BPTNUM
+#                  If !fstat
+#                    Case [YTRA]YFUNC
+#                      When 1: # MRW
+#                        Call ENVIO('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, [L]LMENSAJE) From YINTTRANS
+#                        If LMENSAJE <> "Ok"
+#                          PRES = "125"
+#                          PMESS = [L]LMENSAJE
+#                          Goto TERMINAR
+#                        Endif
+#                      When 2: # DACHSER
+#                        Call ENVIO('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, [L]LMENSAJE) From YINTTRANS
+#                        If LMENSAJE <> "Ok" and LMENSAJE <> ""
+#                          PRES = "125"
+#                          PMESS = [L]LMENSAJE
+#                          Goto TERMINAR
+#                        Endif
+#                    Endcase
+#                  Endif
+#
+#                  Close Local File [YTRA]
+#              Endcase
+#
+#              # Generamos la/s entrega/s
+#              #Call MAKE_SDH(PPRHNUM, LNUM_ENTREGA)
+#              # @05@ - Fin
+#            Endif
+#          Endif
+#
+#          PRES="200"
+#          PMESS="OK"
+#        Else
+#          Rollback
+#          PRES="100"
+#          PMESS="Problema modificando entregable en: " +PPRHNUM
+#          End
+#        Endif
+#      Else
+#        PRES="150"
+#        PMESS="No existe: "+PPRHNUM
+#      Endif
+#    Endif
+#$TERMINAR
+#  Close Local File [F:YPRH], [F:YYPR2], [YBPT], [YSPA], [YBPA]
+#End
+
+#**
+#*
+#* cambia el estado de la dcoumento  de preparación a "entregable"
+#* Comprueba primero que no queda nada por entregar
+#* Si el transportista es DACHSER lanzo la generación del envío del fichero de forma automática
+#*
+#* @param PPRHNUM, lista de distribución
+#* @param PUSR, usuario que finaliza la preparación
+#* @param PRES , resultado del web service
+#* @param PMESS, mensaje
+#*!
+
+Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION, PIMP_ETIQUETAS, PIMP_DOCS, PRES, PMESS)
   # Entrada
   Value Char PPRHNUM()
   Value Char PUSR()
   Value Integer PCAMION
+  Value Char PIMP_ETIQUETAS
+  Value Char PIMP_DOCS
   # Salida
   Variable Char PRES()
   Variable Char PMESS()
@@ -1894,7 +2280,6 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
 
 
     # @05@ - JMF
-#    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and ([F:YYPR2]QTYSTU-[F:YYPR2]YQTYSTU) > 0 and [YYPR2]ALLQTY<>0
     Filter [F:YYPR2] Where PRHNUM=PPRHNUM and [YYPR2]ALLQTY<>0
     For [F:YYPR2]
       Local Decimal CANT_EMPAQUETADA
@@ -2013,7 +2398,7 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
               Local Char INFORME_PREP(20) : INFORME_PREP = "Y_SAN_DOCP_PRU"
               Local Integer LRES_IMPR_PREP : Raz LRES_IMPR_PREP
 
-              Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, LRES_IMPR_PREP)
+              Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
               #@04@ - Fin
 
               YGUSERI3 = PUSR
@@ -2044,85 +2429,92 @@ Subprog TERMINARPREPARACION(PPRHNUM, PUSR, PCAMION,  PRES, PMESS)
                   Endif
                 When 2: # Email
                   #Borramos primero el fichero
-                    Local Char YNOMFIC(255) : YNOMFIC = filpath("FILES/SDH","preparacion_sanycces_" + PUSR, "pdf")
-                    Local Integer DEL_STA
-                    DEL_STA = Delfile(YNOMFIC)
-                    If DEL_STA = 0 or DEL_STA = -20 Then
-                      # Generamos PDF
-                      Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, LRES_IMPR_PREP)
-                      # Esperamos a que se cree el fichero
-                      Local Integer I, J
-                      For I = 0 To 30
-                        Sleep 1
-                        J = filinfo(YNOMFIC, 7)
-                        If J > 0 Then
-                          Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255), GYRECIPIENT4(255), GYRECIPIENT5(255), GYOBJETC(100),GYMAILTEXT(255), GYFILE(255), GYENTREGA(25)
+                  Local Char YNOMFIC(255) : YNOMFIC = filpath("FILES/SDH","preparacion_sanycces_" + PUSR, "pdf")
+                  Local Integer DEL_STA
+                  DEL_STA = Delfile(YNOMFIC)
+                  If DEL_STA = 0 or DEL_STA = -20 Then
+                    # Generamos PDF
+                    Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
+                    # Esperamos a que se cree el fichero
+                    Local Integer I, J
+                    For I = 0 To 30
+                      Sleep 1
+                      J = filinfo(YNOMFIC, 7)
+                      If J > 0 Then
+                        Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255), GYRECIPIENT4(255), GYRECIPIENT5(255), GYOBJETC(100),GYMAILTEXT(255), GYFILE(255), GYENTREGA(25)
 
-                          GYENTREGA = [F:YPRH]PRHNUM
+                        GYENTREGA = [F:YPRH]PRHNUM
 
-                          Read [YBPA]BPA0 = 1;[YPRH]BPTNUM;[YBPT]BPAADD
-                          If !fstat Then
-                            GYRECIPIENT1 = "cargas@sanycces.es"
+                        Read [YBPA]BPA0 = 1;[YPRH]BPTNUM;[YBPT]BPAADD
+                        If !fstat Then
+                          GYRECIPIENT1 = "cargas@sanycces.es"
 
-                            If [YBPA]WEB(0) <> "" Then
-                              GYRECIPIENT2 = [YBPA]WEB(0)
-                            Endif
-                            If [YBPA]WEB(1) <> "" Then
-                              GYRECIPIENT3 = [YBPA]WEB(1)
-                            Endif
-                            If [YBPA]WEB(2) <> "" Then
-                              GYRECIPIENT4 = [YBPA]WEB(2)
-                            Endif
-                            If [YBPA]WEB(3) <> "" Then
-                              GYRECIPIENT5 = [YBPA]WEB(3)
-                            Endif
-
-                            GYOBJETC    = "SANYCCES - Preparación " + GYENTREGA
-                            #GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
-                            GYFILE = YNOMFIC
-
-                            Call WORKFLOW(1,"YMA","",PUSR) From AWRK
+                          If [YBPA]WEB(0) <> "" Then
+                            GYRECIPIENT2 = [YBPA]WEB(0)
+                          Endif
+                          If [YBPA]WEB(1) <> "" Then
+                            GYRECIPIENT3 = [YBPA]WEB(1)
+                          Endif
+                          If [YBPA]WEB(2) <> "" Then
+                            GYRECIPIENT4 = [YBPA]WEB(2)
+                          Endif
+                          If [YBPA]WEB(3) <> "" Then
+                            GYRECIPIENT5 = [YBPA]WEB(3)
                           Endif
 
-                          Kill GYRECIPIENT1
-                          Kill GYRECIPIENT2
-                          Kill GYRECIPIENT3
-                          Kill GYRECIPIENT4
-                          Kill GYRECIPIENT5
-                          Kill GYOBJETC
-                          Kill GYMAILTEXT
-                          Kill GYFILE
-                          Kill GYENTREGA
+                          GYOBJETC    = "SANYCCES - Preparación " + GYENTREGA
+                          #GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
+                          GYFILE = YNOMFIC
 
-                          Break
+                          Call WORKFLOW(1,"YMA","",PUSR) From AWRK
                         Endif
-                      Next I
-                    Endif
+
+                        Kill GYRECIPIENT1
+                        Kill GYRECIPIENT2
+                        Kill GYRECIPIENT3
+                        Kill GYRECIPIENT4
+                        Kill GYRECIPIENT5
+                        Kill GYOBJETC
+                        Kill GYMAILTEXT
+                        Kill GYFILE
+                        Kill GYENTREGA
+
+                        Break
+                      Endif
+                    Next I
+                  Endif
                 When Default:
                   If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+                  If !clalev([YTRK]) : Local File YTRKENVIOS [YTRK] : Endif
+
                   Local Char LMENSAJE(255) : Raz LMENSAJE
 
                   Read [YTRA]YTRAN0 = [YPRH]BPTNUM
                   If !fstat
-                    Case [YTRA]YFUNC
-                      When 1: # MRW
-                        Call ENVIO('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, [L]LMENSAJE) From YINTTRANS
-                        If LMENSAJE <> "Ok"
-                          PRES = "125"
-                          PMESS = [L]LMENSAJE
-                          Goto TERMINAR
-                        Endif
-                      When 2: # DACHSER
-                        Call ENVIO('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, [L]LMENSAJE) From YINTTRANS
-                        If LMENSAJE <> "Ok" and LMENSAJE <> ""
-                          PRES = "125"
-                          PMESS = [L]LMENSAJE
-                          Goto TERMINAR
-                        Endif
-                    Endcase
+                    Filter [YTRK] Where VCRNUM = [YPRH]PRHNUM and YNUMSOL <> ''
+                    If rowcount([YTRK]) = 0 Then
+                      Case [YTRA]YFUNC
+                        When 1: # MRW
+                          Call ENVIO('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
+                          If LMENSAJE <> "Ok"
+                            PRES = "125"
+                            PMESS = [L]LMENSAJE
+                            Goto TERMINAR
+                          Endif
+                        When 2: # DACHSER
+                          Call ENVIO('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE) From YINTTRANS
+                          If LMENSAJE <> "Ok" and LMENSAJE <> ""
+                            PRES = "125"
+                            PMESS = [L]LMENSAJE
+                            Goto TERMINAR
+                          Endif
+                      Endcase
+                    Endif
+                    Filter [YTRK]
                   Endif
 
                   Close Local File [YTRA]
+                  Close Local File [YTRK]
               Endcase
 
               # Generamos la/s entrega/s
@@ -2611,12 +3003,57 @@ End LRET
 #* @param PUSR Código del usuario
 #* @return RES resultado de la ejecución de la función
 #*!
-Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, RES)
+#Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, RES)
+#  # Entrada
+#  Value Char VPRH
+#  Value Char VINF
+#  Value Integer VPDF
+#  Value Char PUSR
+#  # Salida
+#  Variable Integer RES
+#
+#  Local Char VDES(GLONAIM)   # Destino de impresión
+#  Local Char TBVAL(30)(20)
+#  Local Char TBPAR(30)(20)
+#
+#  If !clalev([F:YPRHAUX]) : Local File STOPREH [YPRHAUX] : Endif
+#  Read [F:YPRHAUX]PRH0 = VPRH
+#  If !fstat
+#    TBPAR(1) = "VCRNUM"
+#    TBVAL(1) = [F:YPRHAUX]PRHNUM
+#
+#    TBPAR(2) = "EAN13"
+#    TBVAL(2) = "1"
+#
+#    VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
+#
+#    If VINF <> "" and VDES <> ""
+#      If VPDF = 2 Then
+#        VDES = "PDF"
+#      Endif
+#
+#      Call ETAT(VINF,VDES,"",0,"",TBPAR,TBVAL) From AIMP3
+#      RES = fstat
+#    Else
+#      RES = 1
+#    Endif
+#
+#  Else
+#    RES = fstat
+#  Endif
+#
+#  Close Local File [YPRHAUX]
+#End
+#---------------------------------------------------------------------------------------------------#
+#@04@ - Fin
+
+Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, PDESTINO, RES)
   # Entrada
   Value Char VPRH
   Value Char VINF
   Value Integer VPDF
   Value Char PUSR
+  Value Char PDESTINO
   # Salida
   Variable Integer RES
 
@@ -2633,7 +3070,11 @@ Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, RES)
     TBPAR(2) = "EAN13"
     TBVAL(2) = "1"
 
-    VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
+    VDES = PDESTINO
+
+    If VDES = "" Then
+      VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
+    Endif
 
     If VINF <> "" and VDES <> ""
       If VPDF = 2 Then
@@ -2652,8 +3093,6 @@ Subprog PRINT_PPRHNUM(VPRH, VINF, VPDF, PUSR, RES)
 
   Close Local File [YPRHAUX]
 End
-#---------------------------------------------------------------------------------------------------#
-#@04@ - Fin
 
 Subprog GETBLOQUEOPREPARACION(PNUM_VALE, BLOQUEADO)
   # Entrada
@@ -2732,461 +3171,467 @@ Subprog GETBASCULAS(COD_BASCULA, BASCULA, DESTINO_ETIQUETAS, DESTINO_DOCS, DESTI
   Close Local File [YATA]
 End
 
-Subprog FINALIZARBULTO_MANUAL(PPACNUM , PPCK,  PLBLFMT, PNETWEI, PBRWEI, PVOL,  PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR, PDESTINO, PRES, PMESS)
-  # Entrada
-  Value Char PPACNUM()
-  Value Char PPCK()
-  Value Char PLBLFMT()
-  Value Decimal PNETWEI
-  Value Decimal  PBRWEI
-  Value Decimal PPCKWEI
-  Value Decimal PVOL
-  Value Decimal  PPCKLEN
-  Value Decimal PPCKWID
-  Value Decimal PPCKHEI
-  Value Char PCAMION()
-  Value Char PUSR
-  Value Char PDESTINO
-  # Salida
-  Variable Char PRES
-  Variable Char PMESS
-
-  Local Char INFNAM
-  Local Char DESTINO
-  Local Decimal  PESONETO
-  Local Char PRELPN
-  Local Integer LCERRADO
-
-  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
-  If !clalev([JMF1]) Then : Local File YSPACKD     [JMF1] : Endif
-
-  Filter [JMF1] Where PACNUM = PPACNUM
-  Read [JMF1] First
-  If !fstat Then
-    Local Char HORA(6)
-    HORA = num$(time$)
-    HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,2)
-
-    PRES="100"
-    PMESS="No se encuentra el bulto/paquete"
-    Filter [F:YSPH] Where PACNUM=PPACNUM
-      For [F:YSPH]
-        LCERRADO = [YSPH]YCERRADO
-
-        Trbegin [F:YSPH]
-        [F:YSPH]PCK=PPCK
-        [F:YSPH]NETWEI=PNETWEI
-        [F:YSPH]YBRWEI=PBRWEI
-        [F:YSPH]YPCKHEI=PPCKHEI
-        [F:YSPH]YPCKLEN=PPCKLEN
-        [F:YSPH]YPCKWID=PPCKWID
-        [F:YSPH]YPCKHEI=PPCKHEI
-        [F:YSPH]VOL=PVOL
-        [F:YSPH]YCAMION=PCAMION
-        [F:YSPH]YFECHA = date$
-        [F:YSPH]YHORA = HORA
-        [F:YSPH]YCERRADO=2 #CERRAMOS EL BULTO
-        Rewrite [F:YSPH]
-        If !fstat Then
-          Commit
-
-          If LCERRADO <> 2 Then
-            Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
-
-            Local Char LDEST(50)
-            LDEST = PDESTINO
-
-            If LDEST = "" Then
-              LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
-            Endif
-
-            If LDEST <> ""
-              DESTINO = LDEST
-            Endif
-
-            Call IMPETIQSPACK(PPACNUM, INFNAM,DESTINO)
-          Endif
-
-
-          PRES="200"
-          PMESS="OK"
-
-        Else
-          Rollback
-        Endif
-      Next
-    Filter [F:YSPH]
-  Endif
-
-  Close Local File [YSPH]
-  Close Local File [JMF1]
-End
-
-Subprog TERMINARPREPARACION_MAN(PPRHNUM, PUSR, PCAMION, PIMP_ETIQUETAS, PIMP_DOCS, PRES, PMESS)
-  # Entrada
-  Value Char PPRHNUM()
-  Value Char PUSR()
-  Value Integer PCAMION
-  Value Char PIMP_ETIQUETAS
-  Value Char PIMP_DOCS
-  # Salida
-  Variable Char PRES()
-  Variable Char PMESS()
-
-  Local Char LOK(1)
-  Local Char LNUM_ENTREGA(25) : Raz LNUM_ENTREGA
-
-  If !clalev([YPRH])  Then : Local File STOPREH      [YPRH]  : Endif
-  If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
-  If !clalev([YBPT])  Then : Local File BPCARRIER    [YBPT]  : Endif
-  If !clalev([YSPA])  Then : Local File YSPACK       [YSPA]  : Endif
-  If !clalev([YBPA])  Then : Local File BPADDRESS [YBPA]  : Endif
-
-    LOK="S"
-
-
-    # @05@ - JMF
-    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and [YYPR2]ALLQTY<>0
-    For [F:YYPR2]
-      Local Decimal CANT_EMPAQUETADA
-      CANT_EMPAQUETADA = func GETCANTIDADEMPAQUETADA(PPRHNUM, [YYPR2]PRELIN)
-      If [F:YYPR2]QTYSTU - [L]CANT_EMPAQUETADA > 0 Then
-        LOK="N"
-        PRES="175"
-        PMESS="Preparación sin terminar. No se puede finalizar."
-        Break
-      Endif
-    Next
-    Filter [F:YYPR2]
-
-    # Solamente lo marco entregable si el transportista tiene en el campo Modo de Entrega = Entregable directo
-    If LOK="S"
-      Read [YPRH]PRH0=PPRHNUM
-      If !fstat Then
-        Read [YBPT]BPT0 = [YPRH]BPTNUM
-        If fstat = 0
-          If [YBPT]YMODENTREGA <> 1
-            LOK="N"
-            PRES = "200"
-            PMESS = "Modo de entrega NO directo. No se realiza ninguna acción adicional."
-          Endif
-        Else
-          LOK="N"
-        Endif
-      Else
-        LOK="N"
-      Endif
-    Endif
-
-    Local Char HORA(6)
-    HORA = num$(time$)
-    HORA = mid$(HORA, 1, 2) + mid$(HORA, 4, 2) + mid$(HORA, 7, 2)
-
-    # JMF - 20.06.24 - Guardamos la fecha y la hora de finalización de la preparación en los bultos
-    Filter [YSPA] Where VCRNUM = PPRHNUM
-    For [YSPA]
-      Trbegin [YSPA]
-      [YSPA]YFECHAP = date$
-      [YSPA]YHORAP = HORA
-      Rewrite [YSPA]
-      If !fstat
-        Commit
-      Else
-        Rollback
-      Endif
-    Next
-    Filter [YSPA]
-
-# @01@ - SCD - 25/06/2024 - INI
-
-    Read [F:YPRH]PRH0=PPRHNUM
-    If !fstat Then
-      [F:YPRH]YESTADOPREP = 3
-      Rewrite [F:YPRH]
-    Endif
-
-# @01@ - SCD - 25/06/2024 - FIN
-
-    # -----------------------------------
-
-    If LOK="S" Then
-      #Modificación 10/12/24. Actualizo las líneas del pedido de venta
-      If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
-      If !clalev([SOH])  Then : Local File SORDER   [SOH]  : Endif
-      If !clalev([SOQ])  Then : Local File SORDERQ  [SOQ]  : Endif
-      If !clalev([SOP])  Then : Local File SORDERP  [SOP]  : Endif
-      If clalev([M:ORDK])=0 Local Mask ORDK [ORDK] Endif
-
-      Filter [F:YYPR2] Where PRHNUM=PPRHNUM
-        For [F:YYPR2]
-          If find([F:YYPR2]ORITYP,1,2)
-           Call MAJ_SOQ (3,[F:YYPR2]ORINUM,[F:YYPR2]ORILIN,[F:YYPR2]ORISEQ,[F:YYPR2]PCU,[F:YYPR2]PCUSTUCOE,[F:YYPR2]QTYSTU) From STKPREPA
-           If GOK=0 Break Endif
-          Endif
-        Next
-      Filter [F:YYPR2]
-
-      If GOK = 0
-        End
-      Endif
-      #Modificación 10/12/24. Fin
-
-      Local Integer I
-      I=0
-      Read [F:YPRH]PRH0=PPRHNUM
-      If !fstat Then
-        Trbegin [F:YPRH]
-        [F:YPRH]DLVFLG = 2
-        [F:YPRH]YCAMION = PCAMION
-        Rewrite [F:YPRH]
-        If !fstat Then
-          Commit
-
-          # Si hemos llegado hasta aquí es porque el transportista tiene en el campo Modo de Entrega = Entregable directo,
-          # por lo que actualizamos todos los bultos a Cargado = Sí
-          Filter [YSPA] Where VCRNUM = PPRHNUM
-          For [YSPA]
-            Trbegin [YSPA]
-            [YSPA]YCARGADO = 2
-            Rewrite [YSPA]
-            If !fstat Then
-              Commit
-            Else
-              Rollback
-            Endif
-          Next
-
-          # @02@ - JMF - 15/07/2024 - Si la entrega es automática, generamos entregas
-          If [YBPT]YMODENTREGA = 1 Then
-            If [YBPT]YDOCUMENTA = 1 Then
-
-              #@04@ - Inicio
-              Local Char INFORME_PREP(20) : INFORME_PREP = "Y_SAN_DOCP_PRU"
-              Local Integer LRES_IMPR_PREP : Raz LRES_IMPR_PREP
-
-              Call PRINT_PPRHNUM_MAN([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
-              #@04@ - Fin
-
-              YGUSERI3 = PUSR
-
-              # @05@ - Envío de documento de preparación a Dascher o transportistas con envío por email (ej: General Courier)
-              Case [YBPT]YTIPENVAGE
-                When 1: # Generación fichero integración con Dachser
-                  Local Integer LERR
-                  Local Char LOK
-                  Call DACHSER_CHECK(PPRHNUM,LERR) From YENVDACH
-
-                  # Si todo OK, genero fichero
-                  If LERR = 0
-                    LOK = ""
-                    Call DACHSER_GENERA_FICHERO(PPRHNUM,LOK) From YENVDACH
-                    If LOK = 'N'
-                      Call TRAZA_DACHSER(PPRHNUM,4,GUSER,2) From YENVDACH
-                    Else
-                      [F:YPRH]YDACESTADO  = 5
-                      [F:YPRH]YDACFECHA   = date$
-                      [F:YPRH]YDACHORA    = time$
-                      [F:YPRH]YDACUSUARIO = GUSER
-                      Trbegin [F:YPRH]
-                        Rewrite [F:YPRH]
-                      Commit
-                      Call TRAZA_DACHSER(PPRHNUM,5,GUSER,0) From YENVDACH
-                    Endif
-                  Endif
-                When 2: # Email
-                  #Borramos primero el fichero
-                  Local Char YNOMFIC(255) : YNOMFIC = filpath("FILES/SDH","preparacion_sanycces_" + PUSR, "pdf")
-                  Local Integer DEL_STA
-                  DEL_STA = Delfile(YNOMFIC)
-                  If DEL_STA = 0 or DEL_STA = -20 Then
-                    # Generamos PDF
-                    Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
-                    # Esperamos a que se cree el fichero
-                    Local Integer I, J
-                    For I = 0 To 30
-                      Sleep 1
-                      J = filinfo(YNOMFIC, 7)
-                      If J > 0 Then
-                        Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255), GYRECIPIENT4(255), GYRECIPIENT5(255), GYOBJETC(100),GYMAILTEXT(255), GYFILE(255), GYENTREGA(25)
-
-                        GYENTREGA = [F:YPRH]PRHNUM
-
-                        Read [YBPA]BPA0 = 1;[YPRH]BPTNUM;[YBPT]BPAADD
-                        If !fstat Then
-                          GYRECIPIENT1 = "cargas@sanycces.es"
-
-                          If [YBPA]WEB(0) <> "" Then
-                            GYRECIPIENT2 = [YBPA]WEB(0)
-                          Endif
-                          If [YBPA]WEB(1) <> "" Then
-                            GYRECIPIENT3 = [YBPA]WEB(1)
-                          Endif
-                          If [YBPA]WEB(2) <> "" Then
-                            GYRECIPIENT4 = [YBPA]WEB(2)
-                          Endif
-                          If [YBPA]WEB(3) <> "" Then
-                            GYRECIPIENT5 = [YBPA]WEB(3)
-                          Endif
-
-                          GYOBJETC    = "SANYCCES - Preparación " + GYENTREGA
-                          #GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
-                          GYFILE = YNOMFIC
-
-                          Call WORKFLOW(1,"YMA","",PUSR) From AWRK
-                        Endif
-
-                        Kill GYRECIPIENT1
-                        Kill GYRECIPIENT2
-                        Kill GYRECIPIENT3
-                        Kill GYRECIPIENT4
-                        Kill GYRECIPIENT5
-                        Kill GYOBJETC
-                        Kill GYMAILTEXT
-                        Kill GYFILE
-                        Kill GYENTREGA
-
-                        Break
-                      Endif
-                    Next I
-                  Endif
-                When Default:
-                  If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
-                  Local Char LMENSAJE(255) : Raz LMENSAJE
-
-                  Read [YTRA]YTRAN0 = [YPRH]BPTNUM
-                  If !fstat
-                    Case [YTRA]YFUNC
-                      When 1: # MRW
-                        Call ENVIO_MAN('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE)
-                        If LMENSAJE <> "Ok"
-                          PRES = "125"
-                          PMESS = [L]LMENSAJE
-                          Goto TERMINAR_MAN
-                        Endif
-                      When 2: # DACHSER
-                        Call ENVIO_MAN('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE)
-                        If LMENSAJE <> "Ok" and LMENSAJE <> ""
-                          PRES = "125"
-                          PMESS = [L]LMENSAJE
-                          Goto TERMINAR_MAN
-                        Endif
-                    Endcase
-                  Endif
-
-                  Close Local File [YTRA]
-              Endcase
-
-              # Generamos la/s entrega/s
-              #Call MAKE_SDH(PPRHNUM, LNUM_ENTREGA)
-              # @05@ - Fin
-            Endif
-          Endif
-
-          PRES="200"
-          PMESS="OK"
-        Else
-          Rollback
-          PRES="100"
-          PMESS="Problema modificando entregable en: " +PPRHNUM
-          End
-        Endif
-      Else
-        PRES="150"
-        PMESS="No existe: "+PPRHNUM
-      Endif
-    Endif
-$TERMINAR_MAN
-  Close Local File [F:YPRH], [F:YYPR2], [YBPT], [YSPA], [YBPA]
-End
-
-Subprog PRINT_PPRHNUM_MAN(VPRH, VINF, VPDF, PUSR, PDESTINO, RES)
-  # Entrada
-  Value Char VPRH
-  Value Char VINF
-  Value Integer VPDF
-  Value Char PUSR
-  Value Char PDESTINO
-  # Salida
-  Variable Integer RES
-
-  Local Char VDES(GLONAIM)   # Destino de impresión
-  Local Char TBVAL(30)(20)
-  Local Char TBPAR(30)(20)
-
-  If !clalev([F:YPRHAUX]) : Local File STOPREH [YPRHAUX] : Endif
-  Read [F:YPRHAUX]PRH0 = VPRH
-  If !fstat
-    TBPAR(1) = "VCRNUM"
-    TBVAL(1) = [F:YPRHAUX]PRHNUM
-
-    TBPAR(2) = "EAN13"
-    TBVAL(2) = "1"
-
-    VDES = PDESTINO
-
-    If VDES = "" Then
-      VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
-    Endif
-
-    If VINF <> "" and VDES <> ""
-      If VPDF = 2 Then
-        VDES = "PDF"
-      Endif
-
-      Call ETAT(VINF,VDES,"",0,"",TBPAR,TBVAL) From AIMP3
-      RES = fstat
-    Else
-      RES = 1
-    Endif
-
-  Else
-    RES = fstat
-  Endif
-
-  Close Local File [YPRHAUX]
-End
-
-Subprog ENVIO_MAN(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, PDESTINO, LMESS)
-  # Entrada
-  Value Char PDIR
-  Value Char PEJECUTABLE
-  Value Integer IS_WS
-  Value Char PCOD_PREPARACION
-  Value Char PCOD_TRANSPORTISTA
-  Value Char PDESTINO
-  # Salida
-  Variable Char LMESS
-
-  Local Char RES(255)
-  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
-  Local Char USUARIO : USUARIO = "NUN21"
-  Local Char PASSW : PASSW = "Jf04092023"
-  Local Char POOL : POOL = "POOLSANYCCES"
-  Local Char LCOD_PREPARACION
-  Local Char LCOD_TRANSPORTISTA
-  Local Char LDESTINO(50)
-
-  If IS_WS = 2
-    LCOD_PREPARACION = PCOD_PREPARACION
-    LCOD_TRANSPORTISTA = PCOD_TRANSPORTISTA
-  Else
-    LCOD_PREPARACION = [M:PRH0]PRHNUM
-    LCOD_TRANSPORTISTA = [YSTPH]BPTNUM
-  Endif
-
-  If PDESTINO <> "" Then
-    LDESTINO = PDESTINO
-  Else
-    LDESTINO = [YTRA]YRUTIMP
-  Endif
-
-  System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [L]LCOD_PREPARACION + '" "' + [L]LCOD_TRANSPORTISTA + '" "' + [
-& YTRA]YRUTETIQ + '" ' + num$([YTRA]YAUTIMP) + ' "' + LDESTINO + '"'
-
-  If IS_WS = 1
-    Infbox(RES)
-    Affzo [M:YPRHTRA]
-  Else
-    LMESS = RES
-  Endif
-End
+#Subprog FINALIZARBULTO_MANUAL(PPACNUM , PPCK, PLBLFMT, PNETWEI, PBRWEI, PVOL, PPCKWEI, PPCKLEN, PPCKWID, PPCKHEI, PCAMION, PUSR, PDESTINO, PRES, PMESS)
+#  # Entrada
+#  Value Char PPACNUM()
+#  Value Char PPCK()
+#  Value Char PLBLFMT()
+#  Value Decimal PNETWEI
+#  Value Decimal  PBRWEI
+#  Value Decimal PPCKWEI
+#  Value Decimal PVOL
+#  Value Decimal  PPCKLEN
+#  Value Decimal PPCKWID
+#  Value Decimal PPCKHEI
+#  Value Char PCAMION()
+#  Value Char PUSR
+#  Value Char PDESTINO
+#  # Salida
+#  Variable Char PRES
+#  Variable Char PMESS
+#
+#  Local Char INFNAM
+#  Local Char DESTINO
+#  Local Decimal  PESONETO
+#  Local Char PRELPN
+#  Local Integer LCERRADO
+#
+#  If !clalev([YSPH]) Then : Local File YSPACK      [YSPH] : Endif
+#  If !clalev([JMF1]) Then : Local File YSPACKD     [JMF1] : Endif
+#
+#  Filter [JMF1] Where PACNUM = PPACNUM
+#  Read [JMF1] First
+#  If !fstat Then
+#    Local Char HORA(6)
+#    HORA = num$(time$)
+#    HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,2)
+#
+#    PRES="100"
+#    PMESS="No se encuentra el bulto/paquete"
+#    Filter [F:YSPH] Where PACNUM=PPACNUM
+#      For [F:YSPH]
+#        LCERRADO = [YSPH]YCERRADO
+#
+#        Trbegin [F:YSPH]
+#        [F:YSPH]PCK=PPCK
+#        [F:YSPH]NETWEI=PNETWEI
+#        [F:YSPH]YBRWEI=PBRWEI
+#        [F:YSPH]YPCKHEI=PPCKHEI
+#        [F:YSPH]YPCKLEN=PPCKLEN
+#        [F:YSPH]YPCKWID=PPCKWID
+#        [F:YSPH]YPCKHEI=PPCKHEI
+#        [F:YSPH]VOL=PVOL
+#        [F:YSPH]YCAMION=PCAMION
+#        [F:YSPH]YFECHA = date$
+#        [F:YSPH]YHORA = HORA
+#        [F:YSPH]YCERRADO=2 #CERRAMOS EL BULTO
+#        Rewrite [F:YSPH]
+#        If !fstat Then
+#          Commit
+#
+#          If LCERRADO <> 2 Then
+#            Call PARAM_YSPACKD(INFNAM, DESTINO, PRELPN)
+#
+#            Local Char LDEST(50)
+#            LDEST = PDESTINO
+#
+#            If LDEST = "" Then
+#              LDEST = func YX3MOBPREPICKING.GETDESTINOINFORME(INFNAM, PUSR)
+#            Endif
+#
+#            If LDEST <> ""
+#              DESTINO = LDEST
+#            Endif
+#
+#            Call IMPETIQSPACK(PPACNUM, INFNAM,DESTINO)
+#          Endif
+#
+#
+#          PRES="200"
+#          PMESS="OK"
+#
+#        Else
+#          Rollback
+#        Endif
+#      Next
+#    Filter [F:YSPH]
+#  Endif
+#
+#  Close Local File [YSPH]
+#  Close Local File [JMF1]
+#End
+#
+#Subprog TERMINARPREPARACION_MAN(PPRHNUM, PUSR, PCAMION, PIMP_ETIQUETAS, PIMP_DOCS, PRES, PMESS)
+#  # Entrada
+#  Value Char PPRHNUM()
+#  Value Char PUSR()
+#  Value Integer PCAMION
+#  Value Char PIMP_ETIQUETAS
+#  Value Char PIMP_DOCS
+#  # Salida
+#  Variable Char PRES()
+#  Variable Char PMESS()
+#
+#  Local Char LOK(1)
+#  Local Char LNUM_ENTREGA(25) : Raz LNUM_ENTREGA
+#
+#  If !clalev([YPRH])  Then : Local File STOPREH      [YPRH]  : Endif
+#  If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
+#  If !clalev([YBPT])  Then : Local File BPCARRIER    [YBPT]  : Endif
+#  If !clalev([YSPA])  Then : Local File YSPACK       [YSPA]  : Endif
+#  If !clalev([YBPA])  Then : Local File BPADDRESS [YBPA]  : Endif
+#
+#    LOK="S"
+#
+#
+#    # @05@ - JMF
+#    Filter [F:YYPR2] Where PRHNUM=PPRHNUM and [YYPR2]ALLQTY<>0
+#    For [F:YYPR2]
+#      Local Decimal CANT_EMPAQUETADA
+#      CANT_EMPAQUETADA = func GETCANTIDADEMPAQUETADA(PPRHNUM, [YYPR2]PRELIN)
+#      If [F:YYPR2]QTYSTU - [L]CANT_EMPAQUETADA > 0 Then
+#        LOK="N"
+#        PRES="175"
+#        PMESS="Preparación sin terminar. No se puede finalizar."
+#        Break
+#      Endif
+#    Next
+#    Filter [F:YYPR2]
+#
+#    # Solamente lo marco entregable si el transportista tiene en el campo Modo de Entrega = Entregable directo
+#    If LOK="S"
+#      Read [YPRH]PRH0=PPRHNUM
+#      If !fstat Then
+#        Read [YBPT]BPT0 = [YPRH]BPTNUM
+#        If fstat = 0
+#          If [YBPT]YMODENTREGA <> 1
+#            LOK="N"
+#            PRES = "200"
+#            PMESS = "Modo de entrega NO directo. No se realiza ninguna acción adicional."
+#          Endif
+#        Else
+#          LOK="N"
+#        Endif
+#      Else
+#        LOK="N"
+#      Endif
+#    Endif
+#
+#    Local Char HORA(6)
+#    HORA = num$(time$)
+#    HORA = mid$(HORA, 1, 2) + mid$(HORA, 4, 2) + mid$(HORA, 7, 2)
+#
+#    # JMF - 20.06.24 - Guardamos la fecha y la hora de finalización de la preparación en los bultos
+#    Filter [YSPA] Where VCRNUM = PPRHNUM
+#    For [YSPA]
+#      Trbegin [YSPA]
+#      [YSPA]YFECHAP = date$
+#      [YSPA]YHORAP = HORA
+#      Rewrite [YSPA]
+#      If !fstat
+#        Commit
+#      Else
+#        Rollback
+#      Endif
+#    Next
+#    Filter [YSPA]
+#
+## @01@ - SCD - 25/06/2024 - INI
+#
+#    Read [F:YPRH]PRH0=PPRHNUM
+#    If !fstat Then
+#      [F:YPRH]YESTADOPREP = 3
+#      Rewrite [F:YPRH]
+#    Endif
+#
+## @01@ - SCD - 25/06/2024 - FIN
+#
+#    # -----------------------------------
+#
+#    If LOK="S" Then
+#      Infbox("ok = s")
+#      #Modificación 10/12/24. Actualizo las líneas del pedido de venta
+#      If !clalev([YYPR2]) Then : Local File STOPRED      [YYPR2] : Endif
+#      If !clalev([SOH])  Then : Local File SORDER   [SOH]  : Endif
+#      If !clalev([SOQ])  Then : Local File SORDERQ  [SOQ]  : Endif
+#      If !clalev([SOP])  Then : Local File SORDERP  [SOP]  : Endif
+#      If clalev([M:ORDK])=0 Local Mask ORDK [ORDK] Endif
+#
+#      Filter [F:YYPR2] Where PRHNUM=PPRHNUM
+#        For [F:YYPR2]
+#          If find([F:YYPR2]ORITYP,1,2)
+#           Call MAJ_SOQ (3,[F:YYPR2]ORINUM,[F:YYPR2]ORILIN,[F:YYPR2]ORISEQ,[F:YYPR2]PCU,[F:YYPR2]PCUSTUCOE,[F:YYPR2]QTYSTU) From STKPREPA
+#           If GOK=0 Break Endif
+#          Endif
+#        Next
+#      Filter [F:YYPR2]
+#
+#      If GOK = 0
+#        End
+#      Endif
+#      #Modificación 10/12/24. Fin
+#
+#      Local Integer I
+#      I=0
+#      Read [F:YPRH]PRH0=PPRHNUM
+#      If !fstat Then
+#        Trbegin [F:YPRH]
+#        [F:YPRH]DLVFLG = 2
+#        [F:YPRH]YCAMION = PCAMION
+#        Rewrite [F:YPRH]
+#        If !fstat Then
+#          Commit
+#
+#          # Si hemos llegado hasta aquí es porque el transportista tiene en el campo Modo de Entrega = Entregable directo,
+#          # por lo que actualizamos todos los bultos a Cargado = Sí
+#          Filter [YSPA] Where VCRNUM = PPRHNUM
+#          For [YSPA]
+#            Trbegin [YSPA]
+#            [YSPA]YCARGADO = 2
+#            Rewrite [YSPA]
+#            If !fstat Then
+#              Commit
+#            Else
+#              Rollback
+#            Endif
+#          Next
+#
+#          # @02@ - JMF - 15/07/2024 - Si la entrega es automática, generamos entregas
+#          If [YBPT]YMODENTREGA = 1 Then
+#            If [YBPT]YDOCUMENTA = 1 Then
+#
+#              #@04@ - Inicio
+#              Local Char INFORME_PREP(20) : INFORME_PREP = "Y_SAN_DOCP_PRU"
+#              Local Integer LRES_IMPR_PREP : Raz LRES_IMPR_PREP
+#
+#              Call PRINT_PPRHNUM_MAN([F:YPRH]PRHNUM, INFORME_PREP, 1, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
+#              #@04@ - Fin
+#
+#              YGUSERI3 = PUSR
+#
+#              # @05@ - Envío de documento de preparación a Dascher o transportistas con envío por email (ej: General Courier)
+#              Case [YBPT]YTIPENVAGE
+#                When 1: # Generación fichero integración con Dachser
+#                  Local Integer LERR
+#                  Local Char LOK
+#                  Call DACHSER_CHECK(PPRHNUM,LERR) From YENVDACH
+#
+#                  # Si todo OK, genero fichero
+#                  If LERR = 0
+#                    LOK = ""
+#                    Call DACHSER_GENERA_FICHERO(PPRHNUM,LOK) From YENVDACH
+#                    If LOK = 'N'
+#                      Call TRAZA_DACHSER(PPRHNUM,4,GUSER,2) From YENVDACH
+#                    Else
+#                      [F:YPRH]YDACESTADO  = 5
+#                      [F:YPRH]YDACFECHA   = date$
+#                      [F:YPRH]YDACHORA    = time$
+#                      [F:YPRH]YDACUSUARIO = GUSER
+#                      Trbegin [F:YPRH]
+#                        Rewrite [F:YPRH]
+#                      Commit
+#                      Call TRAZA_DACHSER(PPRHNUM,5,GUSER,0) From YENVDACH
+#                    Endif
+#                  Endif
+#                When 2: # Email
+#                  #Borramos primero el fichero
+#                  Local Char YNOMFIC(255) : YNOMFIC = filpath("FILES/SDH","preparacion_sanycces_" + PUSR, "pdf")
+#                  Local Integer DEL_STA
+#                  DEL_STA = Delfile(YNOMFIC)
+#                  If DEL_STA = 0 or DEL_STA = -20 Then
+#                    # Generamos PDF
+#                    Call PRINT_PPRHNUM([F:YPRH]PRHNUM, INFORME_PREP, 2, PUSR, PIMP_DOCS, LRES_IMPR_PREP)
+#                    # Esperamos a que se cree el fichero
+#                    Local Integer I, J
+#                    For I = 0 To 30
+#                      Sleep 1
+#                      J = filinfo(YNOMFIC, 7)
+#                      If J > 0 Then
+#                        Global Char GYRECIPIENT1(255), GYRECIPIENT2(255), GYRECIPIENT3(255), GYRECIPIENT4(255), GYRECIPIENT5(255), GYOBJETC(100),GYMAILTEXT(255), GYFILE(255), GYENTREGA(25)
+#
+#                        GYENTREGA = [F:YPRH]PRHNUM
+#
+#                        Read [YBPA]BPA0 = 1;[YPRH]BPTNUM;[YBPT]BPAADD
+#                        If !fstat Then
+#                          GYRECIPIENT1 = "cargas@sanycces.es"
+#
+#                          If [YBPA]WEB(0) <> "" Then
+#                            GYRECIPIENT2 = [YBPA]WEB(0)
+#                          Endif
+#                          If [YBPA]WEB(1) <> "" Then
+#                            GYRECIPIENT3 = [YBPA]WEB(1)
+#                          Endif
+#                          If [YBPA]WEB(2) <> "" Then
+#                            GYRECIPIENT4 = [YBPA]WEB(2)
+#                          Endif
+#                          If [YBPA]WEB(3) <> "" Then
+#                            GYRECIPIENT5 = [YBPA]WEB(3)
+#                          Endif
+#
+#                          GYOBJETC    = "SANYCCES - Preparación " + GYENTREGA
+#                          #GYMAILTEXT  = "Es es un mensaje de prueba para el número de entrega " + LNUM_ENTREGA
+#                          GYFILE = YNOMFIC
+#
+#                          Call WORKFLOW(1,"YMA","",PUSR) From AWRK
+#                        Endif
+#
+#                        Kill GYRECIPIENT1
+#                        Kill GYRECIPIENT2
+#                        Kill GYRECIPIENT3
+#                        Kill GYRECIPIENT4
+#                        Kill GYRECIPIENT5
+#                        Kill GYOBJETC
+#                        Kill GYMAILTEXT
+#                        Kill GYFILE
+#                        Kill GYENTREGA
+#
+#                        Break
+#                      Endif
+#                    Next I
+#                  Endif
+#                When Default:
+#                  If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
+#                  Local Char LMENSAJE(255) : Raz LMENSAJE
+#
+#                  Read [YTRA]YTRAN0 = [YPRH]BPTNUM
+#                  If !fstat
+#                    Case [YTRA]YFUNC
+#                      When 1: # MRW
+#                        Call ENVIO_MAN('mrw', 'x3_mrw_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE)
+#                        If LMENSAJE <> "Ok"
+#                          PRES = "125"
+#                          PMESS = [L]LMENSAJE
+#                          Goto TERMINAR_MAN
+#                        Endif
+#                      When 2: # DACHSER
+#                        Call ENVIO_MAN('dachser', 'x3_dachser_client.exe', 2, [YPRH]PRHNUM, [YPRH]BPTNUM, PIMP_ETIQUETAS, [L]LMENSAJE)
+#                        If LMENSAJE <> "Ok" and LMENSAJE <> ""
+#                          PRES = "125"
+#                          PMESS = [L]LMENSAJE
+#                          Goto TERMINAR_MAN
+#                        Endif
+#                    Endcase
+#                  Endif
+#
+#                  Close Local File [YTRA]
+#              Endcase
+#
+#              # Generamos la/s entrega/s
+#              #Call MAKE_SDH(PPRHNUM, LNUM_ENTREGA)
+#              # @05@ - Fin
+#            Endif
+#          Endif
+#
+#          PRES="200"
+#          PMESS="OK"
+#        Else
+#          Rollback
+#          PRES="100"
+#          PMESS="Problema modificando entregable en: " +PPRHNUM
+#          End
+#        Endif
+#      Else
+#        PRES="150"
+#        PMESS="No existe: "+PPRHNUM
+#      Endif
+#    Endif
+#$TERMINAR_MAN
+#  Close Local File [F:YPRH], [F:YYPR2], [YBPT], [YSPA], [YBPA]
+#End
+#
+#Subprog PRINT_PPRHNUM_MAN(VPRH, VINF, VPDF, PUSR, PDESTINO, RES)
+#  # Entrada
+#  Value Char VPRH
+#  Value Char VINF
+#  Value Integer VPDF
+#  Value Char PUSR
+#  Value Char PDESTINO
+#  # Salida
+#  Variable Integer RES
+#
+#  Infbox("INICIO IMPRESIÓN DOC")
+#
+#  Local Char VDES(GLONAIM)   # Destino de impresión
+#  Local Char TBVAL(30)(20)
+#  Local Char TBPAR(30)(20)
+#
+#
+#  If !clalev([F:YPRHAUX]) : Local File STOPREH [YPRHAUX] : Endif
+#  Read [F:YPRHAUX]PRH0 = VPRH
+#  If !fstat
+#    TBPAR(1) = "VCRNUM"
+#    TBVAL(1) = [F:YPRHAUX]PRHNUM
+#
+#    TBPAR(2) = "EAN13"
+#    TBVAL(2) = "1"
+#
+#    VDES = PDESTINO
+#
+#    If VDES = "" Then
+#      VDES = func YX3MOBPREPICKING.GETDESTINOINFORME(VINF, PUSR)
+#    Endif
+#
+#    If VINF <> "" and VDES <> ""
+#      If VPDF = 2 Then
+#        VDES = "PDF"
+#      Endif
+#
+#      Call ETAT(VINF,VDES,"",0,"",TBPAR,TBVAL) From AIMP3
+#      RES = fstat
+#    Else
+#      RES = 1
+#    Endif
+#
+#  Else
+#    RES = fstat
+#  Endif
+#
+#  Close Local File [YPRHAUX]
+#
+#  Infbox("FIN IMPRESIÓN DOC")
+#End
+#
+#Subprog ENVIO_MAN(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, PDESTINO, LMESS)
+#  # Entrada
+#  Value Char PDIR
+#  Value Char PEJECUTABLE
+#  Value Integer IS_WS
+#  Value Char PCOD_PREPARACION
+#  Value Char PCOD_TRANSPORTISTA
+#  Value Char PDESTINO
+#  # Salida
+#  Variable Char LMESS
+#
+#  Local Char RES(255)
+#  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+#  Local Char USUARIO : USUARIO = "NUN21"
+#  Local Char PASSW : PASSW = "Jf04092023"
+#  Local Char POOL : POOL = "POOLSANYCCES"
+#  Local Char LCOD_PREPARACION
+#  Local Char LCOD_TRANSPORTISTA
+#  Local Char LDESTINO(50)
+#
+#  If IS_WS = 2
+#    LCOD_PREPARACION = PCOD_PREPARACION
+#    LCOD_TRANSPORTISTA = PCOD_TRANSPORTISTA
+#  Else
+#    LCOD_PREPARACION = [M:PRH0]PRHNUM
+#    LCOD_TRANSPORTISTA = [YSTPH]BPTNUM
+#  Endif
+#
+#  If PDESTINO <> "" Then
+#    LDESTINO = PDESTINO
+#  Else
+#    LDESTINO = [YTRA]YRUTIMP
+#  Endif
+#
+#  System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [L]LCOD_PREPARACION + '" "' + [L]LCOD_TRANSPORTISTA + '" "' + [
+#& YTRA]YRUTETIQ + '" ' + num$([YTRA]YAUTIMP) + ' "' + LDESTINO + '"'
+#
+#  If IS_WS = 1
+#    Infbox(RES)
+#    Affzo [M:YPRHTRA]
+#  Else
+#    LMESS = RES
+#  Endif
+#End

@@ -2,6 +2,8 @@
 ########################################################################################################
 #
 # @01@ - SCD - 03/06/2024 - Ajustes para I3
+# @02@ - AMB - 16/06/2025 -  MEJORAS I3-PREPARACION Y AÑADIR LECTURA DE NUMEROS DE SERIE EN I3-PREPICKING
+# @03@ - ALC - 24/06/2025 -  MEJORAS I3-PREPARACION AJUSTE LPN EN NUMEROS DE SERIE
 #
 ########################################################################################################
 #**
@@ -1276,3 +1278,147 @@ Subprog CONTROL_CONTRAMARCA_PRODUCCION(PCOD_PLANTA, PCOD_PEDIDO, PCOD_ARTICULO, 
 
   Close Local File [YSOQ], [YSTA], [YSTO]
 End
+
+##############################################################################################
+# @02@ - AMB -INI
+Subprog COMPROBARNUMEROSERIE(PSOHNUM, PCODIGOBARRAS,PQTY,PRES)
+  Value Char PSOHNUM()
+  Value Char PCODIGOBARRAS()
+  Value Integer PQTY
+  Variable Char  PRES()
+  Local Decimal L_STOCOU
+
+  If !clalev([YSOQ])  : Local File SORDERQ   [YSOQ]  : Endif
+  If !clalev([YSOP])  : Local File SORDERP   [YSOP]  : Endif
+  If !clalev([YITM])  : Local File ITMMASTER [YITM]  : Endif
+  If !clalev([YSTA])  : Local File STOALL           [YSTA]  : Endif
+  If !clalev([YSTO])  : Local File STOCK            [YSTO]  : Endif
+
+
+# Comprobamos si el EAN existe en la base de datos
+  Filter [YITM] Where EANCOD = PCODIGOBARRAS
+  Read [YITM] First
+  If !fstat Then # es código EAn
+    If [YITM]SERMGTCOD =1     #SIN GESTION
+      PRES="100"
+     Else
+      PRES="110"  #EAN CON GESTION
+    Endif
+  Else #NO ES CODIGO EAN
+    Filter [YSTO] Where SERNUM = PCODIGOBARRAS
+    Read [YSTO] First
+    If !fstat Then #EXISTE EL NUMERO DE SERIE
+        Filter[YSTA] Where ITMREF=[YSTO]ITMREF and  STOFCY=[YSTO]STOFCY and STOCOU=[YSTO]STOCOU
+        Read [YSTA] First
+        If !fstat and [YSTA]VCRNUM=PSOHNUM #coincide pedido
+                  If [YSTO]LPNNUM <>""
+                      PRES="160"  #YA ESTA ASIGNADO
+                  Else
+                    If PQTY>1
+                      PRES="170"    #NUMERO SERI VALIDO Y ASIGNABLE PERO CANTIDAD SUPERIOR
+                    Else
+                        PRES="150" #  ES OK PRES=150 PSERIES
+                    Endif
+                  Endif
+        Else
+          PRES="190"  #ESTENUMERO DE SERIE NO PERTENE AL PEDIDO
+        Endif
+    Else
+      PRES="140" #NO SE ENCUENTRA ESTE NUMERO DE SERIE
+    Endif
+  Endif #Read [YITM]
+  Filter [YITM]
+
+  Close Local File [YSTO],[YSTA],[YSOP],[YITM],[YSOQ]
+
+End
+
+
+
+Subprog INFO_NUM_SERIE(PNUM_SERIE, PCOD_PEDIDO, PITMREF, PVCRDES, PPCU, PSTU, PSTUCOE, PRES, PMESS)
+
+  #ENTRADA
+  Value Char PNUM_SERIE
+  Value Char PCOD_PEDIDO
+
+  #SALIDA
+  Variable Char PITMREF
+  Variable Char PVCRDES
+  Variable Char PPCU
+  Variable Char PSTU
+  Variable Decimal PSTUCOE
+  Variable Char PRES
+  Variable Char PMESS
+
+  Local Char LPNNUM_USADO : LPNNUM_USADO =""
+
+  If !clalev([YSTO])  : Local File STOCK     [YSTO]  : Endif
+  If !clalev([YSOP])  : Local File SORDERP   [YSOP]  : Endif
+  If !clalev([YSOQ])  : Local File SORDERQ   [YSOQ]  : Endif
+  If !clalev([YLPN])        Then : Local File LPN         [YLPN] : Endif
+
+   If !clalev([YI3PR])Then : Local File YI3PREPA  [YI3PR] : Endif # @01@ - SCD - 03/06/2024 - Ajustes para I3
+PITMREF=''
+  Filter [YSTO] Where [YSTO]SERNUM = PNUM_SERIE
+  Read [YSTO] First
+    If !fstat Then
+      Filter [F:YSOP]Where SOHNUM = PCOD_PEDIDO and ITMREF =[YSTO]ITMREF
+      Read [F:YSOP] First
+        If !fstat Then
+           PPCU=[F:YSOP]SAU
+           PSTU=[F:YSOP]STU
+           PSTUCOE=[F:YSOP]SAUSTUCOE
+           PVCRDES=left$([F:YSOP]SOHNUM + ' ' +[F:YSOP]ITMDES1,80)
+           PITMREF = [F:YSOP]ITMREF
+           Filter [F:YSOQ]Where SOHNUM = PCOD_PEDIDO and ITMREF =[YSTO]ITMREF
+           Read [F:YSOQ] First
+           If !fstat Then
+             If ((func YX3MOBPREPICKING.CALCULA_CANTIDADES([F:YSOQ]SOHNUM, [F:YSOQ]SOPLIN, [F:YSOQ]SOQSEQ))+1) > [F:YSOQ]ALLQTYSTU Then
+                PRES="100"
+                PMESS="No se puede poner más de lo que hay asignado."
+                #Seguimos por si hay otro
+             Else
+             # @03@ - ALC - INI
+              Filter [YLPN] Where [YLPN]ZSOHNUM = PCOD_PEDIDO and [YLPN]PRTFLG <> 2 Order By [YLPN]LPNNUM Desc
+              Read [YLPN] First
+              If fstat = 0
+                LPNNUM_USADO=[YLPN]LPNNUM
+              Else
+              LPNNUM_USADO = ""
+              Endif
+              Filter [YLPN]
+            # @03@ - ALC - FIN
+               [YI3PR]LPNNUM=LPNNUM_USADO
+               [YI3PR]SOHNUM=[F:YSOQ]SOHNUM
+               [YI3PR]SOPLIN=[F:YSOQ]SOPLIN
+               [YI3PR]SOPSEQ=[F:YSOQ]SOQSEQ
+               Read [YI3PR]YI3PR0 =LPNNUM_USADO;[F:YSOQ]SOHNUM;[F:YSOQ]SOPLIN;[F:YSOQ]SOQSEQ
+               If !fstat
+                 [YI3PR]LPNQTY+=1
+                 Rewrite [YI3PR]
+               Else
+                  [YI3PR]LPNQTY=1
+                  Write [YI3PR]
+               Endif
+             Endif
+           Endif
+           PRES="200"
+           PMESS="OK"
+          Else
+            PRES="110"
+            PMESS="Problemas con el pedido"
+          Endif
+
+   Else
+    PRES="117"
+    PMESS="Problemas con el numero de serie"
+   Endif
+Infbox PRES + PMESS
+
+
+  Close Local File [YSTO]
+  Close Local File [YSOP],[YSOQ] ,[YI3PR], [YLPN]
+
+End
+
+# @02@ - AMB -FIN
