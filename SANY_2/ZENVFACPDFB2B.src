@@ -1,0 +1,156 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZENVFACPDFB2B
+# Description : Específico para generación de PDF y envío a FTP de facturas para B2B
+# Module      : Ventas
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 10/04/2026
+############################################################################
+
+Gosub INIT
+Gosub OK
+Gosub EXEC
+Gosub FIN
+End
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "INIT"           : Gosub INIT
+  When "OK"             : Gosub OK
+  When "EXEC"           : Gosub EXEC
+  When "FIN"            : Gosub FIN
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$INIT
+# variables locales
+Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '10/04/2026'
+Local   Char  LCRIT(250)
+Local   Date  LFECHALIMITEDAT
+Local   Char  TBPAR(20)(1..13)
+Local   Char  TBVAL(20)(1..13)
+Local   Char  LFILE(200)
+# variables globales
+Global  Char  GNUMFACB2B(50)
+Global  Char  GPATHFACB2B(50)
+# variables de conexión al FTP
+################################    OJO.ini   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
+Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+Local Char    PORT(100)       : PORT      = '2221'
+Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+Local Char    FTPFOLDER(100)  : FTPFOLDER = 'TEST_IMPORT/PDF'
+Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
+Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS\FACTURASPDF','','')
+Local Char    LINDEX(100)
+Local Char    LFORMATO(100)   : LFORMATO  = 'pdf'
+Local Integer RESULT
+################################    OJO.fin   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
+
+  Raz TBPAR, TBVAL
+
+  [V]GPATHFACB2B = filpath("","","") + "\FTP\B2B\"
+
+  [L]LFECHALIMITEDAT = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
+
+  [L]LCRIT =  "ZURLPDFB2B='' and INVTYP=1 and INVSTA=3 and ZUSUARIOB2B <> '' and " +
+&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "] and INVDAT<=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
+#&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
+
+  If !clalev([F:ZVFB]) Then : Local File ZVFACTURAB2B [F:ZVFB] : Endif
+  If !clalev([F:ZSIH]) Then : Local File SINVOICE     [F:ZSIH] : Endif
+Return
+
+##############################################################
+$OK
+Return
+
+##############################################################
+$EXEC
+  Gosub IMPRIME_FACTURA
+Return
+
+##############################################################
+$FIN
+  Close Local File [ZVFB],[ZSIH]
+  If dim([V]GNUMFACB2B)   > 0 Then : Kill [V]GNUMFACB2B   : Endif
+  If dim([V]GPATHFACB2B)  > 0 Then : Kill [V]GPATHFACB2B  : Endif
+  FIN=1
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$IMPRIME_FACTURA
+  Filter [F:ZVFB] Where evalue([L]LCRIT)
+  For [F:ZVFB]
+    [V]GNUMFACB2B = [F:ZVFB]NUM
+    # parámetros de la factura
+    TBPAR(1)  = "siteini"         : TBVAL(1)  = [F:ZVFB]SALFCY
+    TBPAR(2)  = "sitedeb"         : TBVAL(2)  = [F:ZVFB]SALFCY
+    TBPAR(3)  = "factureini"      : TBVAL(3)  = [F:ZVFB]NUM
+    TBPAR(4)  = "facturedeb"      : TBVAL(4)  = [F:ZVFB]NUM
+    TBPAR(5)  = "typeini"         : TBVAL(5)  = num$([F:ZVFB]INVTYP)
+    TBPAR(6)  = "typedeb"         : TBVAL(6)  = num$([F:ZVFB]INVTYP)
+    TBPAR(7)  = "clientini"       : TBVAL(7)  = [F:ZVFB]BPR
+    TBPAR(8)  = "clientdeb"       : TBVAL(8)  = [F:ZVFB]BPR
+    TBPAR(9)  = "dateini"         : TBVAL(9)  = [F:ZVFB]INVDAT
+    TBPAR(10) = "datedeb"         : TBVAL(10) = [F:ZVFB]INVDAT
+    TBPAR(11) = "codimp"          : TBVAL(11) = num$([F:ZVFB]STARPT)
+    TBPAR(12) = "impselections"   : TBVAL(12) = "1"
+    TBPAR(13) = "duplicata"       : TBVAL(13) = "1"
+
+    # lanza el informe
+    Call ETAT("Z-FACVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
+
+    # envía el fichero al FTP
+    Gosub ENVIA_PDF
+
+    Sleep 1
+  Next
+  Filter [F:ZVFB]
+Return
+
+##############################################################
+$ENVIA_PDF
+#  # envía el fichero al FTP
+#  Call FTPPUTMOV(SERVER,USER,PWD,FTPFOLDER,LPATH,LPATHDES,RESULT) From ZSANYFTP
+
+  # envía el fichero al SFTP
+  [L]LINDEX = [V]GNUMFACB2B
+  Call SFTPPUTMOV_B2B(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,LFORMATO,RESULT) From ZSANYFTP
+
+  # actualiza el campo ZURLPDFB2B de la tabla SINVOICE
+  If RESULT > 0
+    Read [F:ZSIH]SIH0 = [L]LINDEX
+    If !fstat Then
+      [F:ZSIH]ZURLPDFB2B = "http://www.sanycces.es/pdf/" + [L]LINDEX + ".pdf"   ##############*******************PROVISIONAL HASTA TENER EL SERVIDOR FTP!!!!!!!!!
+      If !adxlog Then : Trbegin [F:ZSIH] : Endif
+      Rewrite [F:ZSIH]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################

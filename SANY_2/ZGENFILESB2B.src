@@ -46,7 +46,7 @@ $EXEC
 #  Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_STOCKS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
-#  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 Return
 
 ##############################################################
@@ -67,6 +67,7 @@ Variable  Integer P_RESULT
 Local     Char    LDIRIMPORT(250)
 Local     Char    LDIRPROCESADOS(250)
 Local     Char    LFILE(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LINDEX(250)
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITITM(250)
@@ -86,7 +87,7 @@ Local     Char    LWEIGHT(250),LPRODUCTWEB(250),LCOLOR(250),LMANETA(250),LFLEXIB
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "products_" + LFECHA + "_" + LHORA
-  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + ".csv"
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "PRODUCTS"
   P_LPATHDES         += "\ARTICULOS"
 
@@ -145,7 +146,7 @@ Local     Char    LWEIGHT(250),LPRODUCTWEB(250),LCOLOR(250),LMANETA(250),LFLEXIB
 
   # envío al servidor FTP
   P_LINDEX = [L]LINDEX
-  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT) From ZSANYFTP
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
 End
 
@@ -165,6 +166,7 @@ Local     Char    LDIRIMPORT(250)
 Local     Char    LDIRPROCESADOS(250)
 Local     Char    LFILE(250)
 Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITBPC(250)
 Local     Integer LCONT
@@ -183,7 +185,7 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "customers_" + LFECHA + "_" + LHORA
-  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + ".csv"
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "CUSTOMERS"
   P_LPATHDES         += "\CLIENTES"
 
@@ -246,7 +248,7 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
 
   # envío al servidor FTP
   P_LINDEX = [L]LINDEX
-  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT) From ZSANYFTP
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
 End
 
@@ -266,6 +268,7 @@ Local     Char    LDIRIMPORT(250)
 Local     Char    LDIRPROCESADOS(250)
 Local     Char    LFILE(250)
 Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITBPA(250)
 Local     Integer LCONT
@@ -284,7 +287,7 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "customeraddress_" + LFECHA + "_" + LHORA
-  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + ".csv"
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "CUSTOMERSADDRESS"
   P_LPATHDES         += "\DIRECCIONESCLIENTES"
 
@@ -346,7 +349,7 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
 
   # envío al servidor FTP
   P_LINDEX = [L]LINDEX
-  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT) From ZSANYFTP
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
 End
 
@@ -366,6 +369,7 @@ Local     Char    LDIRIMPORT(250)
 Local     Char    LDIRPROCESADOS(250)
 Local     Char    LFILE(250)
 Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITSTK(250)
 Local     Integer LCONT
@@ -383,7 +387,7 @@ Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "stocks_" + LFECHA + "_" + LHORA
-  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + ".csv"
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "STOCKS"
   P_LPATHDES         += "\STOCKS"
 
@@ -431,7 +435,7 @@ Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
 
   # envío al servidor FTP
   P_LINDEX = [L]LINDEX
-  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT) From ZSANYFTP
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
 End
 
@@ -451,6 +455,7 @@ Local     Char    LDIRIMPORT(250)
 Local     Char    LDIRPROCESADOS(250)
 Local     Char    LFILE(250)
 Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LCRITPRI(250)
 Local     Char    LBPCSTR(250)
 Local     Char    LBPCEND(250)
@@ -468,7 +473,7 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
   [L]LDIRIMPORT       = filpath("FTP\B2B","","")
   [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
   [L]LCRITPRI         = "1=1"
-  P_FTPFOLDER         = "customer_price_import"
+  P_FTPFOLDER         = "customer_price_import/entrada"
   P_LPATHDES         += "\PRECIOS"
 
   If !clalev([M:SPP1])  Then : Local Mask SPPRT       [M:SPP1]  : Endif
@@ -504,8 +509,21 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     [L]LITMEND = [F:ZVIT]SKU
   Endif
 
-[L]LITMSTR = '0000_000000'
-[L]LITMEND = '0029298900'
+#[L]LITMSTR = '0000_000000'
+#[L]LITMEND = '0029298900'
+
+# ms Artículos Sanitarios
+[L]LITMSTR = 'BDM50154BM'
+[L]LITMEND = 'WCS50254WM'
+
+# ms Artículos Griferías
+#[L]LITMSTR = 'ACCLV002BG'
+#[L]LITMEND = 'WCSH001RM'
+
+# ms Artículos TODOS
+#[L]LITMSTR = '0000_000000'
+#[L]LITMEND = 'ZVISITASCLIENTES'
+
 
   Gosub OUVRE       From SUBSPP
   Gosub LIENS       From SUBSPP
@@ -589,7 +607,8 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'@','_AT_')
     [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'.','_DOT_')
     [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'+','_PLUS_')
-    [L]LFILE  = [L]LDIRIMPORT + "\" + [L]LINDEX + ".csv"
+#[L]LINDEX = "m_DOT_salvador_AT_sanycces_DOT_es"
+    [L]LFILE  = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
 
     # borramos el fichero si existe...
     If filinfo([L]LFILE, 7) > 0 Then
@@ -607,15 +626,36 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     Wrseq '"sku","price","discounttype","qty","description"'  Using [ZB2B]
 
     For [F:ZVPR]
+      Raz [L]LDESCRIPTION
       LSKU          = '"'+ctrans(vireblc([F:ZVPR]SKU,2),'""','')+'"'
       If [F:ZVPR]PRICE > 0 Then
-        LPRICE        = '"'+ctrans(ctrans(vireblc(num$([F:ZVPR]PRICE),2),'""',''),',','.')+'"'
+        [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$([F:ZVPR]PRICE),2),'""',''),',','.')+'"'
       Else
-        LPRICE        = '"'+ctrans(ctrans(vireblc(num$(0.1),2),'""',''),',','.')+'"'
+        [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$(0.1),2),'""',''),',','.')+'"'
       Endif
-      LDISCOUNTTYPE = '"'+ctrans(vireblc([F:ZVPR]DISCOUNTTYPE,2),'""','')+'"'
-      LQTY          = '"'+ctrans(vireblc([F:ZVPR]QTY,2),'""','')+'"'
-      LDESCRIPTION  = '"'+ctrans(vireblc([F:ZVPR]DESCRIPTION,2),'""','')+'"'
+      [L]LDISCOUNTTYPE    = '"'+ctrans(vireblc([F:ZVPR]DISCOUNTTYPE,2),'""','')+'"'
+      [L]LQTY             = '"'+ctrans(vireblc([F:ZVPR]QTY,2),'""','')+'"'
+#      LDESCRIPTION  = '"'+ctrans(vireblc([F:ZVPR]DESCRIPTION,2),'""','')+'"'
+      If [F:ZVPR]DTO1 <> 0 Then
+        If [L]LDESCRIPTION  = '' Then
+          [L]LDESCRIPTION  += num$([F:ZVPR]DTO1) + '%'
+        Endif
+      Endif
+      If [F:ZVPR]DTO2 <> 0 Then
+        If [L]LDESCRIPTION  = '' Then
+          [L]LDESCRIPTION  += num$([F:ZVPR]DTO2) + '%'
+        Else
+          [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO2) + '%'
+        Endif
+      Endif
+      If [F:ZVPR]DTO3 <> 0 Then
+        If [L]LDESCRIPTION  = '' Then
+          [L]LDESCRIPTION  += num$([F:ZVPR]DTO3) + '%'
+        Else
+          [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO3) + '%'
+        Endif
+      Endif
+      If [L]LDESCRIPTION <> '' Then : [L]LDESCRIPTION = '"' + [L]LDESCRIPTION + '"' : Endif
 
       # escribe los datos de precios
       Wrseq [L]LSKU + [L]LSEP + [L]LPRICE + [L]LSEP + [L]LDISCOUNTTYPE + [L]LSEP + [L]LQTY + [L]LSEP + [L]LDESCRIPTION
@@ -632,7 +672,7 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
 
     # envío al servidor FTP
     P_LINDEX = [L]LINDEX
-    Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT) From ZSANYFTP
+    Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 $NEXT1
   Next
 
