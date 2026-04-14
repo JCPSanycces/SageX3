@@ -633,6 +633,7 @@ Variable Char    VALEUR()
 # Traigo los valores de la pantalla Sanycces de la dirección de entrega
 If !clalev([PP1]) : Local File BPDLVCUST [PP1] : Endif
 If !clalev([PP2]) : Local File BPADDRESS [PP2] : Endif
+If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
 
 Read [PP1]BPD0 = [M:SOH0]BPCORD;VALEUR
 If fstat = 0
@@ -648,6 +649,14 @@ Read [PP2]BPA0 = 1;[M:SOH0]BPCORD;VALEUR
 If fstat = 0
   [M:YSOH5]YTELEFONO = [PP2]TEL(0)
   [M:YSOH5]YMAIL     = [PP2]WEB(3)
+  # Actualizamos los datos del transportista asociado a la nueva dirección.
+  Read [YTRA]YTRAN0 = [M:SOH2]BPTNUM
+  If !fstat
+    [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
+    [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
+    Affzo [M:SOH2]YSERVDEF
+    Affzo [M:SOH2]YTERMDEF
+  Endif
 Endif
 
 Close Local File [PP1]
@@ -681,6 +690,7 @@ Call AM_BPCORD(VALEUR) From SUBSOH
 # Traigo los valores de la pantalla Sanycces de la dirección de entrega
 If !clalev([PP1]) : Local File BPDLVCUST [PP1] : Endif
 If !clalev([PP2]) : Local File BPADDRESS [PP2] : Endif
+If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
 
 Read [PP1]BPD0 = VALEUR;[M:SOH1]BPAADD
 If fstat = 0
@@ -699,10 +709,19 @@ If fstat = 0
   [M:YSOH5]YMAIL     = [PP2]WEB(3)
   Affzo [M:YSOH5]YTELEFONO
   Affzo [M:YSOH5]YMAIL
+  # Actualizamos los datos del transportista asociado a la nueva dirección.
+  Read [YTRA]YTRAN0 = [M:SOH2]BPTNUM
+  If !fstat
+    [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
+    [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
+    Affzo [M:SOH2]YSERVDEF
+    Affzo [M:SOH2]YTERMDEF
+  Endif
 Endif
 
 Close Local File [PP1]
 Close Local File [PP2]
+Close Local File [YTRA]
 
 #  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No) - INI
   If !clalev([YBPC]) : Local File BPCUSTOMER [YBPC] : Endif
@@ -1557,28 +1576,23 @@ Local Char    LITMPADRE(50),LDTOPADRE(50)
           Rollback
         Endif
         [L]LCONPRI += 1
-        For [L]LCONSEC=[L]LCONPRI To [M:SOH4]NBLIG-1
-          If [M:SOH4]LINTYP([L]LCONSEC) = 8 Then
-            Read [F:ZSOQ1]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONSEC);[M:SOH4]SOPLIN([L]LCONSEC)
-            Read [F:ZSOP1]SOP0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONSEC);[M:SOH4]SOPLIN([L]LCONSEC)
-            [F:ZSOQ1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
-            [F:ZSOQ1]ZVARESTDTO  = [L]LDTOPADRE
-            [F:ZSOP1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
-            [F:ZSOP1]ZVARESTDTO  = [L]LDTOPADRE
-            If !adxlog Then : Trbegin [F:ZSOQ1] : Endif
-            Rewrite [F:ZSOQ1]
-            Rewrite [F:ZSOP1]
-            If !fstat Then
-              Commit
-            Else
-              Rollback
-            Endif
+        While [M:SOH4]LINTYP([L]LCONPRI) = 8
+          Read [F:ZSOQ1]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+          Read [F:ZSOP1]SOP0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+          [F:ZSOQ1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+          [F:ZSOQ1]ZVARESTDTO  = [L]LDTOPADRE
+          [F:ZSOP1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+          [F:ZSOP1]ZVARESTDTO  = [L]LDTOPADRE
+          If !adxlog Then : Trbegin [F:ZSOQ1] : Endif
+          Rewrite [F:ZSOQ1]
+          Rewrite [F:ZSOP1]
+          If !fstat Then
+            Commit
           Else
-            [L]LCONPRI = [L]LCONSEC + 1
-            Goto NEXT_COMPUESTO
+            Rollback
           Endif
-        Next
-$NEXT_COMPUESTO
+          [L]LCONPRI += 1
+        Wend
       Endif
     Endif
   Next

@@ -333,24 +333,19 @@ Local Char    LITMPADRE(50),LDTOPADRE(50)
           Rollback
         Endif
         [L]LCONPRI += 1
-        For [L]LCONSEC=[L]LCONPRI To [M:SIH4]NBLIG-1
-          If [M:SIH4]LINTYP([L]LCONSEC) = 8 Then
-            Read [F:ZSID1]SID0 = [M:SIH0]NUM;[M:SIH4]SIDLIN([L]LCONSEC)
-            [F:ZSID1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
-            [F:ZSID1]ZVARESTDTO  = [L]LDTOPADRE
-            If !adxlog Then : Trbegin [F:ZSID1] : Endif
-            Rewrite [F:ZSID1]
-            If !fstat Then
-              Commit
-            Else
-              Rollback
-            Endif
+        While [M:SIH4]LINTYP([L]LCONPRI) = 8
+          Read [F:ZSID1]SID0 = [M:SIH0]NUM;[M:SIH4]SIDLIN([L]LCONPRI)
+          [F:ZSID1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+          [F:ZSID1]ZVARESTDTO  = [L]LDTOPADRE
+          If !adxlog Then : Trbegin [F:ZSID1] : Endif
+          Rewrite [F:ZSID1]
+          If !fstat Then
+            Commit
           Else
-            [L]LCONPRI = [L]LCONSEC + 1
-            Goto NEXT_COMPUESTO
+            Rollback
           Endif
-        Next
-$NEXT_COMPUESTO
+          [L]LCONPRI += 1
+        Wend
       Endif
     Endif
   Next
