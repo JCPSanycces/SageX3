@@ -14,6 +14,9 @@
 #@01@ NUN22: 	17-09-2024	Encapsulamos en función la comprobación del estado del contenedor y registramos cambios en la tabla para poder filtrar en el browser
 #@02@ NUN48:  18-11-2024  Modificación del recálculo del campo YIMPORTEBPS
 #@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)"
+# 2026-00021 - JCP.15042026.Cálculo del campo Total AI divisa prov. en Contenedores de carga
+#######################################################################################
+
 $ACTION
 #If GUSER = 'NUN28' : Infbox ACTION : Endif
 Case ACTION
@@ -396,19 +399,24 @@ Local Decimal CAMPO_SUM
 If [M:CTRH2]CUR = [M:CTRH2]YDIVISABPS
   [M:CTRH2]YIMPORTEBPS = [M:CTRH2]TOTLINAMT
 Else
-#@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - INI
-#  Local Integer STAT
-#  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
-#@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - FIN
-  For I=0 To [M:CTRH1]NBLIG-1
-    [M:CTRH2]YIMPORTEBPS+=[M:CTRH1]LINAMT(I)
-    CAMPO_SUM += [M:CTRH1]LINAMT(I) #@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)"
-  Next
-
-Endif
-#@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - INI
-If CAMPO_ANTES <> CAMPO_SUM
+# 2026-00021.ini
+##@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - INI
+##  Local Integer STAT
+##  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
+##@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - FIN
+#  For I=0 To [M:CTRH1]NBLIG-1
+#    [M:CTRH2]YIMPORTEBPS+=[M:CTRH1]LINAMT(I)
+#    CAMPO_SUM += [M:CTRH1]LINAMT(I) #@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)"
+#  Next
+#
+#Endif
+##@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - INI
+#If CAMPO_ANTES <> CAMPO_SUM
+#  Affzo [M:CTRH2]YIMPORTEBPS
+#Endif
+##@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - FIN
+  [M:CTRH2]YIMPORTEBPS = sigma(J=0,[M:CTRH1]NBLIG-1,([M:CTRH1]LINAMT(J)))    # suma el importe AI
   Affzo [M:CTRH2]YIMPORTEBPS
 Endif
-#@03@ NUN14/NUN28: 24-12-2025 Ajustes del campo "Total AI divisa prov. (YIMPORTEBPS)" - FIN
+# 2026-00021.fin
 Return

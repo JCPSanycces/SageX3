@@ -13,6 +13,8 @@
 #######################################################################################
 #@01@ NUN22: 	17-09-2024	Encapsulamos en función la comprobación del estado del contenedor y registramos cambios en la tabla para poder filtrar en el browser
 #@02@ NUN48:  18-11-2024  Modificación del recálculo del campo YIMPORTEBPS
+# 2026-00021 - JCP.15042026.Cálculo del campo Total AI divisa prov. en Contenedores de carga
+#######################################################################################
 
 $ACTION
 Case ACTION
@@ -379,8 +381,12 @@ Affzo [M:CTRH2]YDIVISABPS
 If [M:CTRH2]CUR = [M:CTRH2]YDIVISABPS
   [M:CTRH2]YIMPORTEBPS = [M:CTRH2]TOTLINAMT
 Else
-  Local Integer STAT
-  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
+# 2026-00021.ini
+#  Local Integer STAT
+#  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
+  [M:CTRH2]YIMPORTEBPS = sigma(J=0,[M:CTRH1]NBLIG-1,([M:CTRH1]LINAMT(J)))    # suma el importe línea AI
+  Affzo [M:CTRH2]YIMPORTEBPS
+# 2026-00021.fin
 Endif
 
 Affzo [M:CTRH2]YIMPORTEBPS
