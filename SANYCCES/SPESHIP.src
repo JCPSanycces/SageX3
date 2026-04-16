@@ -1,7 +1,11 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 #@01@ nun48 - Modificacion del estado de contenedores desde Expedición
+# 2026-00017 - JCP.16042026.Expediciones. Campos modificables
+#############################################################################
+
 $ACTION
 Case ACTION
+  When "SETBOUT"      :   Gosub SETBOUT
   When "MODIF"        :   Gosub MODIF
   When "VERIF_CRE"    :   Gosub VERIF_CRE
   When "VERIF_MOD"    :   Gosub VERIF_MOD
@@ -10,6 +14,13 @@ Case ACTION
   When "APRES_MOD"    :   Gosub APRES_MOD #@01@ nun48 - Modificacion del estado de contenedores desde Expedición
   When "ANNULE"       :   Gosub ANNULE    #@01@ nun48 - Modificacion del estado de contenedores desde Expedición
 Endcase
+Return
+
+###########################################
+$SETBOUT
+# 2026-00017.ini
+  Actzo [M:SHIP2]DPEDAT,ARVEXPDAT,ARVDAT
+# 2026-00017.fin
 Return
 
 ###########################################
