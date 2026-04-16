@@ -1,20 +1,4 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
-Local Char  LBPCNUM
-Local Char  LDATEINI, LDATEDEB
-Local Char  LSTAT1(100)(1..),LSTAT2(100)(1..),LSTAT3(100)(1..),LSTAT4(100)(1..)
-LBPCNUM   = 'info@amadosalvador.es'
-LDATEINI  = '01/04/2026'
-LDATEDEB  = '30/04/2026'
-Call GET_SOHINFO(LBPCNUM, LDATEINI, LDATEDEB,LSTAT1,LSTAT2,LSTAT3,LSTAT4)
-Infbox LSTAT2(1)
-Infbox LSTAT1(1)
-Infbox LSTAT1(2)
-Infbox LSTAT1(3)
-Infbox LSTAT4(1)
-Infbox LSTAT4(2)
-Infbox LSTAT4(3)
-End
-
 ########################################################################
 #**
 #* devuelve la información del pedido para el B2B
@@ -22,125 +6,368 @@ End
 #* @param PCLIMGT         > identificador de cliente B2B
 #* @param PDATEINI        > fecha inicial para filtro
 #* @param PDATEDEB        > fecha final para filtro
+#* @param PNUMPAG         > número de página
 #* @param PPEDIDO         > número de pedido
+#* @param PFECHA          > fecha de pedido
+#* @param PESTADO         > estado del pedido
+#* @param PFECHAULTENT    > fecha de la última entrega
+#* @param PFECHAPREVISTA  > fecha prevista de entrega
+#* @param PNUMLINEAS      > número de líneas totales en el pedido
+#*!
+Subprog GET_SOHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,
+&                   PPEDIDO,PFECHA,PESTADO,PFECHAULTENT,PFECHAPREVISTA,PNUMLINEAS)
+# parámetros de entrada
+Value     Char    PCLIMGT()
+Value     Char    PDATEINI()
+Value     Char    PDATEDEB()
+Variable  Integer PNUMPAG()
+# parámetros de salida - cabecera
+Variable  Char    PPEDIDO()(1..50)
+Variable  Char    PFECHA()(1..50)
+Variable  Char    PESTADO()(1..50)
+Variable  Char    PFECHAULTENT()(1..50)
+Variable  Char    PFECHAPREVISTA()(1..50)
+Variable  Integer PNUMLINEAS(1..50)
+# variables locales
+Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
+Local     Integer I,J,K,LCONTROL
+Local     Date    LFINI,LFFIN
+Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LREGINI,LREGFIN
+
+  # Inicializamos con estado OK
+  GSTATUS  = 1
+  GMESSAGE = ""
+
+  # cliente
+  If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
+  Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
+  Read   [F:ZBPC] First
+  If !fstat Then
+    [L]LCRIT += " and CLIENTE_SAGE = '" + [F:ZBPC]BPCNUM + "'"
+  Else
+    GSTATUS   = 0
+    Call ERREUR("Error en el cliente") From GESECRAN
+    End
+  Endif
+  Filter [F:ZBPC]
+
+  # fecha inicio
+  If PDATEINI <> "" Then
+    Call VALIDA_FECHA(PDATEINI,[L]LCONTROL) From ZSANLIB01
+    If [L]LCONTROL = 0 Then
+      GSTATUS   = 0
+      Call ERREUR("Error en la fecha de inicio") From GESECRAN
+      End
+    Endif
+    If PDATEINI <> "" Then
+      LFINI = gdat$(val(mid$(PDATEINI,1,2)),val(mid$(PDATEINI,4,2)),val(mid$(PDATEINI,7,4)))
+      [L]LCRIT += " and FECHAPEDIDO >= ["  + format$(GFMD,LFINI) + "]"
+    Endif
+  Endif
+
+  # fecha fin
+  If PDATEDEB <> "" Then
+    Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
+    If [L]LCONTROL = 0 Then
+      GSTATUS   = 0
+      Call ERREUR("Error en la fecha de fin") From GESECRAN
+      End
+    Endif
+    If PDATEDEB <> "" Then
+      LFFIN = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
+      [L]LCRIT += " and FECHAPEDIDO <= ["  + format$(GFMD,LFFIN) + "]"
+    Endif
+  Endif
+
+  If PNUMPAG = 0 Then
+    PNUMPAG = 1
+  Endif
+
+  [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
+  [L]LREGFIN = PNUMPAG * [L]LMAX
+
+  [L]I += 1
+  [L]J += 1
+  [L]K  = [L]LREGINI
+  If !clalev([F:ZVSH]) Then : Local File ZVSOHB2B [F:ZVSH] : Endif
+  If !clalev([F:ZSOQ]) Then : Local File SORDERQ  [F:ZSOQ] : Endif
+  Filter [F:ZVSH] Where evalue([L]LCRIT) Order By PEDIDO
+  For [F:ZVSH]
+    If [L]J < [L]K Then
+      [L]J += 1
+    Else
+      If [L]LREGINI <= [L]LREGFIN
+        PPEDIDO(I)          = [F:ZVSH]PEDIDO
+        If [F:ZVSH]FECHAPEDIDO <> [0/0/0] Then
+          PFECHA(I)         = num$(format$(GFMD,[F:ZVSH]FECHAPEDIDO))
+        Else
+          PFECHA(I)         = ""
+        Endif
+        PESTADO(I)          = [F:ZVSH]ESTADOPEDIDO
+        If [F:ZVSH]FECHAULTENTR <> [0/0/0] Then
+          PFECHAULTENT(I)   = num$(format$(GFMD,[F:ZVSH]FECHAULTENTR))
+        Else
+          PFECHAULTENT(I)   = ""
+        Endif
+        If [F:ZVSH]FECHAPREVEXP <> [0/0/0] Then
+          PFECHAPREVISTA(I) = num$(format$(GFMD,[F:ZVSH]FECHAPREVEXP))
+        Else
+          PFECHAPREVISTA(I) = ""
+        Endif
+        Filter [F:ZSOQ] Where SOHNUM = [F:ZVSH]PEDIDO
+        PNUMLINEAS(I)       = rowcount([F:ZSOQ])
+        Filter [F:ZSOQ]
+        [L]LREGINI += 1
+        [L]I       += 1
+      Else
+        Break
+      Endif
+    Endif
+  Next
+  Filter [F:ZVSH]
+
+  If GSTATUS = 1
+    Call MESSAGE("Número de registros:"-num$(I-1)) From GESECRAN
+  Endif
+
+End
+
+########################################################################
+#**
+#* devuelve la información de líneas de pedido para el B2B
+#*
+#* @param PPEDIDO         > número de pedido
+#* @param PNUMPAG         > número de página
 #* @param PFECHA          > fecha de pedido
 #* @param PESTADO         > estado del pedido
 #* @param PFECHAULTENT    > fecha de la última entrega
 #* @param PLINEA          > línea de pedido
 #* @param PARTICULO       > código de artículo
+#* @param PDESARTICULO    > descripción de artículo
 #* @param PCTDPEDIDA      > cantidad pedida
 #* @param PCTDSERVIDA     > cantidad servida
 #* @param PCTDPENDIENTE   > cantidad pendiente
 #* @param PTRACKING       > número de tracking
 #* @param PFECHAPREVISTA  > fecha prevista de entrega
-#* @param PSTAT1          > campo adicional 1
-#* @param PSTAT2          > campo adicional 2
-#* @param PSTAT3          > campo adicional 3
-#* @param PSTAT4          > campo adicional 4
 #*!
-Subprog GET_SOHINFO(PCLIMGT,PDATEINI,PDATEDEB,
-&                   PPEDIDO,PFECHA,PESTADO,PFECHAULTENT,
-&                   PLINEA,PARTICULO,PCTDPEDIDA,PCTDSERVIDA,PCTDPENDIENTE,PTRACKING,PFECHAPREVISTA,
-&                   PSTAT1,PSTAT2,PSTAT3,PSTAT4)
+Subprog GET_SODINFO(PPEDIDO,PNUMPAG,
+&                   PFECHA,PESTADO,PFECHAULTENT,
+&                   PLINEA,PARTICULO,PDESARTICULO,PCTDPEDIDA,PCTDSERVIDA,PCTDPENDIENTE,PTRACKING,PFECHAPREVISTA)
+# parámetros de entrada
+Value     Char    PPEDIDO()
+Variable  Integer PNUMPAG()
+# parámetros de salida - cabecera
+Variable  Char    PFECHA()(1..50)
+Variable  Char    PESTADO()(1..50)
+Variable  Char    PFECHAULTENT()(1..50)
+# parámetros de salida - líneas
+Variable  Integer PLINEA(1..50)
+Variable  Char    PARTICULO()(1..50)
+Variable  Char    PDESARTICULO()(1..50)
+Variable  Decimal PCTDPEDIDA(1..50)
+Variable  Decimal PCTDSERVIDA(1..50)
+Variable  Decimal PCTDPENDIENTE(1..50)
+Variable  Char    PTRACKING()(1..50)
+Variable  Char    PFECHAPREVISTA()(1..50)
+# variables locales
+Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
+Local     Integer I,J,K,LCONTROL
+Local     Date    LFINI,LFFIN
+Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LREGINI,LREGFIN
+
+  # Inicializamos con estado OK
+  GSTATUS  = 1
+  GMESSAGE = ""
+
+  # pedido
+  If PPEDIDO <> "" Then
+    If !clalev([F:ZSOH]) Then : Local File SORDER [F:ZSOH] : Endif
+    Read   [F:ZSOH]SOH0 = [L]PPEDIDO
+    If !fstat Then
+      [L]LCRIT += " and PEDIDO='" + [F:ZSOH]SOHNUM + "'"
+    Else
+      GSTATUS   = 0
+      Call ERREUR("Error en el pedido") From GESECRAN
+      End
+    Endif
+  Else
+    GSTATUS   = 0
+    Call ERREUR("Error en el pedido") From GESECRAN
+    End
+  Endif
+
+  If PNUMPAG = 0 Then
+    PNUMPAG = 1
+  Endif
+
+  [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
+  [L]LREGFIN = PNUMPAG * [L]LMAX
+
+  [L]I += 1
+  [L]J += 1
+  [L]K  = [L]LREGINI
+  If !clalev([F:ZVSD]) Then : Local File ZVSODB2B [F:ZVSD] : Endif
+  Filter [F:ZVSD] Where evalue([L]LCRIT) Order By LINEA
+  For [F:ZVSD]
+    If [L]J < [L]K Then
+      [L]J += 1
+    Else
+      If [L]LREGINI <= [L]LREGFIN
+        If [F:ZVSD]FECHAPEDIDO <> [0/0/0] Then
+          PFECHA(I)         = num$(format$(GFMD,[F:ZVSD]FECHAPEDIDO))
+        Else
+          PFECHA(I)         = ""
+        Endif
+        PESTADO(I)          = [F:ZVSD]ESTADOPEDIDO
+        If [F:ZVSD]FECHAULTENTR <> [0/0/0] Then
+          PFECHAULTENT(I)   = num$(format$(GFMD,[F:ZVSD]FECHAULTENTR))
+        Else
+          PFECHAULTENT(I)   = ""
+        Endif
+        PLINEA(I)           = [F:ZVSD]LINEA
+        PARTICULO(I)        = [F:ZVSD]ARTICULO
+        PDESARTICULO(I)     = [F:ZVSD]DESCRIPCION
+        PCTDPEDIDA(I)       = [F:ZVSD]CANTIDAD
+        PCTDSERVIDA(I)      = [F:ZVSD]CTDEXPEDIDA
+        PCTDPENDIENTE(I)    = [F:ZVSD]CTDPENDIENTE
+        PTRACKING(I)        = [F:ZVSD]NUMEXPED
+        If [F:ZVSD]FECHAPREVEXP <> [0/0/0] Then
+          PFECHAPREVISTA(I) = num$(format$(GFMD,[F:ZVSD]FECHAPREVEXP))
+        Else
+          PFECHAPREVISTA(I) = ""
+        Endif
+        [L]LREGINI += 1
+        [L]I       += 1
+      Else
+        Break
+      Endif
+    Endif
+  Next
+  Filter [F:ZVSD]
+
+  If GSTATUS = 1
+    Call MESSAGE("Número de registros:"-num$(I-1)) From GESECRAN
+  Endif
+
+End
+
+########################################################################
+#**
+#* devuelve la información de la entrega para el B2B
+#*
+#* @param PCLIMGT         > identificador de cliente B2B
+#* @param PDATEINI        > fecha inicial para filtro
+#* @param PDATEDEB        > fecha final para filtro
+#* @param PNUMPAG         > número de página
+#* @param PENTREGA        > número de entrega
+#* @param PFECHA          > fecha de entrega
+#* @param PPEDIDO         > número de pedido
+#* @param PNUMLINEAS      > número de líneas totales en la entrega
+#*!
+Subprog GET_SDHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,
+&                   PENTREGA,PFECHA,PPEDIDO,PNUMLINEAS)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
 Value     Char    PDATEDEB()
+Variable  Integer PNUMPAG()
 # parámetros de salida - cabecera
-Variable  Char    PPEDIDO()(1..300)
-Variable  Char    PFECHA()(1..300)
-Variable  Char    PESTADO()(1..300)
-Variable  Char    PFECHAULTENT()(1..300)
-# parámetros de salida - líneas
-Variable  Integer PLINEA(1..300)
-Variable  Char    PARTICULO()(1..300)
-Variable  Decimal PCTDPEDIDA(1..300)
-Variable  Decimal PCTDSERVIDA(1..300)
-Variable  Decimal PCTDPENDIENTE(1..300)
-Variable  Char    PTRACKING()(1..300)
-Variable  Char    PFECHAPREVISTA()(1..300)
-# parámetros de salida - genéricos
-Variable  Char    PSTAT1()(1..300)
-Variable  Char    PSTAT2()(1..300)
-Variable  Char    PSTAT3()(1..300)
-Variable  Char    PSTAT4()(1..300)
+Variable  Char    PENTREGA()(1..50)
+Variable  Char    PFECHA()(1..50)
+Variable  Char    PPEDIDO()(1..50)
+Variable  Integer PNUMLINEAS(1..50)
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
-Local     Integer I,LCONTROL
+Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 300
+Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LREGINI,LREGFIN
 
   # Inicializamos con estado OK
   GSTATUS  = 1
   GMESSAGE = ""
 
   # cliente
-  If PCLIMGT  <> "" Then
-    If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
-    Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
-    Read   [F:ZBPC] First
-    If !fstat Then
-      [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
-    Else
-      GSTATUS   = 0
-      GMESSAGE  = "Error en el cliente"
-    Endif
-    Filter [F:ZBPC]
+  If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
+  Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
+  Read   [F:ZBPC] First
+  If !fstat Then
+    [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
+  Else
+    GSTATUS   = 0
+    Call ERREUR("Error en el cliente") From GESECRAN
+    End
   Endif
+  Filter [F:ZBPC]
 
   # fecha inicio
-  Call VALIDA_FECHA(PDATEINI,[L]LCONTROL) From ZSANLIB01
-  If [L]LCONTROL = 0 Then
-    GSTATUS   = 0
-    GMESSAGE  = "Error en la fecha de inicio"
-  Endif
-  If PDATEINI <> "" Then
-    LFINI = gdat$(val(mid$(PDATEINI,1,2)),val(mid$(PDATEINI,4,2)),val(mid$(PDATEINI,7,4)))
-    [L]LCRIT += " and FECHAPEDIDO>=["  + format$(GFMD,LFINI) + "]"
+  If PDATEINI <> ""
+    Call VALIDA_FECHA(PDATEINI,[L]LCONTROL) From ZSANLIB01
+    If [L]LCONTROL = 0 Then
+      GSTATUS   = 0
+      Call ERREUR("Error en la fecha de inicio") From GESECRAN
+    Endif
+    If PDATEINI <> "" Then
+      LFINI = gdat$(val(mid$(PDATEINI,1,2)),val(mid$(PDATEINI,4,2)),val(mid$(PDATEINI,7,4)))
+      [L]LCRIT += " and FECHA>=["  + format$(GFMD,LFINI) + "]"
+    Endif
   Endif
 
   # fecha fin
-  Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
-  If [L]LCONTROL = 0 Then
-    GSTATUS   = 0
-    GMESSAGE  = "Error en la fecha de fin"
-  Endif
-  If PDATEDEB <> "" Then
-    LFFIN = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
-    [L]LCRIT += " and FECHAPEDIDO<=["  + format$(GFMD,LFFIN) + "]"
+  If PDATEDEB <> ""
+    Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
+    If [L]LCONTROL = 0 Then
+      GSTATUS   = 0
+      Call ERREUR("Error en la fecha de fin") From GESECRAN
+    Endif
+    If PDATEDEB <> "" Then
+      LFFIN = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
+      [L]LCRIT += " and FECHA<=["  + format$(GFMD,LFFIN) + "]"
+    Endif
   Endif
 
-  I = 1
-  If !clalev([F:ZVPV]) Then : Local File ZVPEDIDOB2B [F:ZVPV] : Endif
-  Filter [F:ZVPV] Where evalue([L]LCRIT) Order By PEDIDO
-  For [F:ZVPV]
-    PPEDIDO(I)          = [F:ZVPV]PEDIDO
-    If [F:ZVPV]FECHAPEDIDO <> [0/0/0] Then
-      PFECHA(I)         = num$(format$(GFMD,[F:ZVPV]FECHAPEDIDO))
+  If PNUMPAG = 0 Then
+    PNUMPAG = 1
+  Endif
+
+  [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
+  [L]LREGFIN = PNUMPAG * [L]LMAX
+
+  [L]I += 1
+  [L]J += 1
+  [L]K  = [L]LREGINI
+  If !clalev([F:ZVSH]) Then : Local File ZVSDHB2B   [F:ZVSH] : Endif
+  If !clalev([F:ZSDD]) Then : Local File SDELIVERYD [F:ZSDD] : Endif
+  Filter [F:ZVSH] Where evalue([L]LCRIT) Order By ENTREGA
+  For [F:ZVSH]
+    If [L]J < [L]K Then
+      [L]J += 1
     Else
-      PFECHA(I)         = ""
+      If [L]LREGINI <= [L]LREGFIN
+        PENTREGA(I)         = [F:ZVSH]ENTREGA
+        If [F:ZVSH]FECHA <> [0/0/0] Then
+          PFECHA(I)         = num$(format$(GFMD,[F:ZVSH]FECHA))
+        Else
+          PFECHA(I)         = ""
+        Endif
+        PPEDIDO(I)          = [F:ZVSH]PEDIDO
+        Filter [F:ZSDD] Where SDHNUM = [F:ZVSH]ENTREGA
+        PNUMLINEAS(I)       = rowcount([F:ZSDD])
+        Filter [F:ZSDD]
+        [L]LREGINI += 1
+        [L]I       += 1
+      Else
+        Break
+      Endif
     Endif
-    PESTADO(I)          = [F:ZVPV]ESTADOPEDIDO
-    If [F:ZVPV]FECHAULTENTR <> [0/0/0] Then
-      PFECHAULTENT(I)   = num$(format$(GFMD,[F:ZVPV]FECHAULTENTR))
-    Else
-      PFECHAULTENT(I)   = ""
-    Endif
-    PLINEA(I)           = [F:ZVPV]LINEA
-    PARTICULO(I)        = [F:ZVPV]ARTICULO
-    PCTDPEDIDA(I)       = [F:ZVPV]CANTIDAD
-    PCTDSERVIDA(I)      = [F:ZVPV]CTDEXPEDIDA
-    PCTDPENDIENTE(I)    = [F:ZVPV]CTDPENDIENTE
-    PTRACKING(I)        = [F:ZVPV]NUMEXPED
-    If [F:ZVPV]FECHAPREVEXP <> [0/0/0] Then
-      PFECHAPREVISTA(I) = num$(format$(GFMD,[F:ZVPV]FECHAPREVEXP))
-    Else
-      PFECHAPREVISTA(I) = ""
-    Endif
-    I += 1
-    If I > [L]LMAX Then Break Endif
   Next
-  Filter [F:ZVPV]
+  Filter [F:ZVSH]
+
+  If GSTATUS = 1
+    Call MESSAGE("Número de registros:"-num$(I-1)) From GESECRAN
+  Endif
 
 End
 
@@ -148,197 +375,223 @@ End
 #**
 #* devuelve la información del pedido para el B2B
 #*
-#* @param PCLIMGT         > identificador de cliente B2B
-#* @param PDATEINI        > fecha inicial para filtro
-#* @param PDATEDEB        > fecha final para filtro
 #* @param PENTREGA        > número de entrega
 #* @param PFECHA          > fecha de entrega
 #* @param PLINEA          > línea de entrega
 #* @param PARTICULO       > artículo
+#* @param PDESARTICULO    > descripción de artículo
 #* @param PPEDIDO         > número de pedido
 #* @param PLINEAPEDIDO    > línea de pedido
 #* @param PCANTIDAD       > cantidad entregada
 #* @param PTRACKING       > número de tracking
-#* @param PSTAT1          > campo adicional 1
-#* @param PSTAT2          > campo adicional 2
-#* @param PSTAT3          > campo adicional 3
-#* @param PSTAT4          > campo adicional 4
 #*!
-Subprog GET_SDHINFO(PCLIMGT,PDATEINI,PDATEDEB,
-&                   PENTREGA,PFECHA,
-&                   PLINEA,PARTICULO,PPEDIDO,PLINEAPEDIDO,PCANTIDAD,PTRACKING,
-&                   PSTAT1,PSTAT2,PSTAT3,PSTAT4)
+Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,
+&                   PLINEA,PARTICULO,PDESARTICULO,PPEDIDO,PLINEAPEDIDO,PCANTIDAD,PTRACKING)
 # parámetros de entrada
-Value     Char    PCLIMGT()
-Value     Char    PDATEINI()
-Value     Char    PDATEDEB()
+Variable  Char    PENTREGA()
+Variable  Integer PNUMPAG()
 # parámetros de salida - cabecera
-Variable  Char    PENTREGA()(1..300)
-Variable  Char    PFECHA()(1..300)
+Variable  Char    PFECHA()(1..50)
 # parámetros de salida - líneas
-Variable  Integer PLINEA(1..300)
-Variable  Char    PARTICULO()(1..300)
-Variable  Char    PPEDIDO()(1..300)
-Variable  Integer PLINEAPEDIDO(1..300)
-Variable  Decimal PCANTIDAD(1..300)
-Variable  Char    PTRACKING()(1..300)
-# parámetros de salida - genéricos
-Variable  Char    PSTAT1()(1..300)
-Variable  Char    PSTAT2()(1..300)
-Variable  Char    PSTAT3()(1..300)
-Variable  Char    PSTAT4()(1..300)
+Variable  Integer PLINEA(1..50)
+Variable  Char    PARTICULO()(1..50)
+Variable  Char    PDESARTICULO()(1..50)
+Variable  Char    PPEDIDO()(1..50)
+Variable  Integer PLINEAPEDIDO(1..50)
+Variable  Decimal PCANTIDAD(1..50)
+Variable  Char    PTRACKING()(1..50)
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
-Local     Integer I,LCONTROL
+Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 300
+Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LREGINI,LREGFIN
 
   # Inicializamos con estado OK
   GSTATUS  = 1
   GMESSAGE = ""
 
-  # cliente
-  If PCLIMGT  <> "" Then
-    If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
-    Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
-    Read   [F:ZBPC] First
+  # entrega
+  If PENTREGA <> "" Then
+    If !clalev([F:ZSDH]) Then : Local File SDELIVERY [F:ZSDH] : Endif
+    Read [F:ZSDH]SDH0 = PENTREGA
     If !fstat Then
-      [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
+      [L]LCRIT += " and ENTREGA='" + [F:ZSDH]SDHNUM + "'"
     Else
       GSTATUS   = 0
-      GMESSAGE  = "Error en el cliente"
+      Call ERREUR("Error en la entrega") From GESECRAN
+      End
     Endif
-    Filter [F:ZBPC]
-  Endif
-
-  # fecha inicio
-  Call VALIDA_FECHA(PDATEINI,[L]LCONTROL) From ZSANLIB01
-  If [L]LCONTROL = 0 Then
+  Else
     GSTATUS   = 0
-    GMESSAGE  = "Error en la fecha de inicio"
-  Endif
-  If PDATEINI <> "" Then
-    LFINI = gdat$(val(mid$(PDATEINI,1,2)),val(mid$(PDATEINI,4,2)),val(mid$(PDATEINI,7,4)))
-    [L]LCRIT += " and FECHA>=["  + format$(GFMD,LFINI) + "]"
+    Call ERREUR("Error en la entrega") From GESECRAN
+    End
   Endif
 
-  # fecha fin
-  Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
-  If [L]LCONTROL = 0 Then
-    GSTATUS   = 0
-    GMESSAGE  = "Error en la fecha de fin"
-  Endif
-  If PDATEDEB <> "" Then
-    LFFIN = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
-    [L]LCRIT += " and FECHA<=["  + format$(GFMD,LFFIN) + "]"
+  If PNUMPAG = 0 Then
+    PNUMPAG = 1
   Endif
 
-  I = 1
-  If !clalev([F:ZVEV]) Then : Local File ZVENTREGAB2B [F:ZVEV] : Endif
-  Filter [F:ZVEV] Where evalue([L]LCRIT) Order By ENTREGA
-  For [F:ZVEV]
-    PENTREGA(I)         = [F:ZVEV]ENTREGA
-    If [F:ZVEV]FECHA <> [0/0/0] Then
-      PFECHA(I)         = num$(format$(GFMD,[F:ZVEV]FECHA))
+  [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
+  [L]LREGFIN = PNUMPAG * [L]LMAX
+
+  [L]I += 1
+  [L]J += 1
+  [L]K  = [L]LREGINI
+  If !clalev([F:ZVSD]) Then : Local File ZVSDDB2B [F:ZVSD] : Endif
+  Filter [F:ZVSD] Where evalue([L]LCRIT) Order By LINEA
+  For [F:ZVSD]
+    If [L]J < [L]K Then
+      [L]J += 1
     Else
-      PFECHA(I)         = ""
+      If [L]LREGINI <= [L]LREGFIN
+        If [F:ZVSD]FECHA <> [0/0/0] Then
+          PFECHA(I)         = num$(format$(GFMD,[F:ZVSD]FECHA))
+        Else
+          PFECHA(I)         = ""
+        Endif
+        PLINEA(I)           = [F:ZVSD]LINEA
+        PARTICULO(I)        = [F:ZVSD]ARTICULO
+        PDESARTICULO(I)     = [F:ZVSD]DESCRIPCION
+        PPEDIDO(I)          = [F:ZVSD]PEDIDO
+        PLINEAPEDIDO(I)     = [F:ZVSD]LINEA_PEDIDO
+        PCANTIDAD(I)        = [F:ZVSD]CANTIDAD
+        PTRACKING(I)        = [F:ZVSD]NUMEXPED
+        [L]LREGINI += 1
+        [L]I       += 1
+      Else
+        Break
+      Endif
     Endif
-    PLINEA(I)           = [F:ZVEV]LINEA
-    PARTICULO(I)        = [F:ZVEV]ARTICULO
-    PPEDIDO(I)          = [F:ZVEV]PEDIDO
-    PLINEAPEDIDO(I)     = [F:ZVEV]LINEA_PEDIDO
-    PCANTIDAD(I)        = [F:ZVEV]CANTIDAD
-    PTRACKING(I)        = [F:ZVEV]NUMEXPED
-    I += 1
-    If I > [L]LMAX Then Break Endif
   Next
+  Filter [F:ZVSD]
+
+  If GSTATUS = 1
+    Call MESSAGE("Número de registros:"-num$(I-1)) From GESECRAN
+  Endif
+
 End
 
 ########################################################################
-Subprog GET_SIHINFO(PCLIMGT,PDATEINI,PDATEDEB,
-&                   PFACTURA,PFECHA,PREFERENCIA,PDIVISA,PIMPORTE,PCONDPAGO,PLINKPDF,
-&                   PSTAT1,PSTAT2,PSTAT3,PSTAT4)
+#**
+#* devuelve la información de las facturas para el B2B
+#*
+#* @param PCLIMGT         > identificador de cliente B2B
+#* @param PDATEINI        > fecha inicial para filtro
+#* @param PDATEDEB        > fecha final para filtro
+#* @param PNUMPAG         > número de página
+#* @param PFACTURA        > número de factura
+#* @param PFECHA          > fecha de factura
+#* @param PREFERENCIA     > referencia en la factura
+#* @param PDIVISA         > divisa
+#* @param PIMPORTE        > importe
+#* @param PCONDPAGO       > condición de pago
+#* @param PLINKPDF        > link de descarga
+#*!
+Subprog GET_SIHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,
+&                   PFACTURA,PFECHA,PREFERENCIA,PDIVISA,PIMPORTE,PCONDPAGO,PLINKPDF)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
 Value     Char    PDATEDEB()
+Variable  Integer PNUMPAG()
 # parámetros de salida
-Variable  Char    PFACTURA()(1..300)
-Variable  Char    PFECHA()(1..300)
-Variable  Char    PREFERENCIA()(1..300)
-Variable  Char    PDIVISA()(1..300)
-Variable  Decimal PIMPORTE(1..300)
-Variable  Char    PCONDPAGO()(1..300)
-Variable  Char    PLINKPDF()(1..300)
-# parámetros de salida - genéricos
-Variable  Char    PSTAT1()(1..300)
-Variable  Char    PSTAT2()(1..300)
-Variable  Char    PSTAT3()(1..300)
-Variable  Char    PSTAT4()(1..300)
-
+Variable  Char    PFACTURA()(1..50)
+Variable  Char    PFECHA()(1..50)
+Variable  Char    PREFERENCIA()(1..50)
+Variable  Char    PDIVISA()(1..50)
+Variable  Decimal PIMPORTE(1..50)
+Variable  Char    PCONDPAGO()(1..50)
+Variable  Char    PLINKPDF()(1..50)
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
-Local     Integer I,LCONTROL
+Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 300
+Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LREGINI,LREGFIN
 
   # Inicializamos con estado OK
   GSTATUS  = 1
   GMESSAGE = ""
 
   # cliente
-  If PCLIMGT  <> "" Then
-    If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
-    Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
-    Read   [F:ZBPC] First
-    If !fstat Then
-      [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
-    Else
-      GSTATUS   = 0
-      GMESSAGE  = "Error en el cliente"
-    Endif
-    Filter [F:ZBPC]
+  If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
+  Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
+  Read   [F:ZBPC] First
+  If !fstat Then
+    [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
+  Else
+    GSTATUS   = 0
+    Call ERREUR("Error en el cliente") From GESECRAN
+    End
   Endif
+  Filter [F:ZBPC]
 
   # fecha inicio
-  Call VALIDA_FECHA(PDATEINI,[L]LCONTROL) From ZSANLIB01
-  If [L]LCONTROL = 0 Then
-    GSTATUS   = 0
-    GMESSAGE  = "Error en la fecha de inicio"
-  Endif
   If PDATEINI <> "" Then
-    LFINI = gdat$(val(mid$(PDATEINI,1,2)),val(mid$(PDATEINI,4,2)),val(mid$(PDATEINI,7,4)))
-    [L]LCRIT += " and FECHA>=["  + format$(GFMD,LFINI) + "]"
+    Call VALIDA_FECHA(PDATEINI,[L]LCONTROL) From ZSANLIB01
+    If [L]LCONTROL = 0 Then
+      GSTATUS   = 0
+      Call ERREUR("Error en la fecha de inicio") From GESECRAN
+    Endif
+    If PDATEINI <> "" Then
+      LFINI = gdat$(val(mid$(PDATEINI,1,2)),val(mid$(PDATEINI,4,2)),val(mid$(PDATEINI,7,4)))
+      [L]LCRIT += " and FECHA>=["  + format$(GFMD,LFINI) + "]"
+    Endif
   Endif
 
   # fecha fin
-  Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
-  If [L]LCONTROL = 0 Then
-    GSTATUS   = 0
-    GMESSAGE  = "Error en la fecha de fin"
-  Endif
-  If PDATEDEB <> "" Then
-    LFFIN = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
-    [L]LCRIT += " and FECHA<=["  + format$(GFMD,LFFIN) + "]"
+  If PDATEINI <> "" Then
+    Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
+    If [L]LCONTROL = 0 Then
+      GSTATUS   = 0
+      Call ERREUR("Error en la fecha de fin") From GESECRAN
+    Endif
+    If PDATEDEB <> "" Then
+      LFFIN = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
+      [L]LCRIT += " and FECHA<=["  + format$(GFMD,LFFIN) + "]"
+    Endif
   Endif
 
-  I = 1
+  If PNUMPAG = 0 Then
+    PNUMPAG = 1
+  Endif
+
+  [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
+  [L]LREGFIN = PNUMPAG * [L]LMAX
+
+  [L]I += 1
+  [L]J += 1
+  [L]K  = [L]LREGINI
   If !clalev([F:ZVFV]) Then : Local File ZVFACTURAB2B [F:ZVFV] : Endif
   Filter [F:ZVFV] Where evalue([L]LCRIT) Order By FACTURA
   For [F:ZVFV]
-    PFACTURA(I)         = [F:ZVFV]FACTURA
-    If [F:ZVFV]FECHA <> [0/0/0] Then
-      PFECHA(I)         = num$(format$(GFMD,[F:ZVFV]FECHA))
+    If [L]J < [L]K Then
+      [L]J += 1
     Else
-      PFECHA(I)         = ""
+      If [L]LREGINI <= [L]LREGFIN
+        PFACTURA(I)         = [F:ZVFV]FACTURA
+        If [F:ZVFV]FECHA <> [0/0/0] Then
+          PFECHA(I)         = num$(format$(GFMD,[F:ZVFV]FECHA))
+        Else
+          PFECHA(I)         = ""
+        Endif
+        PREFERENCIA(I)      = [F:ZVFV]REFERENCIA
+        PDIVISA(I)          = [F:ZVFV]DIVISA
+        PIMPORTE(I)         = [F:ZVFV]IMPORTE
+        PCONDPAGO(I)        = [F:ZVFV]DPAGO
+        PLINKPDF(I)         = [F:ZVFV]ZURLPDFB2B
+        [L]LREGINI += 1
+        [L]I       += 1
+      Else
+        Break
+      Endif
     Endif
-    PREFERENCIA(I)      = [F:ZVFV]REFERENCIA
-    PDIVISA(I)          = [F:ZVFV]DIVISA
-    PIMPORTE(I)         = [F:ZVFV]IMPORTE
-    PCONDPAGO(I)        = [F:ZVFV]DPAGO
-    PLINKPDF(I)         = [F:ZVFV]ZURLPDFB2B
-    I += 1
-    If I > [L]LMAX Then Break Endif
   Next
   Filter [F:ZVFV]
+
+  If GSTATUS = 1
+    Call MESSAGE("Número de registros:"-num$(I-1)) From GESECRAN
+  Endif
+
 End
