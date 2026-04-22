@@ -34,8 +34,10 @@ Variable  Integer PNUMLINEAS(1..50)
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LMAX : [L]LMAX = val(func AFNC.PARAM("ZPAGCABB2B",nomap))
 Local     Integer LREGINI,LREGFIN
+
+  If [L]LMAX = 0 Then : [L]LMAX = 50 : Endif
 
   # Inicializamos con estado OK
   GSTATUS  = 1
@@ -170,27 +172,29 @@ Variable  Decimal PTIMPORTEAI()
 Variable  Decimal PTIMPORTEII()
 Variable  Char    PCLIMGT()
 # parámetros de salida - líneas
-Variable  Integer PLINEA(1..50)
-Variable  Char    PARTICULO()(1..50)
-Variable  Char    PDESARTICULO()(1..50)
-Variable  Decimal PCTDPEDIDA(1..50)
-Variable  Decimal PCTDSERVIDA(1..50)
-Variable  Decimal PCTDPENDIENTE(1..50)
-Variable  Char    PTRACKING()(1..50)
-Variable  Char    PFECHAPREVISTA()(1..50)
-Variable  Decimal PLPRECIOBRUTO(1..50)
-Variable  Decimal PDTO1(1..50)
-Variable  Decimal PDTO2(1..50)
-Variable  Decimal PDTO3(1..50)
-Variable  Decimal PLPRECIONETO(1..50)
-Variable  Decimal PLIMPORTEAI(1..50)
-Variable  Decimal PLIMPORTEII(1..50)
+Variable  Integer PLINEA(1..500)
+Variable  Char    PARTICULO()(1..500)
+Variable  Char    PDESARTICULO()(1..500)
+Variable  Decimal PCTDPEDIDA(1..500)
+Variable  Decimal PCTDSERVIDA(1..500)
+Variable  Decimal PCTDPENDIENTE(1..500)
+Variable  Char    PTRACKING()(1..500)
+Variable  Char    PFECHAPREVISTA()(1..500)
+Variable  Decimal PLPRECIOBRUTO(1..500)
+Variable  Decimal PDTO1(1..500)
+Variable  Decimal PDTO2(1..500)
+Variable  Decimal PDTO3(1..500)
+Variable  Decimal PLPRECIONETO(1..500)
+Variable  Decimal PLIMPORTEAI(1..500)
+Variable  Decimal PLIMPORTEII(1..500)
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LMAX : [L]LMAX = val(func AFNC.PARAM("ZPAGLINB2B",nomap))
 Local     Integer LREGINI,LREGFIN
+
+  If [L]LMAX = 0 Then : [L]LMAX = 500 : Endif
 
   # Inicializamos con estado OK
   GSTATUS  = 1
@@ -314,8 +318,10 @@ Variable  Integer PNUMLINEAS(1..50)
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LMAX : [L]LMAX = val(func AFNC.PARAM("ZPAGCABB2B",nomap))
 Local     Integer LREGINI,LREGFIN
+
+  If [L]LMAX = 0 Then : [L]LMAX = 50 : Endif
 
   # Inicializamos con estado OK
   GSTATUS  = 1
@@ -431,26 +437,28 @@ Variable  Decimal PTIMPORTEAI()
 Variable  Decimal PTIMPORTEII()
 Variable  Char    PCLIMGT()
 # parámetros de salida - líneas
-Variable  Integer PLINEA(1..50)
-Variable  Char    PARTICULO()(1..50)
-Variable  Char    PDESARTICULO()(1..50)
-Variable  Char    PPEDIDO()(1..50)
-Variable  Integer PLINEAPEDIDO(1..50)
-Variable  Decimal PCANTIDAD(1..50)
-Variable  Char    PTRACKING()(1..50)
-Variable  Decimal PLPRECIOBRUTO(1..50)
-Variable  Decimal PDTO1(1..50)
-Variable  Decimal PDTO2(1..50)
-Variable  Decimal PDTO3(1..50)
-Variable  Decimal PLPRECIONETO(1..50)
-Variable  Decimal PLIMPORTEAI(1..50)
-Variable  Decimal PLIMPORTEII(1..50)
+Variable  Integer PLINEA(1..500)
+Variable  Char    PARTICULO()(1..500)
+Variable  Char    PDESARTICULO()(1..500)
+Variable  Char    PPEDIDO()(1..500)
+Variable  Integer PLINEAPEDIDO(1..500)
+Variable  Decimal PCANTIDAD(1..500)
+Variable  Char    PTRACKING()(1..500)
+Variable  Decimal PLPRECIOBRUTO(1..500)
+Variable  Decimal PDTO1(1..500)
+Variable  Decimal PDTO2(1..500)
+Variable  Decimal PDTO3(1..500)
+Variable  Decimal PLPRECIONETO(1..500)
+Variable  Decimal PLIMPORTEAI(1..500)
+Variable  Decimal PLIMPORTEII(1..500)
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LMAX : [L]LMAX = val(func AFNC.PARAM("ZPAGLINB2B",nomap))
 Local     Integer LREGINI,LREGFIN
+
+  If [L]LMAX = 0 Then : [L]LMAX = 500 : Endif
 
   # Inicializamos con estado OK
   GSTATUS  = 1
@@ -566,8 +574,10 @@ Variable  Char    PLINKPDF()(1..50)
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
-Local     Integer LMAX : [L]LMAX = 50
+Local     Integer LMAX : [L]LMAX = val(func AFNC.PARAM("ZPAGCABB2B",nomap))
 Local     Integer LREGINI,LREGFIN
+
+  If [L]LMAX = 0 Then : [L]LMAX = 50 : Endif
 
   # Inicializamos con estado OK
   GSTATUS  = 1
