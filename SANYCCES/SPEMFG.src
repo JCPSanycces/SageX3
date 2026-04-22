@@ -80,7 +80,7 @@ Endif
 Filter [AOX]
 Diszo [M:MFG1]ZLARGO,ZANCHO,ZALTO # @01@ - EQM
 # @04@ - EQM - INI
-If GUSER<>'SN027' and GUSER<>'SN006' and GUSER<>'SN036'and GUSER<>'NUN03' and GUSER <> 'SN033' and GUSER <> 'SN034' and GUSER <> 'SN056'
+If GUSER<>'SN027' and GUSER<>'SN006' and GUSER<>'SN036'and GUSER<>'NUN03' and GUSER <> 'SN033' and GUSER <> 'SN034' and GUSER <> 'SN056' and GUSER <> 'SN071'
     Call VIREBOUT(CHAINE,"A") From GOBJET
 Endif
 # @04@ - EQM - FIN
