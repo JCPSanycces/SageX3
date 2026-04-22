@@ -16,6 +16,7 @@ Return
 ##################################################
 $APRES
 # Actualizo el campo SPE donde guardo la razón social concatenada
+If !clalev([F:YBPR]) Then : Local File BPARTNER [F:YBPR] : Endif
 Read [YBPR]BPR0 = [F:BPC]BPCNUM
 If fstat = 0 #and [YBPR]YRAZSOC = ""
   [YBPR]YRAZSOC = [BPR]BPRNAM(0) + [BPR]BPRNAM(1)
