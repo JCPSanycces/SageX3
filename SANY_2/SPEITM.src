@@ -2,6 +2,7 @@
 ###
 ## ZPR09 - Etiquetas - Acciones para gestion del fichero artículo-logo
 # @01@ - JLP - 13-08-2024 - Control para el borrado de articulos (YITMTECNICO)
+# ZB2B - JCP.20042026.Tienda online B2B
 ###############################################################################
 $ACTION
   Case ACTION
@@ -12,6 +13,8 @@ $ACTION
      When "INICRE"  : Gosub INICRE
      When "INIMOD"  : Gosub INIMOD
      When "AV_VERF_ANU"  : Gosub AV_VERF_ANU # @01@ - JLP - 13-08-2024 - Control para el borrado de articulos (YITMTECNICO)
+     When "APRES_CRE"    : Gosub APRES_CRE
+     When "APRES_MOD"    : Gosub APRES_MOD
   Endcase
 Return
 
@@ -113,5 +116,85 @@ $LIENS
   [M:ITS]ZASOCIADO  = [F:ITM]ZASOCIADO
   [M:ITS]ZARTEQPED = [F:ITM]ZARTEQPED
 
+# ZB2B.ini
+  Gosub MUESTRA_ATRIBUTOS_B2B
+# ZB2B.fin
+
   GPE=1
+Return
+
+##############################################################
+$APRES_CRE
+# ZB2B.ini
+  Gosub UPD_ATRIBUTOS_B2B
+# ZB2B.fin
+Return
+
+##############################################################
+$APRES_MOD
+# ZB2B.ini
+  Gosub UPD_ATRIBUTOS_B2B
+# ZB2B.fin
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# ZB2B
+$MUESTRA_ATRIBUTOS_B2B
+Local Integer LCON
+
+  If !clalev([F:ZBA0]) Then : Local File ZB2BITMVATR  [F:ZBA0] : Endif
+  If !clalev([F:ZAD0]) Then : Local File ATABDIV      [F:ZAD0] : Endif
+
+  Link [F:ZBA0] With [F:ZAD0]CODE = 6031;[F:ZBA0]CODATRIBUTO As [LNK] Where ZB2BSETATRIB = [M:ZIB2B]ZB2BSETATRIB and ITMREF = [M:ITM0]ITMREF
+  For [LNK]
+    [M:ZIB2B]CODATRIBUTO([L]LCON) = [F:ZBA0]CODATRIBUTO
+    [M:ZIB2B]ATRIBUTOVAL([L]LCON) = [F:ZBA0]ATRIBUTOVAL
+    [M:ZIB2B]NTABVAR([L]LCON)     = [F:ZAD0]N1
+    [L]LCON += 1
+  Next
+
+  [M:ZIB2B]NBLIG = LCON
+  Affzo [M:ZIB2B]
+
+  Close Local File [ZBA0],[ZAD0]
+Return
+
+##############################################################
+# ZB2B
+$UPD_ATRIBUTOS_B2B
+Local Integer LCON
+
+  If !clalev([F:ZBA1]) Then : Local File ZB2BITMVATR  [F:ZBA1] : Endif
+  If !clalev([F:ZAX1]) Then : Local File ATEXTRA      [F:ZAX1] : Endif
+  If !adxlog Then : Trbegin [F:ZBA1] : Endif
+  Delete [F:ZBA1] Where ITMREF = [M:ITM0]ITMREF and ZB2BSETATRIB = [M:ZIB2B]ZB2BSETATRIB
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  Raz [F:ZBA1]
+  For [L]LCON = 0 To [M:ZIB2B]NBLIG - 1
+    [F:ZBA1]ITMREF        = [M:ITM0]ITMREF
+    [F:ZBA1]ZB2BSETATRIB  = [M:ZIB2B]ZB2BSETATRIB
+    Read [F:ZAX1]AXX0 = 'ATABDIV';'LNGDES';'SPA';'6031';[M:ZIB2B]CODATRIBUTO([L]LCON)
+    If !fstat Then
+      [F:ZBA1]ATRIBUTO    = [F:ZAX1]TEXTE
+    Endif
+    [F:ZBA1]ATRIBUTOVAL   = [M:ZIB2B]ATRIBUTOVAL([L]LCON)
+    [F:ZBA1]CODATRIBUTO   = [M:ZIB2B]CODATRIBUTO([L]LCON)
+    If !adxlog Then : Trbegin [F:ZBA1] : Endif
+    Write [F:ZBA1]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZBA1],[ZAX1]
 Return
