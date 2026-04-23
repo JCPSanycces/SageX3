@@ -2,6 +2,7 @@
 #//////////////////////////////////////////////////////////////////////////////////////////////#
 # @01@ - JLP - 03-12-2024 - A pedir = (Stock máximo - Disp.venta - En reaprov) / (Lote técnico)
 # @02@ - EQM - 18-08-2025 - Redondeo a 2 dec para que aparezca ok en excel
+# @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
 #//////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -88,6 +89,12 @@ If [M:YAPSA]CFAMILIAH <> ""
   CRITERIOS2 += " & [PP1]TSICOD(1)<=[M:YAPSA]CFAMILIAH"
 Endif
 
+# @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+# si no se indica comprador se ignora el filtro en vez de buscarlo vacío adrede
+If [M:YAPSA]CCOMPRADOR <> ""
+  CRITERIOS2 += " & [PP1]BUY=[M:YAPSA]CCOMPRADOR"
+Endif
+# @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
 
 # Cargo pantalla (máximo 3000 líneas)
 Local Integer CONTA
@@ -160,7 +167,9 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
     [M:YAPSA]LOTETEC(nolign-1)      = [PP2]MFGLOTQTY
     [M:YAPSA]PLAZOENT(nolign-1)     = [PP2]OFS
 
-
+     # @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+    [M:YAPSA]COMPRADOR(nolign-1)    = [PP1]BUY
+    # @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
 
 
     #** Campos calculados
@@ -452,7 +461,7 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
 
     CONTA +=1
     If CONTA = 3000
-      Errbox "Atención!! No se van a cargar todos los registros en pantalla (Máximo 3.000 líneas)"
+      Errbox "¡Atención! No se van a cargar todos los registros en pantalla (Máximo 3.000 líneas)"
       Break
     Endif
 
