@@ -34,7 +34,7 @@ Return
 ##############################################################
 $INIT
 # variables locales
-Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '10/04/2026'
+Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '30/04/2025'
 Local   Char  LCRIT(250)
 Local   Date  LFECHALIMITEDAT
 Local   Char  TBPAR(20)(1..13)
@@ -55,6 +55,9 @@ Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS\FACTURASPD
 Local Char    LINDEX(100)
 Local Char    LFORMATO(100)   : LFORMATO  = 'pdf'
 Local Integer RESULT
+Local Char    LBUCKET(100)    : LBUCKET   = 'facturasany'
+Local Char    LREGION(100)    : LREGION   = 'eu-west-2'
+Local Char    LBASEURL(100)   : LBASEURL  = ''
 ################################    OJO.fin   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
 
   Raz TBPAR, TBVAL
@@ -63,9 +66,11 @@ Local Integer RESULT
 
   [L]LFECHALIMITEDAT = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
 
-  [L]LCRIT =  "ZURLPDFB2B='' and INVTYP=1 and INVSTA=3 and ZUSUARIOB2B <> '' and " +
-&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "] and INVDAT<=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
-#&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
+#  [L]LCRIT =  "ZURLPDFB2B='' and INVTYP=1 and INVSTA=3 and ZUSUARIOB2B <> '' and " +
+#&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "] and INVDAT<=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
+##&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
+  [L]LCRIT =  "ZURLPDFB2B='' and TIPOFAC=1 and ESTADOFAC=3 and ZUSUARIOB2B <> '' and " +
+&             "FECHA>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "] and FECHA<=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
 
   If !clalev([F:ZVFB]) Then : Local File ZVFACTURAB2B [F:ZVFB] : Endif
   If !clalev([F:ZSIH]) Then : Local File SINVOICE     [F:ZSIH] : Endif
@@ -95,29 +100,32 @@ Return
 $IMPRIME_FACTURA
   Filter [F:ZVFB] Where evalue([L]LCRIT)
   For [F:ZVFB]
-    [V]GNUMFACB2B = [F:ZVFB]NUM
+    [V]GNUMFACB2B = [F:ZVFB]FACTURA
     # parámetros de la factura
-    TBPAR(1)  = "siteini"         : TBVAL(1)  = [F:ZVFB]SALFCY
-    TBPAR(2)  = "sitedeb"         : TBVAL(2)  = [F:ZVFB]SALFCY
-    TBPAR(3)  = "factureini"      : TBVAL(3)  = [F:ZVFB]NUM
-    TBPAR(4)  = "facturedeb"      : TBVAL(4)  = [F:ZVFB]NUM
-    TBPAR(5)  = "typeini"         : TBVAL(5)  = num$([F:ZVFB]INVTYP)
-    TBPAR(6)  = "typedeb"         : TBVAL(6)  = num$([F:ZVFB]INVTYP)
-    TBPAR(7)  = "clientini"       : TBVAL(7)  = [F:ZVFB]BPR
-    TBPAR(8)  = "clientdeb"       : TBVAL(8)  = [F:ZVFB]BPR
-    TBPAR(9)  = "dateini"         : TBVAL(9)  = [F:ZVFB]INVDAT
-    TBPAR(10) = "datedeb"         : TBVAL(10) = [F:ZVFB]INVDAT
-    TBPAR(11) = "codimp"          : TBVAL(11) = num$([F:ZVFB]STARPT)
+    TBPAR(1)  = "siteini"         : TBVAL(1)  = [F:ZVFB]PLANTA
+    TBPAR(2)  = "sitedeb"         : TBVAL(2)  = [F:ZVFB]PLANTA
+    TBPAR(3)  = "factureini"      : TBVAL(3)  = [F:ZVFB]FACTURA
+    TBPAR(4)  = "facturedeb"      : TBVAL(4)  = [F:ZVFB]FACTURA
+    TBPAR(5)  = "typeini"         : TBVAL(5)  = num$([F:ZVFB]TIPOFAC)
+    TBPAR(6)  = "typedeb"         : TBVAL(6)  = num$([F:ZVFB]TIPOFAC)
+    TBPAR(7)  = "clientini"       : TBVAL(7)  = [F:ZVFB]CLIENTE_SAGE
+    TBPAR(8)  = "clientdeb"       : TBVAL(8)  = [F:ZVFB]CLIENTE_SAGE
+    TBPAR(9)  = "dateini"         : TBVAL(9)  = [F:ZVFB]FECHA
+    TBPAR(10) = "datedeb"         : TBVAL(10) = [F:ZVFB]FECHA
+    TBPAR(11) = "codimp"          : TBVAL(11) = num$([F:ZVFB]IMPRESION)
     TBPAR(12) = "impselections"   : TBVAL(12) = "1"
     TBPAR(13) = "duplicata"       : TBVAL(13) = "1"
 
     # lanza el informe
     Call ETAT("Z-FACVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
 
+    Sleep 15
+
     # envía el fichero al FTP
     Gosub ENVIA_PDF
 
     Sleep 1
+
   Next
   Filter [F:ZVFB]
 Return
@@ -129,13 +137,15 @@ $ENVIA_PDF
 
   # envía el fichero al SFTP
   [L]LINDEX = [V]GNUMFACB2B
-  Call SFTPPUTMOV_B2B(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,LFORMATO,RESULT) From ZSANYFTP
+#  Call SFTPPUTMOV_B2B(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,LFORMATO,RESULT) From ZSANYFTP
+  Call FTPPUTMOV_B2B_WASABI(LBUCKET,LREGION,LPATH,LPATHDES,LINDEX,LFORMATO,LBASEURL,RESULT) From ZSANYFTP
 
   # actualiza el campo ZURLPDFB2B de la tabla SINVOICE
   If RESULT > 0
     Read [F:ZSIH]SIH0 = [L]LINDEX
     If !fstat Then
-      [F:ZSIH]ZURLPDFB2B = "http://www.sanycces.es/pdf/" + [L]LINDEX + ".pdf"   ##############*******************PROVISIONAL HASTA TENER EL SERVIDOR FTP!!!!!!!!!
+#      [F:ZSIH]ZURLPDFB2B = "http://www.sanycces.es/pdf/" + [L]LINDEX + ".pdf"   ##############*******************PROVISIONAL HASTA TENER EL SERVIDOR FTP!!!!!!!!!
+      [F:ZSIH]ZURLPDFB2B = "https://s3.eu-west-2.wasabisys.com/facturasany/" + [L]LINDEX + ".pdf"   ##############*******************PROVISIONAL HASTA TENER EL SERVIDOR FTP!!!!!!!!!
       If !adxlog Then : Trbegin [F:ZSIH] : Endif
       Rewrite [F:ZSIH]
       If !fstat Then

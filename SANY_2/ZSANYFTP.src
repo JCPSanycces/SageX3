@@ -42,7 +42,7 @@ Local     Char    LFILENAME(250)
 
 #Delete files if they are present from a previous execution
   If Delfile (filpath(LPATHDES,"FtpPut",'bat')) = -27 : End : Endif
-  If Delfile (filpath(LPATHDES,"PutLog",'txt')) = -27 : End : Endif
+#  If Delfile (filpath(LPATHDES,"PutLog",'txt')) = -27 : End : Endif
 
   Sleep 5
 
@@ -71,7 +71,94 @@ Local     Char    LFILENAME(250)
 
 #Clean the script files
       If Delfile (filpath(LPATHDES,"FtpPut",'bat')) = -27 : RESULT = -2 : End : Endif
-      If Delfile (filpath(LPATHDES,"PutLog",'txt')) = -27 : RESULT = -2 : End : Endif
+#      If Delfile (filpath(LPATHDES,"PutLog",'txt')) = -27 : RESULT = -2 : End : Endif
+
+#Move de uploaded files
+      ORDRE = "MOVE "+LPATH+"\"+left$(LFILENAME,len(LFILENAME)-4)+".* "+LPATHDES
+      Call SYSTEME2(adxmac(0),ORDRE,"",STAT,LFILENAME) From ORDSYS
+
+    Next
+  Endif
+
+End
+
+##########################################################################################################
+Subprog FTPPUTMOV_B2B_WASABI(LBUCKET,LREGION,LPATH,LPATHDES,LINDEX,LFORMATO,LBASEURL,RESULT)
+Value     Char    LBUCKET()         # nombre del bucket en Wasabi (ej: facturasany)
+Value     Char    LREGION()         # región del bucket (ej: eu-west-2)
+Value     Char    LPATH()           # carpeta origen en el servidor local
+Value     Char    LPATHDES()        # carpeta de enviados en el servidor local
+Value     Char    LINDEX()          # índice de referencia para el envío (patrón nombre fichero)
+Value     Char    LFORMATO()        # formato del fichero (ej: pdf)
+Value     Char    LBASEURL()        # subcarpeta destino dentro del bucket (ej: facturas)
+Variable  Integer RESULT            # resultado del proceso
+
+Local     Integer I
+Local     Integer STAT
+Local     Char    LFILES(GDIMFIC)(1..)
+Local     Char    FILELIST(GDIMFIC)(1..)
+Local     Char    ORDRE(250)
+Local     Char    LFILENAME(250)
+Local     Char    LOBJECT(250)      # clave del objeto dentro del bucket
+Local     Char    LURL(250)         # URL pública resultante
+
+  RESULT = -1
+
+#Check if destination directory exists and creates it if not
+  STAT = filinfo (LPATHDES,7)
+  If STAT = -27 : End : Endif
+  If STAT = -20 : Call SYSTEME (adxmac(0),'ae_mkdir'-'"'+LPATHDES+'"',"",STAT) From ORDSYS : Endif
+
+#Delete files if they are present from a previous execution
+  If Delfile (filpath(LPATHDES,"WasabiPut",'bat')) = -27 : End : Endif
+#  If Delfile (filpath(LPATHDES,"WasabiLog",'txt')) = -27 : End : Endif
+
+  Sleep 5
+
+#Check the files to upload
+  ORDRE = "dir /b /a-d-s-h "+LPATH+"\"+LINDEX+"."+LFORMATO+" 2>nul"
+  Call SYSTEME2 (adxmac(0),ORDRE,"",RESULT,LFILES) From ORDSYS
+
+  If RESULT > 0
+    For I = 1 To RESULT
+
+      LFILENAME = LFILES(I)
+
+      # Construir la clave del objeto en el bucket y la URL pública
+      # La URL es determinista: no necesitamos esperar respuesta del script
+      If LBASEURL <> "" Then
+        LOBJECT = LBASEURL + "/" + LFILENAME
+      Else
+        LOBJECT = LFILENAME
+      Endif
+      LURL    = "https://s3." + LREGION + ".wasabisys.com/" + LBUCKET + "/" + LOBJECT
+
+      #Create the command file to upload the files to Wasabi
+      Openo filpath(LPATHDES,"WasabiPut","bat",nomap)
+      adxifs = ';'
+      adxirs = chr$(13) + chr$(10)
+      adxium = 50
+
+      Wrseq '@echo off'
+      Wrseq 'if not exist ' + chr$(34) + LPATH + '\' + LFILENAME + chr$(34) + ' ('
+      Wrseq '    echo ERROR: Fichero no encontrado >> ' + chr$(34) + LPATHDES + '\WasabiLog.txt' + chr$(34)
+      Wrseq '    exit /b 1'
+      Wrseq ')'
+      Wrseq '"C:\Python311\python.exe" "C:\SageScripts\upload_wasabi.py" '
+&         + chr$(34) + LPATH + '\' + LFILENAME + chr$(34) + ' '
+&         + chr$(34) + LBUCKET                 + chr$(34) + ' '
+&         + chr$(34) + LOBJECT                 + chr$(34)
+&         + ' >> ' + chr$(34) + LPATHDES + '\WasabiLog.txt' + chr$(34) + ' 2>&1'
+      Wrseq 'exit /b %ERRORLEVEL%'
+
+      Openo
+
+#      # Execute the bat
+      System CHAINE = filpath(LPATHDES, "WasabiPut", "bat")
+
+#Clean the script files
+      If Delfile (filpath(LPATHDES,"WasabiPut",'bat')) = -27 : RESULT = -2 : End : Endif
+#      If Delfile (filpath(LPATHDES,"WasabiLog",'txt')) = -27 : RESULT = -2 : End : Endif
 
 #Move de uploaded files
       ORDRE = "MOVE "+LPATH+"\"+left$(LFILENAME,len(LFILENAME)-4)+".* "+LPATHDES
