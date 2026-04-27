@@ -6,6 +6,8 @@
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
 #######################################################################################
+# 2026-00027 - JCP.24042026.Pedido plataforma LM Italia que faltan algunas ref en pedido Sage
+#######################################################################################
 
 
 $ACTION
@@ -435,6 +437,8 @@ End
 $IMP_APRES_CRE
   Local    Char     PARAM_T (25) (0..10)
 
+  If !clalev([F:ZSOQ]) Then : Local File SORDERQ [F:ZSOQ] : Endif
+
   # - Resteamos los bloques 2/3/4
   Raz [M:SOH4]DLRNOT
   Raz [M:SOH4]INRNOT
@@ -460,6 +464,16 @@ $IMP_APRES_CRE
     Call VALTTC ("GESSOH", PARAM_T) From TRTVENFACR       # - Proceso que actualiza los campos de (Valuation)
 
     Rewrite [F:SOH]                                       # - Reescribimos [SOH]
+
+# 2026-00027.ini
+    If [M:SOH4]ITMREFBPC(WI) <> "" and find(left$([M:SOH4]YITMCOMP(WI),2),"48") Then
+      Read [F:ZSOQ]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN(WI);[M:SOH4]SOPLIN(WI)
+      If !fstat Then
+        [F:ZSOQ]YITMCOMP = [M:SOH4]ITMREFBPC(WI)
+        Rewrite [F:ZSOQ]
+      Endif
+    Endif
+# 2026-00027.fin
   Next
 
  Return

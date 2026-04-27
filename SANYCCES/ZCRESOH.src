@@ -1,8 +1,9 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 # 2026-00012 - JCP.01042026.Importar los pedidos EDI
+# 2026-00027 - JCP.24042026.Pedido plataforma LM Italia que faltan algunas ref en pedido Sage
 ##############################################################################
 
-Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,STOFCY,CUR,TEXTOC1,TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR)
+Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,STOFCY,CUR,TEXTOC1,TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YITMCOMP,YERR)
   #--
   Value    Char    SALFCY()
   Value    Char    SOHTYP()
@@ -21,6 +22,7 @@ Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,ST
   Value    Char    SAU()(0..)
   Value    Decimal QTY(0..)
   Value    Decimal GROPRI(0..)
+  Value    Char    YITMCOMP()(0..)          # 2026-00027.new
   Variable Integer YERR
   #--
   Gosub OUVRE
@@ -120,7 +122,8 @@ $ECR_DET
       Wrseq num$(QTY(Z));                    Using [ZCRE] #--
       Wrseq num$(GROPRI(Z));                 Using [ZCRE] #--
       Wrseq "";                              Using [ZCRE] #--
-      Wrseq BPAADD                           Using [ZCRE] #--
+      Wrseq BPAADD;                          Using [ZCRE] #--
+      Wrseq YITMCOMP(Z)                      Using [ZCRE] # 2026-00027.new
     Endif
   Next
 Return
