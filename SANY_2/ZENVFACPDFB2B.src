@@ -34,9 +34,10 @@ Return
 ##############################################################
 $INIT
 # variables locales
-Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '30/04/2025'
+Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '01/04/2026'
+Local   Char  LFECHALIMITEEND(10) : [L]LFECHALIMITEEND = '30/04/2026'
 Local   Char  LCRIT(250)
-Local   Date  LFECHALIMITEDAT
+Local   Date  LFECHAINI,LFECHAFIN
 Local   Char  TBPAR(20)(1..13)
 Local   Char  TBVAL(20)(1..13)
 Local   Char  LFILE(200)
@@ -64,13 +65,11 @@ Local Char    LBASEURL(100)   : LBASEURL  = ''
 
   [V]GPATHFACB2B = filpath("","","") + "\FTP\B2B\"
 
-  [L]LFECHALIMITEDAT = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
+  [L]LFECHAINI  = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
+  [L]LFECHAFIN  = gdat$(val(mid$([L]LFECHALIMITEEND,1,2)),val(mid$([L]LFECHALIMITEEND,4,2)),val(mid$([L]LFECHALIMITEEND,7,4)))
 
-#  [L]LCRIT =  "ZURLPDFB2B='' and INVTYP=1 and INVSTA=3 and ZUSUARIOB2B <> '' and " +
-#&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "] and INVDAT<=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
-##&             "INVDAT>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
   [L]LCRIT =  "ZURLPDFB2B='' and TIPOFAC=1 and ESTADOFAC=3 and ZUSUARIOB2B <> '' and " +
-&             "FECHA>=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "] and FECHA<=[" + format$(GFMD,[L]LFECHALIMITEDAT) + "]"
+&             "FECHA>=[" + format$(GFMD,[L]LFECHAINI) + "] and FECHA<=[" + format$(GFMD,[L]LFECHAFIN) + "]"
 
   If !clalev([F:ZVFB]) Then : Local File ZVFACTURAB2B [F:ZVFB] : Endif
   If !clalev([F:ZSIH]) Then : Local File SINVOICE     [F:ZSIH] : Endif
@@ -119,6 +118,8 @@ $IMPRIME_FACTURA
     # lanza el informe
     Call ETAT("Z-FACVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
 
+    Call ECR_TRACE("["+num$(datetime$)+"] - Generado el PDF de la factura"-[F:ZVFB]FACTURA,0) From GESECRAN
+
     Sleep 15
 
     # envía el fichero al FTP
@@ -133,19 +134,15 @@ Return
 ##############################################################
 $ENVIA_PDF
 #  # envía el fichero al FTP
-#  Call FTPPUTMOV(SERVER,USER,PWD,FTPFOLDER,LPATH,LPATHDES,RESULT) From ZSANYFTP
-
-  # envía el fichero al SFTP
   [L]LINDEX = [V]GNUMFACB2B
-#  Call SFTPPUTMOV_B2B(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,LFORMATO,RESULT) From ZSANYFTP
   Call FTPPUTMOV_B2B_WASABI(LBUCKET,LREGION,LPATH,LPATHDES,LINDEX,LFORMATO,LBASEURL,RESULT) From ZSANYFTP
 
   # actualiza el campo ZURLPDFB2B de la tabla SINVOICE
   If RESULT > 0
+    Call ECR_TRACE("["+num$(datetime$)+"] - Factura"-[F:ZVFB]FACTURA-"enviada al servidor FTP",0) From GESECRAN
     Read [F:ZSIH]SIH0 = [L]LINDEX
     If !fstat Then
-#      [F:ZSIH]ZURLPDFB2B = "http://www.sanycces.es/pdf/" + [L]LINDEX + ".pdf"   ##############*******************PROVISIONAL HASTA TENER EL SERVIDOR FTP!!!!!!!!!
-      [F:ZSIH]ZURLPDFB2B = "https://s3.eu-west-2.wasabisys.com/facturasany/" + [L]LINDEX + ".pdf"   ##############*******************PROVISIONAL HASTA TENER EL SERVIDOR FTP!!!!!!!!!
+      [F:ZSIH]ZURLPDFB2B = "https://s3.eu-west-2.wasabisys.com/facturasany/" + [L]LINDEX + ".pdf"
       If !adxlog Then : Trbegin [F:ZSIH] : Endif
       Rewrite [F:ZSIH]
       If !fstat Then
