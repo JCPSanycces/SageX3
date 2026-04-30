@@ -181,7 +181,7 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
 
   [L]LDIRIMPORT       = filpath("FTP\B2B","","")
   [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
-  [L]LCRITBPC         = "1=1"
+  [L]LCRITBPC         = "CLIENTE_B2B<>''"
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "customers_" + LFECHA + "_" + LHORA
@@ -283,7 +283,7 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
 
   [L]LDIRIMPORT       = filpath("FTP\B2B","","")
   [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
-  [L]LCRITBPA         = "1=1"
+  [L]LCRITBPA         = "CLIENTE_B2B<>''"
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "customeraddress_" + LFECHA + "_" + LHORA
