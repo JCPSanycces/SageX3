@@ -13,9 +13,12 @@
 #* @param PFECHAULTENT    > fecha de la última entrega
 #* @param PFECHAPREVISTA  > fecha prevista de entrega
 #* @param PNUMLINEAS      > número de líneas totales en el pedido
+#* @param PTOTALPAGS      > número total de páginas
+#* @param PTOTALPEDIDOS   > número total de pedidos
+#* @param PMAXPAGINA      > número de pedidos por página
 #*!
 Subprog GET_SOHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,
-&                   PPEDIDO,PFECHA,PESTADO,PFECHAULTENT,PFECHAPREVISTA,PIMPORTEAI,PIMPORTEII,PNUMLINEAS)
+&                   PPEDIDO,PFECHA,PESTADO,PFECHAULTENT,PFECHAPREVISTA,PIMPORTEAI,PIMPORTEII,PNUMLINEAS,PTOTALPAGS,PTOTALPEDIDOS,PMAXPAGINA)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
@@ -30,6 +33,9 @@ Variable  Char    PFECHAPREVISTA()(1..50)
 Variable  Decimal PIMPORTEAI(1..50)
 Variable  Decimal PIMPORTEII(1..50)
 Variable  Integer PNUMLINEAS(1..50)
+Variable  Integer PTOTALPAGS()
+Variable  Integer PTOTALPEDIDOS()
+Variable  Integer PMAXPAGINA()
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
@@ -97,6 +103,13 @@ Local     Integer LREGINI,LREGFIN
   If !clalev([F:ZVSH]) Then : Local File ZVSOHB2B [F:ZVSH] : Endif
   If !clalev([F:ZSOQ]) Then : Local File SORDERQ  [F:ZSOQ] : Endif
   Filter [F:ZVSH] Where evalue([L]LCRIT) Order By PEDIDO
+  # número total de pedidos
+  PTOTALPEDIDOS = rowcount([F:ZVSH])
+  # tamaño de página
+  PMAXPAGINA    = [L]LMAX
+  # número total de páginas
+  PTOTALPAGS    = fix(PTOTALPEDIDOS / PMAXPAGINA)
+  If mod(rowcount([F:ZVSH]),[L]LMAX) > 0 Then : PTOTALPAGS += 1 : Endif
   For [F:ZVSH]
     If [L]J < [L]K Then
       [L]J += 1
@@ -156,9 +169,12 @@ End
 #* @param PCTDPENDIENTE   > cantidad pendiente
 #* @param PTRACKING       > número de tracking
 #* @param PFECHAPREVISTA  > fecha prevista de entrega
+#* @param PTOTALPAGS      > número total de páginas
+#* @param PTOTALLINEAS    > número total de líneas de entrega
+#* @param PMAXPAGINA      > número de líneas por página
 #*!
 Subprog GET_SODINFO(PPEDIDO,PNUMPAG,
-&                   PFECHA,PESTADO,PFECHAULTENT,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,
+&                   PFECHA,PESTADO,PFECHAULTENT,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
 &                   PLINEA,PARTICULO,PDESARTICULO,PCTDPEDIDA,PCTDSERVIDA,PCTDPENDIENTE,PTRACKING,PFECHAPREVISTA,
 &                   PLPRECIOBRUTO,PDTO1,PDTO2,PDTO3,PLPRECIONETO,PLIMPORTEAI,PLIMPORTEII)
 # parámetros de entrada
@@ -171,6 +187,9 @@ Variable  Char    PFECHAULTENT()
 Variable  Decimal PTIMPORTEAI()
 Variable  Decimal PTIMPORTEII()
 Variable  Char    PCLIMGT()
+Variable  Integer PTOTALPAGS()
+Variable  Integer PTOTALLINEAS()
+Variable  Integer PMAXPAGINA()
 # parámetros de salida - líneas
 Variable  Integer PLINEA(1..500)
 Variable  Char    PARTICULO()(1..500)
@@ -248,6 +267,13 @@ Local     Integer LREGINI,LREGFIN
   [L]K  = [L]LREGINI
   If !clalev([F:ZVSD]) Then : Local File ZVSODB2B [F:ZVSD] : Endif
   Filter [F:ZVSD] Where evalue([L]LCRIT) Order By LINEA
+  # número total de líneas de pedido
+  PTOTALLINEAS  = rowcount([F:ZVSD])
+  # tamaño de página
+  PMAXPAGINA    = [L]LMAX
+  # número total de páginas
+  PTOTALPAGS    = fix(PTOTALLINEAS / PMAXPAGINA)
+  If mod(rowcount([F:ZVSD]),[L]LMAX) > 0 Then : PTOTALPAGS += 1 : Endif
   For [F:ZVSD]
     If [L]J < [L]K Then
       [L]J += 1
@@ -299,14 +325,20 @@ End
 #* @param PFECHA          > fecha de entrega
 #* @param PPEDIDO         > número de pedido
 #* @param PNUMLINEAS      > número de líneas totales en la entrega
+#* @param PTOTALPAGS      > número total de páginas
+#* @param PTOTALENTREGAS  > número total de entregas
+#* @param PMAXPAGINA      > número de pedidos por página
 #*!
-Subprog GET_SDHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,
+Subprog GET_SDHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,PTOTALPAGS,PTOTALENTREGAS,PMAXPAGINA,
 &                   PENTREGA,PFECHA,PPEDIDO,PIMPORTEAI,PIMPORTEII,PNUMLINEAS)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
 Value     Char    PDATEDEB()
 Variable  Integer PNUMPAG()
+Variable  Integer PTOTALPAGS()
+Variable  Integer PTOTALENTREGAS()
+Variable  Integer PMAXPAGINA()
 # parámetros de salida - cabecera
 Variable  Char    PENTREGA()(1..50)
 Variable  Char    PFECHA()(1..50)
@@ -379,6 +411,13 @@ Local     Integer LREGINI,LREGFIN
   If !clalev([F:ZVSH]) Then : Local File ZVSDHB2B   [F:ZVSH] : Endif
   If !clalev([F:ZSDD]) Then : Local File SDELIVERYD [F:ZSDD] : Endif
   Filter [F:ZVSH] Where evalue([L]LCRIT) Order By ENTREGA
+  # número total de entregas
+  PTOTALENTREGAS  = rowcount([F:ZVSH])
+  # tamaño de página
+  PMAXPAGINA      = [L]LMAX
+  # número total de páginas
+  PTOTALPAGS      = fix(PTOTALENTREGAS / PMAXPAGINA)
+  If mod(rowcount([F:ZVSH]),[L]LMAX) > 0 Then : PTOTALPAGS += 1 : Endif
   For [F:ZVSH]
     If [L]J < [L]K Then
       [L]J += 1
@@ -424,8 +463,11 @@ End
 #* @param PLINEAPEDIDO    > línea de pedido
 #* @param PCANTIDAD       > cantidad entregada
 #* @param PTRACKING       > número de tracking
+#* @param PTOTALPAGS      > número total de páginas
+#* @param PTOTALLINEAS    > número total de líneas de pedido
+#* @param PMAXPAGINA      > número de líneas por página
 #*!
-Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,
+Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
 &                   PLINEA,PARTICULO,PDESARTICULO,PPEDIDO,PLINEAPEDIDO,PCANTIDAD,PTRACKING,
 &                   PLPRECIOBRUTO,PDTO1,PDTO2,PDTO3,PLPRECIONETO,PLIMPORTEAI,PLIMPORTEII)
 # parámetros de entrada
@@ -436,6 +478,9 @@ Variable  Char    PFECHA()
 Variable  Decimal PTIMPORTEAI()
 Variable  Decimal PTIMPORTEII()
 Variable  Char    PCLIMGT()
+Variable  Integer PTOTALPAGS()
+Variable  Integer PTOTALLINEAS()
+Variable  Integer PMAXPAGINA()
 # parámetros de salida - líneas
 Variable  Integer PLINEA(1..500)
 Variable  Char    PARTICULO()(1..500)
@@ -505,6 +550,13 @@ Local     Integer LREGINI,LREGFIN
   [L]K  = [L]LREGINI
   If !clalev([F:ZVSD]) Then : Local File ZVSDDB2B [F:ZVSD] : Endif
   Filter [F:ZVSD] Where evalue([L]LCRIT) Order By LINEA
+  # número total de líneas de entrega
+  PTOTALLINEAS  = rowcount([F:ZVSD])
+  # tamaño de página
+  PMAXPAGINA    = [L]LMAX
+  # número total de páginas
+  PTOTALPAGS    = fix(PTOTALLINEAS / PMAXPAGINA)
+  If mod(rowcount([F:ZVSD]),[L]LMAX) > 0 Then : PTOTALPAGS += 1 : Endif
   For [F:ZVSD]
     If [L]J < [L]K Then
       [L]J += 1
@@ -554,14 +606,20 @@ End
 #* @param PIMPORTE        > importe
 #* @param PCONDPAGO       > condición de pago
 #* @param PLINKPDF        > link de descarga
+#* @param PTOTALPAGS      > número total de páginas
+#* @param PTOTALFACTURAS  > número total de facturas
+#* @param PMAXPAGINA      > número de pedidos por página
 #*!
-Subprog GET_SIHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,
+Subprog GET_SIHINFO(PCLIMGT,PDATEINI,PDATEDEB,PNUMPAG,PTOTALPAGS,PTOTALFACTURAS,PMAXPAGINA,
 &                   PFACTURA,PFECHA,PREFERENCIA,PDIVISA,PIMPORTE,PCONDPAGO,PLINKPDF)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
 Value     Char    PDATEDEB()
 Variable  Integer PNUMPAG()
+Variable  Integer PTOTALPAGS()
+Variable  Integer PTOTALFACTURAS()
+Variable  Integer PMAXPAGINA()
 # parámetros de salida
 Variable  Char    PFACTURA()(1..50)
 Variable  Char    PFECHA()(1..50)
@@ -571,7 +629,7 @@ Variable  Decimal PIMPORTE(1..50)
 Variable  Char    PCONDPAGO()(1..50)
 Variable  Char    PLINKPDF()(1..50)
 # variables locales
-Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
+Local     Char    LCRIT(250) : [L]LCRIT = "TIPOFAC=1 AND ESTADOFAC=3"
 Local     Integer I,J,K,LCONTROL
 Local     Date    LFINI,LFFIN
 Local     Integer LMAX : [L]LMAX = val(func AFNC.PARAM("ZPAGCABB2B",nomap))
@@ -610,7 +668,7 @@ Local     Integer LREGINI,LREGFIN
   Endif
 
   # fecha fin
-  If PDATEINI <> "" Then
+  If PDATEDEB <> "" Then
     Call VALIDA_FECHA(PDATEDEB,[L]LCONTROL) From ZSANLIB01
     If [L]LCONTROL = 0 Then
       GSTATUS   = 0
@@ -634,6 +692,13 @@ Local     Integer LREGINI,LREGFIN
   [L]K  = [L]LREGINI
   If !clalev([F:ZVFV]) Then : Local File ZVFACTURAB2B [F:ZVFV] : Endif
   Filter [F:ZVFV] Where evalue([L]LCRIT) Order By FACTURA
+  # número total de facturas
+  PTOTALFACTURAS  = rowcount([F:ZVFV])
+  # tamaño de página
+  PMAXPAGINA      = [L]LMAX
+  # número total de páginas
+  PTOTALPAGS      = fix(PTOTALFACTURAS / PMAXPAGINA)
+  If mod(rowcount([F:ZVFV]),[L]LMAX) > 0 Then : PTOTALPAGS += 1 : Endif
   For [F:ZVFV]
     If [L]J < [L]K Then
       [L]J += 1
