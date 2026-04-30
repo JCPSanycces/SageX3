@@ -1,0 +1,715 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZACCB2B
+# Description : Específico Accesorios B2B
+# Module      : Producción
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 27/04/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "LIENS"                : Gosub LIENS
+  When "SEL_TABLE"            : Gosub SEL_TABLE
+  When "VERF_TABLE"           : Gosub VERF_TABLE
+  When "APRES_CRE"            : Gosub APRES_CRE
+  When "APRES_MOD"            : Gosub APRES_MOD
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$LIENS
+  Gosub SHOW_ACCESORIOSA
+  Gosub SHOW_ACCESORIOSB
+  Gosub SHOW_RELACIONADOS
+  Gosub SHOW_VTAMEJORADA
+  Gosub SHOW_VTACRUZADA
+  Gosub SHOW_ADJUNTOS
+  Affzo [M:ZCB0]
+Return
+
+##############################################################
+$SEL_TABLE
+  Case TABLE
+      When Default            : Gosub SEL_ZSELACCB2B
+  Endcase
+Return
+
+##############################################################
+$VERF_TABLE
+  Case TABLE
+    When "ZSELACCB2B"         : Gosub VERF_ZSELACCB2B   # artículos (cabecera)
+    When "ZSELACCABB"         : Gosub VERF_ZSELACCABB   # accesorios A
+    When "ZSELACCBBB"         : Gosub VERF_ZSELACCBBB   # accesorios B
+    When "ZSELRELABB"         : Gosub VERF_ZSELRELABB   # relacionados
+    When "ZSELVMEJBB"         : Gosub VERF_ZSELVMEJBB   # venta mejorada
+    When "ZSELVCRUBB"         : Gosub VERF_ZSELVCRUBB   # venta cruzada
+    When "ZSELADJUBB"         : Gosub VERF_ZSELADJUBB   # adjuntos
+  Endcase
+Return
+
+##############################################################
+$APRES_CRE
+  Gosub UPD_ACCESORIOSA
+  Gosub UPD_ACCESORIOSB
+  Gosub UPD_RELACIONADOS
+  Gosub UPD_VTAMEJORADA
+  Gosub UPD_VTACRUZADA
+  Gosub UPD_ADJUNTOS
+Return
+
+##############################################################
+$APRES_MOD
+  Gosub UPD_ACCESORIOSA
+  Gosub UPD_ACCESORIOSB
+  Gosub UPD_RELACIONADOS
+  Gosub UPD_VTAMEJORADA
+  Gosub UPD_VTACRUZADA
+  Gosub UPD_ADJUNTOS
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# selección artículo en la cabecera
+$SEL_ZSELACCB2B
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM <> [M:ZCB0]ZITM
+
+  TIT(0) = "Vinculados"
+
+  ORDRE = "ZITM"
+  START = "ZITM"
+  SENS  = 1
+  DEFPAGE = 5
+
+  SIZCOL = 600
+  SIZLIG = 150
+
+  Default File [F:ZVA0]
+
+  CRITERE = "1=1"
+  GSELFAC = 1
+  NBCOL = 0
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]ZITM"       : TIT(NBCOL) = "Artículo"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]ZITMDES"    : TIT(NBCOL) = "Descripción"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST1"   : TIT(NBCOL) = "Fam. sup."
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST1_D" : TIT(NBCOL) = "Fam. sup. desc."
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST2"   : TIT(NBCOL) = "Familia"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST2_D" : TIT(NBCOL) = "Familia desc."
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]SERIE"      : TIT(NBCOL) = "Serie"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]PADRE"      : TIT(NBCOL) = "Padre"
+Return
+
+##############################################################
+# selección artículo en la cabecera
+$VERF_ZSELACCB2B
+  [M:ZCB0]ZITMDES     = [F:ZVA0]ZITMDES
+  [M:ZCB0]FAM_EST1    = [F:ZVA0]FAM_EST1
+  [M:ZCB0]FAM_EST1_D  = [F:ZVA0]FAM_EST1_D
+  [M:ZCB0]FAM_EST2    = [F:ZVA0]FAM_EST2
+  [M:ZCB0]FAM_EST2_D  = [F:ZVA0]FAM_EST2_D
+  [M:ZCB0]SERIE       = [F:ZVA0]SERIE
+  [M:ZCB0]PADRE       = [F:ZVA0]PADRE
+  Affzo [M:ZCB0]5
+Return
+
+##############################################################
+# selección accesorios A
+$VERF_ZSELACCABB
+  [M:ZCB1]ZITMCODACCA(nolign-1) = [F:ZVA0]ZITM
+  [M:ZCB1]ZITMDESACCA(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB1]ZITMORDACCA(nolign-1) = nolign
+  Affzo [M:ZCB1]5
+Return
+
+##############################################################
+# selección accesorios B
+$VERF_ZSELACCBBB
+  [M:ZCB2]ZITMCODACCB(nolign-1) = [F:ZVA0]ZITM
+  [M:ZCB2]ZITMDESACCB(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB2]ZITMORDACCB(nolign-1) = nolign
+  Affzo [M:ZCB2]5
+Return
+
+##############################################################
+# selección relacionados
+$VERF_ZSELRELABB
+  [M:ZCB3]ZITMCODREL(nolign-1)  = [F:ZVA0]ZITM
+  [M:ZCB3]ZITMDESREL(nolign-1)  = [F:ZVA0]ZITMDES
+  [M:ZCB3]ZITMORDREL(nolign-1)  = nolign
+  Affzo [M:ZCB3]5
+Return
+
+##############################################################
+# selección venta mejorada
+$VERF_ZSELVMEJBB
+  [M:ZCB4]ZITMCODVMEJ(nolign-1) = [F:ZVA0]ZITM
+  [M:ZCB4]ZITMDESVMEJ(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB4]ZITMORDVMEJ(nolign-1) = nolign
+  Affzo [M:ZCB4]5
+Return
+
+##############################################################
+# selección venta cruzada
+$VERF_ZSELVCRUBB
+  [M:ZCB5]ZITMCODVCRU(nolign-1) = [F:ZVA0]ZITM
+  [M:ZCB5]ZITMDESVCRU(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB5]ZITMORDVCRU(nolign-1) = nolign
+  Affzo [M:ZCB5]5
+Return
+
+##############################################################
+# selección adjuntos
+$VERF_ZSELADJUBB
+  [M:ZCB6]ZITMCODADJ(nolign-1)  = [F:ZVA0]ZITM
+  [M:ZCB6]ZITMDESADJ(nolign-1)  = [F:ZVA0]ZITMDES
+  [M:ZCB6]ZITMORDADJ(nolign-1)  = nolign
+  Affzo [M:ZCB6]5
+Return
+
+##############################################################
+# muestra la tabla de accesorios A
+$SHOW_ACCESORIOSA
+Local Integer LCONAA
+
+  Effzo [M:ZCB1]
+  Raz [M:ZCB1]NBACCA
+  If !clalev([F:ZAC1]) Then : Local File ZB2BITMACC01 [F:ZAC1] : Endif
+  Filter [F:ZAC1] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
+  For [F:ZAC1]
+    [M:ZCB1]ZITMCODACCA([L]LCONAA)  = [F:ZAC1]ZITMACCESORI
+    [M:ZCB1]ZITMDESACCA([L]LCONAA)  = [F:ZAC1]ZITMACCDES
+    [M:ZCB1]ZITMORDACCA([L]LCONAA)  = [F:ZAC1]ZITMACCESORO
+    [L]LCONAA += 1
+  Next
+  Filter [F:ZAC1]
+  [M:ZCB1]NBACCA = [L]LCONAA
+  Close Local File [ZAC1]
+Return
+
+##############################################################
+# muestra la tabla de accesorios B
+$SHOW_ACCESORIOSB
+Local Integer LCONAB
+
+  Effzo [M:ZCB2]
+  Raz [M:ZCB2]NBACCB
+  If !clalev([F:ZAC2]) Then : Local File ZB2BITMACC02 [F:ZAC2] : Endif
+  Filter [F:ZAC2] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
+  For [F:ZAC2]
+    [M:ZCB2]ZITMCODACCB([L]LCONAB)  = [F:ZAC2]ZITMACCESORI
+    [M:ZCB2]ZITMDESACCB([L]LCONAB)  = [F:ZAC2]ZITMACCDES
+    [M:ZCB2]ZITMORDACCB([L]LCONAB)  = [F:ZAC2]ZITMACCESORO
+    [L]LCONAB += 1
+  Next
+  Filter [F:ZAC2]
+  [M:ZCB2]NBACCB = [L]LCONAB
+  Close Local File [ZAC2]
+Return
+
+##############################################################
+# muestra la tabla de relacionados
+$SHOW_RELACIONADOS
+Local Integer LCONRE
+
+  Effzo [M:ZCB3]
+  Raz [M:ZCB3]NBREL
+  If !clalev([F:ZAC3]) Then : Local File ZB2BITMACC03 [F:ZAC3] : Endif
+  Filter [F:ZAC3] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
+  For [F:ZAC3]
+    [M:ZCB3]ZITMCODREL([L]LCONRE)   = [F:ZAC3]ZITMACCESORI
+    [M:ZCB3]ZITMDESREL([L]LCONRE)   = [F:ZAC3]ZITMACCDES
+    [M:ZCB3]ZITMORDREL([L]LCONRE)   = [F:ZAC3]ZITMACCESORO
+    [L]LCONRE += 1
+  Next
+  Filter [F:ZAC3]
+  [M:ZCB3]NBREL = [L]LCONRE
+  Close Local File [ZAC3]
+Return
+
+##############################################################
+# muestra la tabla de venta mejorada
+$SHOW_VTAMEJORADA
+Local Integer LCONVM
+
+  Effzo [M:ZCB4]
+  Raz [M:ZCB4]NBVMEJ
+  If !clalev([F:ZAC4]) Then : Local File ZB2BITMACC04 [F:ZAC4] : Endif
+  Filter [F:ZAC4] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
+  For [F:ZAC4]
+    [M:ZCB4]ZITMCODVMEJ([L]LCONVM)  = [F:ZAC4]ZITMACCESORI
+    [M:ZCB4]ZITMDESVMEJ([L]LCONVM)  = [F:ZAC4]ZITMACCDES
+    [M:ZCB4]ZITMORDVMEJ([L]LCONVM)  = [F:ZAC4]ZITMACCESORO
+    [L]LCONVM += 1
+  Next
+  Filter [F:ZAC4]
+  [M:ZCB4]NBVMEJ = [L]LCONVM
+  Close Local File [ZAC4]
+Return
+
+##############################################################
+# muestra la tabla de venta cruzada
+$SHOW_VTACRUZADA
+Local Integer LCONVC
+
+  Effzo [M:ZCB5]
+  Raz [M:ZCB5]NBVCRU
+  If !clalev([F:ZAC5]) Then : Local File ZB2BITMACC05 [F:ZAC5] : Endif
+  Filter [F:ZAC5] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
+  For [F:ZAC5]
+    [M:ZCB5]ZITMCODVCRU([L]LCONVC)  = [F:ZAC5]ZITMACCESORI
+    [M:ZCB5]ZITMDESVCRU([L]LCONVC)  = [F:ZAC5]ZITMACCDES
+    [M:ZCB5]ZITMORDVCRU([L]LCONVC)  = [F:ZAC5]ZITMACCESORO
+    [L]LCONVC += 1
+  Next
+  Filter [F:ZAC5]
+  [M:ZCB5]NBVCRU = [L]LCONVC
+  Close Local File [ZAC5]
+Return
+
+##############################################################
+# muestra la tabla de adjuntos
+$SHOW_ADJUNTOS
+Local Integer LCONAD
+
+  Effzo [M:ZCB6]
+  Raz [M:ZCB6]NBADJ
+  If !clalev([F:ZAC6]) Then : Local File ZB2BITMACC06 [F:ZAC6] : Endif
+  Filter [F:ZAC6] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
+  For [F:ZAC6]
+    [M:ZCB6]ZITMCODADJ([L]LCONAD)   = [F:ZAC6]ZITMACCESORI
+    [M:ZCB6]ZITMDESADJ([L]LCONAD)   = [F:ZAC6]ZITMACCDES
+    [M:ZCB6]ZITMORDADJ([L]LCONAD)   = [F:ZAC6]ZITMACCESORO
+    [L]LCONAD += 1
+  Next
+  Filter [F:ZAC6]
+  [M:ZCB6]NBADJ = [L]LCONAD
+  Close Local File [ZAC6]
+Return
+
+##############################################################
+# rellena la tabla de accesorios A
+$UPD_ACCESORIOSA
+Local Integer LCONA
+
+  If !clalev([F:ZAC1]) Then : Local File ZB2BITMACC01 [F:ZAC1] : Endif
+  If !adxlog Then : Trbegin [F:ZAC1] : Endif
+  Delete [F:ZAC1] Where ZITM = [M:ZCB0]ZITM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  For [L]LCONAA = 0 To [M:ZCB1]NBACCA - 1
+    [F:ZAC1]ZITM          = [M:ZCB0]ZITM
+    [F:ZAC1]ZITMACCESORI  = [M:ZCB1]ZITMCODACCA([L]LCONAA)
+    [F:ZAC1]ZITMACCDES    = [M:ZCB1]ZITMDESACCA([L]LCONAA)
+    [F:ZAC1]ZITMACCESORO  = [M:ZCB1]ZITMORDACCA([L]LCONAA)
+    If !adxlog Then : Trbegin [F:ZAC1] : Endif
+    Write [F:ZAC1]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZAC1]
+Return
+
+##############################################################
+# rellena la tabla de accesorios B
+$UPD_ACCESORIOSB
+Local Integer LCONAB
+
+  If !clalev([F:ZAC2]) Then : Local File ZB2BITMACC02 [F:ZAC2] : Endif
+  If !adxlog Then : Trbegin [F:ZAC2] : Endif
+  Delete [F:ZAC2] Where ZITM = [M:ZCB0]ZITM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  For [L]LCONAB = 0 To [M:ZCB2]NBACCB - 1
+    [F:ZAC2]ZITM          = [M:ZCB0]ZITM
+    [F:ZAC2]ZITMACCESORI  = [M:ZCB2]ZITMCODACCB([L]LCONAB)
+    [F:ZAC2]ZITMACCDES    = [M:ZCB2]ZITMDESACCB([L]LCONAB)
+    [F:ZAC2]ZITMACCESORO  = [M:ZCB2]ZITMORDACCB([L]LCONAB)
+    If !adxlog Then : Trbegin [F:ZAC2] : Endif
+    Write [F:ZAC2]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZAC2]
+Return
+
+##############################################################
+# rellena la tabla de relacionados
+$UPD_RELACIONADOS
+Local Integer LCONRE
+
+  If !clalev([F:ZAC3]) Then : Local File ZB2BITMACC03 [F:ZAC3] : Endif
+  If !adxlog Then : Trbegin [F:ZAC3] : Endif
+  Delete [F:ZAC3] Where ZITM = [M:ZCB0]ZITM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  For [L]LCONRE = 0 To [M:ZCB3]NBREL - 1
+    [F:ZAC3]ZITM          = [M:ZCB0]ZITM
+    [F:ZAC3]ZITMACCESORI  = [M:ZCB3]ZITMCODREL([L]LCONRE)
+    [F:ZAC3]ZITMACCDES    = [M:ZCB3]ZITMDESREL([L]LCONRE)
+    [F:ZAC3]ZITMACCESORO  = [M:ZCB3]ZITMORDREL([L]LCONRE)
+    If !adxlog Then : Trbegin [F:ZAC3] : Endif
+    Write [F:ZAC3]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZAC3]
+Return
+
+##############################################################
+# rellena la tabla de venta mejorada
+$UPD_VTAMEJORADA
+Local Integer LCONVM
+
+  If !clalev([F:ZAC4]) Then : Local File ZB2BITMACC04 [F:ZAC4] : Endif
+  If !adxlog Then : Trbegin [F:ZAC4] : Endif
+  Delete [F:ZAC4] Where ZITM = [M:ZCB0]ZITM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  For [L]LCONVM = 0 To [M:ZCB4]NBVMEJ - 1
+    [F:ZAC4]ZITM          = [M:ZCB0]ZITM
+    [F:ZAC4]ZITMACCESORI  = [M:ZCB4]ZITMCODVMEJ([L]LCONVM)
+    [F:ZAC4]ZITMACCDES    = [M:ZCB4]ZITMDESVMEJ([L]LCONVM)
+    [F:ZAC4]ZITMACCESORO  = [M:ZCB4]ZITMORDVMEJ([L]LCONVM)
+    If !adxlog Then : Trbegin [F:ZAC4] : Endif
+    Write [F:ZAC4]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZAC4]
+Return
+
+##############################################################
+# rellena la tabla de venta cruzada
+$UPD_VTACRUZADA
+Local Integer LCONVC
+
+  If !clalev([F:ZAC5]) Then : Local File ZB2BITMACC05 [F:ZAC5] : Endif
+  If !adxlog Then : Trbegin [F:ZAC5] : Endif
+  Delete [F:ZAC5] Where ZITM = [M:ZCB0]ZITM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  For [L]LCONVC = 0 To [M:ZCB5]NBVCRU - 1
+    [F:ZAC5]ZITM          = [M:ZCB0]ZITM
+    [F:ZAC5]ZITMACCESORI  = [M:ZCB5]ZITMCODVCRU([L]LCONVC)
+    [F:ZAC5]ZITMACCDES    = [M:ZCB5]ZITMDESVCRU([L]LCONVC)
+    [F:ZAC5]ZITMACCESORO  = [M:ZCB5]ZITMORDVCRU([L]LCONVC)
+    If !adxlog Then : Trbegin [F:ZAC5] : Endif
+    Write [F:ZAC5]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZAC5]
+Return
+
+##############################################################
+# rellena la tabla de adjuntos
+$UPD_ADJUNTOS
+Local Integer LCONAD
+
+  If !clalev([F:ZAC6]) Then : Local File ZB2BITMACC06 [F:ZAC6] : Endif
+  If !adxlog Then : Trbegin [F:ZAC6] : Endif
+  Delete [F:ZAC6] Where ZITM = [M:ZCB0]ZITM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  For [L]LCONAD = 0 To [M:ZCB6]NBADJ - 1
+    [F:ZAC6]ZITM          = [M:ZCB0]ZITM
+    [F:ZAC6]ZITMACCESORI  = [M:ZCB6]ZITMCODADJ([L]LCONAD)
+    [F:ZAC6]ZITMACCDES    = [M:ZCB6]ZITMDESADJ([L]LCONAD)
+    [F:ZAC6]ZITMACCESORO  = [M:ZCB6]ZITMORDADJ([L]LCONAD)
+    If !adxlog Then : Trbegin [F:ZAC6] : Endif
+    Write [F:ZAC6]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZAC6]
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+######################################################################################
+## Control en el campo Orden del bloque Accesorios A (pantalla ZACCB2B1) 28/04/2026 14:25:51 (SN070)
+######################################################################################
+Subprog C_ZITMORDACCA(VALEUR)
+Variable Decimal VALEUR
+  Call UNICITE(VALEUR,[M:ZCB1]ZITMORDACCA(0..[M:ZCB1]NBACCA-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Orden del bloque Accesorios B (pantalla ZACCB2B2) 28/04/2026 14:25:51 (SN070)
+######################################################################################
+Subprog C_ZITMORDACCB(VALEUR)
+Variable Decimal VALEUR
+  Call UNICITE(VALEUR,[M:ZCB2]ZITMORDACCB(0..[M:ZCB2]NBACCB-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Orden del bloque Relacionados (pantalla ZACCB2B3) 28/04/2026 14:25:51 (SN070)
+######################################################################################
+Subprog C_ZITMORDREL(VALEUR)
+Variable Decimal VALEUR
+  Call UNICITE(VALEUR,[M:ZCB3]ZITMORDREL(0..[M:ZCB3]NBREL-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Orden del bloque Venta mejorada (pantalla ZACCB2B4) 28/04/2026 14:25:51 (SN070)
+######################################################################################
+Subprog C_ZITMORDVMEJ(VALEUR)
+Variable Decimal VALEUR
+  Call UNICITE(VALEUR,[M:ZCB4]ZITMORDVMEJ(0..[M:ZCB4]NBVMEJ-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Orden del bloque Venta cruzada (pantalla ZACCB2B5) 28/04/2026 14:25:51 (SN070)
+######################################################################################
+Subprog C_ZITMORDVCRU(VALEUR)
+Variable Decimal VALEUR
+  Call UNICITE(VALEUR,[M:ZCB5]ZITMORDVCRU(0..[M:ZCB5]NBVCRU-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Orden del bloque Adjuntos (pantalla ZACCB2B6) 28/04/2026 14:25:51 (SN070)
+######################################################################################
+Subprog C_ZITMORDADJ(VALEUR)
+Variable Decimal VALEUR
+  Call UNICITE(VALEUR,[M:ZCB6]ZITMORDADJ(0..[M:ZCB6]NBADJ-1)) From OBJDIV
+End
+
+######################################################################################
+## Después de modificar el campo 'Artículo' (pantalla ZACCB2B0) 29/04/2026 13:47:37 (SN070)
+######################################################################################
+Subprog AM_ZITM(VALEUR)
+Variable Char    VALEUR()
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    [M:ZCB0]ZITMDES     = [F:ZVA0]ZITMDES
+    [M:ZCB0]FAM_EST1    = [F:ZVA0]FAM_EST1
+    [M:ZCB0]FAM_EST1_D  = [F:ZVA0]FAM_EST1_D
+    [M:ZCB0]FAM_EST2    = [F:ZVA0]FAM_EST2
+    [M:ZCB0]FAM_EST2_D  = [F:ZVA0]FAM_EST2_D
+    [M:ZCB0]SERIE       = [F:ZVA0]SERIE
+    [M:ZCB0]PADRE       = [F:ZVA0]PADRE
+    Affzo [M:ZCB0]5
+  Endif
+  Close Local File [ZVA0]
+End
+
+######################################################################################
+## Después de modificar el campo 'Accesorio' (pantalla ZACCB2B1) 29/04/2026 14:06:02 (SN070)
+######################################################################################
+Subprog AM_ZITMCODACCA(VALEUR)
+Variable Char    VALEUR()
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    If VALEUR = [M:ZCB0]ZITM
+      Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
+      mkstat=2
+    Else
+      [M:ZCB1]ZITMDESACCA = [F:ZVA0]ZITMDES
+      [M:ZCB1]ZITMORDACCA = nolign
+      Affzo [M:ZCB1]
+    Endif
+  Endif
+  Close Local File [ZVA0]
+End
+
+######################################################################################
+## Después de modificar el campo 'Accesorio' (pantalla ZACCB2B2) 29/04/2026 14:06:02 (SN070)
+######################################################################################
+Subprog AM_ZITMCODACCB(VALEUR)
+Variable Char    VALEUR()
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    If VALEUR = [M:ZCB0]ZITM
+      Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
+      mkstat=2
+    Else
+      [M:ZCB2]ZITMDESACCA = [F:ZVA0]ZITMDES
+      [M:ZCB2]ZITMORDACCA = nolign
+      Affzo [M:ZCB2]
+    Endif
+  Endif
+  Close Local File [ZVA0]
+End
+
+######################################################################################
+## Después de modificar el campo 'Artículo' (pantalla ZACCB2B3) 29/04/2026 14:06:02 (SN070)
+######################################################################################
+Subprog AM_ZITMORDACCB(VALEUR)
+Variable Decimal VALEUR
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    If VALEUR = [M:ZCB0]ZITM
+      Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
+      mkstat=2
+    Else
+      [M:ZCB3]ZITMDESACCA = [F:ZVA0]ZITMDES
+      [M:ZCB3]ZITMORDACCA = nolign
+      Affzo [M:ZCB1]
+    Endif
+  Endif
+  Close Local File [ZVA0]
+End
+
+######################################################################################
+## Después de modificar el campo 'Artículo' (pantalla ZACCB2B4) 29/04/2026 14:06:02 (SN070)
+######################################################################################
+Subprog AM_ZITMCODVMEJ(VALEUR)
+Variable Char    VALEUR()
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    If VALEUR = [M:ZCB0]ZITM
+      Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
+      mkstat=2
+    Else
+      [M:ZCB4]ZITMDESACCA = [F:ZVA0]ZITMDES
+      [M:ZCB4]ZITMORDACCA = nolign
+      Affzo [M:ZCB1]
+    Endif
+  Endif
+  Close Local File [ZVA0]
+End
+
+######################################################################################
+## Después de modificar el campo 'Artículo' (pantalla ZACCB2B5) 29/04/2026 14:06:02 (SN070)
+######################################################################################
+Subprog AM_ZITMCODVCRU(VALEUR)
+Variable Char    VALEUR()
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    If VALEUR = [M:ZCB0]ZITM
+      Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
+      mkstat=2
+    Else
+      [M:ZCB5]ZITMDESACCA = [F:ZVA0]ZITMDES
+      [M:ZCB5]ZITMORDACCA = nolign
+      Affzo [M:ZCB1]
+    Endif
+  Endif
+  Close Local File [ZVA0]
+End
+
+######################################################################################
+## Después de modificar el campo 'Artículo' (pantalla ZACCB2B6) 29/04/2026 14:06:02 (SN070)
+######################################################################################
+Subprog AM_ZITMCODADJ(VALEUR)
+Variable Char    VALEUR()
+  VALEUR = toupper(VALEUR)
+  If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
+  Filter [F:ZVA0] Where ZITM = VALEUR
+  Read [F:ZVA0] First
+  If fstat Then
+    Call ERREUR("El artículo lo existe") From GESECRAN
+    mkstat=2
+  Else
+    If VALEUR = [M:ZCB0]ZITM
+      Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
+      mkstat=2
+    Else
+      [M:ZCB6]ZITMDESACCA = [F:ZVA0]ZITMDES
+      [M:ZCB6]ZITMORDACCA = nolign
+      Affzo [M:ZCB1]
+    Endif
+  Endif
+  Close Local File [ZVA0]
+End
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
