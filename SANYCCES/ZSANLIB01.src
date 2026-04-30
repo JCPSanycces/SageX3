@@ -69,3 +69,68 @@ Value Char  PPTHNUM
   Endif
   Close Local File [F:ZPTH]
 End [00/00/0000]
+
+##############################################################
+#**
+#* valida si una cadena tiene el formato dd/mm/yyyy
+#*
+#* @param CADENA
+#* @param ES_VALIDA
+#*!
+Subprog VALIDA_FECHA(CADENA, ES_VALIDA)
+Value    Char    CADENA
+Variable Integer ES_VALIDA
+
+  Local Integer DIA, MES, ANIO
+  Local Char    SDIA(2), SMES(2), SANIO(4)
+
+  # Inicializamos resultado como inválido
+  ES_VALIDA = 0
+
+  # Verificar longitud exacta (dd/mm/yyyy = 10 caracteres)
+  If len(CADENA) <> 10
+    End
+  Endif
+
+  # Verificar que los separadores están en la posición correcta
+  If mid$(CADENA,3,1) <> "/" or mid$(CADENA,6,1) <> "/"
+    End
+  Endif
+
+  # Extraer las partes
+  SDIA  = left$(CADENA,2)
+  SMES  = mid$(CADENA,4,2)
+  SANIO = right$(CADENA,7)
+
+  # Verificar que son numéricos
+  If val(SDIA)   = 0 and SDIA  <> "00"   : End : Endif
+  If val(SMES)   = 0 and SMES  <> "00"   : End : Endif
+  If val(SANIO)  = 0 and SANIO <> "0000" : End : Endif
+
+  # Convertir a enteros
+  DIA  = val(SDIA)
+  MES  = val(SMES)
+  ANIO = val(SANIO)
+
+  # Validar rangos básicos
+  If DIA  < 1     or DIA  > 31    : End : Endif
+  If MES  < 1     or MES  > 12    : End : Endif
+  If ANIO < 1900  or ANIO > 2200  : End : Endif
+
+  # Validar días según el mes
+  Case MES
+    When 4, 6, 9, 11
+      If DIA > 30 : End : Endif
+    When 2
+      # Verificar año bisiesto
+      If (mod(ANIO, 4) = 0 and mod(ANIO, 100) <> 0) or mod(ANIO, 400) = 0
+        If DIA > 29 : End : Endif
+      Else
+        If DIA > 28 : End : Endif
+      Endif
+  Endcase
+
+  # Si llegamos aquí, la fecha es válida
+  ES_VALIDA = 1
+
+End
