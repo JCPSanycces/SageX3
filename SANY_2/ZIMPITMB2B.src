@@ -13,9 +13,9 @@
 
 $ACTION
 
-#If GUSER="SN069" Then : Call ECR_TRACE(ACTION,0) From GESECRAN : Endif
+#If GUSER="SN070" Then : Call ECR_TRACE(ACTION,0) From GESECRAN : Endif
 Case ACTION
-  When "IMP_APRES_MOD"        : Gosub IMP_APRES_MOD
+  When "IMPORT"        : Gosub IMPORT
   When Default
 Endcase
 
@@ -25,10 +25,13 @@ Return
 ######################    ACCIONES    ########################
 ##############################################################
 ##############################################################
-$IMP_APRES_MOD
+$IMPORT
 # ZB2B.ini
-  [M:ITM1]ZB2BCONFIGUR = [F:ITM]ZB2BCONFIGUR
-  Affzo [M:ITM1]ZB2BCONFIGUR
+  [M:ZIB2B]ZB2BCONFIGUR = [F:ITM]ZB2BCONFIGUR
+  Affzo [M:ZIB2B]ZB2BCONFIGUR
+
+  [M:ZIB2B]ZB2BSETATRIB = [F:ITM]ZB2BSETATRIB
+  Affzo [M:ZIB2B]ZB2BSETATRIB
 # ZB2B.fin
 Return
 
