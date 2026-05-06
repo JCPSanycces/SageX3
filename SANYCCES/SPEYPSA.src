@@ -5,7 +5,9 @@
 # @03@ - EQM - 11/09/2024 - Añado acceso botón ped. venta
 # @04@ - EQM - 11/09/2024 - Añadimos filtro fecha entrega ini y fin
 # @05@ - EQM - 11/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
+# @06@ - EQM - 16/09/2025 - Mejoras etiquetas  - BORRAR DE ZETIQSER - ZETIQPROD - ZETIQMOTOR - ZETIQASOC  ESTO : When "__REPORT"        : [L]PARAMETRE(I) = "__REPORT="+W_REPORT+".rpt"
 # @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+# @08@ - EQM - 29/04/2026 - Añadimos nº etiqueta en ZDOSFAB al imprimir inicios
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -1145,10 +1147,18 @@ Value Integer MOFLIN
 Value Char MFECHA
 Value Char MITM
 Value Integer MCANTIDAD
-
+#@06@ - EQM - INI
+Local Char N_NETI_EAN(20)
+Local Char N_NETI_SER(20)
+Local Char N_NETI_MOT(20)
+Local Char N_NETI_COR(20)
+Local Char N_NETI_ASO(20)
+#@06@ - EQM - FIN
 
 # Impresión de la OF
-Call PRINT_OF(MORI,MPLA,MOF,MFECHA)
+#Call PRINT_OF(MORI,MPLA,MOF,MFECHA) # @06@ - EQM - Añado parámetros
+#Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0)# @08@ EQM - Añado parámetro
+Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0,0)
 
 # Impresiones de la etiqueta EAN13 - nº serie - motor/metal
 If !clalev([XP1]) : Local File ITMMASTER [XP1] : Endif
@@ -1178,14 +1188,24 @@ If fstat = 0
 #    If [XP2]ETQSER <> ""    : NETI_SER = [XP2]QTYETQSER   : Endif # @05@ - EQM
 #    If [XP2]ETQMOTOR <> ""  :  NETI_MOT =  [XP2]QTYETQMOT : Endif # @05@ - EQM
 #    If [XP2]ETQCORTE<>""     :  NETI_COR =  [XP2]QTYETQCOR   : Endif
+    #@06@ - EQM - INI
+    If MORI<>1
+        N_NETI_MOT=ctrans([XP2]ETQMOTOR,"Z","Y")
+        N_NETI_COR=ctrans([XP2]ETQCORTE,"Z","Y")
+        N_NETI_SER=ctrans([XP2]ETQSER,"Z","Y")
+        N_NETI_EAN=ctrans([XP2]ETQEAN13,"Z","Y")
+        N_NETI_ASO=ctrans("Z-ETIQASOC","Z","Y")
 
+    Endif
+    #@06@ - EQM - FIN
     Read [XP4]MFI0 = MOF;MOFLIN
     If fstat = 0
       NETI_MAX = [XP4]EXTQTY
       If [XP2]ETQEAN13  <> "" and [XP2]QTYETQEAN13>0    :  NETI_EAN =  [XP4]EXTQTY                  : Endif
       If [XP2]ETQSER <> ""    and [XP2]QTYETQSER>0      :  NETI_SER =  [XP4]EXTQTY                  : Endif
       If [XP2]ETQCORTE<>""    and [XP2]QTYETQCOR>0      :  NETI_COR =  [XP4]EXTQTY                  : Endif # @05@ - EQM
-      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  1                            : Endif # @05@ - EQM SOLO 1 PDF
+#      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  1                            : Endif # @05@ - EQM SOLO 1 PDF
+      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  [XP4]EXTQTY                  : Endif  # @06@ - EQM Un pdf por cada orden
     Endif
 
     # Imprimo las etiquetas por unidad producida
@@ -1221,8 +1241,10 @@ If fstat = 0
 
           # Etiqueta Motor / Metal
           If NETI_MOT >0
-            Call PRINT_ETI(MOF,[XP2]ETQMOTOR,1)
-            [L]NETI_MOT -= 1
+            For I=1 To  NETI_MOT  # @06@ - EQM - Imprimos tantos pdf como cantidad
+                Call PRINT_ETI(MOF,[XP2]ETQMOTOR,1)
+                [L]NETI_MOT -= 1
+            Next
           Endif
 
 
@@ -1338,11 +1360,16 @@ End
 
 
 #############################################
-Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA)
+#Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA) # @06@ - EQM - Añadimos num serie
+#Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC)# @08@ - EQM
+Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC,VPAGS)
 Value Integer VORI
 Value Char VPLA
 Value Char VOF
 Value Char VFECHA
+Value Char VSERIE # @06@
+Value Integer VQPARC # @06@
+Value Integer VPAGS # @08@ - EQM
 
 Local Char TBVAL(20)(20)
 Local Char TBPAR(20)(20)
@@ -1376,6 +1403,18 @@ TBVAL(6) = VFECHA
 
 TBPAR(7) = "strdatfin"
 TBVAL(7) = VFECHA
+
+# @06@ - EQM - Añadimos nuevos parámetros - INI
+TBPAR(8) = "nser"
+TBVAL(8) = num$(VSERIE)
+
+TBPAR(9) = "ctdparcial"
+TBVAL(9) = num$(VQPARC)
+# @06@ - EQM - Añadimos nuevos parámetros - FIN
+# @08@ - EQM - INI
+TBPAR(10) = "vpags"
+TBVAL(10) = num$(VPAGS)
+# @08@ - EQM - FIN
 
 If VORI = 1 # Lanzo la impresión desde los 3 puntos
   Call ETAT("Y-DOSFABR","YPRODSANY",TBPAR,TBVAL) From ETAT

@@ -7,6 +7,7 @@
 # @05@ - EQM - 11/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
 # @06@ - EQM - 16/09/2025 - Mejoras etiquetas  - BORRAR DE ZETIQSER - ZETIQPROD - ZETIQMOTOR - ZETIQASOC  ESTO : When "__REPORT"        : [L]PARAMETRE(I) = "__REPORT="+W_REPORT+".rpt"
 # @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+# @08@ - EQM - 29/04/2026 - Añadimos nº etiqueta en ZDOSFAB al imprimir inicios
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -1179,8 +1180,8 @@ Local Char N_NETI_ASO(20)
 #@06@ - EQM - FIN
 # Impresión de la OF
 #Call PRINT_OF(MORI,MPLA,MOF,MFECHA) # @06@ - EQM - Añado parámetros
-If GUSER='NUN12' : Infbox "SPEYPSA"-MPLA-MOF-MFECHA: Endif
-Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0)
+#Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0)# @08@ EQM - Añado parámetro
+Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0,0)
 # Impresiones de la etiqueta EAN13 - nº serie - motor/metal
 If !clalev([XP1]) : Local File ITMMASTER [XP1] : Endif
 If !clalev([XP2]) : Local File ZITMLOGO  [XP2] : Endif
@@ -1391,13 +1392,15 @@ End
 
 #############################################
 #Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA) # @06@ - EQM - Añadimos num serie
-Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC)
+#Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC)# @08@ - EQM
+Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC,VPAGS)
 Value Integer VORI
 Value Char VPLA
 Value Char VOF
 Value Char VFECHA
-Value Char VSERIE
-Value Integer VQPARC
+Value Char VSERIE # @06@
+Value Integer VQPARC # @06@
+Value Integer VPAGS # @08@ - EQM
 
 Local Char TBVAL(20)(20)
 Local Char TBPAR(20)(20)
@@ -1439,6 +1442,10 @@ TBVAL(8) = num$(VSERIE)
 TBPAR(9) = "ctdparcial"
 TBVAL(9) = num$(VQPARC)
 # @06@ - EQM - Añadimos nuevos parámetros - FIN
+# @08@ - EQM - INI
+TBPAR(10) = "vpags"
+TBVAL(10) = num$(VPAGS)
+# @08@ - EQM - FIN
 
 If VORI = 1 # Lanzo la impresión desde los 3 puntos
   Call ETAT("Z-DOSFABR","YPRODSANY",TBPAR,TBVAL) From ETAT  # @06@ - EQM - Cambiamos informe
