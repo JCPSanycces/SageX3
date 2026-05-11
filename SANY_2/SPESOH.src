@@ -18,10 +18,10 @@
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 # 2026-00007 - JCP.27032026.Servicio de trasportista
 # 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
+# ZB2B - JCP.05052026.Tienda online B2B
 #####################################################################################################
 
 $ACTION
-
 Case ACTION
   When "INICRE"      : Gosub INICRE
   When "VERIF_CRE"   : Gosub VERIF_CRE   #  @01@ -SCD - 14/06/2024 - INI
@@ -68,6 +68,15 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
     Call VIREBOUT(CHAINE, "6") From GOBJET # BOTON PREPARACIÓN
   Endif
 #  @05@ - JLP - 17-10-2024 - No permitir a usuarios crear entregas y doc prepa desde PDV - FIN
+
+# ZB2B.ini
+  If !GWEBSERV Then
+    Local Integer LCON0
+    Grizo  [M:SOH0]ZSOHNUMB2B
+    Chgfmt [M:SOH0]ZTEXTO1B2B   With "-K:10"
+    Chgfmt [M:SOH4]ZATTFILEB2B  With "-K:10"
+  Endif
+# ZB2B.fin
 Return
 
 

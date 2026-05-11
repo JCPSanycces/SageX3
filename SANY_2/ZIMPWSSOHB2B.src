@@ -1,0 +1,103 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZIMPWSSOHB2B
+# Description : Específico del modelo de importación ZWSSOHB2B
+# Module      : Ventas
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 08/05/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Call ECR_TRACE(ACTION,0) From GESECRAN : Endif
+Case ACTION
+  When "IMP_FERME"        : Gosub IMP_FERME
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$IMP_FERME
+  If dim(GZSOHNUMB2B) > 0 Then
+    GZSOHNUMB2B = [F:SOH]SOHNUM
+  Endif
+
+  Gosub ADD_MAGENTOINFO
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$ADD_MAGENTOINFO
+Local Char    PABRFIC(250),PTEXTE(250),LCODE(250)
+Local Integer LCON0
+
+  # texto cabecera
+  [L]PABRFIC  = "SOH"
+  [L]PTEXTE   = [F:SOH]ZTEXTO1B2B
+  [L]LCODE    = func ZSANLIB01.F_CRELOB([L]PABRFIC,[L]PTEXTE)
+  If !clalev([F:ZSOH0]) Then : Local File SORDER [F:ZSOH0] : Endif
+  Read [F:ZSOH0]SOH0 = [F:SOH]SOHNUM
+  If !fstat Then
+    [F:ZSOH0]SOHTEX1 = [L]LCODE
+    If !adxlog Then : Trbegin [F:ZSOH0] : Endif
+    Rewrite [F:ZSOH0]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Endif
+  Close Local File [ZSOH0]
+
+  # adjuntos
+  If !clalev([F:ZSOQ0]) Then : Local File SORDERQ [F:ZSOQ0] : Endif
+  If !clalev([F:ZACB0]) Then : Local File ACLOB   [F:ZACB0] : Endif
+  If !clalev([F:ZAOX0]) Then : Local File AOBJTXT [F:ZAOX0] : Endif
+  Filter [F:ZSOQ0] Where SOHNUM = [F:SOH]SOHNUM and ZATTFILEB2B <> ""
+  Raz [L]LCON0
+  For [F:ZSOQ0]
+    [L]LCON0 += 1
+    [F:ZACB0]CODBLB     = 'PJ_SOH'
+    [F:ZACB0]IDENT1     = [F:SOH]SOHNUM
+    [F:ZACB0]IDENT3     = ctrans(space$(3-len(num$([L]LCON0)))+num$([L]LCON0),' ','0')
+    [F:ZACB0]NAMBLB     = "TEXT"+num$([L]LCON0)
+    [F:ZACB0]TYPDOC     = "TXT"
+    [F:ZACB0]CLOB       = "https://s3.eu-west-2.wasabisys.com/adjuntosb2b/"+[F:ZSOQ0]ZATTFILEB2B
+    [F:ZAOX0]ABREV      = "SOH"
+    [F:ZAOX0]IDENT1     = [F:SOH]SOHNUM
+    [F:ZAOX0]IDENT3     = ctrans(space$(3-len(num$([L]LCON0)))+num$([L]LCON0),' ','0')
+    [F:ZAOX0]TYPDOC     = "TXT"
+    [F:ZAOX0]NAM        = "TEXT"+num$([L]LCON0)
+    [F:ZAOX0]ORINAM     = "TEXT"+num$([L]LCON0)
+    [F:ZAOX0]MOTCLE(0)  = "PLANO"
+    [F:ZAOX0]MOTCLE(1)  = num$([F:ZSOQ0]SOPLIN)
+    [F:ZAOX0]CAT        = 5
+    If !adxlog Then : Trbegin [F:ZACB0] : Endif
+    Write [F:ZACB0]
+    Write [F:ZAOX0]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+  Filter [F:ZSOQ0]
+
+Return
+
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
