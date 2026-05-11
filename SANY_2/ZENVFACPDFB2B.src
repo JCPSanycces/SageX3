@@ -51,8 +51,8 @@ Local Char    PORT(100)       : PORT      = '2221'
 Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
 Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
 Local Char    FTPFOLDER(100)  : FTPFOLDER = 'TEST_IMPORT/PDF'
-Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
-Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS\FACTURASPDF','','')
+Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS\FACTURASPDF','','')
 Local Char    LINDEX(100)
 Local Char    LFORMATO(100)   : LFORMATO  = 'pdf'
 Local Integer RESULT
@@ -63,7 +63,7 @@ Local Char    LBASEURL(100)   : LBASEURL  = ''
 
   Raz TBPAR, TBVAL
 
-  [V]GPATHFACB2B = filpath("","","") + "\FTP\B2B\"
+  [V]GPATHFACB2B = filpath("","","") + "\B2B\FTP\"
 
   [L]LFECHAINI  = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
   [L]LFECHAFIN  = gdat$(val(mid$([L]LFECHALIMITEEND,1,2)),val(mid$([L]LFECHALIMITEEND,4,2)),val(mid$([L]LFECHALIMITEEND,7,4)))
