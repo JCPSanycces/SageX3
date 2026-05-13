@@ -241,6 +241,76 @@ Subprog IMPRIMIR_ETIQUETA(PDIR, PFICHERO, PDESTINO, RES)
   GSILENCE = 0
 End
 
+#Subprog ENVIO_SOLICITUD(PCOD_DOCUMENTO, LRET)
+#  # Entrada
+#  Value Char PCOD_DOCUMENTO
+#  # Salida
+#  Variable Integer LRET
+#
+#  Local Integer OK8
+#  Local Char LMESS(250)
+#
+#  If !clalev([YSTPH]) : Local File STOPREH [YSTPH] : Endif
+#  If !clalev([YTRA])  : Local File YTRAN   [YTRA]  : Endif
+#
+#  Read [YSTPH]PRH0 = PCOD_DOCUMENTO
+#  If !fstat
+#    Read [YTRA]YTRAN0 = [YSTPH]BPTNUM
+#    If !fstat
+#      Call OUINON("¿Confirma la solitud de envío?", OK8) From GESECRAN
+#      If OK8 = 2 Then
+#        Case [YTRA]YFUNC
+#          When 1: Call ENVIO('mrw', 'x3_mrw_client.exe', 1, "", "", LMESS) #MRW
+#          When 2: Call ENVIO('dachser', 'x3_dachser_client.exe', 1, "", "", LMESS) #DACHSER
+#          When Default: Infbox("Método inexistente")
+#        Endcase
+#      Endif
+#    Else
+#      Infbox("El transportista no tiene ningún método de integración asociado")
+#    Endif
+#  Endif
+#
+#  Close Local File [YSTPH]
+#  Close Local File [YTRA]
+#End
+
+#Subprog ENVIO(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, LMESS)
+#  # Entrada
+#  Value Char PDIR
+#  Value Char PEJECUTABLE
+#  Value Integer IS_WS
+#  Value Char PCOD_PREPARACION
+#  Value Char PCOD_TRANSPORTISTA
+#  # Salida
+#  Variable Char LMESS
+#
+#  Local Char RES(255)
+#  Local Char URL(255) : URL = "http://172.17.0.10:8124/soap-wsdl/syracuse/collaboration/syracuse/CAdxWebServiceXmlCC?wsdl"
+#  Local Char USUARIO : USUARIO = "NUN21"
+#  Local Char PASSW : PASSW = "Jf04092023"
+#  Local Char POOL : POOL = "POOLSANYCCES"
+#  Local Char LCOD_PREPARACION
+#  Local Char LCOD_TRANSPORTISTA
+#
+#  If IS_WS = 2
+#    LCOD_PREPARACION = PCOD_PREPARACION
+#    LCOD_TRANSPORTISTA = PCOD_TRANSPORTISTA
+#  Else
+#    LCOD_PREPARACION = [M:PRH0]PRHNUM
+#    LCOD_TRANSPORTISTA = [YSTPH]BPTNUM
+#  Endif
+#
+#  System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [L]LCOD_PREPARACION + '" "' + [L]LCOD_TRANSPORTISTA + '" "' + [
+#& YTRA]YRUTETIQ + '" ' + num$([YTRA]YAUTIMP) + ' "' + [YTRA]YRUTIMP + '"'
+#
+#  If IS_WS = 1
+#    Infbox(RES)
+#    Affzo [M:YPRHTRA]
+#  Else
+#    LMESS = RES
+#  Endif
+#End
+
 Subprog ENVIO_SOLICITUD(PCOD_DOCUMENTO, LRET)
   # Entrada
   Value Char PCOD_DOCUMENTO
@@ -260,8 +330,8 @@ Subprog ENVIO_SOLICITUD(PCOD_DOCUMENTO, LRET)
       Call OUINON("¿Confirma la solitud de envío?", OK8) From GESECRAN
       If OK8 = 2 Then
         Case [YTRA]YFUNC
-          When 1: Call ENVIO('mrw', 'x3_mrw_client.exe', 1, "", "", LMESS) #MRW
-          When 2: Call ENVIO('dachser', 'x3_dachser_client.exe', 1, "", "", LMESS) #DACHSER
+          When 1: Call ENVIO('mrw', 'x3_mrw_client.exe', 1, "", "", "", LMESS) #MRW
+          When 2: Call ENVIO('dachser', 'x3_dachser_client.exe', 1, "", "", "", LMESS) #DACHSER
           When Default: Infbox("Método inexistente")
         Endcase
       Endif
@@ -274,13 +344,14 @@ Subprog ENVIO_SOLICITUD(PCOD_DOCUMENTO, LRET)
   Close Local File [YTRA]
 End
 
-Subprog ENVIO(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, LMESS)
+Subprog ENVIO(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, PDESTINO, LMESS)
   # Entrada
   Value Char PDIR
   Value Char PEJECUTABLE
   Value Integer IS_WS
   Value Char PCOD_PREPARACION
   Value Char PCOD_TRANSPORTISTA
+  Value Char PDESTINO
   # Salida
   Variable Char LMESS
 
@@ -291,6 +362,7 @@ Subprog ENVIO(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, LM
   Local Char POOL : POOL = "POOLSANYCCES"
   Local Char LCOD_PREPARACION
   Local Char LCOD_TRANSPORTISTA
+  Local Char LDESTINO(50)
 
   If IS_WS = 2
     LCOD_PREPARACION = PCOD_PREPARACION
@@ -300,8 +372,14 @@ Subprog ENVIO(PDIR, PEJECUTABLE, IS_WS, PCOD_PREPARACION, PCOD_TRANSPORTISTA, LM
     LCOD_TRANSPORTISTA = [YSTPH]BPTNUM
   Endif
 
+  If PDESTINO <> "" Then
+    LDESTINO = PDESTINO
+  Else
+    LDESTINO = [YTRA]YRUTIMP
+  Endif
+
   System RES = '\\localhost\files\' + PDIR + '\' + PEJECUTABLE + ' "' + URL + '" "' + USUARIO + '" "' + PASSW + '" "' + POOL + '" "' + [L]LCOD_PREPARACION + '" "' + [L]LCOD_TRANSPORTISTA + '" "' + [
-& YTRA]YRUTETIQ + '" ' + num$([YTRA]YAUTIMP) + ' "' + [YTRA]YRUTIMP + '"'
+& YTRA]YRUTETIQ + '" ' + num$([YTRA]YAUTIMP) + ' "' + LDESTINO + '"'
 
   If IS_WS = 1
     Infbox(RES)
