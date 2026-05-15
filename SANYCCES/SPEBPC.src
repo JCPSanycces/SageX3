@@ -2,8 +2,10 @@
 ###
 # ZPR09 - Etiquetas - Acciones para gestion del fichero logo por cliente
 # NUN05 - comentamos desarrollo porque da un error. Creemos que este desarrollo se arrastra de otra instalación y no sirve.
+# 2026-00029 - JCP.11052026.Añadir al informe de DPRs el texto línea del pedido relacionado
 ##############################################################################
 $ACTION
+#If GUSER="SN070" Then : Infbox ACTION : Endif
   Case ACTION
       When "LIENS"      :    Gosub LIENS
       When "INICRE0"    :    Gosub INICRE
@@ -66,6 +68,10 @@ Return
 
 ##################################################
 $LIENS
+# 2026-00029.ini
+  Gosub LIENS From SUBBPCA
+# 2026-00029.fin
+
   If !clalev([F:CBB]): Local File CBLOB : Endif
   Read [CBB]CBB0="BPCLOG";[F:BPC]BPCNUM;""
   If !fstat
@@ -73,7 +79,11 @@ $LIENS
    Affzo [M:BPRC]ZBPCLOG
   Endif
 
-
+# 2026-00029.ini
+  [M:BPAC]XZIMPTXLIN = [M:BPAC]ZIMPTXLIN(0)
+  Affzo [M:BPAC]XZIMPTXLIN
+  GPE=1
+# 2026-00029.fin
 Return
 
 
