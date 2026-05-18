@@ -70,8 +70,7 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
 #  @05@ - JLP - 17-10-2024 - No permitir a usuarios crear entregas y doc prepa desde PDV - FIN
 
 # ZB2B.ini
-  If !GWEBSERV Then
-    Local Integer LCON0
+  If dim(GZCTRLB2B) < 0 Then
     Grizo  [M:SOH0]ZSOHNUMB2B
     Chgfmt [M:SOH0]ZTEXTO1B2B   With "-K:10"
     Chgfmt [M:SOH4]ZATTFILEB2B  With "-K:10"

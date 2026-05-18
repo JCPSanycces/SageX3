@@ -786,3 +786,19 @@ Local Mask IMPOBJ2    [IMP2]
   Close Local Mask [AOE0],[AOE1],[AOE2],[IEX],[DIA],[IMP2]
 
 End
+
+#############################################
+#**
+#* devuelve la fecha del año anterior desde el mes anterior (si PFECHA=13/05/2026, devuelve 01/04/2025)
+#*
+#* @param PFECHA
+#*!
+Funprog GET_FECHAMENOS12ANT(PFECHA)
+Value Date PFECHA
+
+Local Date FECHA_REF,FECHA_FINAL
+
+  [L]FECHA_REF    = addmonth(eomonth(addmonth(PFECHA, -1)), -12)
+  [L]FECHA_FINAL  = gdat$(1, month(FECHA_REF), year(FECHA_REF))
+
+End FECHA_FINAL

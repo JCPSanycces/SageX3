@@ -91,6 +91,27 @@ Local Integer LCON0
   Next
   Filter [F:ZSOQ0]
 
+  # campos varios que no se actualizan en la importación
+  If !clalev([F:ZSOQ1]) Then : Local File SORDERQ [F:ZSOQ1] : Endif
+  If !clalev([F:ZSOP1]) Then : Local File SORDERP [F:ZSOP1] : Endif
+  Filter [F:ZSOQ1] Where SOHNUM = [F:SOH]SOHNUM
+  For [F:ZSOQ1]
+    Read [F:ZSOP1]SOP0 = [F:ZSOQ1]SOHNUM;[F:ZSOQ1]SOPLIN;[F:ZSOQ1]SOQSEQ
+    If !fstat and find([F:ZSOP1]LINTYP,8,9) Then
+      [F:ZSOQ1]OCNPRNBOM = 2
+      [F:ZSOQ1]NDEPRNBOM = 2
+      [F:ZSOQ1]INVPRNBOM = 2
+      If !adxlog Then : Trbegin [F:ZSOQ1] : Endif
+      Rewrite [F:ZSOQ1]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+  Next
+  Filter [F:ZSOQ0]
+
 Return
 
 
