@@ -1,0 +1,87 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char PROPERT(250)(1..)
+Local Char PVALUES(250)(1..)
+Local Clbfile SRCJSON
+#SRCJSON = '{"msg":"Hello World!", "list" : ["one", "two", "three"]}'
+SRCJSON = '{"productos": [{"cod": "MP905","campos": [{"cod": "MAMPARA","atributos": [{"cod": "ANCHO","valores": []},{"cod": "ALTO","valores": []},'
+SRCJSON+= '{"cod": "CRISTAL","valores": [{"cod": "CLEAR"},{"cod": "COLORFUM"},{"cod": "COLORCOF"},{"cod": "COLORICE"},{"cod": "COLORICEFUM"},'
+SRCJSON+= '{"cod": "COLORICECOF"},{"cod": "PREMFLU","condicion1": "MAMPARA.ALTO <= 2400"},{"cod": "PREMMIR"},{"cod": "DECORFAB"},{"cod": "DECORFAN"},'
+SRCJSON+= '{"cod": "DECORDOB"},{"cod": "DECORDON"},{"cod": "DECORLIN"},{"cod": "DECORFRA"},{"cod": "DECORORI"}]}]},{"cod": "ESCOTE","atributos": ['
+SRCJSON+= '{"cod": "TIPO","valores": [{"cod": "SIN-ESCOTE"},{"cod": "ESCOTEREC"},{"cod": "ESCOTEANG"},{"cod": "ESCOTECUR"}]},'
+SRCJSON+= '{"cod": "MEDIDA1","valores": []},{"cod": "MEDIDA2","valores": []},{"cod": "RADIO","valores": []}]},{"cod": "PERFILERIA","atributos": ['
+SRCJSON+= '{"cod": "COLOR","valores": [{"cod": "CR"},{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},{"cod": "BG"},{"cod": "RG"},{"cod": "RM"}]},'
+SRCJSON+= '{"cod": "TECHO-BOOLE","valores": ["TRUE", "FALSE"]},{"cod": "TECHO","valores": [{"cod": "CR"},{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},'
+SRCJSON+= '{"cod": "BG"},{"cod": "RG"},{"cod": "RM"}]},{"cod": "PERPENDICULAR-BOOLE","valores": [{"cod": "TRUE","condicion2": "!PERFIL.TECHO-BOOLE"},'
+SRCJSON+= '{"cod": "FALSE"}]},{"cod": "PERPENDICULAR-TIPO","valores": [{"cod": "1M"},{"cod": "1.5M"}]},{"cod": "PERPENDICULAR-COLOR","valores": ['
+SRCJSON+= '{"cod": "CR"},{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},{"cod": "BG"},{"cod": "RG"},{"cod": "RM"}]},{"cod": "BARRA-SUJECION-BOOLE","valores": ['
+SRCJSON+= '{"cod": "TRUE","condicion1": "MAMPARA.ANCHO <= 1000","condicion2": "!PERFIL.TECHO-BOOLE"},{"cod": "FALSE"}]},{"cod": "BARRA-SUJECION","valores": ['
+SRCJSON+= '{"cod": "CR"},{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},{"cod": "BG"},{"cod": "RG"},{"cod": "RM"}]}]},{"cod": "ACCESORIOS","atributos": ['
+SRCJSON+= '{"cod": "ESTANTE-BOOLE","valores": [{"cod": "TRUE","condicion1": "MAMPARA.ANCHO <= 1200"},{"cod": "FALSE"}]},{"cod": "ESTANTE-TIPO","valores": ['
+SRCJSON+= '{"cod": "GEMINI"},{"cod": "MURANO"}]},{"cod": "ESTANTE-COLOR","valores": [{"cod": "CR"},{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},{"cod": "BG"},'
+SRCJSON+= '{"cod": "RG"},{"cod": "RM"}]},{"cod": "LIMPIA-CRISTALES-BOOLE","valores": ["TRUE", "FALSE"]},{"cod": "LIMPIA-CRISTALES","valores": [{"cod": "CR"},'
+SRCJSON+= '{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},{"cod": "BG"},{"cod": "RG"},{"cod": "RM"}]},{"cod": "COLGADOR-BOOLE","valores": ["TRUE", "FALSE"]},'
+SRCJSON+= '{"cod": "COLGADOR","valores": [{"cod": "CR"},{"cod": "BM"},{"cod": "MG"},{"cod": "NB"},{"cod": "BG"},{"cod": "RG"},{"cod": "RM"}]}]}]},'
+SRCJSON+= '{"cod": "MP905L","campos": [{"cod": "MP905L","atributos": [{"cod": "BOOLE","valores": ["TRUE", "FALSE"]}]}]},'
+SRCJSON+= '{"cod": "MP905P","campos": [{"cod": "MP905P","atributos": [{"cod": "BOOLE","valores": ["TRUE", "FALSE"]}]}]}]}'
+
+Call PARSE_JSON(SRCJSON,PROPERT,PVALUES)
+
+#PVALUES(1) = "1"
+#PVALUES(2) = "1"
+#PVALUES(3) = "1"
+
+Infbox num$(maxtab(PVALUES))
+
+Local Integer I
+
+For I=1 To maxtab(PVALUES)
+  Infbox PROPERT(I)-":"+PVALUES(I)
+Next
+
+End
+
+
+
+Subprog PARSE_JSON(PRESBODY,PPROPERT,PVALUE)
+Value Clbfile PRESBODY
+Variable Char PPROPERT()(1..)
+Variable Char PVALUE()(1..)
+Local Char WTXT(1),WVALUE(250),WMESSAGE(250)
+Local Integer I,IDX,WHAY
+Local Integer SW1
+
+SW1=1
+Raz WVALUE : I=1 #I=9 para que no tome al valor "data"
+Repeat
+  WTXT=mid$(PRESBODY,I,1)
+
+  If WTXT='{' or WTXT='"' or WTXT='}' or WTXT='[' or WTXT=']' : Goto NEXT_CHAR : Endif
+  #
+  If WTXT=":" and SW1=1
+    SW1=0
+    IDX+=1
+    PPROPERT(IDX)=WVALUE
+    Raz WVALUE
+    WHAY=1
+    Goto NEXT_CHAR
+  Endif
+  #
+  If WTXT=","
+    SW1=1
+    PVALUE(IDX)=WVALUE
+    Raz WVALUE
+    Goto NEXT_CHAR
+  Endif
+  #
+  WVALUE+=WTXT
+#
+$NEXT_CHAR
+I+=1
+Until I>len(PRESBODY)
+#
+If WHAY=1
+  PVALUE(IDX)=WVALUE
+Endif
+#
+
+End
