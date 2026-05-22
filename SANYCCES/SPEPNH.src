@@ -1,0 +1,61 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEPNH
+# Description : Específico Devoluciones compra
+# Module      : Compras
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 22/05/2026
+############################################################################
+# 2026-00032 - JCP.Devoluciones proveedores
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+######################################################################################
+## Después de modificar el campo 'Motivo devolución' (pantalla PNH1) 22/05/2026 08:39:51 (SN070)
+######################################################################################
+Subprog AM_RTNREN(VALEUR)
+Variable Char    VALEUR()
+# 2026-00032.ini
+  If [F:ADI]NUMTAB<>6051 | [F:ADI]CODE<>VALEUR
+    Read [ADI] CODE=6051;VALEUR : If fstat Raz [F:ADI] : Endif
+  Endif
+  If !clalev([F:AXX])  Local File ATEXTRA [AXX] : Endif
+  Read [AXX] AXX0="ATABDIV";"LNGDES";[M:PNH1]LAN;"6051";VALEUR
+  If fstat
+    Read [AXX] AXX0="ATABDIV";"SHODES";[M:PNH1]LAN;"6051";VALEUR
+    If fstat
+      Read [AXX] AXX0="ATABDIV";"LNGDES";GLANGUE;"6051";VALEUR
+      If fstat
+        Read [AXX] AXX0="ATABDIV";"SHODES";GLANGUE;"6051";VALEUR
+      Endif
+    Endif
+  Endif
+  If !fstat  [M:PNH1]RTNDES(nolign-1)=[F:AXX]TEXTE : Endif
+# 2026-00032.fin
+End
+
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
