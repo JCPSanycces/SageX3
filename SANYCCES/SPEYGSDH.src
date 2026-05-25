@@ -8,7 +8,7 @@
 # @05@: EQM    18-11-2024 - Añadimos filtros transportista
 # @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error
 # @07@: DSR    24-12-2024 - Ajuste de la cantidad asignada en la línea del vale de preparación
-#
+# 2026-00034 - JCP.25052026.Control de bloque en Generación entregas Sanycces
 ##############################################################
 $ACTION
 Case ACTION
@@ -596,6 +596,12 @@ Subprog GEN_SDH(PI_TRACE, PS_NUM)
        [L]FLG   = 0
        [L]M_ENT = 0
 
+      # 2026-00034.ini
+        If func CONTROL_BLOQUEO([Y01]PRHNUM) <> '0' Then
+          FLG = 1
+        Endif
+      # 2026-00034.fin
+
        # Si el cliente no tiene valor en el campo 'Modo de entrega SANYCCES', salto a siguiente
        Read [Y11]BPC0 = [Y01]BPCORD
        If fstat = 0
@@ -786,6 +792,12 @@ $TEST_SDH
            [L]FLG   = 0
            [L]M_ENT = 0
 
+        # 2026-00034.ini
+          If func CONTROL_BLOQUEO([Y01]PRHNUM) <> '0' Then
+            FLG = 1
+          Endif
+        # 2026-00034.fin
+
            # Si el cliente no tiene valor en el campo 'Modo de entrega SANYCCES', salto a siguiente
            Read [Y11]BPC0 = [Y01]BPCORD
            If fstat = 0
@@ -883,3 +895,60 @@ $TEST_SDH
   Endif
 
 Return
+
+##############################################################
+# 2026-00034
+Funprog CONTROL_BLOQUEO(PPRHNUM)
+Value Char PPRHNUM
+
+Local   Integer K
+Local   Char    MACHINE(GDIMFIC),USER(50)
+Local   Char    PROCESS(20),LOGIN(GLONALO),NOM(GLONDES),MAIL(GLONDES)
+Global  Char    GASUNTOZPD(250),GTEXTOZPD(250),GCORREOZPD(250)
+
+  Local Mask PSADX [PSA]
+  Call TEMPON("O") From GESECRAN
+  Call LISTE("") From PSADX
+  If !clalev([F:ZVPD]) Then : Local File ZVPDVENDPR [F:ZVPD] : Endif
+  Filter [F:ZVPD] Where PRHNUM = PPRHNUM
+  For    [F:ZVPD]
+    [L]PROCESS = num$(func ZSANLIB01.COMPRUEBA_BLOQUEO('SOH',[F:ZVPD]SOHNUM))
+    # si el proceso está bloqueado devuelve el id asociado
+    If [L]PROCESS <> '0' Then
+      K = find([L]PROCESS,[M:PSA]UID(0..[M:PSA]NBLIG-1))
+      If K Then
+        [L]LOGIN   = toupper([M:PSA]USER(K-1))
+        [L]MACHINE = [M:PSA]CLIENT(K-1)
+        If LOGIN<>""
+          If clalev([F:AUS])=0 : Local File AUTILIS [AUS] : Endif
+          Read [AUS]LOGIN = [L]LOGIN
+          If !fstat
+            [L]USER  = [F:AUS]USR
+            [L]NOM   = [F:AUS]NOMUSR
+            [L]MAIL  = [F:AUS]ADDEML
+            Break
+          Endif
+        Endif
+      Endif
+    Endif
+  Next
+  Call TEMPOFF From GESECRAN
+
+  If [L]PROCESS <> '0' Then
+    [V]GCORREOZPD = 'itsoporte@sanycces.es;cargas@sanycces.es;'+[L]MAIL
+    [V]GASUNTOZPD = 'Pedido bloqueado por otro usuario'
+    [V]GTEXTOZPD  = "Hola,"+chr$(13)+chr$(10)+chr$(13)+chr$(10)
+    [V]GTEXTOZPD += 'El pedido' - [F:ZVPD]SOHNUM - 'está abierto por el usuario' - [L]USER - "(" + [L]NOM + ').' + chr$(13)+chr$(10)+chr$(13)+chr$(10)
+    [V]GTEXTOZPD += 'El documento' - [F:ZVPD]PRHNUM - 'queda pendientre de entregar hasta que se elimine el bloqueo.' + chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)
+    [V]GTEXTOZPD += 'Un saludo.'
+    Call WORKFLOW (1,"ZPD","",GUSER) From AWRK
+  Endif
+
+  Filter [F:ZVPD]
+  Close Local File [ZVPD]
+
+  If dim([V]GCORREOZPD)>0   Then : Kill [V]GCORREOZPD : Endif
+  If dim([V]GASUNTOZPD)>0   Then : Kill [V]GASUNTOZPD : Endif
+  If dim([V]GTEXTOZPD)>0    Then : Kill [V]GTEXTOZPD  : Endif
+
+End [L]PROCESS

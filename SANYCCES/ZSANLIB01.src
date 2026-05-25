@@ -134,3 +134,26 @@ Variable Integer ES_VALIDA
   ES_VALIDA = 1
 
 End
+
+##############################################################
+#**
+#* comprueba si un documento está bloqueado
+#*
+#* @param PTYPE   > tipo de documento
+#* @param PNUMDOC > número de documento
+#*!
+Funprog COMPRUEBA_BLOQUEO(PTYPE,PNUMDOC)
+Value Char PTYPE,PNUMDOC
+
+Local Integer LRET      # lret = 0 -> no bloqueo ; lret = 1 -> sí bloqueo
+
+  If !clalev([F:ZALK]) Then : Local File APLLCK [F:ZALK] : Endif
+  Filter [F:ZALK] Where LCKSYM = PTYPE+PNUMDOC
+  Read [F:ZALK] First
+  If !fstat Then
+    LRET = [F:ZALK]LCKPID
+  Else
+    LRET = 0
+  Endif
+  Close Local File [ZALK]
+End LRET
