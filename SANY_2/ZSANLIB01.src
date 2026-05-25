@@ -802,3 +802,19 @@ Local Date FECHA_REF,FECHA_FINAL
   [L]FECHA_FINAL  = gdat$(1, month(FECHA_REF), year(FECHA_REF))
 
 End FECHA_FINAL
+
+#############################################
+#**
+#*
+#*
+#* @param PFONCTION > función
+#*!
+Funprog PANTALLA_LINEAS(PFONCTION)
+Value Char PFONCTION
+
+Local Char LRET(250)
+  Case PFONCTION
+    When "GESSQH" : LRET = "[F:ITM]TSICOD(2)=left$([M:SQH2]ITMREF(nolign-1),5)"
+    When "GESSOH" : LRET = "[F:ITM]TSICOD(2)=left$([M:SOH4]ITMREF(nolign-1),5)"
+  Endcase
+End LRET

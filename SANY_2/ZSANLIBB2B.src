@@ -126,13 +126,13 @@ Local     Integer LREGINI,LREGFIN
       [L]J += 1
     Else
       If [L]LREGINI <= [L]LREGFIN
-        PPEDIDO(I)          = [F:ZVSH]PEDIDO
+        PPEDIDO(I)          = vireblc([F:ZVSH]PEDIDO,2)
         If [F:ZVSH]FECHAPEDIDO <> [0/0/0] Then
           PFECHA(I)         = num$(format$(GFMD,[F:ZVSH]FECHAPEDIDO))
         Else
           PFECHA(I)         = ""
         Endif
-        PESTADO(I)          = [F:ZVSH]ESTADOPEDIDO
+        PESTADO(I)          = vireblc([F:ZVSH]ESTADOPEDIDO,2)
         If [F:ZVSH]FECHAULTENTR <> [0/0/0] Then
           PFECHAULTENT(I)   = num$(format$(GFMD,[F:ZVSH]FECHAULTENTR))
         Else
@@ -146,7 +146,7 @@ Local     Integer LREGINI,LREGFIN
         PCONDPAGO(I)        = vireblc([F:ZVSH]COND_PAGO,2)
         PELEMFACT(I)        = vireblc([F:ZVSH]ELEM_FACT,2)
         PREFERENCIA(I)      = vireblc([F:ZVSH]REFERENCIA,2)
-        PPEDIDOMAGENTO(I)   = [F:ZVSH]PEDIDO_MGT
+        PPEDIDOMAGENTO(I)   = vireblc([F:ZVSH]PEDIDO_MGT,2)
         PIMPORTEAI(I)       = [F:ZVSH]IMPORTEAI
         PIMPORTEII(I)       = [F:ZVSH]IMPORTEII
         Filter [F:ZSOQ] Where SOHNUM = [F:ZVSH]PEDIDO
@@ -179,6 +179,10 @@ End
 #* @param PTIMPORTEAI     > importe total antes de impuestos
 #* @param PTIMPORTEII     > importe total impuestos incluidos
 #* @param PCLIMGT         > cliente Magento
+#* @param PCONDPAGO       > condición de pago del pedido
+#* @param PELEMFACT       > elementos de facturación
+#* @param PREFERENCIA     > referencia
+#* @param PPEDIDOMAGENTO  > número de pedido en Magento
 #* @param PTOTALPAGS      > número total de páginas
 #* @param PTOTALLINEAS    > número total de líneas de pedido
 #* @param PMAXPAGINA      > número de líneas por página
@@ -199,7 +203,7 @@ End
 #* @param PLIMPORTEII     > importe de la línea impuestos incluidos
 #*!
 Subprog GET_SODINFO(PPEDIDO,
-&                   PNUMPAG,PFECHA,PESTADO,PFECHAULTENT,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
+&                   PNUMPAG,PFECHA,PESTADO,PFECHAULTENT,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PCONDPAGO,PELEMFACT,PREFERENCIA,PPEDIDOMAGENTO,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
 &                   PLINEA,PARTICULO,PDESARTICULO,PCTDPEDIDA,PCTDSERVIDA,PCTDPENDIENTE,PTRACKING,PFECHAPREVISTA,
 &                   PLPRECIOBRUTO,PDTO1,PDTO2,PDTO3,PLPRECIONETO,PLIMPORTEAI,PLIMPORTEII)
 # parámetros de entrada
@@ -212,6 +216,10 @@ Variable  Char    PFECHAULTENT()
 Variable  Decimal PTIMPORTEAI()
 Variable  Decimal PTIMPORTEII()
 Variable  Char    PCLIMGT()
+Variable  Char    PCONDPAGO()
+Variable  Char    PELEMFACT()
+Variable  Char    PREFERENCIA()
+Variable  Char    PPEDIDOMAGENTO()
 Variable  Integer PTOTALPAGS()
 Variable  Integer PTOTALLINEAS()
 Variable  Integer PMAXPAGINA()
@@ -246,27 +254,27 @@ Local     Integer LREGINI,LREGFIN
 
   # pedido
   If PPEDIDO <> "" Then
-    If !clalev([F:ZSOH]) Then : Local File SORDER     [F:ZSOH] : Endif
+    If !clalev([F:ZVSH]) Then : Local File ZVSOHB2B   [F:ZVSH] : Endif
     If !clalev([F:ZVBB]) Then : Local File ZVBPCB2BGR [F:ZVBB] : Endif
-    Read   [F:ZSOH]SOH0 = [L]PPEDIDO
+    Filter [F:ZVSH] Where PEDIDO = PPEDIDO
+    Read   [F:ZVSH] First
     If !fstat Then
-      [L]LCRIT += " and PEDIDO='" + [F:ZSOH]SOHNUM + "'"
-      If [F:ZSOH]ORDDAT <> [0/0/0] Then
-        PFECHA      = num$(format$(GFMD,[F:ZSOH]ORDDAT))
+      [L]LCRIT += " and PEDIDO='" + vireblc([F:ZVSH]PEDIDO,2) + "'"
+      PFECHA      = num$(format$(GFMD,[F:ZVSH]FECHAPEDIDO))
+      PESTADO = vireblc([F:ZVSH]ESTADOPEDIDO,2)
+      If [F:ZVSH]FECHAULTENTR <> [0/0/0] Then
+        PFECHAULTENT  = num$(format$(GFMD,[F:ZVSH]FECHAULTENTR))
       Endif
-      Case [F:ZSOH]ORDSTA
-        When 1 : PESTADO = 'No saldado'
-        When 2 : PESTADO = 'Saldado'
-      Endcase
-      If [F:ZSOH]LASDLVDAT <> [0/0/0] Then
-        PFECHAULTENT  = num$(format$(GFMD,[F:ZSOH]LASDLVDAT))
-      Endif
-      PTIMPORTEAI   = [F:ZSOH]ORDNOT
-      PTIMPORTEII   = [F:ZSOH]ORDATI
-      Filter [F:ZVBB] Where BPCNUM = [F:ZSOH]BPCORD
+      PTIMPORTEAI   = [F:ZVSH]IMPORTEAI
+      PTIMPORTEII   = [F:ZVSH]IMPORTEII
+      PCONDPAGO     = vireblc([F:ZVSH]COND_PAGO,2)
+      PELEMFACT     = vireblc([F:ZVSH]ELEM_FACT,2)
+      PREFERENCIA   = vireblc([F:ZVSH]REFERENCIA,2)
+      PPEDIDOMAGENTO= vireblc([F:ZVSH]PEDIDO_MGT,2)
+      Filter [F:ZVBB] Where BPCNUM = [F:ZVSH]CLIENTE_SAGE
       Read [F:ZVBB] First
       If !fstat Then
-        PCLIMGT = [F:ZVBB]EMAIL
+        PCLIMGT = vireblc([F:ZVBB]EMAIL,2)
       Endif
       Filter [F:ZVBB]
     Else
@@ -279,6 +287,7 @@ Local     Integer LREGINI,LREGFIN
     Call ERREUR("Error en el pedido") From GESECRAN
     End
   Endif
+  Filter [F:ZVSH]
 
   If PNUMPAG = 0 Then
     PNUMPAG = 1
@@ -305,8 +314,8 @@ Local     Integer LREGINI,LREGFIN
     Else
       If [L]LREGINI <= [L]LREGFIN
         PLINEA(I)           = [F:ZVSD]LINEA
-        PARTICULO(I)        = [F:ZVSD]ARTICULO
-        PDESARTICULO(I)     = [F:ZVSD]DESCRIPCION
+        PARTICULO(I)        = vireblc([F:ZVSD]ARTICULO,2)
+        PDESARTICULO(I)     = vireblc([F:ZVSD]DESCRIPCION,2)
         PCTDPEDIDA(I)       = [F:ZVSD]CANTIDAD
         PCTDSERVIDA(I)      = [F:ZVSD]CTDEXPEDIDA
         PCTDPENDIENTE(I)    = [F:ZVSD]CTDPENDIENTE
@@ -315,9 +324,9 @@ Local     Integer LREGINI,LREGFIN
         PDTO2(I)            = [F:ZVSD]DESCUENTO2
         PDTO3(I)            = [F:ZVSD]DESCUENTO3
         PLPRECIONETO(I)     = [F:ZVSD]PRECIONETO
-        PLIMPORTEAI(I)      = [F:ZVSD]IMPORTEAI
-        PLIMPORTEII(I)      = [F:ZVSD]IMPORTEII
-        PTRACKING(I)        = [F:ZVSD]NUMEXPED
+        PLIMPORTEAI(I)      = [F:ZVSD]IMPORTEAI * [F:ZVSD]CANTIDAD
+        PLIMPORTEII(I)      = [F:ZVSD]IMPORTEII * [F:ZVSD]CANTIDAD
+        PTRACKING(I)        = vireblc([F:ZVSD]NUMEXPED,2)
         If [F:ZVSD]FECHAPREVEXP <> [0/0/0] Then
           PFECHAPREVISTA(I) = num$(format$(GFMD,[F:ZVSD]FECHAPREVEXP))
         Else
@@ -400,7 +409,7 @@ Local     Integer LREGINI,LREGFIN
   Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
   Read   [F:ZBPC] First
   If !fstat Then
-    [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
+    [L]LCRIT += " and CLIENTE_SAGE='" + vireblc([F:ZBPC]BPCNUM,2) + "'"
   Else
     GSTATUS   = 0
     Call ERREUR("Error en el cliente") From GESECRAN
@@ -459,21 +468,21 @@ Local     Integer LREGINI,LREGFIN
       [L]J += 1
     Else
       If [L]LREGINI <= [L]LREGFIN
-        PENTREGA(I)         = [F:ZVSH]ENTREGA
+        PENTREGA(I)         = vireblc([F:ZVSH]ENTREGA,2)
         If [F:ZVSH]FECHA <> [0/0/0] Then
           PFECHA(I)         = num$(format$(GFMD,[F:ZVSH]FECHA))
         Else
           PFECHA(I)         = ""
         Endif
-        PPEDIDO(I)          = [F:ZVSH]PEDIDO
+        PPEDIDO(I)          = vireblc([F:ZVSH]PEDIDO,2)
         PIMPORTEAI(I)       = [F:ZVSH]IMPORTEAI
         PIMPORTEII(I)       = [F:ZVSH]IMPORTEII
-        Filter [F:ZSDD] Where SDHNUM = [F:ZVSH]ENTREGA
+        Filter [F:ZSDD] Where SDHNUM = vireblc([F:ZVSH]ENTREGA,2)
         PNUMLINEAS(I)       = rowcount([F:ZSDD])
-        PCONDPAGO(I)        = [F:ZVSH]COND_PAGO
-        PELEMFACT(I)        = [F:ZVSH]ELEM_FACT
-        PDOCPREP(I)         = [F:ZVSH]DOC_PREP
-        PTRACKING(I)        = [F:ZVSH]TRACKING
+        PCONDPAGO(I)        = vireblc([F:ZVSH]COND_PAGO,2)
+        PELEMFACT(I)        = vireblc([F:ZVSH]ELEM_FACT,2)
+        PDOCPREP(I)         = vireblc([F:ZVSH]DOC_PREP,2)
+        PTRACKING(I)        = vireblc([F:ZVSH]TRACKING,2)
         Filter [F:ZSDD]
         [L]LREGINI += 1
         [L]I       += 1
@@ -492,7 +501,7 @@ End
 
 ########################################################################
 #**
-#* devuelve la información del pedido para el B2B
+#* devuelve la información de líneas de entrega para el B2B
 #*
 #* @param PENTREGA        > número de entrega
 #* @param PNUMPAG         > número de la página
@@ -500,6 +509,10 @@ End
 #* @param PTIMPORTEAI     > importe total antes de impuestos
 #* @param PTIMPORTEII     > importe total impuestos incluidos
 #* @param PCLIMGT         > cliente magento
+#* @param PCONDPAGO       > condición de pago
+#* @param PELEMFACT       > elementos de facturación
+#* @param PDOCPREP        > documento de preparación
+#* @param PTRACKING       > número de tracking
 #* @param PTOTALPAGS      > número total de páginas
 #* @param PTOTALLINEAS    > número total de líneas de entrega
 #* @param PMAXPAGINA      > número de líneas por página
@@ -509,7 +522,6 @@ End
 #* @param PPEDIDO         > número de pedido
 #* @param PLINEAPEDIDO    > línea de pedido
 #* @param PCANTIDAD       > cantidad entregada
-#* @param PTRACKING       > número de tracking
 #* @param PLPRECIOBRUTO   > precio bruto de la línea
 #* @param PDTO1           > descuento 1
 #* @param PDTO2           > descuento 2
@@ -518,8 +530,8 @@ End
 #* @param PLIMPORTEAI     > importe de la línea antes de impuestos
 #* @param PLIMPORTEII     > importe de la línea impuestos incluidos
 #*!
-Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
-&                   PLINEA,PARTICULO,PDESARTICULO,PPEDIDO,PLINEAPEDIDO,PCANTIDAD,PTRACKING,
+Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
+&                   PLINEA,PARTICULO,PDESARTICULO,PPEDIDO,PLINEAPEDIDO,PCANTIDAD,
 &                   PLPRECIOBRUTO,PDTO1,PDTO2,PDTO3,PLPRECIONETO,PLIMPORTEAI,PLIMPORTEII)
 # parámetros de salida - cabecera
 Variable  Char    PENTREGA()
@@ -528,6 +540,10 @@ Variable  Char    PFECHA()
 Variable  Decimal PTIMPORTEAI()
 Variable  Decimal PTIMPORTEII()
 Variable  Char    PCLIMGT()
+Variable  Char    PCONDPAGO()
+Variable  Char    PELEMFACT()
+Variable  Char    PDOCPREP()
+Variable  Char    PTRACKING()
 Variable  Integer PTOTALPAGS()
 Variable  Integer PTOTALLINEAS()
 Variable  Integer PMAXPAGINA()
@@ -538,7 +554,6 @@ Variable  Char    PDESARTICULO()(1..500)
 Variable  Char    PPEDIDO()(1..500)
 Variable  Integer PLINEAPEDIDO(1..500)
 Variable  Decimal PCANTIDAD(1..500)
-Variable  Char    PTRACKING()(1..500)
 Variable  Decimal PLPRECIOBRUTO(1..500)
 Variable  Decimal PDTO1(1..500)
 Variable  Decimal PDTO2(1..500)
@@ -562,19 +577,26 @@ Local     Integer LREGINI,LREGFIN
   # entrega
   If PENTREGA <> "" Then
     If !clalev([F:ZSDH]) Then : Local File SDELIVERY  [F:ZSDH] : Endif
+    If !clalev([F:ZVSH]) Then : Local File ZVSDHB2B   [F:ZVSH] : Endif
     If !clalev([F:ZVBB]) Then : Local File ZVBPCB2BGR [F:ZVBB] : Endif
-    Read [F:ZSDH]SDH0 = PENTREGA
+#    Read [F:ZSDH]SDH0 = PENTREGA
+    Filter [F:ZVSH] Where ENTREGA = vireblc(PENTREGA,2)
+    Read [F:ZVSH] First
     If !fstat Then
-      [L]LCRIT += " and ENTREGA='" + [F:ZSDH]SDHNUM + "'"
-      If [F:ZSDH]DLVDAT <> [0/0/0] Then
-        PFECHA      = num$(format$(GFMD,[F:ZSDH]DLVDAT))
+      [L]LCRIT += " and ENTREGA='" + vireblc([F:ZVSH]ENTREGA,2) + "'"
+      If [F:ZVSH]FECHA <> [0/0/0] Then
+        PFECHA      = num$(format$(GFMD,[F:ZVSH]FECHA))
       Endif
-      PTIMPORTEAI   = [F:ZSDH]DLVNOT
-      PTIMPORTEII   = [F:ZSDH]DLVATI
+      PTIMPORTEAI   = [F:ZVSH]IMPORTEAI
+      PTIMPORTEII   = [F:ZVSH]IMPORTEII
+      PCONDPAGO     = vireblc([F:ZVSH]COND_PAGO,2)
+      PELEMFACT     = vireblc([F:ZVSH]ELEM_FACT,2)
+      PDOCPREP      = vireblc([F:ZVSH]DOC_PREP,2)
+      PTRACKING     = vireblc([F:ZVSH]TRACKING,2)
       Filter [F:ZVBB] Where BPCNUM = [F:ZSDH]BPCORD
       Read [F:ZVBB] First
       If !fstat Then
-        PCLIMGT = [F:ZVBB]EMAIL
+        PCLIMGT = vireblc([F:ZVBB]EMAIL,2)
       Endif
       Filter [F:ZVBB]
     Else
@@ -613,12 +635,11 @@ Local     Integer LREGINI,LREGFIN
     Else
       If [L]LREGINI <= [L]LREGFIN
         PLINEA(I)           = [F:ZVSD]LINEA
-        PARTICULO(I)        = [F:ZVSD]ARTICULO
-        PDESARTICULO(I)     = [F:ZVSD]DESCRIPCION
-        PPEDIDO(I)          = [F:ZVSD]PEDIDO
+        PARTICULO(I)        = vireblc([F:ZVSD]ARTICULO,2)
+        PDESARTICULO(I)     = vireblc([F:ZVSD]DESCRIPCION,2)
+        PPEDIDO(I)          = vireblc([F:ZVSD]PEDIDO,2)
         PLINEAPEDIDO(I)     = [F:ZVSD]LINEA_PEDIDO
         PCANTIDAD(I)        = [F:ZVSD]CANTIDAD
-        PTRACKING(I)        = [F:ZVSD]NUMEXPED
         PLPRECIOBRUTO(I)    = [F:ZVSD]PRECIOBRUTO
         PDTO1(I)            = [F:ZVSD]DESCUENTO1
         PDTO2(I)            = [F:ZVSD]DESCUENTO2
@@ -694,10 +715,10 @@ Local     Integer LREGINI,LREGFIN
 
   # cliente
   If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
-  Filter [F:ZBPC] Where ZUSUARIOB2B = PCLIMGT
+  Filter [F:ZBPC] Where ZUSUARIOB2B = vireblc(PCLIMGT,2)
   Read   [F:ZBPC] First
   If !fstat Then
-    [L]LCRIT += " and CLIENTE_SAGE='" + [F:ZBPC]BPCNUM + "'"
+    [L]LCRIT += " and CLIENTE_SAGE='" + vireblc([F:ZBPC]BPCNUM,2) + "'"
   Else
     GSTATUS   = 0
     Call ERREUR("Error en el cliente") From GESECRAN
@@ -755,17 +776,17 @@ Local     Integer LREGINI,LREGFIN
       [L]J += 1
     Else
       If [L]LREGINI <= [L]LREGFIN
-        PFACTURA(I)         = [F:ZVFV]FACTURA
+        PFACTURA(I)         = vireblc([F:ZVFV]FACTURA,2)
         If [F:ZVFV]FECHA <> [0/0/0] Then
           PFECHA(I)         = num$(format$(GFMD,[F:ZVFV]FECHA))
         Else
           PFECHA(I)         = ""
         Endif
-        PREFERENCIA(I)      = [F:ZVFV]REFERENCIA
-        PDIVISA(I)          = [F:ZVFV]DIVISA
+        PREFERENCIA(I)      = vireblc([F:ZVFV]REFERENCIA,2)
+        PDIVISA(I)          = vireblc([F:ZVFV]DIVISA,2)
         PIMPORTE(I)         = [F:ZVFV]IMPORTE
-        PCONDPAGO(I)        = [F:ZVFV]DPAGO
-        PLINKPDF(I)         = [F:ZVFV]ZURLPDFB2B
+        PCONDPAGO(I)        = vireblc([F:ZVFV]DPAGO,2)
+        PLINKPDF(I)         = vireblc([F:ZVFV]ZURLPDFB2B,2)
         [L]LREGINI += 1
         [L]I       += 1
       Else
@@ -872,8 +893,9 @@ Local     Integer WFMI,WALLTYP
   Endif
 
   # cabecera
-  Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + "" + ";" + PBPCORD + ";" + PBPCNAM + ";" + PBPAADD + ";" + PORDDAT + ";" + PCUSORDREF + ";" +
-&       "11" + ";" + "EUR" + ";" + PSHIDAT + ";" + PZSOHNUMB2B + ";" + PZTEXTO1B2B
+  Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + "" + ";" + vireblc(PBPCORD,2) + ";" + vireblc(PBPCNAM,2) + ";" + vireblc(PBPAADD,2) + ";" +
+&       vireblc(PORDDAT,2) + ";" + vireblc(PCUSORDREF,2) + ";" + "11" + ";" + "EUR" + ";" + vireblc(PSHIDAT,2) + ";" + vireblc(PZSOHNUMB2B,2) + ";" +
+&       vireblc(PZTEXTO1B2B,2)
 &       Using [ZIMP_W]
 
   # averigua la cantidad de OF's que se pretenden importar
@@ -896,26 +918,26 @@ Local     Integer WFMI,WALLTYP
     If PLINTYP(J) = 9 Then
       [L]K += 1 + [L]M
       [L]M  = 0
-      Filter [F:ZBOD0] Where CPNITMREF = PITMREF(J)
+      Filter [F:ZBOD0] Where CPNITMREF = vireblc(PITMREF(J),2)
       Read   [F:ZBOD0] First
       If !fstat Then
         [L]K += 1
         [L]N += 1
-        Wrseq "L" + ";" + [F:ZBOD0]ITMREF + ";" + PSAU(J) + ";" + num$(PQTY(J)) + ";" + PDSHIDAT(J) + ";" + num$(6) + ";" +
+        Wrseq "L" + ";" + vireblc([F:ZBOD0]ITMREF,2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(6) + ";" +
 &             num$(0) + ";" + num$(0) + ";" + "" + ";" + num$(1)
 &             Using [ZIMP_W]
       Endif
       Filter [F:ZBOD0]
       [L]N += 1
-      Wrseq "L" + ";" + PITMREF(J) + ";" + PSAU(J) + ";" + num$(PQTY(J)) + ";" + PDSHIDAT(J) + ";" + num$(PLINTYP(J)) + ";" +
-&           num$(0) + ";" + num$(0) + ";" + [L]PZATTFILEB2B(J) + ";" + num$(5)
+      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(PLINTYP(J)) + ";" +
+&           num$(0) + ";" + num$(0) + ";" + vireblc([L]PZATTFILEB2B(J),2) + ";" + num$(5)
 &           Using [ZIMP_W]
     Endif
     # el artículo es un componente de la estructura comercial
     If PLINTYP(J) = 8 Then
       [L]M += 1
       [L]N += 1
-      Wrseq "L" + ";" + PITMREF(J) + ";" + PSAU(J) + ";" + num$(PQTY(J)) + ";" + PDSHIDAT(J) + ";" + num$(PLINTYP(J)) + ";" +
+      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(PLINTYP(J)) + ";" +
 &           num$(2) + ";" + num$(([L]K-1) * 1000) + ";" + "" + ";" + num$(1)
 &           Using [ZIMP_W]
     Endif
@@ -940,8 +962,8 @@ Local     Integer WFMI,WALLTYP
     If find(PLINTYP(J),1,2) Then
       [L]K += 1
       [L]N += 1
-      Wrseq "L" + ";" + PITMREF(J) + ";" + PSAU(J) + ";" + num$(PQTY(J)) + ";" + PDSHIDAT(J) + ";" + num$(1) + ";" +
-&           num$(0) + ";" + num$(0) + ";" + [L]PZATTFILEB2B(J) + ";" + num$(1)
+      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(1) + ";" +
+&           num$(0) + ";" + num$(0) + ";" + vireblc([L]PZATTFILEB2B(J),2) + ";" + num$(1)
 &           Using [ZIMP_W]
     Endif
   Next
@@ -959,6 +981,7 @@ Local     Integer WFMI,WALLTYP
     # desactivo web service porque no rellena correctamente Origen artículo y Tipo asignación
     GWEBSERV=0
     Call IMP_MODEL("no read","ZWSSOHB2B",LFILE_W,LRTN,LCTR,LNER) From ZSANLIB01
+    # lo vuelvo a activar para que funcione con normalidad
     GWEBSERV=1
   Endif
 

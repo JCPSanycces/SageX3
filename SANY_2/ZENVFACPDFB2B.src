@@ -142,7 +142,7 @@ $ENVIA_PDF
     Call ECR_TRACE("["+num$(datetime$)+"] - Factura"-[F:ZVFB]FACTURA-"enviada al servidor FTP",0) From GESECRAN
     Read [F:ZSIH]SIH0 = [L]LINDEX
     If !fstat Then
-      [F:ZSIH]ZURLPDFB2B = "https://s3.eu-west-2.wasabisys.com/facturasany/" + [L]LINDEX + ".pdf"
+      [F:ZSIH]ZURLPDFB2B = "https://b2bsanyccesf.b-cdn.net/" + [L]LINDEX + ".pdf"
       If !adxlog Then : Trbegin [F:ZSIH] : Endif
       Rewrite [F:ZSIH]
       If !fstat Then

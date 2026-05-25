@@ -52,7 +52,7 @@ Return
 #  @02@ - JLP - 05-09-2024 - Añadir mensaje al crear un pedido cuya forma de pago sea (E03) - INI
 $SETBOUT
 Case BOUT
-  When 'C'
+  When 'C','M'
     If ([M:SOH3]PTE = 'E03')
        Local Integer OKCAN : OKCAN = 2:# Ok
        Call AVERTIR("Pedido con forma de pago anticipada. Por favor desasigne y emita anticipo.", OKCAN) From GESECRAN
