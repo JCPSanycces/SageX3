@@ -368,10 +368,11 @@ End
 #* @param PDOCPREP        > documento de preparación
 #* @param PTRACKING       > tracking
 #* @param PNUMLINEAS      > número de líneas totales en la entrega
+#* @param PLINKPDF        > link de descarga
 #*!
 Subprog GET_SDHINFO(PCLIMGT,PDATEINI,PDATEDEB,
 &                   PNUMPAG,PTOTALPAGS,PTOTALENTREGAS,PMAXPAGINA,
-&                   PENTREGA,PFECHA,PPEDIDO,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PNUMLINEAS)
+&                   PENTREGA,PFECHA,PPEDIDO,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PNUMLINEAS,PLINKPDF)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
@@ -391,6 +392,7 @@ Variable  Char    PELEMFACT()(1..50)
 Variable  Char    PDOCPREP()(1..50)
 Variable  Char    PTRACKING()(1..50)
 Variable  Integer PNUMLINEAS(1..50)
+Variable  Char    PLINKPDF()(1..50)
 # variables locales
 Local     Char    LCRIT(250) : [L]LCRIT = "1=1"
 Local     Integer I,J,K,LCONTROL
@@ -483,6 +485,7 @@ Local     Integer LREGINI,LREGFIN
         PELEMFACT(I)        = vireblc([F:ZVSH]ELEM_FACT,2)
         PDOCPREP(I)         = vireblc([F:ZVSH]DOC_PREP,2)
         PTRACKING(I)        = vireblc([F:ZVSH]TRACKING,2)
+        PLINKPDF(I)         = vireblc([F:ZVSH]LINKPDF,2)
         Filter [F:ZSDD]
         [L]LREGINI += 1
         [L]I       += 1
