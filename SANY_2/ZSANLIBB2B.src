@@ -455,7 +455,7 @@ Local     Integer LREGINI,LREGFIN
   [L]K  = [L]LREGINI
   If !clalev([F:ZVSH]) Then : Local File ZVSDHB2B   [F:ZVSH] : Endif
   If !clalev([F:ZSDD]) Then : Local File SDELIVERYD [F:ZSDD] : Endif
-  Filter [F:ZVSH] Where evalue([L]LCRIT) Order By ENTREGA
+  Filter [F:ZVSH] Where evalue([L]LCRIT) Order By ENTREGA Desc
   # número total de entregas
   PTOTALENTREGAS  = rowcount([F:ZVSH])
   # tamaño de página
@@ -763,7 +763,7 @@ Local     Integer LREGINI,LREGFIN
   [L]J += 1
   [L]K  = [L]LREGINI
   If !clalev([F:ZVFV]) Then : Local File ZVFACTURAB2B [F:ZVFV] : Endif
-  Filter [F:ZVFV] Where evalue([L]LCRIT) Order By FACTURA
+  Filter [F:ZVFV] Where evalue([L]LCRIT) Order By FACTURA Desc
   # número total de facturas
   PTOTALFACTURAS  = rowcount([F:ZVFV])
   # tamaño de página
