@@ -1,4 +1,32 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+      Local Char    CADENA(250),SUBCADENA(250)
+      Local Clbfile CADENAFINAL(1)
+      Local Integer POS_ACTUAL,POS_SEP,LONGITUD,PRIMERO
+      [L]CADENA     = "fichero1.txt,fichero2.pdf,fichero3.doc"
+      [L]LONGITUD   = len([L]CADENA)
+      [L]POS_ACTUAL = 1
+      [L]PRIMERO    = 1
+      While [L]POS_ACTUAL <= [L]LONGITUD
+        [L]POS_SEP = instr([L]POS_ACTUAL,[L]CADENA,",")
+        If [L]POS_SEP = 0 Then
+          [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]LONGITUD - [L]POS_ACTUAL + 1)
+        Else
+          [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]POS_SEP - [L]POS_ACTUAL)
+        Endif
+        If [L]PRIMERO = 1 Then
+          [L]CADENAFINAL += "https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+          [L]PRIMERO      = 0
+        Else
+          [L]CADENAFINAL += chr$(10)+chr$(13)+"https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+        Endif
+        If [L]POS_SEP = 0 Then
+          [L]POS_ACTUAL = [L]LONGITUD + 1
+        Else
+          [L]POS_ACTUAL = [L]POS_SEP + 1
+        Endif
+      Wend
+Infbox [L]CADENAFINAL
+End
 ############################################################################
 # Script name : ZIMPWSSOHB2B
 # Description : Específico del modelo de importación ZWSSOHB2B
@@ -37,7 +65,7 @@ Return
 ##############################################################
 $ADD_MAGENTOINFO
 Local Char    PABRFIC(250),PTEXTE(250),LCODE(250)
-Local Integer LCON0
+Local Integer LCON0,LPOS
 
   # texto cabecera
   [L]PABRFIC  = "SOH"
@@ -70,7 +98,35 @@ Local Integer LCON0
     [F:ZACB0]IDENT3     = ctrans(space$(3-len(num$([L]LCON0)))+num$([L]LCON0),' ','0')
     [F:ZACB0]NAMBLB     = "TEXT"+num$([L]LCON0)
     [F:ZACB0]TYPDOC     = "TXT"
-    [F:ZACB0]CLOB       = "https://s3.eu-west-2.wasabisys.com/adjuntosb2b/"+[F:ZSOQ0]ZATTFILEB2B
+    # montar en líneas separadas la cadena con la ruta de los ficheros (por si hay más de uno adjunto) - ini
+    Local Char    CADENA(250),SUBCADENA(250)
+    Local Clbfile CADENAFINAL(1)
+    Local Integer POS_ACTUAL,POS_SEP,LONGITUD,PRIMERO
+    [L]CADENA     = [F:ZSOQ0]ZATTFILEB2B
+    [L]LONGITUD   = len([L]CADENA)
+    [L]POS_ACTUAL = 1
+    [L]PRIMERO    = 1
+    While [L]POS_ACTUAL <= [L]LONGITUD
+      [L]POS_SEP = instr([L]POS_ACTUAL,[L]CADENA,",")
+      If [L]POS_SEP = 0 Then
+        [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]LONGITUD - [L]POS_ACTUAL + 1)
+      Else
+        [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]POS_SEP - [L]POS_ACTUAL)
+      Endif
+      If [L]PRIMERO = 1 Then
+        [L]CADENAFINAL += "https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+        [L]PRIMERO      = 0
+      Else
+        [L]CADENAFINAL += chr$(10)+chr$(13)+"https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+      Endif
+      If [L]POS_SEP = 0 Then
+        [L]POS_ACTUAL = [L]LONGITUD + 1
+      Else
+        [L]POS_ACTUAL = [L]POS_SEP + 1
+      Endif
+    Wend
+    [F:ZACB0]CLOB       = [L]CADENAFINAL
+    # montar en líneas separadas la cadena con la ruta de los ficheros (por si hay más de uno adjunto) - fin
     [F:ZAOX0]ABREV      = "SOH"
     [F:ZAOX0]IDENT1     = [F:SOH]SOHNUM
     [F:ZAOX0]IDENT3     = ctrans(space$(3-len(num$([L]LCON0)))+num$([L]LCON0),' ','0')

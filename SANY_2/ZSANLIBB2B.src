@@ -819,21 +819,27 @@ End
 #* @param PZSOHNUMB2B   > número de pedido Magento
 #* @param PZTEXTO1B2B   > texto adicional
 #* @param PITMREF       > artículo
-#* @param PSAU          > unidad de medida
+#* @param PEC           > estructura comercial
+#* @param PVERSIONEC    > versión estructura comercial
 #* @param PQTY          > cantidad
-#* @param PDSHIDAT      > fecha de expedición de la línea
-#* @param PLINTYP       > tipo de línea
 #* @param PZATTFILEB2B  > nombre del fichero adjunto a la línea
+#* @param PYRAL         > acabados/ral
+#* @param PZALTO        > alto
+#* @param PZANCHO       > ancho
+#* @param PZLARGO       > largo
+#* @param PYCOMENCLI    > comentarios de cliente
 #*!
 Subprog PUT_SOH(PSOHNUM,PBPCORD,PBPCNAM,PBPAADD,PORDDAT,PCUSORDREF,PSHIDAT,PZSOHNUMB2B,PZTEXTO1B2B,
-&               PITMREF,PSAU,PQTY,PDSHIDAT,PLINTYP,PZATTFILEB2B)
+&               PITMREF,PEC,PVERSIONEC,PQTY,PZATTFILEB2B,PYRAL,PZALTO,PZANCHO,PZLARGO,PYCOMENCLI)
 # parámetros de cabecera
 Variable  Char    PSOHNUM()
-Value     Char    PBPCORD(),PBPCNAM(),PBPAADD(),PORDDAT(),PCUSORDREF()
-Value     Char    PSHIDAT(),PZSOHNUMB2B(),PZTEXTO1B2B()
+Value     Char    PBPCORD(),PBPCNAM(),PBPAADD(),PCUSORDREF()
+Value     Char    PZSOHNUMB2B(),PZTEXTO1B2B()
+Value     Date    PORDDAT(),PSHIDAT()
 # parámetros de línea
-Value     Char    PITMREF()(1..200),PSAU()(1..200),PDSHIDAT()(1..200),PZATTFILEB2B()(1..200)
-Value     Integer PQTY(1..200),PLINTYP(1..200)
+Value     Char    PITMREF()(1..200),PEC()(1..200),PVERSIONEC()(1..200),PZATTFILEB2B()(1..200),PYRAL()(1..200),PYCOMENCLI()(1..200)
+Value     Decimal PZALTO(1..200),PZANCHO(1..200),PZLARGO(1..200)
+Value     Integer PQTY(1..200)
 # variables locales
 Local     Integer LCON,I,J,K,M,N
 Local     Char    LDIRIMPORT(250)       : [L]LDIRIMPORT = filpath("B2B\SOH","","")
@@ -844,24 +850,13 @@ Global    Char    GZSOHNUMB2B(250)      : Raz [V]GZSOHNUMB2B
 Global    Integer GZCTRLB2B(250)        : [V]GZCTRLB2B  = 1
 Local     Integer WFMI,WALLTYP
 
-  [L]LFECHA = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
-  [L]LHORA  = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,2)
-
-  [L]LDIRIMPORT += "\"
-  [L]LFILE_W     = [L]LDIRIMPORT + [L]LFILE_W + "_" + [L]LFECHA + [L]LHORA + ".txt"
-
-  # borramos el fichero si existe...
-  If filinfo([L]LFILE_W, 7) > 0 Then
-    System "ae_rm " + [L]LFILE_W
-  Endif
-
-  # abrir el fichero para escritura
-  Gosub OPEN_FILE_W
-
   If !clalev([F:ZBPC0]) Then : Local File BPCUSTOMER  [F:ZBPC0] : Endif
   If !clalev([F:ZBPA0]) Then : Local File BPADDRESS   [F:ZBPA0] : Endif
   If !clalev([F:ZBOD0]) Then : Local File BOMD        [F:ZBOD0] : Endif
   If !clalev([F:ZBOD1]) Then : Local File BOMD        [F:ZBOD1] : Endif
+
+  If !clalev([F:ZSB20]) Then : Local File ZSOHB2B     [F:ZSB20] : Endif
+  If !clalev([F:ZSB21]) Then : Local File ZSOHB2B     [F:ZSB21] : Endif
 
   # Inicializamos con estado OK
   GSTATUS  = 1
@@ -895,108 +890,224 @@ Local     Integer WFMI,WALLTYP
     Endif
   Endif
 
-  # cabecera
-  Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + "" + ";" + vireblc(PBPCORD,2) + ";" + vireblc(PBPCNAM,2) + ";" + vireblc(PBPAADD,2) + ";" +
-&       vireblc(PORDDAT,2) + ";" + vireblc(PCUSORDREF,2) + ";" + "11" + ";" + "EUR" + ";" + vireblc(PSHIDAT,2) + ";" + vireblc(PZSOHNUMB2B,2) + ";" +
-&       vireblc(PZTEXTO1B2B,2)
-&       Using [ZIMP_W]
+  # elimina registros con el mismo número de pedido
+  If !adxlog Then : Trbegin [F:ZSB20] : Endif
+  Delete [F:ZSB20] Where ZSOHNUMB2B = PZSOHNUMB2B
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  # elimina registros de más de un año
+  If !adxlog Then : Trbegin [F:ZSB20] : Endif
+  Delete [F:ZSB20] Where CREDATTIM <= date$-365
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
 
   # averigua la cantidad de OF's que se pretenden importar
   For I=1 To maxtab(PITMREF)
     If PITMREF(I) <> "" Then : [L]LCON +=1 : Endif
   Next
 
-  [L]K        = 0
-  [L]M        = 1
-  [L]N        = 0
-  [L]WFMI     = 0
-  # líneas
   For J = 1 To [L]LCON
 
-    [L]WALLTYP  = 1
-    Call ALIFMI(PITMREF(J),"11",WFMI) From TRTVENCDE
-    If find([L]WFMI,3,5) Then [L]WALLTYP = 2 Endif
-
-    # el artículo es el compuesto de una estructura comercial
-    If PLINTYP(J) = 9 Then
-      [L]K += 1 + [L]M
-      [L]M  = 0
+    # añadir los parámetros del web service en una tabla intermedia
+    [F:ZSB20]ZSOHNUMB2B   = PZSOHNUMB2B
+    [F:ZSB20]ZSOHLINB2B   = J
+    [F:ZSB20]ZBPCORD      = PBPCORD
+    [F:ZSB20]ZBPCNAM      = PBPCNAM
+    [F:ZSB20]ZBPAADD      = PBPAADD
+    [F:ZSB20]ZORDDAT      = PORDDAT
+    [F:ZSB20]ZCUSORDREF   = PCUSORDREF
+    [F:ZSB20]ZSHIDAT      = PSHIDAT
+    [F:ZSB20]ZTEXTO1B2B   = PZTEXTO1B2B
+    [F:ZSB20]ZITMREF      = PITMREF(J)
+    [F:ZSB20]ZEC          = PEC(J)
+    [F:ZSB20]ZVERSIONEC   = PVERSIONEC(J)
+    [F:ZSB20]ZQTY         = PQTY(J)
+    [F:ZSB20]ZATTFILEB2B  = PZATTFILEB2B(J)
+    [F:ZSB20]YRAL         = PYRAL(J)
+    [F:ZSB20]ZALTO        = PZALTO(J)
+    [F:ZSB20]ZANCHO       = PZANCHO(J)
+    [F:ZSB20]ZLARGO       = PZLARGO(J)
+    [F:ZSB20]YCOMENCLI    = PYCOMENCLI(J)
+    # identifica el tipo de línea para cada registro
+    If PEC(J) <> "" Then
       Filter [F:ZBOD0] Where CPNITMREF = vireblc(PITMREF(J),2)
       Read   [F:ZBOD0] First
       If !fstat Then
-        [L]K += 1
-        [L]N += 1
-        Wrseq "L" + ";" + vireblc([F:ZBOD0]ITMREF,2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(6) + ";" +
-&             num$(0) + ";" + num$(0) + ";" + "" + ";" + num$(1)
-&             Using [ZIMP_W]
+        If [F:ZBOD0]CPNTYP = 3 Then
+          [F:ZSB20]ZLINTYP = 9
+        Else
+          [F:ZSB20]ZLINTYP = 8
+        Endif
       Endif
       Filter [F:ZBOD0]
-      [L]N += 1
-      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(PLINTYP(J)) + ";" +
-&           num$(0) + ";" + num$(0) + ";" + vireblc([L]PZATTFILEB2B(J),2) + ";" + num$(5)
-&           Using [ZIMP_W]
+    Else
+      [F:ZSB20]ZLINTYP = 1
     Endif
-    # el artículo es un componente de la estructura comercial
-    If PLINTYP(J) = 8 Then
-      [L]M += 1
-      [L]N += 1
-      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(PLINTYP(J)) + ";" +
-&           num$(2) + ";" + num$(([L]K-1) * 1000) + ";" + "" + ";" + num$(1)
-&           Using [ZIMP_W]
-    Endif
-#    # el artículo es una estructura de producción
-#    If PLINTYP(J) = 2 Then
-#      [L]K += 1
-#      [L]N += 1
-#      Wrseq "L" + ";" + PITMREF(J) + ";" + PSAU(J) + ";" + num$(PQTY(J)) + ";" + PDSHIDAT(J) + ";" + num$(PLINTYP(J)) + ";" +
-#&           num$(0) + ";" + num$(0) + ";" + [L]PZATTFILEB2B(J)
-#&           Using [ZIMP_W]
-#      Filter [F:ZBOD1] Where ITMREF = PITMREF(J)
-#      For [F:ZBOD1]
-#        [L]K += 1
-#        [L]N += 1
-#        Wrseq "L" + ";" + [F:ZBOD1]CPNITMREF + ";" + [F:ZBOD1]BOMUOM + ";" + num$([F:ZBOD1]LIKQTY * PQTY(J)) + ";" + PDSHIDAT(J) + ";" + num$(3) + ";" +
-#&             num$(0) + ";" + num$(0) + ";" + ""
-#&             Using [ZIMP_W]
-#      Next
-#      Filter [F:ZBOD1]
-#    Endif
-    # el artículo es un artículo normal o una estructura de producción
-    If find(PLINTYP(J),1,2) Then
-      [L]K += 1
-      [L]N += 1
-      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(1) + ";" +
-&           num$(0) + ";" + num$(0) + ";" + vireblc([L]PZATTFILEB2B(J),2) + ";" + num$(1)
-&           Using [ZIMP_W]
+    If !adxlog Then : Trbegin [F:ZSB20] : Endif
+    Write [F:ZSB20]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
     Endif
   Next
 
-  Gosub CLOSE_FILE_W
+  # generación del fichero e importación para la creación del pedido
+  Filter [F:ZSB21] Where ZSOHNUMB2B = PZSOHNUMB2B Order By ZSOHLINB2B Asc
+  Read   [F:ZSB21] First
+  If !fstat Then
 
-  # lanza la creación del pedido de venta
-  Local Integer LRTN
-  Local Char    LCTR(250)
-  Local Integer LNER
+    [L]LFECHA = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
+    [L]LHORA  = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,2)
 
-  If !GWEBSERV
-    Call IMP_MODEL("read","ZWSSOHB2B",LFILE_W,LRTN,LCTR,LNER) From ZSANLIB01
-  Else
-    # desactivo web service porque no rellena correctamente Origen artículo y Tipo asignación
-    GWEBSERV=0
-    Call IMP_MODEL("no read","ZWSSOHB2B",LFILE_W,LRTN,LCTR,LNER) From ZSANLIB01
-    # lo vuelvo a activar para que funcione con normalidad
-    GWEBSERV=1
-  Endif
+    [L]LDIRIMPORT += "\"
+    [L]LFILE_W     = [L]LDIRIMPORT + [L]LFILE_W + "_" + [L]LFECHA + [L]LHORA + ".txt"
 
-  # importación correcta
-  If [L]LRTN = 0 Then
-    If GZSOHNUMB2B <> "" Then
-      [L]PSOHNUM  = GZSOHNUMB2B
-      GMESSAGE    = "Se ha creado el pedido"-GZSOHNUMB2B
+    # borramos el fichero si existe...
+    If filinfo([L]LFILE_W, 7) > 0 Then
+      System "ae_rm " + [L]LFILE_W
     Endif
-  Else
-    GSTATUS   = 0
-    GMESSAGE  = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
+
+    # abrir el fichero para escritura
+    Gosub OPEN_FILE_W
+
+    # cabecera
+    Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + "" + ";" + vireblc([F:ZSB21]ZBPCORD,2) + ";" + vireblc([F:ZSB21]ZBPCNAM,2) + ";" + vireblc([F:ZSB21]ZBPAADD,2) + ";" +
+&         vireblc(ctrans(num$([F:ZSB21]ZORDDAT),'/',''),2) + ";" + vireblc([F:ZSB21]ZCUSORDREF,2) + ";" + "11" + ";" + "EUR" + ";" +
+&         vireblc(ctrans(num$([F:ZSB21]ZSHIDAT),'/',''),2) + ";" + vireblc([F:ZSB21]ZSOHNUMB2B,2) + ";" + vireblc([F:ZSB21]ZTEXTO1B2B,2)
+&         Using [ZIMP_W]
+
+    [L]K        = 0
+    [L]M        = 1
+    [L]N        = 0
+    [L]WFMI     = 0
+    # líneas
+    For [F:ZSB21]
+
+      # calcula el tipo de asignación
+      [L]WALLTYP  = 1
+      Call ALIFMI([F:ZSB21]ZITMREF,"11",WFMI) From TRTVENCDE
+      If find([L]WFMI,3,5) Then [L]WALLTYP = 2 Endif
+
+      # el artículo es el compuesto de una estructura comercial
+      If [F:ZSB21]ZLINTYP = 9 Then
+        [L]K += 1 + [L]M
+        [L]M  = 0
+        Filter [F:ZBOD1] Where CPNITMREF = vireblc([F:ZSB21]ZITMREF,2)
+        Read   [F:ZBOD1] First
+        If !fstat Then
+          [L]K += 1
+          [L]N += 1
+          Wrseq "L" + ";" + vireblc([F:ZBOD1]ITMREF,2) + ";" + num$([F:ZSB21]ZQTY) + ";" + num$(6) + ";" +
+&               num$(0) + ";" + num$(0) + ";" + "" + ";" + num$(1) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" + num$([F:ZSB21]ZANCHO) + ";" +
+&               num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
+&               Using [ZIMP_W]
+        Endif
+        Filter [F:ZBOD1]
+        [L]N += 1
+        Wrseq "L" + ";" + vireblc([F:ZSB21]ZITMREF,2) + ";" + num$([F:ZSB21]ZQTY) + ";" + num$([F:ZSB21]ZLINTYP) + ";" +
+&             num$(0) + ";" + num$(0) + ";" + vireblc([F:ZSB21]ZATTFILEB2B,2) + ";" + num$(5) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" +
+&             num$([F:ZSB21]ZANCHO) + ";" + num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
+&             Using [ZIMP_W]
+      Endif
+      # el artículo es un componente de la estructura comercial
+      If [F:ZSB21]ZLINTYP = 8 Then
+        [L]M += 1
+        [L]N += 1
+        Wrseq "L" + ";" + vireblc([F:ZSB21]ZITMREF,2) + ";" + num$([F:ZSB21]ZQTY) + ";" + num$([F:ZSB21]ZLINTYP) + ";" +
+&             num$(2) + ";" + num$(([L]K-1) * 1000) + ";" + "" + ";" + num$(1) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" +
+&             num$([F:ZSB21]ZANCHO) + ";" + num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
+&             Using [ZIMP_W]
+      Endif
+      # el artículo es un artículo normal o una estructura de producción
+      If find([F:ZSB21]ZLINTYP,1,2) Then
+        [L]K += 1
+        [L]N += 1
+        Wrseq "L" + ";" + vireblc([F:ZSB21]ZITMREF,2) + ";" + num$([F:ZSB21]ZQTY) + ";" + num$(1) + ";" +
+&             num$(0) + ";" + num$(0) + ";" + vireblc([F:ZSB21]ZATTFILEB2B,2) + ";" + num$(1) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" +
+&             num$([F:ZSB21]ZANCHO) + ";" + num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
+&             Using [ZIMP_W]
+      Endif
+
+    Next
+    Filter [F:ZSB21]
+
+
+#    # el artículo es el compuesto de una estructura comercial
+#    If PLINTYP(J) = 9 Then
+#      [L]K += 1 + [L]M
+#      [L]M  = 0
+#      Filter [F:ZBOD0] Where CPNITMREF = vireblc(PITMREF(J),2)
+#      Read   [F:ZBOD0] First
+#      If !fstat Then
+#        [L]K += 1
+#        [L]N += 1
+#        Wrseq "L" + ";" + vireblc([F:ZBOD0]ITMREF,2) + ";" + num$(PQTY(J)) + ";" + num$(6) + ";" +
+#&             num$(0) + ";" + num$(0) + ";" + "" + ";" + num$(1) + ";" + PYRAL(J) + ";" + num$(PZALTO) + ";" + num$(PZANCHO) + ";" +
+#&             num$(PZLARGO) + ";" + PYCOMENCLI
+#&             Using [ZIMP_W]
+#      Endif
+#      Filter [F:ZBOD0]
+#      [L]N += 1
+#      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + num$(PQTY(J)) + ";" + num$(PLINTYP(J)) + ";" +
+#&           num$(0) + ";" + num$(0) + ";" + vireblc([L]PZATTFILEB2B(J),2) + ";" + num$(5) + ";" + PYRAL(J) + ";" + num$(PZALTO) + ";" +
+#&           num$(PZANCHO) + ";" + num$(PZLARGO) + ";" + PYCOMENCLI
+#&           Using [ZIMP_W]
+#    Endif
+#    # el artículo es un componente de la estructura comercial
+#    If PLINTYP(J) = 8 Then
+#      [L]M += 1
+#      [L]N += 1
+#      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + num$(PQTY(J)) + ";" + num$(PLINTYP(J)) + ";" +
+#&           num$(2) + ";" + num$(([L]K-1) * 1000) + ";" + "" + ";" + num$(1) + ";" + PYRAL(J) + ";" + num$(PZALTO) + ";" +
+#&           num$(PZANCHO) + ";" + num$(PZLARGO) + ";" + PYCOMENCLI
+#&           Using [ZIMP_W]
+#    Endif
+#    # el artículo es un artículo normal o una estructura de producción
+#    If find(PLINTYP(J),1,2) Then
+#      [L]K += 1
+#      [L]N += 1
+#      Wrseq "L" + ";" + vireblc(PITMREF(J),2) + ";" + vireblc(PSAU(J),2) + ";" + num$(PQTY(J)) + ";" + vireblc(PDSHIDAT(J),2) + ";" + num$(1) + ";" +
+#&           num$(0) + ";" + num$(0) + ";" + vireblc([L]PZATTFILEB2B(J),2) + ";" + num$(1) + ";" + PYRAL(J) + ";" + num$(PZALTO) + ";" + num$(PZANCHO) + ";" + num$(PZLARGO) + ";" + PYCOMENCLI
+#&           Using [ZIMP_W]
+#    Endif
+
+
+    Gosub CLOSE_FILE_W
+
+    # lanza la creación del pedido de venta
+    Local Integer LRTN
+    Local Char    LCTR(250)
+    Local Integer LNER
+
+    If !GWEBSERV
+      Call IMP_MODEL("read","ZWSSOHB2B",LFILE_W,LRTN,LCTR,LNER) From ZSANLIB01
+    Else
+      # desactivo web service porque no rellena correctamente Origen artículo y Tipo asignación
+      GWEBSERV=0
+      Call IMP_MODEL("no read","ZWSSOHB2B",LFILE_W,LRTN,LCTR,LNER) From ZSANLIB01
+      # lo vuelvo a activar para que funcione con normalidad
+      GWEBSERV=1
+    Endif
+
+    # importación correcta
+    If [L]LRTN = 0 Then
+      If GZSOHNUMB2B <> "" Then
+        [L]PSOHNUM  = GZSOHNUMB2B
+        GMESSAGE    = "Se ha creado el pedido"-GZSOHNUMB2B
+      Endif
+    Else
+      GSTATUS   = 0
+      GMESSAGE  = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
+    Endif
+
   Endif
 
   Kill [V]GZCTRLB2B
