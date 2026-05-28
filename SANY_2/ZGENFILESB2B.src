@@ -172,7 +172,7 @@ Local     Char    LCRITBPC(250)
 Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
-Local     Char    LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(250),LSTORE_ID(250),LCREATED_IN(250),LFIRSTNAME(250),LLASTNAME(250)
+Local     Char    LERPID(50),LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(250),LSTORE_ID(250),LCREATED_IN(250),LFIRSTNAME(250),LLASTNAME(250)
 Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBOTA(250),LPHONECOM(250),LWHATSAPPCOM(250),LRAZONSOCIAL(250)
 
   If GSERVEUR
@@ -209,12 +209,13 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
 
 #  Filter [F:ZVBB] Where evalue([L]LCRITBPC) Order By ORDEN Asc
   Wrseq '"email","_website","_store","website_id","store_id","created_in","firstname","lastname","group_id","allow_login","approve_account",' +
-&       '"puede_rebotar_presupuestos","phonecomercial","whatsappcomercial","razonsocial"'
+&       '"puede_rebotar_presupuestos","phonecomercial","whatsappcomercial","razonsocial","erpid"'
 & Using [ZB2B]
 
   For [ZVBB]
 
-    [L]LEMAIL         = '"'+ctrans(vireblc('abc'+[F:ZVBB]EMAIL,2),'""','')+'"'
+    [L]LERPID         = '"'+ctrans(vireblc([F:ZVBB]ERPID,2),'""','')+'"'
+    [L]LEMAIL         = '"'+ctrans(vireblc([F:ZVBB]EMAIL,2),'""','')+'"'
     [L]LWEBSITE       = '"'+ctrans(vireblc([F:ZVBB]WEBSITE,2),'""','')+'"'
     [L]LSTORE         = '"'+ctrans(vireblc([F:ZVBB]STORE,2),'""','')+'"'
     [L]LWEBSITE_ID    = '"'+ctrans(vireblc([F:ZVBB]WEBSITE_ID,2),'""','')+'"'
@@ -233,7 +234,7 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
     # escribe los datos del cliente
     Wrseq [L]LEMAIL + [L]LSEP + [L]LWEBSITE + [L]LSEP + [L]LSTORE + [L]LSEP + [L]LWEBSITE_ID + [L]LSEP + [L]LSTORE_ID + [L]LSEP + [L]LCREATED_IN + [L]LSEP +
 &         [L]LFIRSTNAME + [L]LSEP + [L]LLASTNAME + [L]LSEP + [L]LGROUP_ID + [L]LSEP + [L]LALLOW_LOGIN + [L]LSEP + [L]LAPPROVE_ACC + [L]LSEP +
-&         [L]LPUEDE_REBOTA + [L]LSEP + [L]LPHONECOM + [L]LSEP + [L]LWHATSAPPCOM + [L]LSEP + [L]LRAZONSOCIAL
+&         [L]LPUEDE_REBOTA + [L]LSEP + [L]LPHONECOM + [L]LSEP + [L]LWHATSAPPCOM + [L]LSEP + [L]LRAZONSOCIAL + [L]LSEP + [L]LERPID
 &   Using [ZB2B]
 
     [L]LCONT += 1
