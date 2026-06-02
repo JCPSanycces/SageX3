@@ -815,7 +815,6 @@ End
 #* @param PBPAADD       > dirección
 #* @param PORDDAT       > fecha del pedido
 #* @param PCUSORDREF    > referencia
-#* @param PSHIDAT       > fecha de expedición
 #* @param PZSOHNUMB2B   > número de pedido Magento
 #* @param PZTEXTO1B2B   > texto adicional
 #* @param PITMREF       > artículo
@@ -829,13 +828,13 @@ End
 #* @param PZLARGO       > largo
 #* @param PYCOMENCLI    > comentarios de cliente
 #*!
-Subprog PUT_SOH(PSOHNUM,PBPCORD,PBPCNAM,PBPAADD,PORDDAT,PCUSORDREF,PSHIDAT,PZSOHNUMB2B,PZTEXTO1B2B,
+Subprog PUT_SOH(PSOHNUM,PBPCORD,PBPCNAM,PBPAADD,PORDDAT,PCUSORDREF,PZSOHNUMB2B,PZTEXTO1B2B,
 &               PITMREF,PEC,PVERSIONEC,PQTY,PZATTFILEB2B,PYRAL,PZALTO,PZANCHO,PZLARGO,PYCOMENCLI)
 # parámetros de cabecera
 Variable  Char    PSOHNUM()
 Value     Char    PBPCORD(),PBPCNAM(),PBPAADD(),PCUSORDREF()
 Value     Char    PZSOHNUMB2B(),PZTEXTO1B2B()
-Value     Date    PORDDAT(),PSHIDAT()
+Value     Date    PORDDAT()
 # parámetros de línea
 Value     Char    PITMREF()(1..200),PEC()(1..200),PVERSIONEC()(1..200),PZATTFILEB2B()(1..200),PYRAL()(1..200),PYCOMENCLI()(1..200)
 Value     Decimal PZALTO(1..200),PZANCHO(1..200),PZLARGO(1..200)
@@ -908,7 +907,7 @@ Local     Integer WFMI,WALLTYP
     Rollback
   Endif
 
-  # averigua la cantidad de OF's que se pretenden importar
+  # averigua la cantidad de pedidos que se pretenden importar
   For I=1 To maxtab(PITMREF)
     If PITMREF(I) <> "" Then : [L]LCON +=1 : Endif
   Next
@@ -923,7 +922,6 @@ Local     Integer WFMI,WALLTYP
     [F:ZSB20]ZBPAADD      = PBPAADD
     [F:ZSB20]ZORDDAT      = PORDDAT
     [F:ZSB20]ZCUSORDREF   = PCUSORDREF
-    [F:ZSB20]ZSHIDAT      = PSHIDAT
     [F:ZSB20]ZTEXTO1B2B   = PZTEXTO1B2B
     [F:ZSB20]ZITMREF      = PITMREF(J)
     [F:ZSB20]ZEC          = PEC(J)
@@ -937,13 +935,23 @@ Local     Integer WFMI,WALLTYP
     [F:ZSB20]YCOMENCLI    = PYCOMENCLI(J)
     # identifica el tipo de línea para cada registro
     If PEC(J) <> "" Then
-      Filter [F:ZBOD0] Where CPNITMREF = vireblc(PITMREF(J),2)
+      Filter [F:ZBOD0] Where BOMALTTYP = 1 and CPNITMREF = "T_"+vireblc(PITMREF(J),2)
       Read   [F:ZBOD0] First
       If !fstat Then
         If [F:ZBOD0]CPNTYP = 3 Then
           [F:ZSB20]ZLINTYP = 9
         Else
           [F:ZSB20]ZLINTYP = 8
+        Endif
+      Else
+        Filter [F:ZBOD0] Where BOMALTTYP = 1 and CPNITMREF = vireblc(PITMREF(J),2)
+        Read   [F:ZBOD0] First
+        If !fstat Then
+          If [F:ZBOD0]CPNTYP = 3 Then
+            [F:ZSB20]ZLINTYP = 9
+          Else
+            [F:ZSB20]ZLINTYP = 8
+          Endif
         Endif
       Endif
       Filter [F:ZBOD0]
@@ -981,7 +989,7 @@ Local     Integer WFMI,WALLTYP
     # cabecera
     Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + "" + ";" + vireblc([F:ZSB21]ZBPCORD,2) + ";" + vireblc([F:ZSB21]ZBPCNAM,2) + ";" + vireblc([F:ZSB21]ZBPAADD,2) + ";" +
 &         vireblc(ctrans(num$([F:ZSB21]ZORDDAT),'/',''),2) + ";" + vireblc([F:ZSB21]ZCUSORDREF,2) + ";" + "11" + ";" + "EUR" + ";" +
-&         vireblc(ctrans(num$([F:ZSB21]ZSHIDAT),'/',''),2) + ";" + vireblc([F:ZSB21]ZSOHNUMB2B,2) + ";" + vireblc([F:ZSB21]ZTEXTO1B2B,2)
+&         vireblc([F:ZSB21]ZSOHNUMB2B,2) + ";" + vireblc([F:ZSB21]ZTEXTO1B2B,2)
 &         Using [ZIMP_W]
 
     [L]K        = 0
@@ -1000,7 +1008,8 @@ Local     Integer WFMI,WALLTYP
       If [F:ZSB21]ZLINTYP = 9 Then
         [L]K += 1 + [L]M
         [L]M  = 0
-        Filter [F:ZBOD1] Where CPNITMREF = vireblc([F:ZSB21]ZITMREF,2)
+        # busca primero por T_
+        Filter [F:ZBOD1] Where BOMALTTYP = 1 and CPNITMREF = "T_"+vireblc([F:ZSB21]ZITMREF,2)
         Read   [F:ZBOD1] First
         If !fstat Then
           [L]K += 1
@@ -1009,6 +1018,18 @@ Local     Integer WFMI,WALLTYP
 &               num$(0) + ";" + num$(0) + ";" + "" + ";" + num$(1) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" + num$([F:ZSB21]ZANCHO) + ";" +
 &               num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
 &               Using [ZIMP_W]
+        # si no, busca por el código exacto
+        Else
+          Filter [F:ZBOD1] Where BOMALTTYP = 1 and CPNITMREF = vireblc([F:ZSB21]ZITMREF,2)
+          Read   [F:ZBOD1] First
+          If !fstat Then
+            [L]K += 1
+            [L]N += 1
+            Wrseq "L" + ";" + vireblc([F:ZBOD1]ITMREF,2) + ";" + num$([F:ZSB21]ZQTY) + ";" + num$(6) + ";" +
+&                 num$(0) + ";" + num$(0) + ";" + "" + ";" + num$(1) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" + num$([F:ZSB21]ZANCHO) + ";" +
+&                 num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
+&                 Using [ZIMP_W]
+          Endif
         Endif
         Filter [F:ZBOD1]
         [L]N += 1
