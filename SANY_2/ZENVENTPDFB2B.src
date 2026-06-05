@@ -102,43 +102,23 @@ $IMPRIME_ENTREGA
     [V]GNUMENTB2B = [F:ZVEB]ENTREGA
 
     # parámetros de la entrega
-    TBPAR(1)  = "siteini"         : TBVAL(1)  = [F:ZVEB]PLANTA
-    TBPAR(2)  = "sitedeb"         : TBVAL(2)  = [F:ZVEB]PLANTA
-    TBPAR(3)  = "livraisonini"    : TBVAL(3)  = [F:ZVEB]ENTREGA
-    TBPAR(4)  = "livraisondeb"    : TBVAL(4)  = [F:ZVEB]ENTREGA
-    TBPAR(5)  = "clientini"       : TBVAL(5)  = [F:ZVEB]CLIENTE_SAGE
-    TBPAR(6)  = "clientdeb"       : TBVAL(6)  = [F:ZVEB]CLIENTE_SAGE
-    TBPAR(7)  = "dateini"         : TBVAL(7)  = [F:ZVEB]FECHA
-    TBPAR(8)  = "datedeb"         : TBVAL(8)  = [F:ZVEB]FECHA
-    TBPAR(9)  = "typeini"         : TBVAL(9)  = num$([F:ZVEB]TIPOENT)
-    TBPAR(10) = "typedeb"         : TBVAL(10) = num$([F:ZVEB]TIPOENT)
-    TBPAR(11) = "categlivini"     : TBVAL(11) = num$([F:ZVEB]CATEGORIA)
-    TBPAR(12) = "categlivdeb"     : TBVAL(12) = num$([F:ZVEB]CATEGORIA)
-    TBPAR(13) = "valini"          : TBVAL(13) = num$([F:ZVEB]VALIDADA)
-    TBPAR(14) = "valdeb"          : TBVAL(14) = num$([F:ZVEB]VALIDADA)
-    TBPAR(15) = "facini"          : TBVAL(15) = num$([F:ZVEB]FACTURADA)
-    TBPAR(16) = "facdeb"          : TBVAL(16) = num$([F:ZVEB]FACTURADA)
+    TBPAR(1)  = "sitedeb"         : TBVAL(1)  = [F:ZVEB]PLANTA
+    TBPAR(2)  = "sitefin"         : TBVAL(2)  = [F:ZVEB]PLANTA
+    TBPAR(3)  = "livraisondeb"    : TBVAL(3)  = [F:ZVEB]ENTREGA
+    TBPAR(4)  = "livraisonfin"    : TBVAL(4)  = [F:ZVEB]ENTREGA
+    TBPAR(5)  = "clientdeb"       : TBVAL(5)  = [F:ZVEB]CLIENTE_SAGE
+    TBPAR(6)  = "clientfin"       : TBVAL(6)  = [F:ZVEB]CLIENTE_SAGE
+    TBPAR(7)  = "datedeb"         : TBVAL(7)  = [F:ZVEB]FECHA
+    TBPAR(8)  = "datefin"         : TBVAL(8)  = [F:ZVEB]FECHA
+    TBPAR(9)  = "typedeb"         : TBVAL(9)  = num$([F:ZVEB]TIPOENT)
+    TBPAR(10) = "typefin"         : TBVAL(10) = num$([F:ZVEB]TIPOENT)
+    TBPAR(11) = "categlivdeb"     : TBVAL(11) = num$([F:ZVEB]CATEGORIA)
+    TBPAR(12) = "categlivfin"     : TBVAL(12) = num$([F:ZVEB]CATEGORIA)
+    TBPAR(13) = "valdeb"          : TBVAL(13) = num$([F:ZVEB]VALIDADA)
+    TBPAR(14) = "valfin"          : TBVAL(14) = num$([F:ZVEB]VALIDADA)
+    TBPAR(15) = "facdeb"          : TBVAL(15) = num$([F:ZVEB]FACTURADA)
+    TBPAR(16) = "facfin"          : TBVAL(16) = num$([F:ZVEB]FACTURADA)
     TBPAR(17) = "codimp"          : TBVAL(17) = num$([F:ZVEB]IMPRESION)
-
-
-#Infbox     TBPAR(1)+":"-TBVAL(1)
-#Infbox     TBPAR(2)+":"-TBVAL(2)
-#Infbox     TBPAR(3)+":"-TBVAL(3)
-#Infbox     TBPAR(4)+":"-TBVAL(4)
-#Infbox     TBPAR(5)+":"-TBVAL(5)
-#Infbox     TBPAR(6)+":"-TBVAL(6)
-#Infbox     TBPAR(7)+":"-TBVAL(7)
-#Infbox     TBPAR(8)+":"-TBVAL(8)
-#Infbox     TBPAR(9)+":"-TBVAL(9)
-#Infbox     TBPAR(10)+":"-TBVAL(10)
-#Infbox     TBPAR(11)+":"-TBVAL(11)
-#Infbox     TBPAR(12)+":"-TBVAL(12)
-#Infbox     TBPAR(13)+":"-TBVAL(13)
-#Infbox     TBPAR(14)+":"-TBVAL(14)
-#Infbox     TBPAR(15)+":"-TBVAL(15)
-#Infbox     TBPAR(16)+":"-TBVAL(16)
-#Infbox     TBPAR(17)+":"-TBVAL(17)
-
 
     # lanza el informe
     Call ETAT("Z-ENTVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
