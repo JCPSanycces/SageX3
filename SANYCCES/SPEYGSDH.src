@@ -941,7 +941,7 @@ Global  Char    GASUNTOZPD(250),GTEXTOZPD(250),GCORREOZPD(250)
     [V]GTEXTOZPD += 'El pedido' - [F:ZVPD]SOHNUM - 'está abierto por el usuario' - [L]USER - "(" + [L]NOM + ').' + chr$(13)+chr$(10)+chr$(13)+chr$(10)
     [V]GTEXTOZPD += 'El documento' - [F:ZVPD]PRHNUM - 'queda pendientre de entregar hasta que se elimine el bloqueo.' + chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)
     [V]GTEXTOZPD += 'Un saludo.'
-    Call WORKFLOW (1,"ZPD","",GUSER) From AWRK
+    Call WORKFLOW (1,"ZPD","","INFO1") From AWRK
   Endif
 
   Filter [F:ZVPD]
