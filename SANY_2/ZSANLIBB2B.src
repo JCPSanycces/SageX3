@@ -848,9 +848,12 @@ Local     Char    LATTFILE(250)         : Raz [L]LATTFILE
 Global    Char    GZSOHNUMB2B(250)      : Raz [V]GZSOHNUMB2B
 Global    Integer GZCTRLB2B(250)        : [V]GZCTRLB2B  = 1
 Local     Integer WFMI,WALLTYP
+Local     Char    LERRORB2B(250)
 
   If !clalev([F:ZBPC0]) Then : Local File BPCUSTOMER  [F:ZBPC0] : Endif
   If !clalev([F:ZBPA0]) Then : Local File BPADDRESS   [F:ZBPA0] : Endif
+  If !clalev([F:ZSOH0]) Then : Local File SORDER      [F:ZSOH0] : Endif
+  If !clalev([F:ZITM0]) Then : Local File ITMMASTER   [F:ZITM0] : Endif
   If !clalev([F:ZBOD0]) Then : Local File BOMD        [F:ZBOD0] : Endif
   If !clalev([F:ZBOD1]) Then : Local File BOMD        [F:ZBOD1] : Endif
 
@@ -861,16 +864,32 @@ Local     Integer WFMI,WALLTYP
   GSTATUS  = 1
   GMESSAGE = ""
 
+  # verifica el número de pedido Magento
+  Filter [F:ZSOH0] Where ZSOHNUMB2B = PZSOHNUMB2B
+  Read   [F:ZSOH0] First
+  If !fstat Then
+    GSTATUS = 0
+    [L]LERRORB2B = "El pedido"-PZSOHNUMB2B-"ya existe en el sistema"
+    Gosub SEND_WORKFLOW_ERROR
+    Call ERREUR("El pedido"-PZSOHNUMB2B-"ya existe en el sistema") From GESECRAN
+    End
+  Endif
+  Filter [F:ZSOH0]
+
   # verifica el cliente
   If PBPCORD = "" Then
     GSTATUS = 0
-    Call ERREUR("Error en el cliente") From GESECRAN
+    [L]LERRORB2B = "Error en el cliente"-PBPCORD
+    Gosub SEND_WORKFLOW_ERROR
+    Call ERREUR("Error en el cliente"-PBPCORD) From GESECRAN
     End
   Else
     Read [F:ZBPC0]BPC0 = PBPCORD
     If fstat Then
       GSTATUS = 0
-      Call ERREUR("Error en el cliente") From GESECRAN
+      [L]LERRORB2B = "Error en el cliente"-PBPCORD
+      Gosub SEND_WORKFLOW_ERROR
+      Call ERREUR("Error en el cliente"-PBPCORD) From GESECRAN
       End
     Endif
   Endif
@@ -878,12 +897,16 @@ Local     Integer WFMI,WALLTYP
   # verifica la dirección de entrega del pedido
   If PBPAADD = "" Then
     GSTATUS = 0
+    [L]LERRORB2B = "Error en la dirección de entrega"
+    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("Error en la dirección de entrega") From GESECRAN
     End
   Else
     Read [F:ZBPA0]BPA0 = 1;PBPCORD;PBPAADD
     If fstat Then
       GSTATUS = 0
+      [L]LERRORB2B = "Error en la dirección de entrega"
+      Gosub SEND_WORKFLOW_ERROR
       Call ERREUR("Error en la dirección de entrega") From GESECRAN
       End
     Endif
@@ -909,7 +932,18 @@ Local     Integer WFMI,WALLTYP
 
   # averigua la cantidad de pedidos que se pretenden importar
   For I=1 To maxtab(PITMREF)
-    If PITMREF(I) <> "" Then : [L]LCON +=1 : Endif
+    If PITMREF(I) <> "" Then
+      Read [F:ZITM0]ITM0 = PITMREF
+      If !fstat and [F:ZITM0]ITMSTA = 1 Then
+        [L]LCON +=1
+      Else
+        GSTATUS = 0
+        [L]LERRORB2B = "El artículo"-PITMREF-"no existe en el sistema"
+        Gosub SEND_WORKFLOW_ERROR
+        Call ERREUR("El artículo"-PITMREF-"no existe en el sistema") From GESECRAN
+        End
+      Endif
+    Endif
   Next
 
   For J = 1 To [L]LCON
@@ -1125,8 +1159,10 @@ Local     Integer WFMI,WALLTYP
         GMESSAGE    = "Se ha creado el pedido"-GZSOHNUMB2B
       Endif
     Else
-      GSTATUS   = 0
-      GMESSAGE  = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
+      GSTATUS       = 0
+      [L]LERRORB2B  = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
+      Gosub SEND_WORKFLOW_ERROR
+      GMESSAGE      = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
     Endif
 
   Endif
@@ -1145,4 +1181,17 @@ Return
 ########################################################
 $CLOSE_FILE_W
   Openo Using [ZIMP_W]
+Return
+
+########################################################
+$SEND_WORKFLOW_ERROR
+Global Char     GCORREOZES(100),GASUNTOZES(250)
+Global Clbfile  GTEXTOZES(1)
+
+  [V]GCORREOZES = "itsoporte@sanycces.es"
+  [V]GASUNTOZES = "B2B: Error en la generación del pedido" - PZSOHNUMB2B
+  [V]GTEXTOZES  = "Hola,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)
+  [V]GTEXTOZES += "Se ha producido un error durante la creación del pedido de Magento número"-PZSOHNUMB2B+"."+chr$(10)+chr$(13)+chr$(10)+chr$(13)
+  [V]GTEXTOZES += [L]LERRORB2B+"."
+  Call WORKFLOW(1,"ZES","","INFO1") From AWRK
 Return
