@@ -19,9 +19,15 @@
 # 2026-00007 - JCP.27032026.Servicio de trasportista
 # 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
 # ZB2B - JCP.05052026.Tienda online B2B
+# XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
 #####################################################################################################
 
 $ACTION
+#XVT28052026-ANALISIS ACCIONES CUANDO SE CREA PEDIDO DESDE OFERTA
+#Openo filpath("tmp","XPEDIDOFERTA","txt") Using [XLOG]
+#Wrseq "SPESOH 027 ACTION="+ACTION+"               "-date$-time$ Using [XLOG]
+#Openo Using [XLOG]
+
 Case ACTION
   When "INICRE"      : Gosub INICRE
   When "VERIF_CRE"   : Gosub VERIF_CRE   #  @01@ -SCD - 14/06/2024 - INI
@@ -210,9 +216,40 @@ $APRES_CRE
 # 2026-00006.ini
   Gosub UPD_KITS_REPORT
 # 2026-00006.fin
+
+  Gosub EMISION_ANTICIPO #XVT28052026.n
 Return
 #  @09@ - SCD - 23/04/2025 - FIN
 #######################################################
+#XVT28052026.ini
+$EMISION_ANTICIPO
+  # si el pedido se ha creado desde oferta y se dan las condiciones, emitir el anticipo
+  # primero comprobar que se viene de la pantalla de anticipos
+Openo filpath("tmp","XPEDIDOFERTA","txt") Using [XLOG]
+Wrseq "SPESOH 229 EMISION ANTICIPO="+[F:SOH]SOHNUM - [F:SOH]PTE +"               "-date$-time$ Using [XLOG]
+Openo Using [XLOG]
+  If clalev([M:SQH0]) Then
+  Openo filpath("tmp","XPEDIDOFERTA","txt") Using [XLOG]
+Wrseq "SPESOH 233 EMISION ANTICIPO=VIENE DE OFERTA"+[F:SOH]SOHNUM - [F:SOH]PTE +"               "-date$-time$ Using [XLOG]
+Openo Using [XLOG]
+   #comprobar lo mismo que comprueba el estándar: que el pedido esté firmado (auto o a mano, da igual)
+   If [F:SOH]APPFLG>2 Then
+      If [F:SOH]PTE = "E03"
+        If !clalev([F:YDUD]) Local File GACCDUDATE [YDUD] Endif
+        Update [F:YDUD] Where TYP="*SO" & NUM=[F:SOH]SOHNUM & PAMTYP > 1 & SENINS = 1
+&       With SENDAT=date$, SENINS=2
+Openo filpath("tmp","XPEDIDOFERTA","txt") Using [XLOG]
+Wrseq "SPESOH 242 EMISION ANTICIPO=ACTUALIZADO"+[F:SOH]SOHNUM - [F:SOH]PTE +"               "-date$-time$ Using [XLOG]
+Openo Using [XLOG]
+        Close Local File [F:YDUD]
+      Endif
+   Endif
+  Endif
+
+Return
+#XVT28052026.fin
+#######################################################
+
 $INICRE
 #### PR01 - MODIFICACIÓN PARA PODER HACER QUE UN COMPONENTE SEA DE CONTRAMARCA Y DE PRODUCCIÓN
 For X = 0  To [M:SOH4]NBLIG-1

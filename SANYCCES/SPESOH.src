@@ -19,6 +19,7 @@
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 # 2026-00007 - JCP.27032026.Servicio de trasportista
 # 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
+# XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
 #####################################################################################################
 
 $ACTION
@@ -208,9 +209,33 @@ $APRES_CRE
 # 2026-00006.ini
   Gosub UPD_KITS_REPORT
 # 2026-00006.fin
+
+  Gosub EMISION_ANTICIPO #XVT28052026.n
 Return
 #  @09@ - SCD - 23/04/2025 - FIN
 #######################################################
+
+#XVT28052026.ini
+$EMISION_ANTICIPO
+  # si el pedido se ha creado desde oferta y se dan las condiciones, emitir el anticipo
+  # primero comprobar que se viene de la pantalla de anticipos
+  If clalev([M:SQH0]) Then
+   #comprobar lo mismo que comprueba el estándar: que el pedido esté firmado (auto o a mano, da igual)
+   If [F:SOH]APPFLG>2 Then
+      If [F:SOH]PTE = "E03"
+        If !clalev([F:YDUD]) Local File GACCDUDATE [YDUD] Endif
+        Update [F:YDUD] Where TYP="*SO" & NUM=[F:SOH]SOHNUM & PAMTYP > 1 & SENINS = 1
+&       With SENDAT=date$, SENINS=2
+        Close Local File [F:YDUD]
+      Endif
+   Endif
+  Endif
+
+Return
+#XVT28052026.fin
+
+#######################################################
+
 $INICRE
 #### PR01 - MODIFICACIÓN PARA PODER HACER QUE UN COMPONENTE SEA DE CONTRAMARCA Y DE PRODUCCIÓN
 For X = 0  To [M:SOH4]NBLIG-1
