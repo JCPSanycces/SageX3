@@ -870,7 +870,7 @@ Local     Char    LERRORB2B(250)
   If !fstat Then
     GSTATUS = 0
     [L]LERRORB2B = "El pedido"-PZSOHNUMB2B-"ya existe en el sistema"
-    Gosub SEND_WORKFLOW_ERROR
+#    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("El pedido"-PZSOHNUMB2B-"ya existe en el sistema") From GESECRAN
     End
   Endif
@@ -880,7 +880,7 @@ Local     Char    LERRORB2B(250)
   If PBPCORD = "" Then
     GSTATUS = 0
     [L]LERRORB2B = "Error en el cliente"-PBPCORD
-    Gosub SEND_WORKFLOW_ERROR
+#    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("Error en el cliente"-PBPCORD) From GESECRAN
     End
   Else
@@ -888,7 +888,7 @@ Local     Char    LERRORB2B(250)
     If fstat Then
       GSTATUS = 0
       [L]LERRORB2B = "Error en el cliente"-PBPCORD
-      Gosub SEND_WORKFLOW_ERROR
+#      Gosub SEND_WORKFLOW_ERROR
       Call ERREUR("Error en el cliente"-PBPCORD) From GESECRAN
       End
     Endif
@@ -898,7 +898,7 @@ Local     Char    LERRORB2B(250)
   If PBPAADD = "" Then
     GSTATUS = 0
     [L]LERRORB2B = "Error en la dirección de entrega"
-    Gosub SEND_WORKFLOW_ERROR
+#    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("Error en la dirección de entrega") From GESECRAN
     End
   Else
@@ -906,7 +906,7 @@ Local     Char    LERRORB2B(250)
     If fstat Then
       GSTATUS = 0
       [L]LERRORB2B = "Error en la dirección de entrega"
-      Gosub SEND_WORKFLOW_ERROR
+#      Gosub SEND_WORKFLOW_ERROR
       Call ERREUR("Error en la dirección de entrega") From GESECRAN
       End
     Endif
@@ -939,7 +939,7 @@ Local     Char    LERRORB2B(250)
       Else
         GSTATUS = 0
         [L]LERRORB2B = "El artículo"-PITMREF-"no existe en el sistema"
-        Gosub SEND_WORKFLOW_ERROR
+#        Gosub SEND_WORKFLOW_ERROR
         Call ERREUR("El artículo"-PITMREF-"no existe en el sistema") From GESECRAN
         End
       Endif
@@ -1161,7 +1161,7 @@ Local     Char    LERRORB2B(250)
     Else
       GSTATUS       = 0
       [L]LERRORB2B  = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
-      Gosub SEND_WORKFLOW_ERROR
+#      Gosub SEND_WORKFLOW_ERROR
       GMESSAGE      = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
     Endif
 
