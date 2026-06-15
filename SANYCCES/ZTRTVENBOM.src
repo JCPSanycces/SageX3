@@ -4,6 +4,7 @@
 # @02@ - DSR - 21/08/2023 - Si la línea es Variante (5) / Componente KIT (3), permito la creación de contramarca (por STD solo permite si es Variante / Componente ESTRUCTURA)
 # @03@ - EQM - 16/09/2024 - Modificación fecha expedición
 # @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+# 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
 
 $ACTION
 
@@ -285,6 +286,36 @@ $UPD_GRO_SOH
     Affzo  [M:SOH4]REPCOE(NL)
 
   Endif
+
+## 2026-00039.ini
+## esta modificación está comentada porque no se ha podido validar
+## si continúa dando problemas el proceso específico actual
+## deberíamos comentar el específico de Nunsys (lo de arriba)
+## y descomentar el código del ticket 2026-00039
+#  If [M:SOH4]FMI(NL-1) = 5 Then
+#    GNETPRI = [M:SOH4]NETPRI(NL-1)
+#    GREPCOE = [M:SOH4]REPCOE(NL-1)
+#  Endif
+#
+#  If func YCONFIG.CHECK_CONFIG([M:SOH4]ITMREF(NL)) = 2
+#    If NL>0
+#      If [M:SOH4]ZLINASOC(NL) <> 0
+#        [M:SOH4]GROPRI(NL) = GNETPRI
+#        [M:SOH4]REPCOE(NL) = GREPCOE
+#        Local Integer NOL
+#        NOL = NL
+#        Call CLCNETPRI([M]QTY(NOL), [M:SOH0]CUR, NOL) From TRTVENPRI
+#        Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 1) From TRTVENPRI
+#        [M:SOH4]UPDFLG(NL) = 2
+#      Endif
+#    Endif
+#    Affzo  [M:SOH4]UPDFLG(NL)
+#    Affzo  [M:SOH4]GROPRI(NL)
+#    Affzo  [M:SOH4]NETPRI(NL)
+#    Affzo  [M:SOH4]REPCOE(NL)
+#  Endif
+## 2026-00039.fin
+
 Return
 ############################################################################################################################
 $UPD_GRO_SQH

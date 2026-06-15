@@ -20,11 +20,13 @@
 # 2026-00007 - JCP.27032026.Servicio de trasportista
 # 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
 # XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
+# 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
 #####################################################################################################
 
 $ACTION
 
 Case ACTION
+  When "OUVRE"       : Gosub OUVRE
   When "INICRE"      : Gosub INICRE
   When "VERIF_CRE"   : Gosub VERIF_CRE   #  @01@ -SCD - 14/06/2024 - INI
   When "VERIF_MOD"   : Gosub VERIF_MOD
@@ -40,6 +42,13 @@ Case ACTION
   When "INIMOD"      : Gosub INIMOD #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
   When "STYLE"       : Gosub STYLE  #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 Endcase
+Return
+
+#####################################################################
+$OUVRE
+# 2026-00039.ini
+Global Decimal GNETPRI,GREPCOE
+# 2026-00039.fin
 Return
 
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
@@ -1401,6 +1410,33 @@ $ACTUALIZAR_PRECIOS_ASOCIADOS
       Endif
     Next
   Endif
+
+## 2026-00039.ini
+## esta modificación está comentada porque no se ha podido validar
+## si continúa dando problemas el proceso específico actual
+## deberíamos comentar el específico de Nunsys (lo de arriba)
+## y descomentar el código del ticket 2026-00039
+#  If [M:SOH4]ZASOCIADO(nolign-1) <> 2
+#    Local Integer LNUMLIN : [L]LNUMLIN = nolign
+#    Local Integer LNUMLINASOC : [L]LNUMLINASOC = [M:SOH4]SOPLIN(nolign-1)
+#    For YI=[L]LNUMLIN To [M:SOH4]NBLIG-1
+#      If [M:SOH4]ZLINASOC(YI) = [L]LNUMLINASOC and func YCONFIG.CHECK_CONFIG([M:SOH4]ITMREF(YI)) = 2
+#        [M:SOH4]GROPRI(YI) = [M:SOH4]NETPRI(nolign-1)
+#        Local Integer NOL
+#        NOL = YI
+#        Call CLCNETPRI([M]QTY(NOL), [M:SOH0]CUR, NOL) From TRTVENPRI
+#        Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 1) From TRTVENPRI
+#        [M:SOH4]UPDFLG(YI) = 2
+#
+#        Affzo [M:SOH4]UPDFLG(YI)
+#        Affzo [M:SOH4]GROPRI(YI)
+#        Affzo [M:SOH4]NETPRI(YI)
+#
+#      Endif
+#      If [M:SOH4]ZASOCIADO(nolign-1) <> 2 Then Break Endif
+#    Next
+#  Endif
+## 2026-00039.fin
 Return
 
 #  @09@ - SCD - 23/04/2025 - FIN
