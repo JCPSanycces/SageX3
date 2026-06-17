@@ -2,6 +2,8 @@
 # Gestión de la máscara SQH2 (Especifico)
 # @01@ - JLP - 14/05/2024 - Rellenar campos con los datos del cliente
 # @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+# @03@ - EQM - 28/04/2026 - Añadimos stock disponible
+
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 
 ######################################################################################
@@ -305,3 +307,170 @@ Local Char    LITMPADRE(50),LDTOPADRE(50)
   Close Local File [ZSQD0],[ZSQD1],[ZITM0]
 
 Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SQH2) 28/04/2026 11:57:53 (NUN12)
+#@03@ - INI
+######################################################################################
+Subprog AS_QTY(VALEUR)
+Variable Decimal VALEUR
+#SI EL ARTÍCULO ES UNA ASOCIADO, Y POR TANTO NO TIENE GESTIÓN DE STOCK, LANZO ACCIÓN STD PERO LUEGO SPE PARA MOSTRAR EL STOCK DISPONIBLE
+#If [M:SQH2]ZASOCIADO(nolign-1) = 2 and [M:SQH2]STOMGTCOD(nolign-1) = 1
+  Call AS_QTY(VALEUR) From SUBSQH
+
+  Local    Integer NOL    :    NOL=nolign-1
+  If dim([M:SQH2]WSTKTXT)<=0 : End : Endif
+  #--We stop if item not managed into stock or if import/webservice context
+  #If [M:SQH2]STOMGTCOD(NOL)=1 or GIMPORT or GWEBSERV:
+  If GIMPORT or GWEBSERV:  # Esta es la línea que modifico para quitar el bloqueo de no gestión de stock
+    If dim([M:SQH2]WSTKTXT)>0
+      Raz [M:SQH2]WSTKTXT
+      Raz [M:SQH2]WALLTXT
+      If !GIMPORT and !GWEBSERV : Affzo [M:SQH2]WSTKTXT : Affzo [M:SQH2]WALLTXT : Endif
+    Endif
+    End
+  Endif
+
+  Raz [M:SQH2]WALLTXT
+  Raz [M:SQH2]WSTKTXT
+
+  #--We carry on only if the available stock block is set as displayed for the current sales order transaction
+  If GSOHVALLIG<>2 : End : Endif
+  If clalev([F:SLT])=0 : Local File SALTRS [SLT] : Endif
+  If [F:SLT]STRTYP<>2 or [F:SLT]STRNUM<>GFLAG
+    Read [F:SLT]SLT0=2;GFLAG
+    If fstat : Raz [F:SLT] : Endif
+  Endif
+  If [F:SLT]AVASTOCOD<>2 : End : Endif
+
+  If GREP=""
+    Affzo [M:SQH2]WSTKTXT
+    Affzo [M:SQH2]WALLTXT
+    End
+  Endif
+
+  Local Integer WRET
+  Local Decimal WSTUDISSTU, WSTUDIS, WSTUDISSTU_STODISALL, WSTUDISSTU_CALFDMA
+  Local Char    WNUM
+  Local Char    WSTKTXTMESS(255)(0..1) : Raz WSTKTXTMESS
+  Local Date    WDATE_FDMA
+  Local Integer WALL
+  If find(GUSERERBPC, 2,3) WNUM=vireblc(format$("K:15X",[M:SQH0]BPCORD)+format$("K:3X",[M:SQH2]DBPAADD(NOL)), 1) : Endif
+  Raz WSTKTXTMESS
+  Call STODISALL([M:SQH2]DSTOFCY(NOL),[M:SQH2]ITMREF(NOL),2,1,2,2,1,"",WNUM,"",WSTUDISSTU,WRET) From STKALL
+  If WRET=1 : Raz [M:SQH2]WSTKTXT : Affzo [M:SQH2]WSTKTXT : End : Endif
+  WSTUDISSTU_STODISALL = WSTUDISSTU
+  If WSTUDISSTU > 0
+    #--stock is available for entire quantity
+    WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(NOL))
+    Call QTEARR(WSTUDIS, [M:SQH2]SAU(NOL)) From TRTDIV
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(NOL)-mess(47,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(NOL)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(NOL)-mess(4,2972,1)
+  Else
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(NOL)-":"-mess(409,197,1)-mess(4,2972,1)
+  Endif
+
+  If WSTUDISSTU < 0 or WSTUDISSTU < [M:SQH2]QTY(NOL)
+    WDAT_FDMA = [0/0/0]
+    WALL=2
+    Call CAL_FDMA([M:SQH2]DSTOFCY(NOL),[M:SQH2]ITMREF(NOL),2,[M:SQH2]SQHNUM ,[M:SQH2]SOPLIN(NOL),[M:SQH2]SOPLIN(NOL),WALL,[M:SQH2]QTY(NOL),WSTUDISSTU,WDAT_FDMA) From STKLIB
+    If WDAT_FDMA <> [0/0/0]
+      If WSTUDISSTU>0
+        WSTUDISSTU_CALFDMA =  WSTUDISSTU
+        WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(NOL))
+        Call QTEARR(WSTUDIS, [M:SQH2]SAU(NOL)) From TRTDIV
+        WSTKTXTMESS(1) = mess(102,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(NOL)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(NOL)-mess(38,197,1)-format$(GFMDAT,WDAT_FDMA)
+      Endif
+    Endif
+  Endif
+  [M:SQH2]WSTKTXT = WSTKTXTMESS(0)
+  If WSTKTXTMESS(1)<>""
+    [M:SQH2]WSTKTXT -= "-"-WSTKTXTMESS(1)
+  Endif
+  Affzo [M:SQH2]WSTKTXT
+  Affzo [M:SQH2]WALLTXT
+
+  # Mato la acción STD
+  GPE = 1
+#Endif
+End
+
+#@03@ - FIN
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SQH2) 28/04/2026 13:29:00 (NUN12)
+#@03@ - INI
+######################################################################################
+Subprog AV_NBLIG
+# Muestro la info del stock al posicionarme en la línea
+If [M:SQH2]ITMREF(nolign-1) <> "" and GREP=""
+  If dim([M:SQH2]WSTKTXT)<=0 : End : Endif
+  #--We stop if item not managed into stock or if import/webservice context
+  If GIMPORT or GWEBSERV:
+    If dim([M:SQH2]WSTKTXT)>0
+      Raz [M:SQH2]WSTKTXT
+      Raz [M:SQH2]WALLTXT
+      If !GIMPORT and !GWEBSERV : Affzo [M:SQH2]WSTKTXT : Affzo [M:SQH2]WALLTXT : Endif
+    Endif
+    End
+  Endif
+
+  Raz [M:SQH2]WALLTXT
+  Raz [M:SQH2]WSTKTXT
+
+  #--We carry on only if the available stock block is set as displayed for the current sales order transaction
+  If GSOHVALLIG<>2 : End : Endif
+
+  If clalev([F:SLT])=0 : Local File SALTRS [SLT] : Endif
+  If [F:SLT]STRTYP<>2 or [F:SLT]STRNUM<>GFLAG
+    Read [F:SLT]SLT0=2;GFLAG
+    If fstat : Raz [F:SLT] : Endif
+  Endif
+  If [F:SLT]AVASTOCOD<>2 : End : Endif
+
+  Local Integer WRET
+  Local Decimal WSTUDISSTU, WSTUDIS, WSTUDISSTU_STODISALL, WSTUDISSTU_CALFDMA
+  Local Char    WNUM
+  Local Char    WSTKTXTMESS(255)(0..1) : Raz WSTKTXTMESS
+  Local Date    WDATE_FDMA
+  Local Integer WALL
+  If find(GUSERERBPC, 2,3) WNUM=vireblc(format$("K:15X",[M:SQH0]BPCORD)+format$("K:3X",[M:SQH2]DBPAADD(nolign-1)), 1) : Endif
+  Raz WSTKTXTMESS
+  Call STODISALL([M:SQH2]DSTOFCY(nolign-1),[M:SQH2]ITMREF(nolign-1),2,1,2,2,1,"",WNUM,"",WSTUDISSTU,WRET) From STKALL
+  If WRET=1 : Raz [M:SQH2]WSTKTXT : Affzo [M:SQH2]WSTKTXT : End : Endif
+  WSTUDISSTU_STODISALL = WSTUDISSTU
+  If WSTUDISSTU > 0
+    #--stock is available for entire quantity
+    WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(nolign-1))
+    Call QTEARR(WSTUDIS, [M:SQH2]SAU(nolign-1)) From TRTDIV
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(nolign-1)-mess(47,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(nolign-1)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(nolign-1)-mess(4,2972,1)
+  Else
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(nolign-1)-":"-mess(409,197,1)-mess(4,2972,1)
+  Endif
+  If WSTUDISSTU < 0 or WSTUDISSTU < [M:SQH2]QTY(nolign-1)
+    WDAT_FDMA = [0/0/0]
+    WALL=2
+    Call CAL_FDMA([M:SQH2]DSTOFCY(nolign-1),[M:SQH2]ITMREF(nolign-1),2,[M:SQH0]SQHNUM,[M:SQH2]SOPLIN(nolign-1),[M:SQH2]SOPLIN(nolign-1),WALL,[M:SQH2]QTY(nolign-1),WSTUDISSTU,WDAT_FDMA) From
+& STKLIB
+    If WDAT_FDMA <> [0/0/0]
+      If WSTUDISSTU>0
+        WSTUDISSTU_CALFDMA =  WSTUDISSTU
+        WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(nolign-1))
+        Call QTEARR(WSTUDIS, [M:SQH2]SAU(nolign-1)) From TRTDIV
+        WSTKTXTMESS(1) = mess(102,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(nolign-1)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(nolign-1)-mess(38,197,1)-format$(GFMDAT,WDAT_FDMA)
+      Endif
+    Endif
+  Endif
+  [M:SQH2]WSTKTXT = WSTKTXTMESS(0)
+  If WSTKTXTMESS(1)<>""
+    [M:SQH2]WSTKTXT -= "-"-WSTKTXTMESS(1)
+  Endif
+
+  Affzo [M:SQH2]WSTKTXT
+  Affzo [M:SQH2]WALLTXT
+Endif
+End
+
+#@03@ - FIN
+######################################################################################
+
+
+######################################################################################

@@ -10,6 +10,10 @@
 ######################################################################################
 $ACTION
 #If GUSER = 'NUN09' Then : Infbox ACTION : Endif
+#XVT28052026-ANALISIS ACCIONES CUANDO SE CREA PEDIDO DESDE OFERTA
+#Openo filpath("tmp","XPEDIDOFERTA","txt") Using [XLOG]
+#Wrseq "SPESQH 015 ACTION="+ACTION+"               "-date$-time$ Using [XLOG]
+#Openo Using [XLOG]
 
 Case ACTION
  When "LIENS_LIG"   :   Gosub LIENS_LIG
