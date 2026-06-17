@@ -22,6 +22,7 @@
 #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
 #@07@: JLP    26-11-2024 (Y119) DESADV LM-IT Componentes KIT
 #@08@: EQM    02-10-2025  Modificación importe cita
+#@09@: JLP    17-06-2026 Cambios para EDI - DESADV SALTOKI
 
 CURSOR
 $ACTION
@@ -544,6 +545,10 @@ $ENVIO_SERES
                    Gosub ENVIO_SERES_LM
                 Elsif [F:YBPC]YENVDESADV = 3
                    Gosub ENVIO_SERES_BCM
+#@09@: JLP    17-06-2026 Cambios para EDI - DESADV SALTOKI - INI
+                Elsif [F:YBPC]YENVDESADV = 4
+                  Gosub ENVIO_SERES_SALTOKI
+#@09@: JLP    17-06-2026 Cambios para EDI - DESADV SALTOKI - FIN
                 Else
                   Errbox "No gestiona EDI."
                   Return
@@ -676,6 +681,49 @@ $ENVIO_SERES_BCM
   Endcase
 
 Return
+
+#############################################################################
+
+#@09@: JLP    17-06-2026 Cambios para EDI - DESADV SALTOKI - INI
+$ENVIO_SERES_SALTOKI
+
+ Local Integer FICHERO_ABIERTO : [L]FICHERO_ABIERTO = 0
+
+  [L]S_SQLDADV =
+& "SELECT SDHNUM_0,PRHNUM_0 FROM SDELIVERYD  WHERE PRHNUM_0 IN (SELECT s.PRHNUM_0  FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE z.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+
+&                            "' group by s.PRHNUM_0) group by SDHNUM_0,PRHNUM_0 "
+  Local Integer I : I = 0
+  Local Integer J : J = 0
+  Local Integer CHECK_ENVIADA : CHECK_ENVIADA = 1
+  For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+
+    If !clalev([F:YSDH]) Then: Local File SDELIVERY  [F:YSDH] : Endif
+    Read [F:YSDH]SDH0 = [ZPRSD]S_SDH
+    If  !fstat
+      If [F:YSDH]YENVIOEDI = 2
+        CHECK_ENVIADA = 2
+      Endif
+    Endif
+  Next
+  Case [L]CHECK_ENVIADA
+    When 1
+      For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+        Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES_SALTOKI
+        Call ECR_TRACE("Fichero generado",0) From GESECRAN
+      Next
+    When 2
+      Qstbox "Cita ("+[M:ZCIT0]ZCITANUM+") ya enviada, ¿desea enviarla de nuevo?" Using [L]CHECK
+      Case [L]CHECK
+        When 1
+          For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
+              Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES_SALTOKI
+          Next
+        When 2
+          Return
+        Endcase
+  Endcase
+Return
+#@09@: JLP    17-06-2026 Cambios para EDI - DESADV SALTOKI - FIN
 
 #############################################################################
 
