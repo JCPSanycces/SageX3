@@ -1,0 +1,202 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+      Local Char    CADENA(250),SUBCADENA(250)
+      Local Clbfile CADENAFINAL(1)
+      Local Integer POS_ACTUAL,POS_SEP,LONGITUD,PRIMERO
+      [L]CADENA     = "fichero1.txt,fichero2.pdf,fichero3.doc"
+      [L]LONGITUD   = len([L]CADENA)
+      [L]POS_ACTUAL = 1
+      [L]PRIMERO    = 1
+      While [L]POS_ACTUAL <= [L]LONGITUD
+        [L]POS_SEP = instr([L]POS_ACTUAL,[L]CADENA,",")
+        If [L]POS_SEP = 0 Then
+          [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]LONGITUD - [L]POS_ACTUAL + 1)
+        Else
+          [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]POS_SEP - [L]POS_ACTUAL)
+        Endif
+        If [L]PRIMERO = 1 Then
+          [L]CADENAFINAL += "https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+          [L]PRIMERO      = 0
+        Else
+          [L]CADENAFINAL += chr$(10)+chr$(13)+"https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+        Endif
+        If [L]POS_SEP = 0 Then
+          [L]POS_ACTUAL = [L]LONGITUD + 1
+        Else
+          [L]POS_ACTUAL = [L]POS_SEP + 1
+        Endif
+      Wend
+Infbox [L]CADENAFINAL
+End
+############################################################################
+# Script name : ZIMPWSSOHB2B
+# Description : Específico del modelo de importación ZWSSOHB2B
+# Module      : Ventas
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 08/05/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Call ECR_TRACE(ACTION,0) From GESECRAN : Endif
+Case ACTION
+  When "IMP_FERME"        : Gosub IMP_FERME
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$IMP_FERME
+  If dim(GZSOHNUMB2B) > 0 Then
+    GZSOHNUMB2B = [F:SOH]SOHNUM
+  Endif
+
+  Gosub ADD_MAGENTOINFO
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$ADD_MAGENTOINFO
+Local Char    PABRFIC(250),PTEXTE(250),LCODE(250)
+Local Integer LCON0,LPOS
+
+  # texto cabecera
+#  [L]PABRFIC  = "SOH"
+#  [L]PTEXTE   = [F:SOH]ZTEXTO1B2B
+#  [L]LCODE    = func ZSANLIB01.F_CRELOB([L]PABRFIC,[L]PTEXTE)
+#  If !clalev([F:ZSOH0]) Then : Local File SORDER [F:ZSOH0] : Endif
+#  Read [F:ZSOH0]SOH0 = [F:SOH]SOHNUM
+#  If !fstat Then
+#    [F:ZSOH0]SOHTEX1 = [L]LCODE
+#    If !adxlog Then : Trbegin [F:ZSOH0] : Endif
+#    Rewrite [F:ZSOH0]
+#    If !fstat Then
+#      Commit
+#    Else
+#      Rollback
+#    Endif
+#  Endif
+#  Close Local File [ZSOH0]
+  If !clalev([F:ZACB1]) Then : Local File ACLOB   [F:ZACB1] : Endif
+  [F:ZACB1]CODBLB = 'CO_SOH'
+  [F:ZACB1]IDENT1 = [F:SOH]SOHNUM
+  [F:ZACB1]IDENT3 = '1'
+  [F:ZACB1]NAMBLB = 'CO_SOH ' + [F:SOH]SOHNUM
+  [F:ZACB1]TYPDOC = 'TXT'
+  [F:ZACB1]CNTTYP = 'ATYPE10'
+  [F:ZACB1]CLOB   = [F:SOH]ZTEXTO1B2B
+  [F:ZACB1]CREUSR=GUSER
+  [F:ZACB1]CREDAT=date$
+  [F:ZACB1]CREDATTIM=datetime$
+  [F:ZACB1]UPDDATTIM=datetime$
+  [F:ZACB1]UPDUSR=GUSER
+  [F:ZACB1]AUUID = getUuid
+  If !adxlog Then : Trbegin [F:ZACB1] : Endif
+  Write [F:ZACB1]
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+  Close Local File [ZACB1]
+
+  # adjuntos
+  If !clalev([F:ZSOQ0]) Then : Local File SORDERQ [F:ZSOQ0] : Endif
+  If !clalev([F:ZACB0]) Then : Local File ACLOB   [F:ZACB0] : Endif
+  If !clalev([F:ZAOX0]) Then : Local File AOBJTXT [F:ZAOX0] : Endif
+  Filter [F:ZSOQ0] Where SOHNUM = [F:SOH]SOHNUM and ZATTFILEB2B <> ""
+  Raz [L]LCON0
+  For [F:ZSOQ0]
+    [L]LCON0 += 1
+    [F:ZACB0]CODBLB     = 'PJ_SOH'
+    [F:ZACB0]IDENT1     = [F:SOH]SOHNUM
+    [F:ZACB0]IDENT3     = ctrans(space$(3-len(num$([L]LCON0)))+num$([L]LCON0),' ','0')
+    [F:ZACB0]NAMBLB     = "TEXT"+num$([L]LCON0)
+    [F:ZACB0]TYPDOC     = "TXT"
+    # montar en líneas separadas la cadena con la ruta de los ficheros (por si hay más de uno adjunto) - ini
+    Local Char    CADENA(250),SUBCADENA(250)
+    Local Clbfile CADENAFINAL(1)
+    Local Integer POS_ACTUAL,POS_SEP,LONGITUD,PRIMERO
+    [L]CADENA     = [F:ZSOQ0]ZATTFILEB2B
+    [L]LONGITUD   = len([L]CADENA)
+    [L]POS_ACTUAL = 1
+    [L]PRIMERO    = 1
+    While [L]POS_ACTUAL <= [L]LONGITUD
+      [L]POS_SEP = instr([L]POS_ACTUAL,[L]CADENA,",")
+      If [L]POS_SEP = 0 Then
+        [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]LONGITUD - [L]POS_ACTUAL + 1)
+      Else
+        [L]SUBCADENA = mid$([L]CADENA,[L]POS_ACTUAL,[L]POS_SEP - [L]POS_ACTUAL)
+      Endif
+      If [L]PRIMERO = 1 Then
+        [L]CADENAFINAL += "https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+        [L]PRIMERO      = 0
+      Else
+        [L]CADENAFINAL += chr$(10)+chr$(13)+"https://bunnycdnwasabisanyccesadjuntosb2b.b-cdn.net/"+[L]SUBCADENA
+      Endif
+      If [L]POS_SEP = 0 Then
+        [L]POS_ACTUAL = [L]LONGITUD + 1
+      Else
+        [L]POS_ACTUAL = [L]POS_SEP + 1
+      Endif
+    Wend
+    [F:ZACB0]CLOB       = [L]CADENAFINAL
+    # montar en líneas separadas la cadena con la ruta de los ficheros (por si hay más de uno adjunto) - fin
+    [F:ZAOX0]ABREV      = "SOH"
+    [F:ZAOX0]IDENT1     = [F:SOH]SOHNUM
+    [F:ZAOX0]IDENT3     = ctrans(space$(3-len(num$([L]LCON0)))+num$([L]LCON0),' ','0')
+    [F:ZAOX0]TYPDOC     = "TXT"
+    [F:ZAOX0]NAM        = "TEXT"+num$([L]LCON0)
+    [F:ZAOX0]ORINAM     = "TEXT"+num$([L]LCON0)
+    [F:ZAOX0]MOTCLE(0)  = "PLANO"
+    [F:ZAOX0]MOTCLE(1)  = num$([F:ZSOQ0]SOPLIN)
+    [F:ZAOX0]CAT        = 5
+    If !adxlog Then : Trbegin [F:ZACB0] : Endif
+    Write [F:ZACB0]
+    Write [F:ZAOX0]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+  Filter [F:ZSOQ0]
+
+  # campos varios que no se actualizan en la importación
+  If !clalev([F:ZSOQ1]) Then : Local File SORDERQ [F:ZSOQ1] : Endif
+  If !clalev([F:ZSOP1]) Then : Local File SORDERP [F:ZSOP1] : Endif
+  Filter [F:ZSOQ1] Where SOHNUM = [F:SOH]SOHNUM
+  For [F:ZSOQ1]
+    Read [F:ZSOP1]SOP0 = [F:ZSOQ1]SOHNUM;[F:ZSOQ1]SOPLIN;[F:ZSOQ1]SOQSEQ
+    If !fstat and find([F:ZSOP1]LINTYP,8,9) Then
+      [F:ZSOQ1]OCNPRNBOM = 2
+      [F:ZSOQ1]NDEPRNBOM = 2
+      [F:ZSOQ1]INVPRNBOM = 2
+      If !adxlog Then : Trbegin [F:ZSOQ1] : Endif
+      Rewrite [F:ZSOQ1]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+  Next
+  Filter [F:ZSOQ0]
+
+Return
+
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################

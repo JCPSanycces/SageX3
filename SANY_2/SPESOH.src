@@ -14,12 +14,14 @@
 #  @11@ - JMF - 20-02-2026 - Controlar cambio concertación
 #  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No)
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
+#  @14@ - EQM - PRUEBAS
 # 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 # 2026-00007 - JCP.27032026.Servicio de trasportista
 # 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
 # ZB2B - JCP.05052026.Tienda online B2B
 # XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
+
 #####################################################################################################
 
 $ACTION
@@ -1567,3 +1569,13 @@ Local Char    LITMPADRE(50),LDTOPADRE(50)
   Close Local File [ZSOQ0],[ZSOP0],[ZSOQ1],[ZSOP1]
 
 Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH4) 22/06/2026 10:49:59 (ADMIN)
+#  @14@ - EQM INI
+######################################################################################
+Subprog AP_WALLQTY(VALEUR)
+Variable Decimal VALEUR
+
+
+#  @14@ - EQM FIN
+######################################################################################

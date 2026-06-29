@@ -137,6 +137,690 @@ End
 
 ##############################################################
 #**
+#* comprueba si una factura es proforma
+#*
+#* @param P_NUM > número de factura
+#* @param P_TYP > SIH/PIH (cliente/proveedor)
+#*!
+Funprog ES_PROFORMA(P_NUM,P_TYP)
+Value Char P_NUM, P_TYP
+
+Local Integer WSTATUS   : WSTATUS = [V]CST_AOK
+
+  Case P_TYP
+    When "SIH"
+      If !clalev([F:ZSIH]) Then : Local File SINVOICE [F:ZSIH] : Endif
+      Read [F:ZSIH]SIH0 = P_NUM
+      If !fstat Then
+        If [F:ZSIH]INVTYP = 5 Then
+          WSTATUS = [V]CST_AOK
+        Else
+          WSTATUS = [V]CST_AERROR
+        Endif
+      Else
+        WSTATUS = [V]CST_AERROR
+      Endif
+      Close Local File [ZSIH]
+    When "PIH"
+      If !clalev([F:ZPIH]) Then : Local File PINVOICE [F:ZPIH] : Endif
+      Read [F:ZPIH]PIH0 = P_NUM
+      If !fstat Then
+        If [F:ZPIH]INVTYP = 5 Then
+          WSTATUS = [V]CST_AOK
+        Else
+          WSTATUS = [V]CST_AERROR
+        Endif
+      Else
+        WSTATUS = [V]CST_AERROR
+      Endif
+      Close Local File [ZPIH]
+    When Default
+  Endcase
+
+End WSTATUS
+
+##############################################################
+#**
+#* Crea un nuevo registro de comentario
+#*
+#* @param PABRFIC
+#* @param PTEXTE
+#*!
+Funprog F_CRELOB(PABRFIC,PTEXTE)
+Value Char PABRFIC
+Value Char PTEXTE
+
+Local   Char    XXRTFTXT(250)(3)
+Local   Char    X_RET(50)
+Local   Integer XXOK
+Local   Char    XCHAMPLIEN(50) : XCHAMPLIEN = 'YYYY'
+Global  Char    YYYY(50) : YYYY = PABRFIC
+Local   Clbfile WWCLOB
+
+  [L]XXRTFTXT(0) = "{\rtf1\ansi\ansicpg1252\deff0\deflang1033{\fonttbl{\f0\fswiss\fprq2\fcharset0 MS Sans Serif;}}\viewkind4\uc1\pard\f0\fs17 "
+  [L]XXRTFTXT(1) = PTEXTE
+  [L]XXRTFTXT(2) = "\par}"
+
+  Local Mask ACLOB [M:ACL]
+  Setlob [L]WWCLOB With [L]XXRTFTXT
+  [M:ACL]CLOB = [L]WWCLOB
+  Call CRE_CLOB_ACL([L]XCHAMPLIEN,[L]XXOK) From TRTX3TEX
+  Close Local Mask [M:ACL]
+  [L]X_RET = [V]YYYY
+  Kill [V]YYYY
+
+End [L]X_RET
+
+#### funcion para transformar rtf en txt
+Funprog F_RTF2TEXT(CLOB)
+Variable Clbfile CLOB
+  Local Integer LENTXMT : LENTXMT = 250
+  Local Integer NRIGHE : NRIGHE = 4 # 4 = 250x4 char
+  Local Char XOUT(LENTXMT)(NRIGHE)
+  Call S_RTF2TEXT(LENTXMT,CLOB,XOUT,NRIGHE)
+  #Concatenate the row with plain text, by removing the empty space
+  Local Char XRET(250) : Raz XRET
+  For XI = 0 To NRIGHE
+    XRET += vireblc(XOUT(XI),2)
+  Next
+End XRET
+
+###############################################################################
+#                            CORE PROCEDURES subprog convert clob RTF to txt
+#
+###############################################################################
+Subprog S_RTF2TEXT(PLENRIGAOUT,CLOB,PTXTOUT,PNRIGEOUT)
+Value Integer PLENRIGAOUT
+Variable Clbfile CLOB
+Variable Char PTXTOUT
+Variable Integer PNRIGEOUT
+
+    Local Integer XRIGHE
+    Local Integer XNOL
+    Local Integer XNCH
+    Local Char XCH(1)
+    Local Char XCHPREV(1)
+    Local Integer XSTRTAG1 : XSTRTAG1 = 0
+    Local Integer XSTRTAG2 : XSTRTAG2 = 0
+
+    Local Integer LENGHT : LENGHT = len(CLOB)
+    Local Integer CLOTAI : CLOTAI = int(LENGHT/GCLOLNG)+1
+
+    Local  Char    PRTFIN   (GCLOLNG)(CLOTAI)
+
+    Setlob PRTFIN With CLOB
+
+
+    XRIGHE = dim(PRTFIN,1)
+
+    Local Char XOUT(250)(XRIGHE)
+    Local Integer XOUTRLEN(XRIGHE)
+    Local Char RIGA(250)
+    Local Integer XESCAPE
+
+    For XNOL = 0 To XRIGHE - 1
+        Raz RIGA
+        RIGA = PRTFIN(XNOL)
+        XOUTRLEN(XNOL) = 0
+        For XNCH = 1 To len(RIGA)
+            XCHPREV = XCH
+
+            XCH = mid$(RIGA,XNCH,1)
+            If XCH = "\" Then
+                XESCAPE = -1
+                If func F_GETNEXTCHR(PRTFIN,1,XNCH,XNOL,XRIGHE)= "}" Then
+                    XCHPREV = XCH
+                    XNCH = XNCH + 1
+                    XCH = "}"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,1,XNCH,XNOL,XRIGHE)= "{" Then
+                    XCHPREV = XCH
+                    XNCH = XNCH + 1
+                    XCH = "{"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,4,XNCH,XNOL,XRIGHE)= "pard" Then
+                    XNCH = XNCH + 4
+                    XCH = " "
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "par" Then
+                    XNCH = XNCH + 3
+                    XCH = " "
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'e0" Then
+                    XNCH = XNCH + 3
+                    XCH = "a"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'e9" Then
+                    XNCH = XNCH + 3
+                    XCH = "e"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'e8" Then
+                    XNCH = XNCH + 3
+                    XCH = "e"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'b0" Then
+                    XNCH = XNCH + 3
+                    XCH = "°"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'ec" Then
+                    XNCH = XNCH + 3
+                    XCH = "i"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'f2" Then
+                    XNCH = XNCH + 3
+                    XCH = "o"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,3,XNCH,XNOL,XRIGHE)= "'f9" Then
+                    XNCH = XNCH + 3
+                    XCH = "u"
+                    XESCAPE = 1
+                Endif
+                If func F_GETNEXTCHR(PRTFIN,2,XNCH,XNOL,XRIGHE)= "fs" Then   #Font size
+                    XNCH = XNCH + 2
+                    XCH = ""
+                    XESCAPE = -1
+                Endif
+                If XESCAPE = -1 Then
+                        XSTRTAG1 = 1
+                        XNCH = XNCH + 1
+                Endif
+
+            Endif
+
+            If XCH = "{" and XCHPREV <> "\" Then XSTRTAG2 = XSTRTAG2 + 1 : Endif
+
+            If XSTRTAG1 = 0 and XSTRTAG2 <= 1  Then
+                XOUT(XNOL) += XCH
+                XOUTRLEN(XNOL) += 1
+            Endif
+            If XCH = " " or find(func F_GETNEXTCHR(PRTFIN,2,XNCH-1,XNOL,XRIGHE) ,'\}','\{','\\') > 0 Then XSTRTAG1 = 0 : Endif
+            If XCH = "}" and XCHPREV <> "\" Then XSTRTAG2 = XSTRTAG2 - 1 : Endif
+        Next
+    Next
+
+
+    Local Integer XNOL2
+    Local Integer XCONTA2
+
+    XNOL2 = 0
+    XCONTA2 = PLENRIGAOUT
+    For XNOL = 0 To XRIGHE - 1
+        Raz RIGA
+        RIGA = XOUT(XNOL)
+        If XNOL = XRIGHE : RIGA = vireblc(RIGA,1) : Endif
+        If len(RIGA) > 0 Then
+            For XNCH = 1 To len(RIGA)
+                XCH = mid$(RIGA,XNCH,1)
+                If XCH = chr$(13) Then
+                    XCH = " "
+                    If func F_GETNEXTCHR(XOUT,1,XNCH,XNOL,XRIGHE)= chr$(10) Then
+                        XNCH = XNCH + 1
+                    Endif
+                Endif
+                If XCH = chr$(10) Then
+                    XCH = " "
+                    If func F_GETNEXTCHR(XOUT,1,XNCH,XNOL,XRIGHE)= chr$(13) Then
+                        XNCH = XNCH + 1
+                    Endif
+                Endif
+                If XNCH = 1 and XNOL = 0 and XCH = "{" Then XCH = "" : Endif
+                PNRIGEOUT = XNOL2 + 1
+                PTXTOUT(XNOL2) += XCH
+                XCONTA2 = XCONTA2 - 1
+                If XCONTA2 = 0 Then
+                    XNOL2 = XNOL2 + 1
+                    XCONTA2 = PLENRIGAOUT
+                Endif
+            Next
+        Endif
+    Next
+
+    #tolgo la graffa finale
+    RIGA = vireblc(PTXTOUT(XNOL2),1)
+    If mid$(RIGA,len(RIGA),1) = "}" Then
+        PTXTOUT(XNOL2) =  mid$(RIGA,1,len(RIGA)-1)
+    Endif
+
+
+End
+
+#############################################################
+Funprog F_GETNEXTCHR(PARRIN,NCHNEXT,NCURPOS,NCURNOL,NTOTRIGHE)
+Value Char PARRIN
+Value Integer NCHNEXT
+Value Integer NCURPOS
+Value Integer NCURNOL
+Value Integer NTOTRIGHE
+
+    Local Char XRET(NCHNEXT) : XRET = ""
+
+    Local Integer XNCH
+    Local Char RIGA(250)
+    Local Integer XCONTA
+
+    For XNOL = NCURNOL To NTOTRIGHE - 1
+        RIGA = PARRIN(NCURNOL)
+        For XNCH = NCURPOS + 1 To len(RIGA) - 1
+            XRET += mid$(RIGA,XNCH,1)
+            XCONTA += 1
+            If XCONTA = NCHNEXT Then
+                Break
+            Endif
+        Next
+        If XCONTA = NCHNEXT Then
+            Break
+        Endif
+        NCURPOS = 0
+    Next
+End XRET
+
+#############################################################
+#funcion convierte html en txt
+Funprog HTMLTOTXT(CADTXT)
+Value Char CADTXT
+
+    Local Integer I
+    Local Integer INTAG : INTAG = 0
+    Local Integer POS : POS = 1
+    Local Char CAR(1)
+    Local Char WRES(250) : WRES = ""
+
+    For I = 1 To len(CADTXT)
+        CAR = mid$(CADTXT, I, 1)
+
+        If CAR = "<"
+            INTAG = 1
+        Elsif CAR = ">"
+            INTAG = 0
+        Elsif INTAG = 0
+            If POS <= 250
+                WRES += CAR
+                POS += 1
+            Endif
+        Endif
+    Next I
+
+If instr(1,WRES,"&") > 0
+            #Estos caracteres especiales no pueden formar parte del contenido de una etiqueta
+# Paso 1: Proteger las entidades válidas
+WRES = func REPLACE(WRES, "&nbsp;", "#NBSP#")
+WRES = func REPLACE(WRES, "&lt;",   "#LT#")
+WRES = func REPLACE(WRES, "&gt;",   "#GT#")
+WRES = func REPLACE(WRES, "&quot;", "#QUOT#")
+WRES = func REPLACE(WRES, "&apos;", "#APOS#")
+WRES = func REPLACE(WRES, "&amp;",  "#AMP#")
+
+# Paso 2: Escapar caracteres peligrosos
+WRES = func REPLACE(WRES, chr$(38), "&amp;")    # &
+WRES = func REPLACE(WRES, chr$(60), "&lt;")     # <
+WRES = func REPLACE(WRES, chr$(62), "&gt;")     # >
+WRES = func REPLACE(WRES, chr$(34), "&quot;")   # "
+WRES = func REPLACE(WRES, chr$(39), "&apos;")   # '
+
+# Paso 3: Restaurar entidades válidas (o eliminarlas si no las quieres)
+WRES = func REPLACE(WRES, "#NBSP#", "")        # Elimina el &nbsp;
+WRES = func REPLACE(WRES, "#LT#",   "&lt;")
+WRES = func REPLACE(WRES, "#GT#",   "&gt;")
+WRES = func REPLACE(WRES, "#QUOT#", "&quot;")
+WRES = func REPLACE(WRES, "#APOS#", "&apos;")
+WRES = func REPLACE(WRES, "#AMP#",  "&amp;")
+
+
+Endif
+
+#Infbox WRES
+    If len(WRES) > 250
+        WRES = left$(WRES, 250)
+    Endif
+
+End WRES
+
+##############################################################
+#**
+#* Busca documento orien
+#*
+#* @param P_NUM > número de factura
+#* @param P_TYP > 1/2 (cliente/proveedor)
+#*!
+Funprog ES_ORIGEN(P_NUM,P_TYP)
+Value Char P_NUM
+Value Integer P_TYP
+
+Local Char ZORIGEN(45)
+  Case num$(P_TYP)
+    When "1"
+      If !clalev([F:ZSIH]) Then : Local File SINVOICE [F:ZSIH] : Endif
+      Read [F:ZSIH]SIH0 = P_NUM
+      If !fstat Then
+          ZORIGEN = [F:ZSIH]DES(0)
+      Else
+          ZORIGEN = ""
+      Endif
+      Close Local File [ZSIH]
+    When "2"
+      If !clalev([F:ZPIH]) Then : Local File PINVOICE [F:ZPIH] : Endif
+      Read [F:ZPIH]PIH0 = P_NUM
+      If !fstat Then
+          ZORIGEN = [F:ZPIH]BPRVCR
+      Else
+          ZORIGEN = ""
+      Endif
+      Close Local File [ZPIH]
+    When Default
+  Endcase
+
+End ZORIGEN
+
+#######################
+#**
+#* convierte divisas
+#*
+#* @param PDIVISAORI  > divisa origen
+#* @param PDIVISADES  > divisa destino
+#* @param PCANTIDAD   > cantidad a cambiar
+#* @param PTIPO       > tipo de cambio (1=cambio día; 2=cambio mes; 3=cambio medio; 4=cambio DEB)
+#* @param PCAMBIO     > valor del cambio
+#*!
+Subprog CONVERTDIV(PDIVISAORI,PDIVISADES,PCANTIDAD,PTIPO,PCAMBIO)
+Value     Char    PDIVISAORI
+Value     Char    PDIVISADES
+Value     Decimal PCANTIDAD
+Value     Integer PTIPO
+Variable  Decimal PCAMBIO
+
+  If PDIVISAORI = PDIVISADES Then
+    PCAMBIO = PCANTIDAD
+    End
+  Endif
+
+  If !clalev([F:TCH0]) Then : Local File TABCHANGE  [F:TCH0] : Endif
+
+  Filter [F:TCH0] Where CHGTYP = PTIPO and CURDEN = PDIVISADES and CUR = PDIVISAORI and date$ >= CHGSTRDAT Order By CHGSTRDAT Desc
+  Read [F:TCH0] First
+  If !fstat Then
+    PCAMBIO = (PCANTIDAD * [F:TCH0]CHGRAT)
+  Endif
+  Filter [F:TCH0]
+  If  clalev([F:TCH0]) Then : Close Local File      [F:TCH0] : Endif
+
+End
+
+#######################
+#**
+#* convierte divisas en una fecha
+#*
+#* @param PDIVISAORI  > divisa origen
+#* @param PDIVISADES  > divisa destino
+#* @param PCANTIDAD   > cantidad a cambiar
+#* @param PTIPO       > tipo de cambio (1=cambio día; 2=cambio mes; 3=cambio medio; 4=cambio DEB)
+#* @param PCAMBIO     > valor del cambio
+#*!
+Subprog CONVERTDIV_DATE(PDIVISAORI,PDIVISADES,PCANTIDAD,PTIPO,PDATE,PCAMBIO)
+Value     Char    PDIVISAORI
+Value     Char    PDIVISADES
+Value     Decimal PCANTIDAD
+Value     Integer PTIPO
+Value     Date    PDATE
+Variable  Decimal PCAMBIO
+
+  If PDIVISAORI = PDIVISADES Then
+    PCAMBIO = PCANTIDAD
+    End
+  Endif
+
+  If !clalev([F:TCH0]) Then : Local File TABCHANGE  [F:TCH0] : Endif
+
+  Filter [F:TCH0] Where CHGTYP = PTIPO and CURDEN = PDIVISADES and CUR = PDIVISAORI and PDATE >= CHGSTRDAT Order By CHGSTRDAT Desc
+  Read [F:TCH0] First
+  If !fstat Then
+    PCAMBIO = (PCANTIDAD * [F:TCH0]CHGRAT)
+  Endif
+  Filter [F:TCH0]
+  If  clalev([F:TCH0]) Then : Close Local File      [F:TCH0] : Endif
+
+End
+
+#######################
+#**
+#* convierte divisas en una fecha
+#*
+#* @param PDIVISAORI  > divisa origen
+#* @param PDIVISADES  > divisa destino
+#* @param PCANTIDAD   > cantidad a cambiar
+#* @param PTIPO       > tipo de cambio (1=cambio día; 2=cambio mes; 3=cambio medio; 4=cambio DEB)
+#* @param PDATE       > fecha
+#*!
+Funprog CONVERTDIV_DATE_F(PDIVISAORI,PDIVISADES,PCANTIDAD,PTIPO,PDATE)
+Value     Char    PDIVISAORI
+Value     Char    PDIVISADES
+Value     Decimal PCANTIDAD
+Value     Integer PTIPO
+Value     Date    PDATE
+
+Local     Decimal LRET
+
+  If PDIVISAORI = PDIVISADES Then
+    LRET = PCANTIDAD
+    End LRET
+  Endif
+
+  If !clalev([F:TCH0]) Then : Local File TABCHANGE  [F:TCH0] : Endif
+
+  Filter [F:TCH0] Where CHGTYP = PTIPO and CURDEN = PDIVISADES and CUR = PDIVISAORI and PDATE >= CHGSTRDAT Order By CHGSTRDAT Desc
+  Read [F:TCH0] First
+  If !fstat Then
+    LRET = (PCANTIDAD * [F:TCH0]CHGRAT)
+  Endif
+  Filter [F:TCH0]
+  If  clalev([F:TCH0]) Then : Close Local File      [F:TCH0] : Endif
+
+End LRET
+
+##############################################################
+#**
+#* devuelve el número de pedido asociado a una factura
+#*
+#* @param PNUM > factura
+#*!
+Funprog GETSOHNUM(PNUM)
+Value Char PNUM
+
+Local Char LRET(50)
+
+  If !clalev([F:ZSIV]) Then : Local File SINVOICEV  [F:ZSIV] : Endif
+  If !clalev([F:ZSDH]) Then : Local File SDELIVERY  [F:ZSDH] : Endif
+  Read [F:ZSIV]SIV0 = PNUM
+  If !fstat Then
+    If [F:ZSIV]SIHORI = 2 Then
+      [L]LRET = [F:ZSIV]SIHORINUM
+    Elsif [F:ZSIV]SIHORI = 3 Then
+      Read [F:ZSDH]SDH0 = [F:ZSIV]SIHORINUM
+      If !fstat Then
+        [L]LRET = [F:ZSDH]SOHNUM
+      Endif
+    Endif
+  Endif
+  Close Local File [ZSIV],[ZSDH]
+End LRET
+
+##############################################################
+#**
+#* devuelve el tipo de pedido asociado a una factura
+#*
+#* @param PNUM > factura
+#*!
+Funprog GETSOHTYP(PNUM)
+Value Char PNUM
+
+Local Char LRET(50)
+
+  If !clalev([F:ZSIV]) Then : Local File SINVOICEV  [F:ZSIV] : Endif
+  If !clalev([F:ZSDH]) Then : Local File SDELIVERY  [F:ZSDH] : Endif
+  If !clalev([F:ZSOH]) Then : Local File SORDER     [F:ZSOH] : Endif
+  Read [F:ZSIV]SIV0 = PNUM
+  If !fstat Then
+    If [F:ZSIV]SIHORI = 2 Then
+      Read [F:ZSOH]SOH0 = [F:ZSIV]SIHORINUM
+      If !fstat Then
+        [L]LRET = [F:ZSOH]SOHTYP
+      Endif
+    Elsif [F:ZSIV]SIHORI = 3 Then
+      Read [F:ZSDH]SDH0 = [F:ZSIV]SIHORINUM
+      If !fstat Then
+        Read [F:ZSOH]SOH0 = [F:ZSDH]SOHNUM
+        If !fstat Then
+          [L]LRET = [F:ZSOH]SOHTYP
+        Endif
+      Endif
+    Endif
+  Endif
+  Close Local File [ZSIV],[ZSDH],[ZSOH]
+End LRET
+
+##############################################################
+Funprog GET_ATEXTRA(PCODFIC,PZONE,PIDENT1,PIDENT2)
+Value Char PCODFIC,PZONE,PIDENT1,PIDENT2
+
+Local Char LRET(250)
+
+Call LECTEXTRA(LRET,PCODFIC,PZONE,PIDENT1,PIDENT2) From ATEXTRA
+
+End LRET
+
+##############################################################
+#**
+#* devuelve el PMP
+#*
+#* @param PITMREF > artículo
+#* @param PSTOFCY > planta
+#*!
+Funprog GET_AVC(PITMREF,PSTOFCY)
+Value Char PITMREF,PSTOFCY
+
+Local Decimal LRET
+
+  If !clalev([F:ZITV]) Then : Local File ITMMVT [F:ZITV] : Endif
+  Read [F:ZITV]ITV0 = PITMREF;PSTOFCY
+  If !fstat Then
+    [L]LRET =  [F:ZITV]AVC
+  Endif
+  Close Local File [ZITV]
+End LRET
+
+#############################################
+#**
+#* Proceso encargado de integrar un registro a traves de un modelo de importación.
+#*
+#* @param PTRA  > indica si hay lectura de traza (read=lee traza ; no read=no lee traza)
+#* @param PMOD  > modelo a tratar
+#* @param PFILE > fichero a importar
+#* @param PRTN  > control en el proceso (0=OK ; 1=ERROR)
+#* @param PCTR  > número de traza
+#* @param PNER  > mensaje de error en la traza
+#*!
+Subprog IMP_MODEL(PTRA,PMOD,PFILE,PRTN,PCTR,PNER)
+Value     Char    PTRA
+Value     Char    PMOD
+Value     Char    PFILE
+Variable  Integer PRTN
+Variable  Char    PCTR
+Variable  Integer PNER
+
+Local File AOBJEXT    [AOE]
+Local File AOBJEXTD   [AOD]
+Local File AOBJET     [ZAOB]
+Local File ADOVAL     [ADW]
+Local File ATYPE      [ZATY]
+Local File AMSK       [ZAMK]
+Local File AMSKZON    [ZAMZ]
+Local File ATABLE     [ZATB]
+Local File ATABZON    [ZATZ]
+Local File ATABIND    [ZATI]
+Local File AFONCTION  [ZAFC]
+Local File APARIMPEXP [APX]
+Local Mask AOE0       [AOE0]
+Local Mask AOE1       [AOE1]
+Local Mask AOE2       [AOE2]
+Local Mask IMPTEST    [IEX]
+Local Mask IMPENCH    [DIA]
+Local Mask IMPOBJ2    [IMP2]
+
+  PRTN = 0
+
+  mkstat = 0 : fstat = 0 : GERRTRACE = 0
+
+  # Lanzamiento de la importación silenciosa
+  If GSERVEUR <> 1 Then
+    Call OUVRE_TRACE("Importación estandar") From LECFIC
+  Endif
+  Call IMPORTSIL(PMOD,PFILE) From GIMPOBJ
+  If GSERVEUR <> 1 Then
+    Call FERME_TRACE From LECFIC
+  Endif
+
+
+  # En caso de error...
+  If (fstat <> 0 and fstat <> 4) or GERRTRACE <> 0 Then
+    PCTR = GTRACE
+    PNER = GERRTRACE
+    PRTN = 1
+  Endif
+
+  If PTRA = "read" Then
+    Call LEC_TRACE From LECFIC
+  Endif
+
+  mkstat = 0 : fstat = 0 : GERRTRACE = 0 : GOK = 1
+
+  Close Local File [AOE],[AOD],[ZAOB],[ADW],[ZATY],[ZAMK],[ZAMZ],[ZATB],[ZATZ],[ZATI],[ZAFC],[APX]
+  Close Local Mask [AOE0],[AOE1],[AOE2],[IEX],[DIA],[IMP2]
+
+End
+
+#############################################
+#**
+#* devuelve la fecha del año anterior desde el mes anterior (si PFECHA=13/05/2026, devuelve 01/04/2025)
+#*
+#* @param PFECHA
+#*!
+Funprog GET_FECHAMENOS12ANT(PFECHA)
+Value Date PFECHA
+
+Local Date FECHA_REF,FECHA_FINAL
+
+  [L]FECHA_REF    = addmonth(eomonth(addmonth(PFECHA, -1)), -12)
+  [L]FECHA_FINAL  = gdat$(1, month(FECHA_REF), year(FECHA_REF))
+
+End FECHA_FINAL
+
+#############################################
+#**
+#*
+#*
+#* @param PFONCTION > función
+#*!
+Funprog PANTALLA_LINEAS(PFONCTION)
+Value Char PFONCTION
+
+Local Char LRET(250)
+  Case PFONCTION
+    When "GESSQH" : LRET = "[F:ITM]TSICOD(2)=left$([M:SQH2]ITMREF(nolign-1),5)"
+    When "GESSOH" : LRET = "[F:ITM]TSICOD(2)=left$([M:SOH4]ITMREF(nolign-1),5)"
+  Endcase
+End LRET
+
+##############################################################
+#**
 #* comprueba si un documento está bloqueado
 #*
 #* @param PTYPE   > tipo de documento

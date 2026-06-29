@@ -1,12 +1,12 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 ############################################################################
-# Script name : ZENVFACPDFB2B
-# Description : Específico para generación de PDF y envío a FTP de facturas para B2B
+# Script name : ZENVENTPDFB2B
+# Description : Específico para generación de PDF y envío a FTP de entregas para B2B
 # Module      : Ventas
 # Version     : 1
 # Created by  : Jose Luis Chiva
 # Company     : Sanycces
-# Created date: 10/04/2026
+# Created date: 26/05/2026
 ############################################################################
 
 Gosub INIT
@@ -34,16 +34,16 @@ Return
 ##############################################################
 $INIT
 # variables locales
-Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '01/04/2026'
-Local   Char  LFECHALIMITEEND(10) : [L]LFECHALIMITEEND = '30/04/2026'
+Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '01/03/2026'
+Local   Char  LFECHALIMITEEND(10) : [L]LFECHALIMITEEND = '31/05/2026'
 Local   Char  LCRIT(250)
 Local   Date  LFECHAINI,LFECHAFIN
-Local   Char  TBPAR(20)(1..13)
-Local   Char  TBVAL(20)(1..13)
+Local   Char  TBPAR(20)(1..17)
+Local   Char  TBVAL(20)(1..17)
 Local   Char  LFILE(200)
 # variables globales
-Global  Char  GNUMFACB2B(50)
-Global  Char  GPATHFACB2B(50)
+Global  Char  GNUMENTB2B(50)
+Global  Char  GPATHENTB2B(50)
 # variables de conexión al FTP
 ################################    OJO.ini   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
 Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
@@ -51,28 +51,28 @@ Local Char    PORT(100)       : PORT      = '2221'
 Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
 Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
 Local Char    FTPFOLDER(100)  : FTPFOLDER = 'TEST_IMPORT/PDF'
-Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
-Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS\FACTURASPDF','','')
+Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
+Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS\ENTREGASPDF','','')
 Local Char    LINDEX(100)
 Local Char    LFORMATO(100)   : LFORMATO  = 'pdf'
 Local Integer RESULT
-Local Char    LBUCKET(100)    : LBUCKET   = 'facturasany'
+Local Char    LBUCKET(100)    : LBUCKET   = 'entregasany'
 Local Char    LREGION(100)    : LREGION   = 'eu-west-2'
 Local Char    LBASEURL(100)   : LBASEURL  = ''
 ################################    OJO.fin   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
 
   Raz TBPAR, TBVAL
 
-  [V]GPATHFACB2B = filpath("","","") + "\B2B\FTP\"
+  [V]GPATHENTB2B = filpath("","","") + "\FTP\B2B\"
 
   [L]LFECHAINI  = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
   [L]LFECHAFIN  = gdat$(val(mid$([L]LFECHALIMITEEND,1,2)),val(mid$([L]LFECHALIMITEEND,4,2)),val(mid$([L]LFECHALIMITEEND,7,4)))
 
-  [L]LCRIT =  "ZURLPDFB2B='' and TIPOFAC=1 and ESTADOFAC=3 and ZUSUARIOB2B <> '' and " +
+  [L]LCRIT =  "ZURLPDFB2B='' and CATEGORIA=1 and VALIDADA=2 and ZUSUARIOB2B <> '' and " +
 &             "FECHA>=[" + format$(GFMD,[L]LFECHAINI) + "] and FECHA<=[" + format$(GFMD,[L]LFECHAFIN) + "]"
 
-  If !clalev([F:ZVFB]) Then : Local File ZVFACTURAB2B [F:ZVFB] : Endif
-  If !clalev([F:ZSIH]) Then : Local File SINVOICE     [F:ZSIH] : Endif
+  If !clalev([F:ZVEB]) Then : Local File ZVENTREGAB2B [F:ZVEB] : Endif
+  If !clalev([F:ZSDH]) Then : Local File SDELIVERY    [F:ZSDH] : Endif
 Return
 
 ##############################################################
@@ -81,14 +81,14 @@ Return
 
 ##############################################################
 $EXEC
-  Gosub IMPRIME_FACTURA
+  Gosub IMPRIME_ENTREGA
 Return
 
 ##############################################################
 $FIN
-  Close Local File [ZVFB],[ZSIH]
-  If dim([V]GNUMFACB2B)   > 0 Then : Kill [V]GNUMFACB2B   : Endif
-  If dim([V]GPATHFACB2B)  > 0 Then : Kill [V]GPATHFACB2B  : Endif
+  Close Local File [ZVEB],[ZSDH]
+  If dim([V]GNUMEBTB2B)   > 0 Then : Kill [V]GNUMENTB2B   : Endif
+  If dim([V]GPATHENTB2B)  > 0 Then : Kill [V]GPATHENTB2B  : Endif
   FIN=1
 Return
 
@@ -96,29 +96,34 @@ Return
 ######################    ETIQUETAS    #######################
 ##############################################################
 ##############################################################
-$IMPRIME_FACTURA
-  Filter [F:ZVFB] Where evalue([L]LCRIT)
-  For [F:ZVFB]
-    [V]GNUMFACB2B = [F:ZVFB]FACTURA
-    # parámetros de la factura
-    TBPAR(1)  = "siteini"         : TBVAL(1)  = [F:ZVFB]PLANTA
-    TBPAR(2)  = "sitedeb"         : TBVAL(2)  = [F:ZVFB]PLANTA
-    TBPAR(3)  = "factureini"      : TBVAL(3)  = [F:ZVFB]FACTURA
-    TBPAR(4)  = "facturedeb"      : TBVAL(4)  = [F:ZVFB]FACTURA
-    TBPAR(5)  = "typeini"         : TBVAL(5)  = num$([F:ZVFB]TIPOFAC)
-    TBPAR(6)  = "typedeb"         : TBVAL(6)  = num$([F:ZVFB]TIPOFAC)
-    TBPAR(7)  = "clientini"       : TBVAL(7)  = [F:ZVFB]CLIENTE_SAGE
-    TBPAR(8)  = "clientdeb"       : TBVAL(8)  = [F:ZVFB]CLIENTE_SAGE
-    TBPAR(9)  = "dateini"         : TBVAL(9)  = [F:ZVFB]FECHA
-    TBPAR(10) = "datedeb"         : TBVAL(10) = [F:ZVFB]FECHA
-    TBPAR(11) = "codimp"          : TBVAL(11) = num$([F:ZVFB]IMPRESION)
-    TBPAR(12) = "impselections"   : TBVAL(12) = "1"
-    TBPAR(13) = "duplicata"       : TBVAL(13) = "1"
+$IMPRIME_ENTREGA
+  Filter [F:ZVEB] Where evalue([L]LCRIT)
+  For [F:ZVEB]
+    [V]GNUMENTB2B = [F:ZVEB]ENTREGA
+
+    # parámetros de la entrega
+    TBPAR(1)  = "sitedeb"         : TBVAL(1)  = [F:ZVEB]PLANTA
+    TBPAR(2)  = "sitefin"         : TBVAL(2)  = [F:ZVEB]PLANTA
+    TBPAR(3)  = "livraisondeb"    : TBVAL(3)  = [F:ZVEB]ENTREGA
+    TBPAR(4)  = "livraisonfin"    : TBVAL(4)  = [F:ZVEB]ENTREGA
+    TBPAR(5)  = "clientdeb"       : TBVAL(5)  = [F:ZVEB]CLIENTE_SAGE
+    TBPAR(6)  = "clientfin"       : TBVAL(6)  = [F:ZVEB]CLIENTE_SAGE
+    TBPAR(7)  = "datedeb"         : TBVAL(7)  = [F:ZVEB]FECHA
+    TBPAR(8)  = "datefin"         : TBVAL(8)  = [F:ZVEB]FECHA
+    TBPAR(9)  = "typedeb"         : TBVAL(9)  = num$([F:ZVEB]TIPOENT)
+    TBPAR(10) = "typefin"         : TBVAL(10) = num$([F:ZVEB]TIPOENT)
+    TBPAR(11) = "categlivdeb"     : TBVAL(11) = num$([F:ZVEB]CATEGORIA)
+    TBPAR(12) = "categlivfin"     : TBVAL(12) = num$([F:ZVEB]CATEGORIA)
+    TBPAR(13) = "valdeb"          : TBVAL(13) = num$([F:ZVEB]VALIDADA)
+    TBPAR(14) = "valfin"          : TBVAL(14) = num$([F:ZVEB]VALIDADA)
+    TBPAR(15) = "facdeb"          : TBVAL(15) = num$([F:ZVEB]FACTURADA)
+    TBPAR(16) = "facfin"          : TBVAL(16) = num$([F:ZVEB]FACTURADA)
+    TBPAR(17) = "codimp"          : TBVAL(17) = num$([F:ZVEB]IMPRESION)
 
     # lanza el informe
-    Call ETAT("Z-FACVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
+    Call ETAT("Z-ENTVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
 
-    Call ECR_TRACE("["+num$(datetime$)+"] - Generado el PDF de la factura"-[F:ZVFB]FACTURA,0) From GESECRAN
+    Call ECR_TRACE("["+num$(datetime$)+"] - Generado el PDF de la entrega"-[F:ZVEB]ENTREGA,0) From GESECRAN
 
     Sleep 15
 
@@ -128,23 +133,23 @@ $IMPRIME_FACTURA
     Sleep 1
 
   Next
-  Filter [F:ZVFB]
+  Filter [F:ZVEB]
 Return
 
 ##############################################################
 $ENVIA_PDF
 #  # envía el fichero al FTP
-  [L]LINDEX = [V]GNUMFACB2B
+  [L]LINDEX = [V]GNUMENTB2B
   Call FTPPUTMOV_B2B_WASABI(LBUCKET,LREGION,LPATH,LPATHDES,LINDEX,LFORMATO,LBASEURL,RESULT) From ZSANYFTP
 
   # actualiza el campo ZURLPDFB2B de la tabla SINVOICE
   If RESULT > 0
-    Call ECR_TRACE("["+num$(datetime$)+"] - Factura"-[F:ZVFB]FACTURA-"enviada al servidor FTP",0) From GESECRAN
-    Read [F:ZSIH]SIH0 = [L]LINDEX
+    Call ECR_TRACE("["+num$(datetime$)+"] - Entrega"-[F:ZVEB]ENTREGA-"enviada al servidor FTP",0) From GESECRAN
+    Read [F:ZSDH]SDH0 = [L]LINDEX
     If !fstat Then
-      [F:ZSIH]ZURLPDFB2B = "https://b2bsanyccesf.b-cdn.net/" + [L]LINDEX + ".pdf"
-      If !adxlog Then : Trbegin [F:ZSIH] : Endif
-      Rewrite [F:ZSIH]
+      [F:ZSDH]ZURLPDFB2B = "https://b2bsanyccesent.b-cdn.net/" + [L]LINDEX + ".pdf"
+      If !adxlog Then : Trbegin [F:ZSDH] : Endif
+      Rewrite [F:ZSDH]
       If !fstat Then
         Commit
       Else

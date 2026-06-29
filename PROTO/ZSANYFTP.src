@@ -4,8 +4,8 @@ Local Char    PORT(100)       : PORT      = '2221'
 Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
 Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
 Local Char    FTPFOLDER(100)  : FTPFOLDER = ''
-Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
-Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS','','')
+Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
 Local Char    LINDEX(100)     : LINDEX    = 'prueba1'
 Local Char    LFORMATO(10)    : LFORMATO  = 'csv'
 Local Integer RESULT

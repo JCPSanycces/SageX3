@@ -33,8 +33,8 @@ $INIT
   Local Char    PORT(100)       : PORT      = '2221'
   Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
   Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
-  Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
-  Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS','','')
+  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
   Local Char    FTPFOLDER(100)
   Local Char    LINDEX(100)
   Local Integer RESULT
@@ -81,8 +81,8 @@ Local     Char    LWEIGHT(250),LPRODUCTWEB(250),LCOLOR(250),LMANETA(250),LFLEXIB
     Call ECR_TRACE("Envío de artículos al B2B",0) From GESECRAN
   Endif
 
-  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
-  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LDIRIMPORT       = filpath("B2B\FTP","","")
+  [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
   [L]LCRITITM         = "1=1"
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
@@ -172,16 +172,16 @@ Local     Char    LCRITBPC(250)
 Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
-Local     Char    LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(250),LSTORE_ID(250),LCREATED_IN(250),LFIRSTNAME(250),LLASTNAME(250)
+Local     Char    LERPID(50),LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(250),LSTORE_ID(250),LCREATED_IN(250),LFIRSTNAME(250),LLASTNAME(250)
 Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBOTA(250),LPHONECOM(250),LWHATSAPPCOM(250),LRAZONSOCIAL(250)
 
   If GSERVEUR
     Call ECR_TRACE("Envío de clientes al B2B",0) From GESECRAN
   Endif
 
-  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
-  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
-  [L]LCRITBPC         = "CLIENTE_B2B<>''"
+  [L]LDIRIMPORT       = filpath("B2B\FTP","","")
+  [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
+  [L]LCRITBPC         = "1=1"
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "customers_" + LFECHA + "_" + LHORA
@@ -209,12 +209,13 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
 
 #  Filter [F:ZVBB] Where evalue([L]LCRITBPC) Order By ORDEN Asc
   Wrseq '"email","_website","_store","website_id","store_id","created_in","firstname","lastname","group_id","allow_login","approve_account",' +
-&       '"puede_rebotar_presupuestos","phonecomercial","whatsappcomercial","razonsocial"'
+&       '"puede_rebotar_presupuestos","phonecomercial","whatsappcomercial","razonsocial","erpid"'
 & Using [ZB2B]
 
   For [ZVBB]
 
-    [L]LEMAIL         = '"'+ctrans(vireblc('abc'+[F:ZVBB]EMAIL,2),'""','')+'"'
+    [L]LERPID         = '"'+ctrans(vireblc([F:ZVBB]ERPID,2),'""','')+'"'
+    [L]LEMAIL         = '"'+ctrans(vireblc([F:ZVBB]EMAIL,2),'""','')+'"'
     [L]LWEBSITE       = '"'+ctrans(vireblc([F:ZVBB]WEBSITE,2),'""','')+'"'
     [L]LSTORE         = '"'+ctrans(vireblc([F:ZVBB]STORE,2),'""','')+'"'
     [L]LWEBSITE_ID    = '"'+ctrans(vireblc([F:ZVBB]WEBSITE_ID,2),'""','')+'"'
@@ -233,7 +234,7 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
     # escribe los datos del cliente
     Wrseq [L]LEMAIL + [L]LSEP + [L]LWEBSITE + [L]LSEP + [L]LSTORE + [L]LSEP + [L]LWEBSITE_ID + [L]LSEP + [L]LSTORE_ID + [L]LSEP + [L]LCREATED_IN + [L]LSEP +
 &         [L]LFIRSTNAME + [L]LSEP + [L]LLASTNAME + [L]LSEP + [L]LGROUP_ID + [L]LSEP + [L]LALLOW_LOGIN + [L]LSEP + [L]LAPPROVE_ACC + [L]LSEP +
-&         [L]LPUEDE_REBOTA + [L]LSEP + [L]LPHONECOM + [L]LSEP + [L]LWHATSAPPCOM + [L]LSEP + [L]LRAZONSOCIAL
+&         [L]LPUEDE_REBOTA + [L]LSEP + [L]LPHONECOM + [L]LSEP + [L]LWHATSAPPCOM + [L]LSEP + [L]LRAZONSOCIAL + [L]LSEP + [L]LERPID
 &   Using [ZB2B]
 
     [L]LCONT += 1
@@ -281,9 +282,9 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
     Call ECR_TRACE("Envío de direcciones de clientes al B2B",0) From GESECRAN
   Endif
 
-  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
-  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
-  [L]LCRITBPA         = "CLIENTE_B2B<>''"
+  [L]LDIRIMPORT       = filpath("B2B\FTP","","")
+  [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
+  [L]LCRITBPA         = "1=1"
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
   [L]LINDEX           = "customeraddress_" + LFECHA + "_" + LHORA
@@ -381,8 +382,8 @@ Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
     Call ECR_TRACE("Envío de stocks al B2B",0) From GESECRAN
   Endif
 
-  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
-  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LDIRIMPORT       = filpath("B2B\FTP","","")
+  [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
   [L]LCRITSTK         = "1=1"
   [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
   [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
@@ -470,8 +471,8 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     Call ECR_TRACE("Envío de precios al B2B",0) From GESECRAN
   Endif
 
-  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
-  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LDIRIMPORT       = filpath("B2B\FTP","","")
+  [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
   [L]LCRITPRI         = "1=1"
   P_FTPFOLDER         = "customer_price_import/entrada"
   P_LPATHDES         += "\PRECIOS"
@@ -635,7 +636,6 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
       Endif
       [L]LDISCOUNTTYPE    = '"'+ctrans(vireblc([F:ZVPR]DISCOUNTTYPE,2),'""','')+'"'
       [L]LQTY             = '"'+ctrans(vireblc([F:ZVPR]QTY,2),'""','')+'"'
-#      LDESCRIPTION  = '"'+ctrans(vireblc([F:ZVPR]DESCRIPTION,2),'""','')+'"'
       If [F:ZVPR]DTO1 <> 0 Then
         If [L]LDESCRIPTION  = '' Then
           [L]LDESCRIPTION  += num$([F:ZVPR]DTO1) + '%'
