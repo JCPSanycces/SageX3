@@ -24,6 +24,9 @@
 #@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente
 #@10@: (Y119) NUN28 29-10-2024  Error en las cantidades del pedido al guardar y pone simepre la cantidad de la primera linea
 #@11@: (Y119) NUN28 16-10-2025  Modificar el campo fecha pedido para que indique la fecha de importación a SAGE
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+#@13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información
+# 2026-00027 - JCP.24042026.Pedido plataforma LM Italia que faltan algunas ref en pedido Sage
 ##-----------------------------------------------------------------------------------------------
 $ACTION
   #--
@@ -86,7 +89,6 @@ $OUVRE
   If !clalev([YBPDV]) : Local File BPDLVCUST [YBPDV] : Endif #@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente
   If !clalev([YBPAD]) : Local File BPADDRESS [YBPAD] : Endif #@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente
 
-
 Return
 
 #############################################################################
@@ -145,9 +147,12 @@ $LIENS
     Actzo [M:ZOCERESO]
   Endif
 
+
 #  #@01@ - Según la condición que se cumpla, la orden se queda en un estado u otro
-  If [F:ZOCTL]YINCIDENCIA < 5
-      For I=0 To [M:ZOCERESO]NBLIG3-1
+  #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+    If [F:ZOCTL]YINCIDENCIA < 6
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+    For I=0 To [M:ZOCERESO]NBLIG3-1
           If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
               [F:ZOCTL]YINCIDENCIA = 4
 #              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
@@ -195,6 +200,9 @@ $LIENS
       [F:ZOCSOH]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
       Rewrite [F:ZOCSOH]
   Endif
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
 
   Affzo [M:ZOCRECTL]
   Affzo [M:ZOCERESO]
@@ -213,6 +221,14 @@ $LIENS
       Endif
   Next
   #@01@ - Fin
+  #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  If func ZCHARGESERES.PEDIDO_DUPLICADO([M:ZOCERESO]BPCORD, [M:ZOCERE1C]C3, [M:ZOCERE1C]C20, [M:ZOCRECTL]CONTADOR) = 1
+    [F:ZOCTL]YINCIDENCIA = 5
+    [M:ZOCRECTL]YINCIDENCIA = 5
+    Affzo [M:ZOCRECTL]YINCIDENCIA
+  Endif
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
 Return
 
 
@@ -236,7 +252,10 @@ $SETBOUT
       Call VIREBOUT(CHAINE,"y") From GOBJET
   Endif
 
-  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=5
+ #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=5
+  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=6
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
       Call VIREBOUT(CHAINE,"y") From GOBJET
   Endif
   #@01@ - Fin
@@ -252,7 +271,10 @@ $EXEBOUT
   Case BOUT
       When "x"
           #@01@ - Impedimos la generación del pedido si el estado y las incidencias no son las correctas
-          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>5)
+          #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>5)
+          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>6)
+          #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
               Errbox "Imposible generar el pedido."+chr$(10)+"Revise el estado/indicencias del pedido." Titled "Error importación" Sleep 10
           Else
               Gosub CREAR_SOH
@@ -263,7 +285,11 @@ $EXEBOUT
       When "y"
           Call OUINON("¿Está seguro de resolver las incidencias?", [L]I_YN) From GESECRAN
           If [L]I_YN
-              [F:ZOCTL]YINCIDENCIA = 5
+              #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#              [F:ZOCTL]YINCIDENCIA = 5
+              [F:ZOCTL]YINCIDENCIA = 6
+              #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
               Rewrite [F:ZOCTL]
               [M:ZOCRECTL]YINCIDENCIA = [F:ZOCTL]YINCIDENCIA
               Affzo [M:ZOCRECTL]
@@ -298,9 +324,6 @@ Return
 #@03@: (Y119) NUN14 30-04-2024 - INI
 
 $GUARDAR
-If GUSER = 'NUN28'
-  Infbox "GUARDAR"
-Endif
   #--
   Delete [F:ZOCSOH] Where CONTADOR = [M:ZOCRECTL]CONTADOR
   Delete [F:ZOCSOQ] Where CONTADOR = [M:ZOCRECTL]CONTADOR
@@ -309,9 +332,6 @@ Endif
   [F:ZOCSOH]CONTADOR = [F:ZOCTL]CONTADOR
   [F:ZOCSOH] = [M:ZOCERESO]
   Write [F:ZOCSOH]
-  If GUSER = 'NUN28'
-    Infbox "Write [F:ZOCSOH] " - [F:ZOCSOQ]ITMREF
-  Endif
   #--
   For I = 0 To [M:ZOCERESO]NBLIG3 - 1
     Raz [F:ZOCSOQ]
@@ -334,9 +354,6 @@ Endif
     [F:ZOCSOQ]SOHLIN = [M:ZOCERESO]SOHLIN(I)
     nolign += 1
     Write [F:ZOCSOQ]
-    If GUSER = 'NUN28'
-      Infbox "Write 2" - [F:ZOCSOQ]ITMREF - num$([F:ZOCSOQ]QTY)
-    Endif
   Next
 #@02@: (Y119) NUN14 12-03-2024 - INI
 
@@ -591,8 +608,7 @@ $CARGA_SOH_R
       [M:ZOCERESO]DTO2S(I)   = [L]AF_DESC(1)
       [M:ZOCERESO]DTO3S(I)   = [L]AF_DESC(2)
   Next
-#**@deprecated
-#*!
+
   If [M:ZOCRECTL]SOHNUM<>"" Then
     Chgstl [M:ZOCRECTL]SOHNUM With "MTC2"
     [M:ZOCERESO]SOHNUM = [M:ZOCRECTL]SOHNUM : Affzo [M:ZOCERESO]SOHNUM
@@ -689,6 +705,7 @@ $CREAR_SOH
   Local Char    SAU(3)         (0..100)
   Local Decimal QTY            (0..100)
   Local Decimal GROPRI         (0..100)
+  Local Char    LYITMCOMP(50)  (0..100)               # 2026-00027.new
   # incidencia indice maximo 10-09-24 - FIN
 
   Local Integer YERR : YERR = 0
@@ -699,14 +716,22 @@ $CREAR_SOH
     SAU(I)    = [M:ZOCERESO]SAU(I)
     QTY(I)    = [M:ZOCERESO]QTY(I)
     GROPRI(I) = [M:ZOCERESO]GROPRI(I)
+# 2026-00027.ini
+    LYITMCOMP(I) = [M:ZOCERESO]ITMCOMP(I)
+# 2026-00027.fin
   Next
   #--
 
   WSOHNUM = '' #@06@: (y119) NUN28 06-09-2024  Incidencia de duplica pedidos
 
+# 2026-00027.ini
+#  Call ZCRESOH([M:ZOCERESO]SALFCY,[M:ZOCERESO]SOHTYP,"",[M:ZOCERESO]BPCORD, [M:ZOCERESO]BPAADD, [M:ZOCERESO]ORDDAT,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]CUSORDREF,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:
+#& ZOCERESO]TEXTOC1,
+#& [M:ZOCERESO]TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR) From ZCRESOH
   Call ZCRESOH([M:ZOCERESO]SALFCY,[M:ZOCERESO]SOHTYP,"",[M:ZOCERESO]BPCORD, [M:ZOCERESO]BPAADD, [M:ZOCERESO]ORDDAT,[M:ZOCERESO]DEMDLVDAT,[M:ZOCERESO]CUSORDREF,[M:ZOCERESO]SALFCY,[M:ZOCERESO]CUR,[M:
 & ZOCERESO]TEXTOC1,
-& [M:ZOCERESO]TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR) From ZCRESOH
+& [M:ZOCERESO]TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,LYITMCOMP,YERR) From ZCRESOH
+# 2026-00027.fin
   #--
 
   #@01@ - Comprobamos que el pedido se ha generado correctamente y cambiamos estados, traspasamos proyecto al nuevo pedido...
@@ -715,26 +740,28 @@ $CREAR_SOH
       Read [F:YSOH1]SOH0 = WSOHNUM
       If !fstat
           [F:YSOH1]PJT = [M:ZOCERESO]PROYECTO
-          For I=0 To [M:ZOCERESO]NBLIG3-1
-              Read [F:YSOQ1]SOQ0 = WSOHNUM;(I+1)*1000;(I+1)*1000
-              If !fstat
-                  [F:YSOQ1]YITMCOMP = [M:ZOCERESO]ITMCOMP(I)
-                  Local File BPCUSTOMER [YYBPC]
-                  Local File ITMBPC [YYITU]
-                  If [M:ZOCERESO]ITMCOMP(I) =''
-                    Read [F:YYBPC]BPC0 = [M:ZOCERESO]BPCORD(I)
-                    If !fstat
-                      Read [F:YYITU]ITU0 = [M:ZOCERESO]ITMREF(I);[F:YYBPC]BPCINV
-                      If !fstat
-                        [F:YSOQ1]YITMCOMP= [F:YYITU]ITMREFBPC
-                      Endif
-                    Endif
-                  Endif
-                  Close File [YYBPC]
-                  Close File [YYITU]
-                  Rewrite [F:YSOQ1] #@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
-              Endif
-          Next
+# 2026-00027.ini
+#          For I=0 To [M:ZOCERESO]NBLIG3-1
+#              Read [F:YSOQ1]SOQ0 = WSOHNUM;(I+1)*1000;(I+1)*1000
+#              If !fstat
+#                  [F:YSOQ1]YITMCOMP = [M:ZOCERESO]ITMCOMP(I)
+#                  Local File BPCUSTOMER [YYBPC]
+#                  Local File ITMBPC [YYITU]
+#                  If [M:ZOCERESO]ITMCOMP(I) =''
+#                    Read [F:YYBPC]BPC0 = [M:ZOCERESO]BPCORD
+#                    If !fstat
+#                      Read [F:YYITU]ITU0 = [M:ZOCERESO]ITMREF(I);[F:YYBPC]BPCINV
+#                      If !fstat
+#                        [F:YSOQ1]YITMCOMP= [F:YYITU]ITMREFBPC
+#                      Endif
+#                    Endif
+#                  Endif
+#                  Close File [YYBPC]
+#                  Close File [YYITU]
+#                  Rewrite [F:YSOQ1] #@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+#              Endif
+#          Next
+# 2026-00027.fin
           [F:ZOCTL]YESTADO = 2
           [F:ZOCTL]SOHNUM = WSOHNUM
           [F:ZOCSOH]SOHNUM = WSOHNUM
@@ -770,7 +797,27 @@ $CREAR_SOH
               [M:ZOCRECTL]SOHNUM = [F:ZOCTL]SOHNUM : Affzo [M:ZOCRECTL]SOHNUM
               [M:ZOCERESO]SOHNUM = WSOHNUM : Affzo [M:ZOCERESO]SOHNUM
           Endif
-
+      # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - INI
+# 2026-00027.ini
+#          If !clalev([YSOQITM])  : Local File SORDERQ   [YSOQITM] : Endif
+#          If !clalev([YSORD2])  : Local File SORDER   [YSORD2] : Endif
+#
+#          Read [YSORD2]SOH0 = WSOHNUM
+#            If !fstat
+#              Local Char YTERCERO(20)
+#              YTERCERO = [YSORD2]BPCINV
+#            Endif
+#
+#          Filter [YSOQITM] Where [YSOQITM]SOHNUM = WSOHNUM
+#            For [YSOQITM]
+#              [YSOQITM]YITMCOMP = func ARTICULO_CLIENTE([YSOQITM]ITMREF, YTERCERO)
+#              Rewrite [YSOQITM]
+#            Next
+#          Filter [YSOQITM]
+#          Close Local File [YSOQITM]
+#          Close Local File [YSORD2]
+# 2026-00027.fin
+      # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - FIN
       Endif
 
   Else
@@ -806,6 +853,7 @@ $GEN_MAS_PED
     Local Char    S_MOG_BPAADD(GLONBPA)
     Local Decimal F_MOG_QTY             (0..100)
     Local Decimal F_MOG_GROPRI          (0..100)
+    Local Char    F_MOG_YITMCOMP(50)    (0..100)               # 2026-00027.new
     # incidencia indice erroneo 10-09-24 - FIN
 
     Local Integer I_CT : [L]I_CT = 0
@@ -842,14 +890,18 @@ $GEN_MAS_PED
         For [ZOC] Where evalue(S_CRITERE)
             [L]I_CTORDER += 1
             Call ECR_TRACE ("Procesando ORDER -"-[F:ZOCTL2]CONTADOR,0) From GESECRAN
-            If [F:ZOCTL2]YESTADO<>1 or ([F:ZOCTL2]YINCIDENCIA<>1 and [F:ZOCTL2]YINCIDENCIA<>5)
-                  Call ECR_TRACE ("Imposible generar el pedido. Revise el estado/indicencias del pedido.",1) From GESECRAN
+            #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#            If [F:ZOCTL2]YESTADO<>1 or ([F:ZOCTL2]YINCIDENCIA<>1 and [F:ZOCTL2]YINCIDENCIA<>5)
+            If [ZOC]YESTADO<>1 or ([ZOC]YINCIDENCIA<>1 and [ZOC]YINCIDENCIA<>6)
+            #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+                   Call ECR_TRACE ("Imposible generar el pedido. Revise el estado/indicencias del pedido.",1) From GESECRAN
             Else
                 Raz [L]S_MOG_ITMREF
                 Raz [L]S_MOG_ITMDES
                 Raz [L]S_MOG_SAU
                 Raz [L]F_MOG_QTY
                 Raz [L]F_MOG_GROPRI
+                Raz [L]F_MOG_YITMCOMP   # 2026-00027.new
                 Raz [L]I_CT
                 For [F:ZOCSOQ2] Where CONTADOR = [F:ZOCSOH2]CONTADOR
                   [L]S_MOG_ITMREF(I_CT) = [F:ZOCSOQ2]ITMREF
@@ -857,6 +909,7 @@ $GEN_MAS_PED
                   [L]S_MOG_SAU(I_CT)    = [F:ZOCSOQ2]SAU
                   [L]F_MOG_QTY(I_CT)    = [F:ZOCSOQ2]QTY
                   [L]F_MOG_GROPRI(I_CT) = [F:ZOCSOQ2]GROPRI
+                  [L]F_MOG_YITMCOMP(I_CT) = [F:ZOCSOQ2]ITMCOMP    # 2026-00027.new
                   [L]I_CT += 1
                 Next
 
@@ -886,41 +939,46 @@ $GEN_MAS_PED
 
                 YERR = 0 # @06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
 
+# 2026-00027.ini
+#                Call ZCRESOH([F:ZOCSOH2]SALFCY,[F:ZOCSOH2]SOHTYP,"",[F:ZOCSOH2]BPCORD, [L]S_MOG_BPAADD, [F:ZOCSOH2]ORDDAT,[L]D_DLVDAT,[F:ZOCSOH2]CUSORDREF,[F:ZOCSOH2]SALFCY,[F:ZOCSOH2]CUR,
+#&                            [F:ZOCSOH2]TEXTOC1,[F:ZOCSOH2]TEXTOC2,S_MOG_ITMREF,S_MOG_ITMDES,S_MOG_SAU,F_MOG_QTY,F_MOG_GROPRI,YERR) From ZCRESOH
                 Call ZCRESOH([F:ZOCSOH2]SALFCY,[F:ZOCSOH2]SOHTYP,"",[F:ZOCSOH2]BPCORD, [L]S_MOG_BPAADD, [F:ZOCSOH2]ORDDAT,[L]D_DLVDAT,[F:ZOCSOH2]CUSORDREF,[F:ZOCSOH2]SALFCY,[F:ZOCSOH2]CUR,
-&                            [F:ZOCSOH2]TEXTOC1,[F:ZOCSOH2]TEXTOC2,S_MOG_ITMREF,S_MOG_ITMDES,S_MOG_SAU,F_MOG_QTY,F_MOG_GROPRI,YERR) From ZCRESOH
+&                            [F:ZOCSOH2]TEXTOC1,[F:ZOCSOH2]TEXTOC2,S_MOG_ITMREF,S_MOG_ITMDES,S_MOG_SAU,F_MOG_QTY,F_MOG_GROPRI,F_MOG_YITMCOMP,YERR) From ZCRESOH
+# 2026-00027.fin
 
 #                If WSOHNUM <> ''
                 If WSOHNUM <> '' and YERR = 0 #@06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
-                Local Integer YCONTADORLIN : YCONTADORLIN =1000
+#                Local Integer YCONTADORLIN : YCONTADORLIN =1000    # 2026-00027.new
                     Read [F:YSOH1]SOH0 = WSOHNUM
                     If !fstat
                         [F:YSOH1]PJT = [F:ZOCSOH2]PROYECTO
-                        For [F:ZOCSOQ2] Where CONTADOR = [F:ZOCSOH2]CONTADOR
-
-                            Read [F:YSOQ1]SOQ0 = WSOHNUM;YCONTADORLIN;YCONTADORLIN
-                            If !fstat
-                                [F:YSOQ1]YITMCOMP = [F:ZOCSOQ2]ITMCOMP
-                                Local File BPCUSTOMER [YYBPC]
-                                Local File ITMBPC [YYITU]
-                                If [F:ZOCSOQ2]ITMCOMP=''
-                                  Read [F:YYBPC]BPC0 = [F:YSOH1]BPCORD
-                                  If !fstat
-                                    Read [F:YYITU]ITU0 = [F:YSOQ1]ITMREF;[F:YYBPC]BPCINV
-                                    If !fstat
-                                      [F:YSOQ1]YITMCOMP= [F:YYITU]ITMREFBPC
-                                    Endif
-                                  Endif
-                                Endif
-                                Close File [YYBPC]
-                                Close File [YYITU]
-                                Rewrite [F:YSOQ1] #@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
-                            Endif
-                            YCONTADORLIN = YCONTADORLIN +1000
-                        Next
+# 2026-00027.ini
+#                        For [F:ZOCSOQ2] Where CONTADOR = [F:ZOCSOH2]CONTADOR
+#
+#                            Read [F:YSOQ1]SOQ0 = WSOHNUM;YCONTADORLIN;YCONTADORLIN
+#                            If !fstat
+#                                [F:YSOQ1]YITMCOMP = [F:ZOCSOQ2]ITMCOMP
+#                                Local File BPCUSTOMER [YYBPC]
+#                                Local File ITMBPC [YYITU]
+#                                If [F:ZOCSOQ2]ITMCOMP=''
+#                                  Read [F:YYBPC]BPC0 = [F:YSOH1]BPCORD
+#                                  If !fstat
+#                                    Read [F:YYITU]ITU0 = [F:YSOQ1]ITMREF;[F:YYBPC]BPCINV
+#                                    If !fstat
+#                                      [F:YSOQ1]YITMCOMP= [F:YYITU]ITMREFBPC
+#                                    Endif
+#                                  Endif
+#                                Endif
+#                                Close File [YYBPC]
+#                                Close File [YYITU]
+#                                Rewrite [F:YSOQ1] #@03@: (Y119) NUN14 30-04-2024  Correcciones y modificaciones para adaptar el monitor de pedidos EDI a las necesidades del cliente.
+#                            Endif
+#                            YCONTADORLIN = YCONTADORLIN +1000
+#                        Next
+# 2026-00027.fin
                         [F:ZOCTL2]YESTADO = 2
                         [F:ZOCTL2]SOHNUM = WSOHNUM
                         [F:ZOCSOH2]SOHNUM = WSOHNUM # JLP - INCIDENCIA 10-09-24 ENVIO MASIVO - NUEVO
-
 #@09@: (Y119) NUN28 02-10-2024  A la hora de importar los pedidos se cargen los campos de la ficha cliente - INI
                             Read [YBPDV]BPD0 = [F:YSOH1]BPCORD;[F:YSOH1]BPAADD
                               If fstat = 0
@@ -955,7 +1013,27 @@ $GEN_MAS_PED
                         Endif
                         # JLP - INCIDENCIA 10-09-24 ENVIO MASIVO - FIN
                     Endif
-
+                    # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - INI
+# 2026-00027.ini
+#                        If !clalev([YSOQITM])  : Local File SORDERQ   [YSOQITM] : Endif
+#                        If !clalev([YSORD2])  : Local File SORDER   [YSORD2] : Endif
+#
+#                        Read [YSORD2]SOH0 = WSOHNUM
+#                          If !fstat
+#                            Local Char YTERCERO(20)
+#                            YTERCERO = [YSORD2]BPCINV
+#                          Endif
+#
+#                        Filter [YSOQITM] Where [YSOQITM]SOHNUM = WSOHNUM
+#                          For [YSOQITM]
+#                            [YSOQITM]YITMCOMP = func ARTICULO_CLIENTE([YSOQITM]ITMREF, YTERCERO)
+#                            Rewrite [YSOQITM]
+#                          Next
+#                        Filter [YSOQITM]
+#                        Close Local File [YSOQITM]
+#                        Close Local File [YSORD2]
+# 2026-00027.fin
+                    # @13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información - FIN
                 Else
                   #**¿Hay que poner la orden en algún estado si falla la importación?#*!
                  WSOHNUM = '' #@06@: (Y119) NUN28 06-09-2024  Incidencia de duplica pedidos
@@ -984,9 +1062,9 @@ $GEN_MAS_PED
 #        Endif
     Endif
 
-#  Infbox "FINAL DE LA MASIVA"
-  Call REESCRITURA_SOHNUM
-#  Infbox "FINAL DE reescritura"
+    #@nun48 - inicio - proceso para arreglar los duplicados y los nº de pedido
+    Call REESCRITURA_SOHNUM
+    #@nun48 - fin
 
 Return
 #@01@ - Fin
@@ -1143,7 +1221,10 @@ If clalev([F:YITM1])=0 : Local File ITMMASTER [YITM1] : Endif
     Affzo [M:ZOCERESO]GROPRIS(nolign-1)
     Affzo [M:ZOCERESO]NETPRIS(nolign-1)
 
-    If [F:ZOCTL]YINCIDENCIA < 5
+    #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#    If [F:ZOCTL]YINCIDENCIA < 5
+    If [F:ZOCTL]YINCIDENCIA < 6
+    #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
         I_LIN = nolign-1
         If [M:ZOCERESO]NETPRI(I_LIN) <> [M:ZOCERESO]NETPRIS(I_LIN) and [M:ZOCERESO]ITMREF(I_LIN) = ''
             [M:ZOCRECTL]YINCIDENCIA = 4
@@ -1184,6 +1265,8 @@ If clalev([F:YITM1])=0 : Local File ITMMASTER [YITM1] : Endif
 
 End
 
+
+######################################################################################
 ######################################################################################
 #nun48 -- rectificación de los numeros de pedido repetidos para la importación masiva#
 Subprog REESCRITURA_SOHNUM()
@@ -1192,7 +1275,7 @@ Local Char NUEVO_PEDIDO(240)
 Local Integer I_ADXLOG : [L]I_ADXLOG = adxlog
 Local Integer CONTADORREGISTROS : CONTADORREGISTROS = 0
 #Recorro toda la tabla ZOCRECTL
-Call ESCRIBIR_TRAZA_NEW('Entro al proceso de reescribir', "")
+
 If !clalev([ZACTL]) Local File ZOCRECTL [ZACTL] Endif
 
 If ![L]I_ADXLOG : Trbegin [ZACTL] : Endif
@@ -1201,10 +1284,8 @@ For [ZACTL]
 [L]CONTADORREGISTROS += 1
 #Call ESCRIBIR_TRAZA('REGISTRO: ' + num$([L]CONTADORREGISTROS) + " ***************************", '')
 #  [L]CA_CUSORDREF = func GET_CUSORDREF([ZACTL]CONTADOR) #Busca la referencia del pedido
-#BUSCAMOS LA REFERENCIA DEL PEDIDO Y EL CLIENTE DEL PEDIDO
-
-Call GET_CUSORDREF_BPCORD([ZACTL]CONTADOR, CA_CUSORDREF, CA_BPCORD)
-Call ESCRIBIR_TRAZA_NEW("ENCONTRADO EN ZOCSOH:*" + [L]CA_CUSORDREF + "*" + [L]CA_BPCORD, '')
+   Call GET_CUSORDREF_BPCORD([ZACTL]CONTADOR, CA_CUSORDREF, CA_BPCORD)
+#Call ESCRIBIR_TRAZA([L]CA_CUSORDREF, '')
   If CA_CUSORDREF<>'' #Busca el pedido en SORDER que tenga ese CUSORDREF
     [L]NUEVO_PEDIDO = func GET_EDI_SOHNUM([L]CA_CUSORDREF,[L]CA_BPCORD) #Busca el nuevo pedido
     If [L]NUEVO_PEDIDO <> ''
@@ -1223,6 +1304,27 @@ Next
     If ![L]I_ADXLOG : Rollback : Endif
   Endif
 End
+#######################################################################################
+#Funprog GET_EDI_SOHNUM(ZCUSORDREF)
+#Value Char ZCUSORDREF
+#Local Char C_SOHNUM(250)
+#Local Char CUSORDREF_SINE(240)
+#
+#[L]C_SOHNUM = ''
+#
+#If !clalev([ZASOH]) Local File SORDER [ZASOH] Endif
+##Call ESCRIBIR_TRAZA("*"+ZCUSORDREF+"*", '')
+#[L]CUSORDREF_SINE = vireblc(ZCUSORDREF,2)
+##Call ESCRIBIR_TRAZA("*"+[L]CUSORDREF_SINE+"*", '')
+#Filter [ZASOH] Where [ZASOH]CUSORDREF = vireblc(CUSORDREF_SINE,2)
+#Read [ZASOH] First
+#If !fstat
+##  Call ESCRIBIR_TRAZA("PEDIDO:" +[ZASOH]SOHNUM , '')
+#  C_SOHNUM = [ZASOH]SOHNUM
+#Endif
+#
+#End C_SOHNUM
+#######################################################################################
 ######################################################################################
 Funprog GET_EDI_SOHNUM(ZCUSORDREF, ZBPCORD)
 Value Char ZCUSORDREF, ZBPCORD
@@ -1234,7 +1336,6 @@ Local Char CUSORDREF_SINE(240)
 If !clalev([ZASOH]) Local File SORDER [ZASOH] Endif
 #Call ESCRIBIR_TRAZA("*"+ZCUSORDREF+"*", '')
 [L]CUSORDREF_SINE = vireblc(ZCUSORDREF,2)
-Call ESCRIBIR_TRAZA("ALI:*"+vireblc(CUSORDREF_SINE,2)+"*"+ ZBPCORD, '')
 Filter [ZASOH] Where [ZASOH]CUSORDREF = vireblc(CUSORDREF_SINE,2) and [ZASOH]BPCORD = ZBPCORD
 Read [ZASOH] First
 If !fstat
@@ -1265,15 +1366,11 @@ Variable Char C_CUSORDREF, C_BPCORD
 Local Char TMP_CUSORDREF(240)
 C_CUSORDREF = ''
 C_BPCORD = ''
-Call ESCRIBIR_TRAZA_NEW('Voy a buscar en ZOCSOH:*' + vireblc(C_CONTADOR,2) + '*' , '')
 If !clalev([ZAZC]) Local File ZOCSOH [ZAZC] Endif
 For [ZAZC] Where [ZAZC]CONTADOR = vireblc(C_CONTADOR,2)
-  Call ESCRIBIR_TRAZA_NEW('TENGO::*' + vireblc([ZAZC]CUSORDREF,2) + '*' , '')
-  Call ESCRIBIR_TRAZA_NEW('reftmp:*' +[L]TMP_CUSORDREF+'*'+'LEN:' + num$(len([L]TMP_CUSORDREF)) , '')
   If  vireblc([ZAZC]CUSORDREF,2)<>''
     C_CUSORDREF = vireblc([ZAZC]CUSORDREF,2)
     C_BPCORD = [ZAZC]BPCORD
-    Call ESCRIBIR_TRAZA_NEW('He entrado y asigno valores:*' + [L]C_CUSORDREF + "*" + C_BPCORD+'*', '')
   Endif
 Next
 
@@ -1296,19 +1393,18 @@ Subprog ESCRIBIR_TRAZA (MENSAJE, MENSAJECLB)
   Openo Using [XLOG]
 End
 #####################################################################################
-Subprog ESCRIBIR_TRAZA_NEW (MENSAJE, MENSAJECLB)
-  Value Char MENSAJE
-  Value Clbfile MENSAJECLB
+# @13@: (Y119) NUN28 18-11-2025  MODIFICACIÓN DEL CAMPO YITMCOMP PARA QUE MUESTRE CORRECTAMENTE LA INFORMACIÓN - INI
+Funprog ARTICULO_CLIENTE(ITMREF,TERCERO)
+Value Char ITMREF
+Value Char TERCERO
+Local Char DESC_ART(50)
 
-  Openo filpath("YTRAZA","YZOCNEW_"+format$("D:DDMMYYYY",date$),"txt") Using [XLOG]
+If !clalev([YITMBPC2])  : Local File ITMBPC   [YITMBPC2] : Endif
 
-  If MENSAJE <> ''
-    Wrseq date$-time$-MENSAJE   Using [XLOG]
-  Endif
+  Read [YITMBPC2]ITU0 = ITMREF;TERCERO
+    If !fstat
+      DESC_ART = [YITMBPC2]ITMREFBPC
+    Endif
 
-  If MENSAJECLB <> ''
-    Wrseq date$-time$-MENSAJECLB Using [XLOG]
-  Endif
-
-  Openo Using [XLOG]
-End
+End DESC_ART
+# @13@: (Y119) NUN28 18-11-2025  MODIFICACIÓN DEL CAMPO YITMCOMP PARA QUE MUESTRE CORRECTAMENTE LA INFORMACIÓN - FIN

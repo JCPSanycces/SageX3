@@ -45,7 +45,6 @@ Subprog ZCREINVSERES_TEST(PCITA,PALBARAN,PVALE, PSDHDEB, PSDHFIN, PBPCDEB, PBPCF
           Next
       Endif
 
-
       LPRHNUM = PVALE
       If I < 1 and  PI_FICHERO_ABIERTO = 0 Then
            Gosub ECR_SINCEMB_L0 # -- LINEA TOTALES PALETS - 08
@@ -126,7 +125,7 @@ $OUVRE
    If !clalev([F:YPACKD2]): Local File  YPACKD2 [F:YPACKD2]   : Endif # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales (LINEAS COMENTADAS)
    If !clalev([F:YZCIT]):   Local File  ZCITASTL  [F:YZCIT]   : Endif
    If !clalev([F:YZCIT2]):   Local File  ZCITASTL  [F:YZCIT2]   : Endif
-   If !clalev([F:YPACKD5]): Local File  YPACKD5 [F:YPACKD5]   : Endif
+#   If !clalev([F:YPACKD5]): Local File  YPACKD5 [F:YPACKD5]   : Endif
    If !clalev([F:YSDD01]): Local File  SDELIVERYD [F:YSDD01]   : Endif
    If !clalev([F:YSDH2]): Local File SDELIVERY  [F:YSDH2]   : Endif # CABECERA ALBARANES
   #--
@@ -143,9 +142,9 @@ $DEFINE_FIC
     C_CARPETA = "EDI\ISSUEEDICOM"
     #--
     C_NOMFIC  = PCITA
-#    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
 #    C_FICHERO = filpath("EDI","","")+"\ISSUEEDICOM\"+C_NOMFIC+".txt"
-    C_FICHERO = filpath("EDI","","")+"\ISSUEEDICOM\LMTEST\"+C_NOMFIC+".txt" # RUTA FICHERO ANTONIO
+#    C_FICHERO = filpath("EDI","","")+"\ISSUEEDICOM\LMTEST\"+C_NOMFIC+".txt" # RUTA FICHERO ANTONIO
 
     # borramos el fichero si existe...
      If PI_FICHERO_ABIERTO = 0
@@ -709,6 +708,7 @@ Return
 ###########################################################################################
 #-- desglose cantidad/localizaciones
 $ECR_SINCQTY
+Read [F:YEBP]EBP0 = 1;[F:YSDH]BPCORD;[F:YSDH]BPAADD;"EDICOM"
   #--
   Wrseq format$("K:6X","SEH1G");                                  Using [ZCRE] #--  #1 TIPO REGISTRO “SEH1G” C 6 1 M
   Wrseq format$("K:25X",[F:YEBP]EDISDHCOD);                       Using [ZCRE] #--  #2 CÓDIGO LUGAR/LOCALIZACIÓN C 25 7 M

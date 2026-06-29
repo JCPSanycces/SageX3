@@ -1,4 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+######################################################################################
+# JLP - 10/06/2025 -
+######################################################################################
 # Control para no poder asociar una linea a un articulos con origen "NORMAL"
 # OK = 1 : Bloqueo para no asociar a un articulo normal
 # OK = 2 : Bloque para no poder asociar a una linea que no exista

@@ -1,6 +1,10 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+#//////////////////////////////////////////////////////////////////////////////////////////////#
 #@001@ - RAP - 20/09/2024 - Añado funcionalidad para el campo CFECHARECD y filtrar en f. recepcion pedido
-
+# @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+# 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
+# 2026-00040 - JCP.15062026.Cálculo de la demanda en Artículo-Planta
+#//////////////////////////////////////////////////////////////////////////////////////////////#
 
 $ACTION
 Case ACTION
@@ -18,6 +22,15 @@ Raz [M:YRUSA]
 [M:YRUSA]PIE_R = 0
 Grizo [M:YRUSA]CTIPODOC
 Affzo [M:YRUSA]
+
+# 26001.ini
+  If GFONCTION = "YEXP" Then
+    [M:YRUSA]CARTICULO = [M:YEXP]YARTICULO(nolign-1)
+    Affzo [M:YRUSA]CARTICULO
+    Gosub BUSCAR
+  Endif
+# 26001.fin
+
 Return
 
 
@@ -115,6 +128,13 @@ Endif
 CRITERIOS2 += " & [QQ4]LINCLEFLG<>2"
 #@001@ - RAP - 20/09/2024 - FIN
 
+# @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+# si no se indica comprador se ignora el filtro en vez de buscarlo vacío adrede
+If [M:YRUSA]CCOMPRADOR <> ""
+  CRITERIOS1 += " & [QQ1]BUY=[M:YRUSA]CCOMPRADOR"
+Endif
+# @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+
 # Cargo pantalla (máximo 3000 líneas)
 Local Integer CONTA
 Local Integer EN_PC
@@ -168,9 +188,7 @@ Filter [XX1] Where evalue(CRITERIOS1) Order By [QQ1]ITMREF Asc
                     If fstat = 0
                       LINE = 0
                       Call NEW_LINE([QQ1]ITMREF,[QQ4]UOM,[QQ4]BPSNUM,[QQ5]QTYUOM,[QQ4]POHNUM,[QQ4]POPLIN,[QQ4]POQSEQ,[QQ4]EXTRCPDAT,[QQ6]YFECHAESTENT,[QQ6]CTRUID,[QQ6]SHIPNUM,[QQ6]CTRNUM,[L]PDTE_RECEP
-& ,2
-& ,
-& nolign,LINE)
+& ,2 , nolign,LINE)
                       nolign += LINE
                       CONTA  += LINE
                       If [L]CONTA = 3000 : Goto SALIR : Endif
@@ -182,15 +200,13 @@ Filter [XX1] Where evalue(CRITERIOS1) Order By [QQ1]ITMREF Asc
                 # Filtro por tipo de documento
                 If [M:YRUSA]CACTIVOTIPO <> 2 or ([M:YRUSA]CACTIVOTIPO = 2 and [M:YRUSA]CTIPODOC = 1)
                   For [QQ7] Where [QQ7]CTRNUM = [QQ5]CTRNUM and [QQ7]SHIPNUM = [QQ5]SHIPNUM and [QQ7]RCPQTYSTU <> [QQ7]SHIQTYSTU and [QQ7]POHNUM = [QQ5]POHNUM and [QQ7]POQSEQ = [QQ5]POQSEQ and [QQ7]
-& POPLIN = [QQ5]
-& POPLIN
+& POPLIN = [QQ5]POPLIN
                     Read [QQ6]CTRH0 = [QQ5]CTRNUM
                     If fstat = 0
                       If [M:YRUSA]CCARGADO <> 2 or ([M:YRUSA]CCARGADO = 2 and [QQ7]SHIQTY > 0)
                         LINE = 0
                         Call NEW_LINE([QQ1]ITMREF,[QQ4]UOM,[QQ4]BPSNUM,[QQ7]SHIQTY,[QQ4]POHNUM,[QQ4]POPLIN,[QQ4]POQSEQ,[QQ4]EXTRCPDAT,[QQ7]EXTRCPDAT,[QQ6]CTRUID,[QQ6]SHIPNUM,[QQ6]CTRNUM,[L]PDTE_RECEP,
-& 1,
-& nolign,LINE)
+& 1, nolign,LINE)
                         nolign += LINE
                         CONTA  += LINE
                         If [L]CONTA = 3000 : Goto SALIR : Endif
@@ -323,6 +339,10 @@ Elsif NTIP = 2
   [M:YRUSA]FECHARPRE(NNOL-1)    = "000000"
 Endif
 
+# @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+[M:YRUSA]COMPRADOR(nolign-1)    = [QQ1]BUY
+# @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+
 # Saco la info de la MFM (tabla MFGMAT)
 [L]QTY_MFM = 0
 Filter [QQ8] Where [QQ8]MFGFCY = [M:YRUSA]CPLANTA and [QQ8]ITMREF = NART and [QQ8]MFGSTA = 1 and [QQ8]MATSTA < 3
@@ -369,7 +389,7 @@ If !clalev([QQ8]) : Local File MFGMAT        [QQ8] : Endif
 If !clalev([Q10]) : Local File SORDERQ       [Q10] : Endif
 If !clalev([P12]) : Local File SORDER        [P12] : Endif
 
-Local Date F_ARRANQUE : F_ARRANQUE = gdat$(13,08,2024)
+Local Date F_ARRANQUE : F_ARRANQUE = gdat$(01,10,2024)
 Local Decimal DH_PV
 Local Decimal DH_OF
 Local Decimal D_PV
@@ -391,7 +411,14 @@ Filter [Q10] Where [Q10]SALFCY = FPLA and [Q10]ITMREF = FART and [Q10]DEMSTA = 1
       # 12/03/2024. No tomo en cuenta los pedidos especiales
       Read [P12]SOH0 = [Q10]SOHNUM
       If fstat = 0 and [P12]YOPEESPE<> 2
-        [L]D_PV += [Q10]QTYSTU
+# 2026-00040.ini
+#        [L]D_PV += [Q10]QTYSTU
+        If [F:Q10]SOQSTA = 3
+          [L]D_PV += [Q10]DLVQTYSTU
+        Else
+          [L]D_PV += [Q10]QTYSTU
+        Endif
+# 2026-00040.ini
       Endif
     Next
   Filter [Q10]

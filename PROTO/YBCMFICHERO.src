@@ -46,7 +46,7 @@ $OK
   Gosub OPEN_FIC
   Filter [F:YBCM1] Where [F:YBCM1]ZCITANUM = YCITA
     For  [F:YBCM1]
-#      SDHNUM = [F:YBCM1]SDHNUM
+      SDHNUM = [F:YBCM1]SDHNUM
 #      Gosub OPEN_FIC
       #@02@: RAP  19/09/2024 - Hacemos IF YCAB para solo hacer la cabecera 1 vez por cita
       If YCAB = 0
@@ -55,7 +55,7 @@ $OK
       Endif
 
       Gosub ECR_EXCEL_LINES #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
-#      Gosub ECR_EXCEL_LINES_OLD
+#      Gosub ECR_EXCEL_LINES_OLD #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
 
       #@02@: RAP  19/09/2024 - INI
 #      Gosub CLOSE_FIC
@@ -77,7 +77,6 @@ $OPEN_FIC
     adxium = GASCII                  #-- adxium, ASCII
 
     C_CARPETA = "CITAS"
-
     C_NOMFIC  = "BCM_" + YCITA #+ num$(adxuid(1))+num$(time)
     C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"csv","","","")
 
@@ -230,13 +229,12 @@ Return
 #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos -INI
 $ECR_EXCEL_LINES
 
-#Infbox [F:YBCM1]PRHNUM - [F:YBCM1]SDHNUM
 
-  Filter [F:YBCM2] Where [F:YBCM2]PRHNUM = [F:YBCM1]PRHNUM  and [F:YBCM2]SDHNUM = [F:YBCM1]SDHNUM #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
+
+  Filter [F:YBCM2] Where [F:YBCM2]PRHNUM = [F:YBCM1]PRHNUM and [F:YBCM2]SDHNUM = [F:YBCM1]SDHNUM #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos
     Read [F:YBCM2] First
-#   For [F:YBCM2]
+#    For [F:YBCM2] #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos -INI
     If !fstat
-#      Infbox "PDV : "- [F:YBCM2]SOHNUM
       Read [F:YSOH]SOH0 = [F:YBCM2]SOHNUM
       If !fstat
         TEXTO_LIN(1)  = ""        # a. ARMAZEN: Columna vacía
@@ -289,7 +287,7 @@ $ECR_EXCEL_LINES
 
       Endif
     Endif
-#   Next
+#    Next #@03@: JLP  16/10/2024 - Incidencia con las referencias de los pedidos -INI
   Filter [F:YBCM2]
 
 

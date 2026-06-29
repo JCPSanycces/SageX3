@@ -7,6 +7,7 @@
 #@03@: RAP  08-10-2024 Ajustes terceros EDI
 #@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha
 
+
 #######################################################################################
 
   Call ZCREINVSERES('ENV112200003', '','','','',[0/0/0],[0/0/0],0)
@@ -687,7 +688,7 @@ $ECR_SINCL
   Else
   Wrseq format$("K:15X",[F:YITM]EANCOD);                                          Using [ZCRE] #-- 3 CÓDIGO EAN DEL ARTICULO C 15 13 O
   Endif
-#  Wrseq format$("K:15X",[F:YITM]EANCOD);                                          Using [ZCRE] #-- 3 CÓDIGO EAN DEL ARTICULO C 15 13 O
+  #  Wrseq format$("K:15X",[F:YITM]EANCOD);                                          Using [ZCRE] #-- 3 CÓDIGO EAN DEL ARTICULO C 15 13 O
 #@04@: JLP 16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha - FIN
 #  Wrseq format$("K:70X",[F:YPACKD2]ITMDES);                                         Using [ZCRE] #-- 4 DESCRIPCIÓN DEL ARTICULO C 70 28 O
    Wrseq format$("K:70X",[F:YSDD]ITMDES1);                                         Using [ZCRE] #-- 4 DESCRIPCIÓN DEL ARTICULO C 70 28 O
@@ -803,9 +804,7 @@ $ECR_SINCEMB_L0
 
   Filter [F:YPACKD4] Where VCRNUM = [F:YSDD]PRHNUM and SDHNUM =[F:YSDD]SDHNUM
 
-If [F:YSDH]SDHNUM = 'ENV112400293'
-  Infbox "AAAA" - num$([F:YPACKD3]YTIPO)
-Endif
+
 
 
   #--
@@ -820,7 +819,7 @@ Endif
   Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 5 INFORMACIÓN SOBRE EL EMBALAJE, CODIFICADO C 6 39 O
   Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 6 TÉRMINOS Y CONDICIONES DEL EMBALAJE, CODIFICADO C 6 45 O
 #  Wrseq format$("K:6X","08");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
-  If [F:YPACKD3]YTIPO = 1 Then
+  If [F:YTAP]YTIPO = 1 Then
     Wrseq format$("K:6X","201");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
   Else
     Wrseq format$("K:6X","CT");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
@@ -886,8 +885,6 @@ $ECR_SINCEMB_L1
   Filter [F:YSPK3] # Where VCRNUM = [F:YSDD]PRHNUM
   Read [F:YSPK3] First
 
-
-
   #@02@: JLP  23-09-2024 Incidencias en la creación de fichero BCM - INI
   Filter [F:YPACKD3] Where [F:YPACKD3]SDHNUM = [F:YSDH]SDHNUM and [F:YPACKD3]VCRNUM = [F:YSDD]PRHNUM and [F:YPACKD3]YTIPO = 2
   Read [F:YPACKD3] First
@@ -901,9 +898,6 @@ $ECR_SINCEMB_L1
   Read [F:YPD2C] First
 
   Filter [F:YPACKD4] Where VCRNUM = [F:YSDD]PRHNUM and SDHNUM =[F:YSDD]SDHNUM
-If [F:YSDH]SDHNUM = 'ENV112400293'
-  Infbox "BBB " - num$([F:YPACKD3]YTIPO)
-Endif
 
   #--
   # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
@@ -917,7 +911,7 @@ Endif
   Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 5 INFORMACIÓN SOBRE EL EMBALAJE, CODIFICADO C 6 39 O
   Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 6 TÉRMINOS Y CONDICIONES DEL EMBALAJE, CODIFICADO C 6 45 O
 #  Wrseq format$("K:6X","C");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
-  If [F:YPACKD3]YTIPO = 1 Then
+  If [F:YTAP]YTIPO = 1 Then
     Wrseq format$("K:6X","201");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
   Else
     Wrseq format$("K:6X","CT");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
@@ -990,9 +984,6 @@ $ECR_SINCEMB
 
 
 
-If [F:YSDH]SDHNUM = 'ENV112400293'
-  Infbox "111  " - num$([F:YTAP]YTIPO)
-Endif
 
 
   # Wrseq format$("K:8X",num$(rowcount([F:YSPK])));                 Using [ZCRE] #--  # 4 NÚMERO DE PAQUETES N 8 31 O

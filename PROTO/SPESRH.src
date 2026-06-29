@@ -1,12 +1,10 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 # Gestión de la máscara SRH1 (Especifico)
-
+# @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas.
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla SRH1) 21/12/2023 16:12:29 (NUN04)
 ######################################################################################
 $ACTION
-#If GUSER = 'NUN04' : Infbox ACTION : Endif
-
 Case ACTION
  When "LIENS_LIG"   :   Gosub LIENS_LIG
  When "VERIF_CRE"   :   Gosub VERIF
@@ -130,7 +128,6 @@ If VALEUR <> 0 and [M:SRH1]RTNSTOUPD(nolign-1) <> 2
   Affzo [M:SRH1]STOMGTCOD(nolign-1)
   Affzo [M:SRH1]RTNSTOUPD(nolign-1)
 Endif
-
 End
 
 
@@ -176,3 +173,30 @@ If OK9 = 2
   Endif
 Endif
 End
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SRH1) 26/11/2025 07:10:27 (NUN28)
+######################################################################################
+# @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas. - INI
+# EVENTO DE CAMPO DESPUES MODIF.
+Subprog AM_ITMREF(VALEUR)
+Variable Char    VALEUR()
+
+  If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
+  Read [YITM]ITM0 = VALEUR
+    If !fstat
+      [M:SRH1]YCATITM(nolign-1) = [YITM]TCLCOD
+      Affzo [M:SRH1]YCATITM(nolign-1)
+    Endif
+End
+######################################################################################
+Subprog D_YCATITM(VALEUR)
+Variable Char    VALEUR()
+
+If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
+  Read [YITM]ITM0 = [M:SRH1]ITMREF(nolign-1)
+    If !fstat
+      VALEUR = [YITM]TCLCOD
+    Endif
+End
+# @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas. - FIN
+######################################################################################

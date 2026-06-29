@@ -18,6 +18,7 @@
 # proceso rellena los campos de incidencia sobre la mascara para asi sacar sus valores
 #######################################################################################
 # @01@ - JLP - NUN28 - 16-10-2025  Modificar el campo fecha pedido para que indique la fecha de importación a SAGE
+# @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
 $LIENS_MASIV
 # Variables.....
   Local Char WCONTADOR(20), WTEXTO(250)(0..3)
@@ -70,6 +71,12 @@ $LIENS_MASIV
 
   # Adaptación codigo LIENS(SPEZOC).....
 For [F:ZOCTL] Where [F:ZOCTL]YESTADO = 1
+
+# @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
+    [M:ZOCRECTL] = [F:ZOCTL]
+    Affzo [M:ZOCRECTL]
+# @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
+
 
     Read [F:ZOC1C]ZOC1C0 = [F:ZOCTL]CONTADOR
     If !fstat
@@ -124,8 +131,9 @@ For [F:ZOCTL] Where [F:ZOCTL]YESTADO = 1
       Actzo [M:ZOCERESO]
     Endif
 
-    If [F:ZOCTL]YINCIDENCIA < 5
-        For I=0 To [M:ZOCERESO]NBLIG3-1
+ #    If [F:ZOCTL]YINCIDENCIA < 5 # @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
+    If [F:ZOCTL]YINCIDENCIA < 6 # @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
+       For I=0 To [M:ZOCERESO]NBLIG3-1
             If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
                 [F:ZOCTL]YINCIDENCIA = 4
                 Rewrite [F:ZOCTL]

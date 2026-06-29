@@ -180,7 +180,7 @@ If SIGO = 2
             Endif
             # @001@ - RAP - 090924 - INI
 
-              Call MAJ_STA_STAFLG(LINE,VALEUR) From TRTPREPA
+              Call MAJ_STA_STAFLG(LIG,VALEUR) From TRTPREPA
 
               If GERR = 2
               [M:PREP]COCHAGE(nolign-1) = 1
@@ -360,15 +360,15 @@ Read [ZX1]SOQ0 = VORI;VLIN;VSEQ
 If fstat = 0
   Read [ZX2]YITT0 = [ZX1]ITMREF
   If fstat = 0 and [ZX2]PREPICKING = 2
-#    If [ZX1]ALLTYP <> 2  # No está asignada en detalle
-    If [ZX1]ALLTYP <> 2 and [ZX1]ZASOCIADO <> 2      # No está asignada en detalle
+    If [ZX1]ALLTYP <> 2     # No está asignada en detalle
 #De momento quitamos el punto hasta nuevo aviso INI
-    #      If [ZX2]PREPICKING <> 2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
-    #        Errbox "Estado de asignación de la línea " + num$(VLIN) + " del pedido " + VORI + " artículo " + [ZX1]ITMREF + " 'Global'"
-    #        VVAL = 1
-    #      Endif # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+          If [ZX2]PREPICKING <> 2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+            Errbox "Estado de asignación de la línea " + num$(VLIN) + " del pedido " + VORI + " artículo " + [ZX1]ITMREF + " 'Global'"
+            VVAL = 1
+          Endif # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
 #De momento quitamos el punto hasta nuevo aviso FIN
-      VVAL=2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+
+#      VVAL=2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
     Else
       Local Decimal CTD_PREPICKING
       Filter [ZX3] Where [ZX3]STOFCY = [ZX1]STOFCY and [ZX3]VCRNUM = VORI and [ZX3]VCRLIN = VLIN and [ZX3]VCRSEQ = VSEQ
@@ -384,12 +384,11 @@ If fstat = 0
       If [L]CTD_PREPICKING = [ZX1]QTYSTU
         VVAL = 2
       Elsif [L]CTD_PREPICKING = 0
-          If [ZX2]PREPICKING <> 2 and [ZX1]ZASOCIADO <> 2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+#          If [ZX2]PREPICKING <> 2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
             Errbox "No se ha prepickineado nada de la línea " + num$(VLIN) + " del pedido " + VORI + " artículo " + [ZX1]ITMREF
             VVAL = 1
-          Else # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
-            VVAL=2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
-          Endif # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+#          Endif # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
+#          VVAL=2 # @02@ - JLP - 27-09-24 - ARTÍCULO PREPICKING ASOCIADO A OF
       Else
         Local Integer OK9
         Local Char TEXTO(120)

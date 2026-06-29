@@ -4,14 +4,13 @@
 # @02@ - DSR - 21/08/2023 - Si la línea es Variante (5) / Componente KIT (3), permito la creación de contramarca (por STD solo permite si es Variante / Componente ESTRUCTURA)
 # @03@ - EQM - 16/09/2024 - Modificación fecha expedición
 # @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+# 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
 
 $ACTION
-#If GUSER ='ADMIN' : Infbox ACTION : Endif
+
   Case ACTION
      When "ALILIG": Gosub ALILIG
-     When "MODLIG":Gosub MODLIG # @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
-
-     When "QTEARRCPS":Gosub TEST # @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+      When "MODLIG":Gosub MODLIG # @04@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
   Endcase
 Return
 
@@ -25,13 +24,6 @@ Infbox "FUNCTION - " - num$(FUNCTION)
     Gosub UPD_GRO_SQH
   Endif
 
-Return
-
-
-$TEST
-Infbox ""
-  [M:SQH2]GROPRI(NL) = 999
-  Affzo [M:SQH2]GROPRI(NL)
 Return
 # @04@ - SCD - 23/04/2025 - FIN
 
@@ -67,7 +59,6 @@ If FUNCTION=2  #* PEDIDOS DE VENTA
       If NL>0
         If [M:SOH4]ZLINASOC(NL-1) <> 0
           [M:SOH4]ZLINASOC(NL) = [M:SOH4]ZLINASOC(NL-1)
-
         Elsif [M:SOH4]FMI(NL-1) = 5
           [M:SOH4]ZLINASOC(NL)  = [M:SOH4]SOPLIN(NL-1)
         Endif
@@ -78,7 +69,6 @@ If FUNCTION=2  #* PEDIDOS DE VENTA
       [M:SOH4]ZASOCIADO(NL) = 2
       [M:SOH4]STOMGTCOD(NL) = 1
       [M:SOH4]FMI(NL)       = 1
-
 
 # @04@ - SCD - 23/04/2025 - INI
 
@@ -91,9 +81,6 @@ If FUNCTION=2  #* PEDIDOS DE VENTA
       Affzo  [M:SOH4]FMI(NL)
       Affzo  [M:SOH4]WALLQTY(NL)
       Affzo  [M:SOH4]WALLQTYSTU(NL)
-
-
-
   # @02@ - DSR - 21/08/2023 - INI
   Elsif [M:SOH4]LINTYP(NL)=5 or [M:SOH4]LINTYP(NL)=3
       If !clalev([F:ZITM]): Local File ITMMASTER [F:ZITM]: Endif
@@ -141,7 +128,6 @@ If FUNCTION=2  #* PEDIDOS DE VENTA
 
  Local Date YEXP : YEXP = [M:SOH0]ORDDAT
  Local Date YDSTDAT
-
 
    If [M:SOH4]LINTYP(NL)=4 or [M:SOH4]LINTYP(NL)=8 or [M:SOH4]LINTYP(NL)=7
        For YX =0 To [M:SOH4]NBLIG-1
@@ -214,7 +200,6 @@ Elsif FUNCTION=1  #* PRESUPUESTOS DE VENTA (mantengo la misma estructura de códi
       Affzo  [M:SQH2]ZLINASOC(NL)
       Affzo  [M:SQH2]ZASOCIADO(NL)
       Affzo  [M:SQH2]STOMGTCOD(NL)
-
 
 # @04@ - SCD - 23/04/2025 - INI
 
@@ -301,6 +286,36 @@ $UPD_GRO_SOH
     Affzo  [M:SOH4]REPCOE(NL)
 
   Endif
+
+## 2026-00039.ini
+## esta modificación está comentada porque no se ha podido validar
+## si continúa dando problemas el proceso específico actual
+## deberíamos comentar el específico de Nunsys (lo de arriba)
+## y descomentar el código del ticket 2026-00039
+#  If [M:SOH4]FMI(NL-1) = 5 Then
+#    GNETPRI = [M:SOH4]NETPRI(NL-1)
+#    GREPCOE = [M:SOH4]REPCOE(NL-1)
+#  Endif
+#
+#  If func YCONFIG.CHECK_CONFIG([M:SOH4]ITMREF(NL)) = 2
+#    If NL>0
+#      If [M:SOH4]ZLINASOC(NL) <> 0
+#        [M:SOH4]GROPRI(NL) = GNETPRI
+#        [M:SOH4]REPCOE(NL) = GREPCOE
+#        Local Integer NOL
+#        NOL = NL
+#        Call CLCNETPRI([M]QTY(NOL), [M:SOH0]CUR, NOL) From TRTVENPRI
+#        Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 1) From TRTVENPRI
+#        [M:SOH4]UPDFLG(NL) = 2
+#      Endif
+#    Endif
+#    Affzo  [M:SOH4]UPDFLG(NL)
+#    Affzo  [M:SOH4]GROPRI(NL)
+#    Affzo  [M:SOH4]NETPRI(NL)
+#    Affzo  [M:SOH4]REPCOE(NL)
+#  Endif
+## 2026-00039.fin
+
 Return
 ############################################################################################################################
 $UPD_GRO_SQH

@@ -46,11 +46,12 @@ If fstat = 0 and [Z01]PREPICKING = 2
   # Modificación 16/07/2024. Controlo el estado del prepicking
   If [L]CTD_EMPAQUETADA = 0
 #De momento quitamos el punto hasta nuevo aviso INI
-    #    Errbox "No se ha prepickineado nada de la línea " + num$([SOQ]SOPLIN) + " del pedido " + [SOQ]SOHNUM + " artículo " + [SOQ]ITMREF
-    #    [F:PRE]QTYSTU = 0
-    #    [F:PRE]ALLQTY = 0
-    #    GOK=0
+    Errbox "No se ha prepickineado nada de la línea " + num$([SOQ]SOPLIN) + " del pedido " + [SOQ]SOHNUM + " artículo " + [SOQ]ITMREF
+    [F:PRE]QTYSTU = 0
+    [F:PRE]ALLQTY = 0
+    GOK=0
 #De momento quitamos el punto hasta nuevo aviso FIN
+
   Elsif [L]CTD_EMPAQUETADA < [SOQ]QTYSTU
         Local Integer OK9
         Local Char TEXTO(120)

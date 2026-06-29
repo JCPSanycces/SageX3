@@ -1,6 +1,5 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 # @01@ - EQM - 17/10/2024 - Cambio script y modifico para que se puedan imprimir órdenes cerradas/coste calculado
-# @02@ - EQM - 05/11/2024 - Gestión impresiones inicios parciales
 Subprog IMPRIME(NBPAR,PARAMETRE)
 Variable    Integer NBPAR
 Variable Char    PARAMETRE()(1..)
@@ -26,7 +25,6 @@ Local Char    WROUSTR, WROUEND
 Local Char    WCRITMFI(200)
 Local Integer W_OK
 Local Char    CHART  :  CHART=chr$(1)
-Local Integer COPIAS : COPIAS =0 # @02@ - EQM
 
 Gosub OUVRE
 If GERREUR : GERREUR=0 : End : Endif
@@ -75,12 +73,10 @@ For I=1 To NBPAR
    When "numedt"          : [L]PARAMETRE(I) = "numedt="+num$([L]NUMREQ)
    When "usr"             : [L]PARAMETRE(I) = "usr="+GUSER
    When "etat"            : [L]PARAMETRE(I) = "etat="+[L]ETAT
-   When "ctdparcial"      :
-                            [L]COPIAS= val(VALEUR) # @02@ - EQM
  Endcase
  Endif
 Next
-If GUSER='NUN12' : Infbox"COPIAS"+ num$(COPIAS): Endif
+
 Filter [F:MFP] Where evalue([L]CRITERE)
 Gosub TRT_MFP
 
@@ -115,7 +111,7 @@ For [F:MFP]MFP0
              W_OK = 1
              Break
        Next
-        If [L]COPIAS=2 : W_NUM=1 :Endif # @02@ - EQM Si hay copias parciales, no imprimos toda la producción
+
        # llc 05.03 18271
 
        If W_OK
@@ -190,7 +186,7 @@ If [L]IMPR = 1
 Endif
 #Création de l'enregistrement dans la table AREPORTM
 WNUMLIG      += 1
-    If GUSER='NUN12' : Infbox"NCOPIAS W_NUM"-num$(W_NUM) : Endif
+
 For WNUMLIG=1 To W_NUM
 Raz [F:ARM]
 [F:ARM]USR     = GUSER

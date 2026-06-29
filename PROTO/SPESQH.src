@@ -2,6 +2,10 @@
 # Gestión de la máscara SQH2 (Especifico)
 # @01@ - JLP - 14/05/2024 - Rellenar campos con los datos del cliente
 # @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+# @03@ - EQM - 28/04/2026 - Añadimos stock disponible
+# 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
+# 2026-00053 - JCP.17062026.Servicio medición e instalación mamparas
+######################################################################################
 
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla SQH2) 24/08/2023 08:26:19 (NUN04)
@@ -10,9 +14,9 @@ $ACTION
 #If GUSER = 'NUN09' Then : Infbox ACTION : Endif
 
 Case ACTION
-  When "LIENS_LIG"   :   Gosub LIENS_LIG
-  When "APRES_MOD"   : Gosub APRES_MOD #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
-  When "APRES_CRE"   : Gosub APRES_CRE #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+  When "LIENS_LIG"    : Gosub LIENS_LIG
+  When "APRES_MOD"    : Gosub APRES_MOD #  @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+  When "APRES_CRE"    : Gosub APRES_CRE #  @02@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
 Endcase
 Return
 
@@ -31,10 +35,16 @@ Return
 #  @02@ - SCD - 23/04/2025 - INI
 $APRES_MOD
   Gosub RECALCULA_TOTALES
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 
 $APRES_CRE
   Gosub RECALCULA_TOTALES
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
 #  @02@ - SCD - 23/04/2025 - FIN
 
@@ -228,3 +238,412 @@ $ACTUALIZAR_PRECIOS_ASOCIADOS
 Return
 
 #  @02@ - SCD - 23/04/2025 - FIN
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# 2026-00006
+$UPD_KITS_REPORT
+
+Local Integer LCONPRI,LCONSEC,LLINEAPADRE
+Local Char    LITMPADRE(50),LDTOPADRE(50)
+
+  If !clalev([F:ZSQD0]) Then : Local File SQUOTED   [F:ZSQD0] : Endif
+  If !clalev([F:ZSQD1]) Then : Local File SQUOTED   [F:ZSQD1] : Endif
+  If !clalev([F:ZITM0]) Then : Local File ITMMASTER [F:ZITM0] : Endif
+
+  For [L]LCONPRI=0 To [M:SQH2]NBLIG-1
+    Raz LITMPADRE,LDTOPADRE
+    If [M:SQH2]LINTYP([L]LCONPRI) = 9 Then
+      Read [F:ZITM0]ITM0 = [M:SQH2]ITMREF([L]LCONPRI)
+      If [F:ZITM0]TSICOD(0) = '001' Then
+        [L]LLINEAPADRE  = [M:SQH2]SQDLIN([L]LCONPRI)
+        [L]LITMPADRE    = [M:SQH2]ITMREF([L]LCONPRI)
+        If [M:SQH2]DISCRGVAL1([L]LCONPRI) <> 0 Then
+          [L]LDTOPADRE    = num$([M:SQH2]DISCRGVAL1([L]LCONPRI))
+        Endif
+        If [M:SQH2]DISCRGVAL2([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SQH2]DISCRGVAL2([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SQH2]DISCRGVAL2([L]LCONPRI))
+          Endif
+        Endif
+        If [M:SQH2]DISCRGVAL3([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SQH2]DISCRGVAL3([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SQH2]DISCRGVAL3([L]LCONPRI))
+          Endif
+        Endif
+        Read [F:ZSQD0]SQD0 = [M:SQH0]SQHNUM;[M:SQH2]SQDLIN([L]LCONPRI)
+        [F:ZSQD0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSQD0]ZVARESTDTO  = [L]LDTOPADRE
+        If !adxlog Then : Trbegin [F:ZSQD0] : Endif
+        Rewrite [F:ZSQD0]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+        [L]LCONPRI += 1
+        While [M:SQH2]LINTYP([L]LCONPRI) = 8
+          Read [F:ZSQD1]SQD0 = [M:SQH0]SQHNUM;[M:SQH2]SQDLIN([L]LCONPRI)
+          [F:ZSQD1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+          [F:ZSQD1]ZVARESTDTO  = [L]LDTOPADRE
+          If !adxlog Then : Trbegin [F:ZSQD1] : Endif
+          Rewrite [F:ZSQD1]
+          If !fstat Then
+            Commit
+          Else
+            Rollback
+          Endif
+          [L]LCONPRI += 1
+        Wend
+      Endif
+    Endif
+  Next
+
+  Close Local File [ZSQD0],[ZSQD1],[ZITM0]
+
+Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SQH2) 28/04/2026 11:57:53 (NUN12)
+#@03@ - INI
+######################################################################################
+Subprog AS_QTY(VALEUR)
+Variable Decimal VALEUR
+#SI EL ARTÍCULO ES UNA ASOCIADO, Y POR TANTO NO TIENE GESTIÓN DE STOCK, LANZO ACCIÓN STD PERO LUEGO SPE PARA MOSTRAR EL STOCK DISPONIBLE
+#If [M:SQH2]ZASOCIADO(nolign-1) = 2 and [M:SQH2]STOMGTCOD(nolign-1) = 1
+  Call AS_QTY(VALEUR) From SUBSQH
+
+  Local    Integer NOL    :    NOL=nolign-1
+  If dim([M:SQH2]WSTKTXT)<=0 : End : Endif
+  #--We stop if item not managed into stock or if import/webservice context
+  #If [M:SQH2]STOMGTCOD(NOL)=1 or GIMPORT or GWEBSERV:
+  If GIMPORT or GWEBSERV:  # Esta es la línea que modifico para quitar el bloqueo de no gestión de stock
+    If dim([M:SQH2]WSTKTXT)>0
+      Raz [M:SQH2]WSTKTXT
+      Raz [M:SQH2]WALLTXT
+      If !GIMPORT and !GWEBSERV : Affzo [M:SQH2]WSTKTXT : Affzo [M:SQH2]WALLTXT : Endif
+    Endif
+    End
+  Endif
+
+  Raz [M:SQH2]WALLTXT
+  Raz [M:SQH2]WSTKTXT
+
+  #--We carry on only if the available stock block is set as displayed for the current sales order transaction
+  If GSOHVALLIG<>2 : End : Endif
+  If clalev([F:SLT])=0 : Local File SALTRS [SLT] : Endif
+  If [F:SLT]STRTYP<>2 or [F:SLT]STRNUM<>GFLAG
+    Read [F:SLT]SLT0=2;GFLAG
+    If fstat : Raz [F:SLT] : Endif
+  Endif
+  If [F:SLT]AVASTOCOD<>2 : End : Endif
+
+  If GREP=""
+    Affzo [M:SQH2]WSTKTXT
+    Affzo [M:SQH2]WALLTXT
+    End
+  Endif
+
+  Local Integer WRET
+  Local Decimal WSTUDISSTU, WSTUDIS, WSTUDISSTU_STODISALL, WSTUDISSTU_CALFDMA
+  Local Char    WNUM
+  Local Char    WSTKTXTMESS(255)(0..1) : Raz WSTKTXTMESS
+  Local Date    WDATE_FDMA
+  Local Integer WALL
+  If find(GUSERERBPC, 2,3) WNUM=vireblc(format$("K:15X",[M:SQH0]BPCORD)+format$("K:3X",[M:SQH2]DBPAADD(NOL)), 1) : Endif
+  Raz WSTKTXTMESS
+  Call STODISALL([M:SQH2]DSTOFCY(NOL),[M:SQH2]ITMREF(NOL),2,1,2,2,1,"",WNUM,"",WSTUDISSTU,WRET) From STKALL
+  If WRET=1 : Raz [M:SQH2]WSTKTXT : Affzo [M:SQH2]WSTKTXT : End : Endif
+  WSTUDISSTU_STODISALL = WSTUDISSTU
+  If WSTUDISSTU > 0
+    #--stock is available for entire quantity
+    WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(NOL))
+    Call QTEARR(WSTUDIS, [M:SQH2]SAU(NOL)) From TRTDIV
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(NOL)-mess(47,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(NOL)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(NOL)-mess(4,2972,1)
+  Else
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(NOL)-":"-mess(409,197,1)-mess(4,2972,1)
+  Endif
+
+  If WSTUDISSTU < 0 or WSTUDISSTU < [M:SQH2]QTY(NOL)
+    WDAT_FDMA = [0/0/0]
+    WALL=2
+    Call CAL_FDMA([M:SQH2]DSTOFCY(NOL),[M:SQH2]ITMREF(NOL),2,[M:SQH0]SQHNUM ,[M:SQH2]SOPLIN(NOL),[M:SQH2]SOPLIN(NOL),WALL,[M:SQH2]QTY(NOL),WSTUDISSTU,WDAT_FDMA) From STKLIB
+    If WDAT_FDMA <> [0/0/0]
+      If WSTUDISSTU>0
+        WSTUDISSTU_CALFDMA =  WSTUDISSTU
+        WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(NOL))
+        Call QTEARR(WSTUDIS, [M:SQH2]SAU(NOL)) From TRTDIV
+        WSTKTXTMESS(1) = mess(102,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(NOL)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(NOL)-mess(38,197,1)-format$(GFMDAT,WDAT_FDMA)
+      Endif
+    Endif
+  Endif
+  [M:SQH2]WSTKTXT = WSTKTXTMESS(0)
+  If WSTKTXTMESS(1)<>""
+    [M:SQH2]WSTKTXT -= "-"-WSTKTXTMESS(1)
+  Endif
+  Affzo [M:SQH2]WSTKTXT
+  Affzo [M:SQH2]WALLTXT
+
+  # Mato la acción STD
+  GPE = 1
+#Endif
+End
+
+#@03@ - FIN
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SQH2) 28/04/2026 13:29:00 (NUN12)
+#@03@ - INI
+######################################################################################
+Subprog AV_NBLIG
+# Muestro la info del stock al posicionarme en la línea
+If [M:SQH2]ITMREF(nolign-1) <> "" and GREP=""
+  If dim([M:SQH2]WSTKTXT)<=0 : End : Endif
+  #--We stop if item not managed into stock or if import/webservice context
+  If GIMPORT or GWEBSERV:
+    If dim([M:SQH2]WSTKTXT)>0
+      Raz [M:SQH2]WSTKTXT
+      Raz [M:SQH2]WALLTXT
+      If !GIMPORT and !GWEBSERV : Affzo [M:SQH2]WSTKTXT : Affzo [M:SQH2]WALLTXT : Endif
+    Endif
+    End
+  Endif
+
+  Raz [M:SQH2]WALLTXT
+  Raz [M:SQH2]WSTKTXT
+
+  #--We carry on only if the available stock block is set as displayed for the current sales order transaction
+  If GSOHVALLIG<>2 : End : Endif
+
+  If clalev([F:SLT])=0 : Local File SALTRS [SLT] : Endif
+  If [F:SLT]STRTYP<>2 or [F:SLT]STRNUM<>GFLAG
+    Read [F:SLT]SLT0=2;GFLAG
+    If fstat : Raz [F:SLT] : Endif
+  Endif
+  If [F:SLT]AVASTOCOD<>2 : End : Endif
+
+  Local Integer WRET
+  Local Decimal WSTUDISSTU, WSTUDIS, WSTUDISSTU_STODISALL, WSTUDISSTU_CALFDMA
+  Local Char    WNUM
+  Local Char    WSTKTXTMESS(255)(0..1) : Raz WSTKTXTMESS
+  Local Date    WDATE_FDMA
+  Local Integer WALL
+  If find(GUSERERBPC, 2,3) WNUM=vireblc(format$("K:15X",[M:SQH0]BPCORD)+format$("K:3X",[M:SQH2]DBPAADD(nolign-1)), 1) : Endif
+  Raz WSTKTXTMESS
+  Call STODISALL([M:SQH2]DSTOFCY(nolign-1),[M:SQH2]ITMREF(nolign-1),2,1,2,2,1,"",WNUM,"",WSTUDISSTU,WRET) From STKALL
+  If WRET=1 : Raz [M:SQH2]WSTKTXT : Affzo [M:SQH2]WSTKTXT : End : Endif
+  WSTUDISSTU_STODISALL = WSTUDISSTU
+  If WSTUDISSTU > 0
+    #--stock is available for entire quantity
+    WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(nolign-1))
+    Call QTEARR(WSTUDIS, [M:SQH2]SAU(nolign-1)) From TRTDIV
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(nolign-1)-mess(47,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(nolign-1)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(nolign-1)-mess(4,2972,1)
+  Else
+    WSTKTXTMESS(0) = [M:SQH2]ITMREF(nolign-1)-":"-mess(409,197,1)-mess(4,2972,1)
+  Endif
+  If WSTUDISSTU < 0 or WSTUDISSTU < [M:SQH2]QTY(nolign-1)
+    WDAT_FDMA = [0/0/0]
+    WALL=2
+    Call CAL_FDMA([M:SQH2]DSTOFCY(nolign-1),[M:SQH2]ITMREF(nolign-1),2,[M:SQH0]SQHNUM,[M:SQH2]SOPLIN(nolign-1),[M:SQH2]SOPLIN(nolign-1),WALL,[M:SQH2]QTY(nolign-1),WSTUDISSTU,WDAT_FDMA) From
+& STKLIB
+    If WDAT_FDMA <> [0/0/0]
+      If WSTUDISSTU>0
+        WSTUDISSTU_CALFDMA =  WSTUDISSTU
+        WSTUDIS=WSTUDISSTU*(1/[M:SQH2]SAUSTUCOE(nolign-1))
+        Call QTEARR(WSTUDIS, [M:SQH2]SAU(nolign-1)) From TRTDIV
+        WSTKTXTMESS(1) = mess(102,191,1)+num$(WSTUDISSTU)-[M:SQH2]STU(nolign-1)-"/"+mess(380,197,1)+num$(WSTUDIS)-[M:SQH2]SAU(nolign-1)-mess(38,197,1)-format$(GFMDAT,WDAT_FDMA)
+      Endif
+    Endif
+  Endif
+  [M:SQH2]WSTKTXT = WSTKTXTMESS(0)
+  If WSTKTXTMESS(1)<>""
+    [M:SQH2]WSTKTXT -= "-"-WSTKTXTMESS(1)
+  Endif
+
+  Affzo [M:SQH2]WSTKTXT
+  Affzo [M:SQH2]WALLTXT
+Endif
+End
+
+#@03@ - FIN
+######################################################################################
+
+
+######################################################################################
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+######################################################################################
+## Inicializar botón 14 (pantalla SQH2) 17/06/2026 15:09:42 (SN070)
+######################################################################################
+Subprog IB_NBLIG
+# 2026-00053.ini
+  If find([M:SQH2]ITMREF(nolign-1),'ZMEDICION')
+    GBOUT14 = 'Informar medición en asociado'
+  Else
+    GBOUT14 = ''
+  Endif
+# 2026-00053.fin
+End
+
+######################################################################################
+## Botón 14 - Informar medición en asociados (pantalla SQH2) 17/06/2026 15:06:53 (SN070)
+######################################################################################
+# 2026-00053
+Subprog B14_NBLIG
+Local   Integer LINT,LCON,LSTAT
+Global  Integer GNUMLIN,GLINASOC(1..)
+Global  Char    GL1LLE(250)(5)
+Local   Char    PABRFIC(250),PTEXTE(250),LCODE(250),LMAILVENDE(250)
+Local   Integer XXOK
+Local   Char    XCHAMPLIEN(50) : XCHAMPLIEN = 'YYYY'
+Global  Char    YYYY(50) : YYYY = "SQH"
+Local   Clbfile WWCLOB
+
+  # buscar los números de línea válidos para este presupuesto (sólo las líneas con variantes de EC)
+  If !clalev([F:ZSQD0]) Then : Local File SQUOTED   [F:ZSQD0] : Endif
+  If !clalev([F:ZITM0]) Then : Local File ITMMASTER [F:ZITM0] : Endif
+  [L]LCON = 1
+  Filter [F:ZSQD0] Where SQHNUM = [M:SQH0]SQHNUM
+  For [F:ZSQD0]
+    If [F:ZSQD0]LINTYP = 9 Then
+      [V]GLINASOC([L]LCON) = [F:ZSQD0]SQDLIN
+      [L]LCON += 1
+    Elsif [F:ZSQD0]LINTYP = 1 Then
+      Read [F:ZITM0]ITM0 = [F:ZSQD0]ITMREF
+      If !fstat Then
+        If [F:ZITM0]TSICOD = '001' Then
+          [V]GLINASOC([L]LCON) = [F:ZSQD0]SQDLIN
+          [L]LCON += 1
+        Endif
+      Endif
+    Endif
+  Next
+  Filter [F:ZSQD0]
+
+  # llama a la ventana emergente
+  Call SAISIE_LIB(LINT,GL1LLE,"OZLSMEI","SPEZLSMEI","OBJZON") From GSAISIE
+
+  If [V]GNUMLIN = 0 Then : End : Endif
+
+  # rellena los campos de la medición en las variantes de las estructuras comerciales
+  If !clalev([F:ZSQD1]) Then : Local File SQUOTED [F:ZSQD1] : Endif
+  If !clalev([F:ZSQD2]) Then : Local File SQUOTED [F:ZSQD2] : Endif
+  If !clalev([F:ZSQD3]) Then : Local File SQUOTED [F:ZSQD3] : Endif
+  If !clalev([F:ZTXC1]) Then : Local File TEXCLOB [F:ZTXC1] : Endif
+  If !clalev([F:ZTXC2]) Then : Local File TEXCLOB [F:ZTXC2] : Endif
+  Read [F:ZSQD1]SQD0 = [M:SQH0]SQHNUM;[M:SQH2]SQDLIN(nolign-1)
+  If !fstat Then
+
+    # texto línea
+    # la línea de medición sí que tiene texto línea
+    If [F:ZSQD1]SQDTEX <> "" Then
+      Read [F:ZSQD3]SQD0 = [M:SQH0]SQHNUM;[V]GNUMLIN
+      If !fstat Then
+        # la línea de la mampara ya tiene texto línea
+        If [F:ZSQD3]SQDTEX <> "" Then
+          # código de la línea de medición
+          Read [F:ZTXC1]TXC0 = [F:ZSQD1]SQDTEX
+          # código de la línea de mampara
+          Read [F:ZTXC2]TXC0 = [F:ZSQD3]SQDTEX
+          If !fstat Then
+            # copia el texto de la medición sobre el texto de la mampara
+            # lo hago así para reaprovechar el código y no generar uno nuevo
+            [L]LCODE = [F:ZSQD3]SQDTEX
+            [F:ZTXC2]TEXTE = [F:ZTXC1]TEXTE
+            If !adxlog Then : Trbegin [F:ZTXC2] : Endif
+            Rewrite [F:ZTXC2]
+            If !fstat Then
+              Commit
+            Else
+              Rollback
+            Endif
+          Endif
+        # la línea de la mampara no tiene texto línea
+        Else
+          Read [F:ZTXC1]TXC0 = [F:ZSQD1]SQDTEX
+          If !fstat Then
+            # crea el registro en la tabla TEXCLOB
+            Local Mask ACLOB [M:ACL]
+            Setlob [L]WWCLOB With [F:ZTXC1]TEXTE
+            [M:ACL]CLOB = [L]WWCLOB
+            Call CRE_CLOB_ACL([L]XCHAMPLIEN,[L]XXOK) From TRTX3TEX
+            Close Local Mask [M:ACL]
+            [L]LCODE = [V]YYYY
+          Endif
+        Endif
+      Endif
+    # la línea de medición no tiene texto línea (o se ha borrado)
+    Else
+      # busca la línea de la mampara
+      Read [F:ZSQD3]SQD0 = [M:SQH0]SQHNUM;[V]GNUMLIN
+      If !fstat Then
+        # esa línea de la mampara sí que tiene texto línea
+        If [F:ZSQD3]SQDTEX <> "" Then
+          # borra el texto línea de la mampara
+          Call SUP_CLOB([F:ZSQD3]SQDTEX,[L]LSTAT) From TRTX3TEX
+          If [L]LSTAT Then
+            [L]LCODE = ""
+          Endif
+        Endif
+      Endif
+    Endif
+
+    # correo vendedor
+    [L]LMAILVENDE = [F:ZSQD1]ZMAILVENDE
+
+    # escribe la información de la medición en la tabla de líneas de presupuesto
+    Read [F:ZSQD2]SQD0 = [F:SQH]SQHNUM;[V]GNUMLIN
+    If !fstat Then
+      [F:ZSQD2]SQDTEX     = [L]LCODE
+      [F:ZSQD2]ZMAILVENDE = [L]LMAILVENDE
+      If !adxlog Then : Trbegin [F:ZSQD2] : Endif
+      Rewrite [F:ZSQD2]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+  Endif
+
+  # limpia variables y tablas
+  If dim([V]GNUMLIN)  > 0 Then : Kill [V]GNUMLIN  : Endif
+  If dim([V]GLINASOC) > 0 Then : Kill [V]GLINASOC : Endif
+  If dim([V]YYYY)     > 0 Then : Kill [V]YYYY     : Endif
+  Close Local File [ZSQD0],[ZSQD1],[ZSQD2],[ZSQD3],[ZITM0],[ZTXC1],[ZTXC2]
+End
+
+######################################################################################
+## Después de modificar el campo 'Control de montaje' (pantalla SQH2) 18/06/2026 15:39:14 (SN070)
+######################################################################################
+# 2026-00053.ini
+Subprog AM_ZCTRLMONTAJE(VALEUR)
+Variable Integer VALEUR
+
+Local Integer LCON
+
+  For [L]LCON = nolign To [M:SQH2]NBLIG-1
+    If [M:SQH2]LINTYP([L]LCON) = 8 Then
+      Actzo [M:SQH2]ZCTRLMONTAJE([L]LCON)
+      [M:SQH2]ZCTRLMONTAJE([L]LCON) = VALEUR
+      Affzo [M:SQH2]ZCTRLMONTAJE([L]LCON)
+    Else
+      Break
+    Endif
+  Next
+
+End

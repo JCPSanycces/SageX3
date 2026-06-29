@@ -20,6 +20,8 @@
 #@04@: NUN14  31-07-2024 (Y119) Cambios para EDI . Nuevo fichero excel BCM
 #@05@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
 #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+#@07@: JLP    26-11-2024 (Y119) DESADV LM-IT Componentes KIT
+#@08@: EQM    02-10-2025  Modificación importe cita
 
 CURSOR
 $ACTION
@@ -65,8 +67,6 @@ $OUVRE
   If !clalev([F:YPRD])   : Local File STOPRED      [F:YPRD] : Endif
   If !clalev([F:YTPA])   : Local File TABPACKAGE   [F:YTPA] : Endif
 
-
-  If !clalev([F:YZCITL])  : Local File ZCITASTL     [F:YZCITL]  : Endif
   #--
   Gosub DECLARE From TABLEAUX
 Return
@@ -278,15 +278,14 @@ $EXEBOUT
   #--
   Case BOUT
     When "1"
-     If GUSER ='NUN28' or GUSER ='NUN26'
-       Call FICHERO1([F:ZCITH]ZCITANUM) From ZCITASEXCEL_TEST : Gosub RELIT From GOBJSUB
-       Call FICHERO2([F:ZCITH]ZCITANUM) From ZCITASEXCEL_TEST : Gosub RELIT From GOBJSUB
-       Infbox "Ficheros de Leroy Merlin generados"
-     Else
-       Call FICHERO1([F:ZCITH]ZCITANUM) From ZCITASEXCEL : Gosub RELIT From GOBJSUB
-       Call FICHERO2([F:ZCITH]ZCITANUM) From ZCITASEXCEL : Gosub RELIT From GOBJSUB
-       Infbox "Ficheros de Leroy Merlin generados"
-     Endif
+           #@07@: JLP    26-11-2024 (Y119) DESADV LM-IT Componentes KIT - INI
+           Call FICHERO1([F:ZCITH]ZCITANUM) From ZCITASEXCEL_TEST : Gosub RELIT From GOBJSUB
+           Call FICHERO2([F:ZCITH]ZCITANUM) From ZCITASEXCEL_TEST : Gosub RELIT From GOBJSUB
+           Infbox "Ficheros de Leroy Merlin generados"
+           #@07@: JLP    26-11-2024 (Y119) DESADV LM-IT Componentes KIT - FIN
+#           Call FICHERO1([F:ZCITH]ZCITANUM) From ZCITASEXCEL : Gosub RELIT From GOBJSUB
+#           Call FICHERO2([F:ZCITH]ZCITANUM) From ZCITASEXCEL : Gosub RELIT From GOBJSUB
+#           Infbox "Ficheros de Leroy Merlin generados"
     When '2'      :  Gosub ENVIO_SERES                      #@01@ NUN22 : Se captura el btón con código 8 y se redirige el proceso al evento ENVIO_SERES
 
     When '3'
@@ -370,9 +369,11 @@ Else
     NOL = [M:ZCIT1]NBLIG
     #--
 
-    If !clalev([F:YSPH]) Then: Local File YSPACK  [F:YSPH] : Endif
-    If !clalev([F:Z001]) Then: Local File STOPRED [Z001] : Endif
-    If !clalev([F:Z002]) Then: Local File SORDER  [Z002] : Endif
+    If !clalev([F:YSPH]) Then: Local File YSPACK  [F:YSPH]  : Endif
+    If !clalev([F:Z001]) Then: Local File STOPRED [Z001]    : Endif
+    If !clalev([F:Z002]) Then: Local File SORDER  [Z002]    : Endif
+    If !clalev([F:YSPD]) Then: Local File YSPACKD  [F:YSPD] : Endif #@08@: EQM
+    If !clalev([F:YSOP]) Then: Local File SORDERP [F:YSOP]  : Endif #@08@: EQM
 
     Local Decimal IMPORTE_SOH
     Filter [F:YSPH] Where VCRNUM = [F:PRH]PRHNUM
@@ -388,16 +389,33 @@ Else
       [M:ZCIT1]YPCKHEI(NOL)   = [F:YSPH]YPCKHEI
       [M:ZCIT1]YCARGADO(NOL)  = [F:YSPH]YCARGADO
       [M:ZCIT1]ZCITALIN(NOL)  = NOL+1
+
+      #@08@: EQM - INI - Modificación para extraer el importe de SORDERP y STOPRED enlazando con YSPACKD
       # Saco el importe de las líneas como la suma de los importes de los pedidos que componen cada doc de preparación
-      Filter [Z001] Where [Z001]PRHNUM = [F:PRH]PRHNUM
-        For [Z001]
-          Read [Z002]SOH0 = [Z001]ORINUM
-          If fstat = 0
-            [L]IMPORTE_SOH += [Z002]ORDNOT
-          Endif
-        Next
-      Filter [Z001]
-      [M:ZCIT1]ZIMPORTE(NOL)  = [L]IMPORTE_SOH
+#      Filter [Z001] Where [Z001]PRHNUM = [F:PRH]PRHNUM
+#        For [Z001]
+#          Read [Z002]SOH0 = [Z001]ORINUM
+#          If fstat = 0
+#            [L]IMPORTE_SOH += [Z002]ORDNOT
+#          Endif
+#        Next
+#      Filter [Z001]
+      [L]IMPORTE_SOH=0
+      Filter [F:YSPD] Where [F:YSPD]PACNUM=[F:YSPH]PACNUM and [F:YSPD]VCRNUM=[F:PRH]PRHNUM
+      For [F:YSPD]
+          Filter [Z001]Where [Z001]PRHNUM=[F:YSPD]VCRNUM and  [Z001]PRELIN=[F:YSPD]VCRLIN
+          For  [Z001]
+              Read [F:YSOP]SOP3=[Z001]ORINUM;[Z001]ORILIN
+              If fstat = 0
+                  [L]IMPORTE_SOH += [F:YSPD]QTYPCU*[F:YSOP]NETPRI
+              Endif
+          Next
+          [M:ZCIT1]ZIMPORTE(NOL)  = [L]IMPORTE_SOH
+      Next
+      Filter[F:YSPD]
+
+      #      [M:ZCIT1]ZIMPORTE(NOL)  = [L]IMPORTE_SOH Comentamos
+      #@08@: EQM - FIN
       Gosub $EMBALAJE #suma a la cabecera los bultos y pallets
       NOL +=1
     Next
@@ -410,6 +428,9 @@ Else
 
     Close Local File [Z001]
     Close Local File [Z002]
+    Close Local File [F:YSPD] #@08@: EQM
+    Close Local File [F:YSOP] #@08@: EQM
+
   Endif
 Endif
 Return
@@ -555,17 +576,8 @@ $ENVIO_SERES_LM
   Local Integer FICHERO_ABIERTO : [L]FICHERO_ABIERTO = 0
 
   [L]S_SQLDADV =
-& "SELECT SDHNUM_0,PRHNUM_0 FROM SDELIVERYD  WHERE PRHNUM_0 IN (SELECT s.PRHNUM_0 FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE z.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+
-&                            "' group by s.PRHNUM_0) group by SDHNUM_0,PRHNUM_0  "
-
-#  [L]S_SQLDADV =
-#& "select zc.ZCITANUM_0 ,sdd.PRHNUM_0,ypd.PACNUM_0 from SDELIVERYD sdd " +
-#& "INNER JOIN YPACKD ypd ON sdd.PRHNUM_0 = ypd.VCRNUM_0 and sdd.PRELIN_0 = ypd.VCRLIN_0 " +
-#& "INNER JOIN ZCITASTL zc ON ypd.VCRNUM_0 = zc.PRHNUM_0  and ypd.PACNUM_0 = zc.PACNUM_0  " +
-#& "Where zc.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+"' "+
-#& " GROUP By zc.ZCITANUM_0,sdd.PRHNUM_0,ypd.PACNUM_0 "
-
-
+& "SELECT SDHNUM_0,PRHNUM_0 FROM SDELIVERYD  WHERE PRHNUM_0 IN (SELECT s.PRHNUM_0  FROM ZCITASTL z INNER JOIN STOPREH s ON(z.PRHNUM_0 = s.PRHNUM_0) WHERE z.ZCITANUM_0 = '"+[M:ZCIT0]ZCITANUM+
+&                            "' group by s.PRHNUM_0) group by SDHNUM_0,PRHNUM_0 "
   Local Integer I : I = 0
   Local Integer J : J = 0
   Local Integer P : P = 0 # @05@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
@@ -583,6 +595,11 @@ $ENVIO_SERES_LM
   Next
   Case [L]CHECK_ENVIADA
     When 1
+      If GUSER <>'NUN26' #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+       Call ZCREINVSERES_TEST([M:ZCIT0]ZCITANUM,'','', '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES_TEST #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV
+# por bultos.
+      Else #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+
       For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
 #        Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],0, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES  #@01@: NUN14  11-03-2024 (Y119)
         Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],0, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES  #@05@: JLP 12-09-2024 (Y119) Ajuste incidencia EN
@@ -590,19 +607,21 @@ $ENVIO_SERES_LM
         Call ECR_TRACE("Fichero generado",0) From GESECRAN
 
       Next
+      Endif#@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
     When 2
       Qstbox "Cita ("+[M:ZCIT0]ZCITANUM+") ya enviada, ¿desea enviarla de nuevo?" Using [L]CHECK
       Case [L]CHECK
         When 1
-          If (GUSER = 'NUN28' or GUSER ='NUN26') #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
-             Call ZCREINVSERES_TEST([M:ZCIT0]ZCITANUM,'','', '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES_TEST # NUEVO
+          If GUSER<>'NUN26' #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+            Call ZCREINVSERES_TEST([M:ZCIT0]ZCITANUM,'','', '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES_TEST #@06@: JLP    15-11-2024 (Y119) Generacion de fichero
+# DESADV por bultos.
           Else #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
-          For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
 
+          For (Char S_SDH,Char S_PRH) From "S" Sql [L]S_SQLDADV As [ZPRSD]
 #            Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J) From YCRESDHSERES  #@01@: NUN14  11-03-2024 (Y119)
             Call ZCREINVSERES([M:ZCIT0]ZCITANUM,[ZPRSD]S_SDH,[ZPRSD]S_PRH, '','','','',[0/0/0],[0/0/0],2, [L]FICHERO_ABIERTO,I,J,B,P) From YCRESDHSERES  #@05@: JLP 12-09-2024 (Y119) Ajuste incidencia
-           Next
-           Endif #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
+          Next
+          Endif #@06@: JLP    15-11-2024 (Y119) Generacion de fichero DESADV por bultos.
         When 2
           Return
         Endcase
@@ -680,12 +699,12 @@ If status = 65 #- supresion
     Local Integer OK9
     Call OUINON("¿Desea borrar el vale " + [L]VALE + " de la cita de transporte?",OK9) From GESECRAN
     If OK9 = 2
-    Infbox "primero " + num$([M:ZCIT1]NBLIG)
+
       For L = 0 To [M:ZCIT1]NBLIG-1
         If [M:ZCIT1]PRHNUM(L) = [L]VALE
           Dela L,1 [M:ZCIT1]NBLIG
           [M:ZCIT1]NBLIG -= 1
-          Infbox "segundo " + num$([M:ZCIT1]NBLIG)
+
         Endif
       Next
       Affzo [M:ZCIT1]
@@ -698,7 +717,7 @@ If status = 65 #- supresion
   Endif
 
 Endif
-Infbox "tercero " + num$([M:ZCIT1]NBLIG)
+
 End
 
 

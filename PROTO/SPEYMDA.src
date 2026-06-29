@@ -1,0 +1,11 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+  Case ACTION
+    When "EXEC" : Gosub EXEC
+   Endcase
+Return
+
+$EXEC
+  Local Char FICHERO(50)
+  Call DESCARGAR_MANIFIESTO_DACHSER([M:YMDA0]YFECHA, FICHERO) From YINTTRANS
+Return

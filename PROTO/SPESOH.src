@@ -7,21 +7,32 @@
 #  @02@ - JLP - 05-09-2024 - Añadir mensaje al crear un pedido cuya forma de pago sea (E03)
 #  @03@ - EQM - 10-09-2024 - Modificar cálculo fecha expedición, se suma nuevo campo art/planta
 #  @04@ - EQM - 02-10-2024 - Añadimos nombre usuario WIP
-#  @05@ - JLP - 17-10-2024 - No permitir a usuarios crear entregas y doc prepa desde PDV
+#  @05@ - JLP - 17-10-2024 - NO PERMITIR A USUARIOS CREAR ENTREGAS Y DOC PREPA DESDE PDV
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas.
-#  @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV
+#  @07@ - JLP - 10-06-2025 - Bloqueo en las lineas que son asociadas y Bloqueos asociados en PDV
 #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista
+#  @11@ - JMF - 20-02-2026 - Controlar cambio concertación
+#  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No)
+#  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
+# 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
+# 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
+# 2026-00007 - JCP.27032026.Servicio de trasportista
+# 2026-00010 - JCP.02042026.Control en pedidos con transportista Dachser o MRW
+# XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
+# 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
 #####################################################################################################
 
 $ACTION
-#If GUSER = 'NUN28':Infbox ACTION : Endif
+
 Case ACTION
+  When "OUVRE"       : Gosub OUVRE
   When "INICRE"      : Gosub INICRE
   When "VERIF_CRE"   : Gosub VERIF_CRE   #  @01@ -SCD - 14/06/2024 - INI
+  When "VERIF_MOD"   : Gosub VERIF_MOD
   When "CREATION"    : Gosub CREATION #--ZVE06
   When "LIENS_LIG"   : Gosub LIENS_LIG
-  When "LIENS"       : Gosub LIENS
+  When "LIENS"       : Gosub LIENS #  @04@ - EQM
   When "AVANTBOUT"   : Gosub AVANTBOUT
   When "SETBOUT"     : Gosub SETBOUT #  @02@ - JLP - 05-09-2024 - Añadir mensaje al crear un pedido cuya forma de pago sea (E03)
   When "FIN_PICK"    : Gosub FIN_PICK   #  @03@ - EQM
@@ -30,8 +41,14 @@ Case ACTION
   When "APRES_CRE"   : Gosub APRES_CRE #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
   When "INIMOD"      : Gosub INIMOD #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
   When "STYLE"       : Gosub STYLE  #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
-
 Endcase
+Return
+
+#####################################################################
+$OUVRE
+# 2026-00039.ini
+Global Decimal GNETPRI,GREPCOE
+# 2026-00039.fin
 Return
 
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
@@ -40,12 +57,13 @@ $STYLE
      Chgstl [M:SOH4]DSHIDAT(I) With ""
      Affzo [M:SOH4]DSHIDAT(I)
   Next
-#  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 
-# @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
+# @07@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
   Call BLOQ_CAMPOS From YBLOQPDV
-# @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - FIN
+# @07@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - FIN
+
 Return
+#  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 
 #  @02@ - JLP - 05-09-2024 - Añadir mensaje al crear un pedido cuya forma de pago sea (E03) - INI
 $SETBOUT
@@ -55,14 +73,12 @@ Case BOUT
        Local Integer OKCAN : OKCAN = 2:# Ok
        Call AVERTIR("Pedido con forma de pago anticipada. Por favor desasigne y emita anticipo.", OKCAN) From GESECRAN
     Endif
-  When 'y'
-    If GUSER = 'ADMIN' : Call GROPRI From YGRO :  Endif
   Endcase
 #  @02@ - JLP - 05-09-2024 - Añadir mensaje al crear un pedido cuya forma de pago sea (E03) - FIN
 
 # @05@ - JLP - 17-10-2024 - NO PERMITIR A USUARIOS CREAR ENTREGAS Y DOC PREPA DESDE PDV - INI
 Local Char YUSUARIOS(250)
-YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031'
+YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
    If instr(0, YUSUARIOS ,GUSER) > 0
     Call VIREBOUT(CHAINE, "2") From GOBJET # BOTON ENTREGAS
     Call VIREBOUT(CHAINE, "6") From GOBJET # BOTON PREPARACIÓN
@@ -89,7 +105,6 @@ $INIMOD
 Return
 
 $CONTROL_FECHA_EXP
-
   If !clalev([YSOHQ]): Local File SORDERQ [YSOHQ]  : Endif
 
     For I = 0 To [M:SOH4]NBLIG-1
@@ -117,6 +132,7 @@ $CONTROL_FECHA_EXP
 Return
 # @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 
+
 $VERIF_CRE
   #  @01@ -SCD - 14/06/2024 - INI
   Gosub ACTION From SUBSOH
@@ -126,25 +142,109 @@ $VERIF_CRE
   GPE = 1
   #  @01@ -SCD - 14/06/2024 - FIN
 
+# 2026-00007.ini
+  If GNAVIG(GPILNAV-1) = "GESSQH" and [M:SOH2]BPTNUM <> "" Then
+    If !clalev([F:YTRAN0]) Then : Local File YTRAN [F:YTRAN0] : Endif
+    Read [F:YTRAN0]YTRAN0 = [M:SOH2]BPTNUM
+    If !fstat Then
+      [M:SOH2]YSERVDEF  = [F:YTRAN0]YSERVDEF
+      [M:SOH2]YTERMDEF  = [F:YTRAN0]YTERMDEF
+      Affzo [M:SOH2]YSERVDEF
+      Affzo [M:SOH2]YTERMDEF
+    Endif
+    Close Local File [YTRAN0]
+  Endif
+# 2026-00007.fin
+
+# 2026-00010.ini
+  If [M:SOH2]BPTNUM = "NA000008" Then
+    If [M:SOH2]YSERVDEF = "" and [M:SOH2]YTERMDEF = "" Then
+      OK=0
+      Call ERREUR("Para el transportista NA000008 se deben informar los campos 'Servicio' y 'Término'") From GESECRAN
+      Return
+    Endif
+  Endif
+  If [M:SOH2]BPTNUM = "NA002854" Then
+    If [M:SOH2]YSERVDEF = "" Then
+      Call ERREUR("Para el transportista NA002854 se debe informar el campo 'Servicio'") From GESECRAN
+      OK=0
+      Return
+    Endif
+  Endif
+# 2026-00010.fin
 Return
 
+#######################################################
+$VERIF_MOD
+# 2026-00010.ini
+  If [M:SOH2]BPTNUM = "NA000008" Then
+    If [M:SOH2]YSERVDEF = "" or [M:SOH2]YTERMDEF = "" Then
+      OK=0
+      Call ERREUR("Para el transportista NA000008 se deben informar los campos 'Servicio' y 'Término'") From GESECRAN
+      zonsui = "[M:SOH2]YSERVDEF"
+      Return
+    Endif
+  Endif
+  If [M:SOH2]BPTNUM = "NA002854" Then
+    If [M:SOH2]YSERVDEF = "" Then
+      Call ERREUR("Para el transportista NA002854 se debe informar el campo 'Servicio'") From GESECRAN
+      zonsui = "[M:SOH2]YSERVDEF"
+      OK=0
+      Return
+    Endif
+  Endif
+# 2026-00010.fin
+Return
+
+#######################################################
 #  @09@ - SCD - 23/04/2025 - INI
 $APRES_MOD
   Gosub RECALCULA_TOTALES
+
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
 Return
-#  @09@ - SCD - 23/04/2025 - INI
+#######################################################
 $APRES_MODIF
 #  Gosub ACTION From SUBSOH
 #  GPE = 1
 #  Gosub ACTUALIZAR_PRECIOS_ASOCIADOS
 Return
-
+#######################################################
 $APRES_CRE
   Gosub RECALCULA_TOTALES
+
+# 2026-00006.ini
+  Gosub UPD_KITS_REPORT
+# 2026-00006.fin
+
+  Gosub EMISION_ANTICIPO #XVT28052026.n
 Return
 #  @09@ - SCD - 23/04/2025 - FIN
+#######################################################
+
+#XVT28052026.ini
+$EMISION_ANTICIPO
+  # si el pedido se ha creado desde oferta y se dan las condiciones, emitir el anticipo
+  # primero comprobar que se viene de la pantalla de anticipos
+  If clalev([M:SQH0]) Then
+   #comprobar lo mismo que comprueba el estándar: que el pedido esté firmado (auto o a mano, da igual)
+   If [F:SOH]APPFLG>2 Then
+      If [F:SOH]PTE = "E03"
+        If !clalev([F:YDUD]) Local File GACCDUDATE [YDUD] Endif
+        Update [F:YDUD] Where TYP="*SO" & NUM=[F:SOH]SOHNUM & PAMTYP > 1 & SENINS = 1
+&       With SENDAT=date$, SENINS=2
+        Close Local File [F:YDUD]
+      Endif
+   Endif
+  Endif
+
+Return
+#XVT28052026.fin
 
 #######################################################
+
 $INICRE
 #### PR01 - MODIFICACIÓN PARA PODER HACER QUE UN COMPONENTE SEA DE CONTRAMARCA Y DE PRODUCCIÓN
 For X = 0  To [M:SOH4]NBLIG-1
@@ -214,8 +314,7 @@ For LINE = 0 To [M:SOH4]NBLIG-1
 Next
   #  @03@ - EQM - INI
   If GFONCTION1='GESSQH'
-#   If GUSER='NUN28' : Infbox "SPESOH" : Endif
-#      Gosub CALCULO_SHIDAT
+      Gosub CALCULO_SHIDAT
   Endif
   #  @03@ - EQM - FIN
 Return
@@ -226,11 +325,10 @@ $CREATION
   #--
   #-- ZVE06 I
   If GIMPORT and dim(WSOHNUM) > 0
-  Infbox "ESTOY EN CREATION "  + WSOHNUM
     WSOHNUM = [F:SOH]SOHNUM
-    Infbox "ESTOY EN CREATION 2 "  + WSOHNUM
   Endif
   #-- ZVE06 F
+
 Return
 
 
@@ -331,7 +429,6 @@ Variable Char    VALEUR()
 #Endif
 
 # Si el artículo es un componente expositor y ya he puesto cantidad, recalculo la tarifa de la línea
-
 If [M:SOH4]QTY(nolign-1) <> 0
   Local Integer NOL, TYPRECH
   NOL=nolign-1
@@ -378,11 +475,6 @@ If [M:SOH4]ZASOCIADO(nolign-1) = 2
   [M:SOH4]STOMGTCOD(nolign-1) = 1
 Endif
 
-  If func YBLOQPDV.DESMARC_ASOC([M:SOH4]ZLINASOC(nolign-1)) = 1
-    Errbox "No es posible modificar el Origen del Articulo de un asociado."
-    mkstat = 2
-  Endif
-
 GPE = 1
 End
 
@@ -399,19 +491,6 @@ Variable Decimal VALEUR
 # @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 # Si el artículo es una asociado, y por tanto no tiene gestión de stock, lanzo acción STD pero luego SPE para mostrar el stock disponible
 If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]STOMGTCOD(nolign-1) = 1
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas. - INI
-#  Local Integer YNOL : YNOL = 1
-#  For I = 0 To [M:SOH4]NBLIG-1
-#    If [M:SOH4]FMINUM(I) <>'' and [M:SOH4]FMI(I) = 5
-#      YNOL = I
-#        If [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(YNOL)
-#          Errbox "No es posible modificar la cantidad de este asociado. Producto principal puesto en producción."
-#          mkstat = 2
-#          End
-#        Endif
-#    Endif
-#  Next
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas. - FIN
   Call AS_QTY(VALEUR) From SUBSOH
 
   Local    Integer NOL    :    NOL=nolign-1
@@ -488,26 +567,6 @@ If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]STOMGTCOD(nolign-1) = 1
   # Mato la acción STD
   GPE = 1
 Endif
-
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas. - INI
-#Local Integer NOL : NOL = 0
-#
-#  For I=0 To [M:SOH4]NBLIG-1
-#    If [M:SOH4]FMINUM(I) <>'' and [M:SOH4]FMI(I) = 5 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(I)
-#      NOL = I
-#        If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(NOL)
-#          Errbox "No es posible modificar la cantidad de este asociado. Producto principal puesto en producción."
-#          mkstat = 2
-#        Endif
-#    Endif
-#  Next
-#
-#  If left$([M:SOH4]ITMREF(nolign-1),3)='EC_' and [M:SOH4]FMINUM(nolign) <>'' and [M:SOH4]FMI(nolign) = 5
-#    Errbox "No es posible modificar la cantidad."
-#    mkstat = 2
-#  Endif
-
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas. - FIN
 End
 
 ######################################################################################
@@ -518,15 +577,14 @@ Subprog C_NBLIG
 #  If func SPESOH.DOCPREPARA([M:SOH0]SOHNUM,[M:SOH4]SOPLIN(nolign-1))<>'' Then
 #    mkstat = 2
 #  Endif
-#  @05@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
-
+#  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
   If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),[M:SOH4]DSHIDAT(nolign-1))) = 1
       If status = 65
          Errbox "Fecha de expedición bloqueada para "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", póngase con el responsable de esta sección de prepicking"
          mkstat = 2
       Endif
   Endif
-#  @05@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
+#  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 
   # Control en la supresión. Si tiene contramarca o es asociado a una línea con contramarca, bloqueo
   If status = 65
@@ -557,7 +615,6 @@ Subprog C_NBLIG
       Endif
     Endif
   Endif
-
 End
 
 
@@ -600,6 +657,7 @@ Variable Date    VALEUR
 #&                [M:SOH2]DEMDLVDAT) From TRTVENDAT
 #
 # Affzo [M:SOH2]DEMDLVDAT
+
 End
 
 
@@ -609,6 +667,7 @@ Variable Char    VALEUR()
 # Traigo los valores de la pantalla Sanycces de la dirección de entrega
 If !clalev([PP1]) : Local File BPDLVCUST [PP1] : Endif
 If !clalev([PP2]) : Local File BPADDRESS [PP2] : Endif
+If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
 
 Read [PP1]BPD0 = [M:SOH0]BPCORD;VALEUR
 If fstat = 0
@@ -624,10 +683,35 @@ Read [PP2]BPA0 = 1;[M:SOH0]BPCORD;VALEUR
 If fstat = 0
   [M:YSOH5]YTELEFONO = [PP2]TEL(0)
   [M:YSOH5]YMAIL     = [PP2]WEB(3)
+  # Actualizamos los datos del transportista asociado a la nueva dirección.
+  Read [YTRA]YTRAN0 = [M:SOH2]BPTNUM
+  If !fstat
+    [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
+    [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
+    Affzo [M:SOH2]YSERVDEF
+    Affzo [M:SOH2]YTERMDEF
+  Endif
 Endif
 
 Close Local File [PP1]
 Close Local File [PP2]
+
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - INI
+  If !clalev([YTRA]): Local File YTRAN [YTRA]  : Endif
+  If !clalev([YBPD]): Local File BPDLVCUST [YBPD]  : Endif
+  If !clalev([YSER]) : Local File YTRASERV [YSER]  : Endif
+
+  Read [YBPD]BPD0 = [M:SOH0]BPCORD;VALEUR
+    If !fstat and [YBPD]YCONCERTA = 2 and [M:SOH2]BPTNUM = 'NA000008'
+      Read [YSER]YTRAN0 = [M:SOH2]BPTNUM;'A'
+        If !fstat
+          [M:SOH2]YSERVDEF = [YSER]YCODSERV
+          [M:SOH2]YTERMDEF = ''
+          Affzo [M:SOH2]YSERVDEF,YTERMDEF
+        Endif
+    Endif
+#  Call AM_BPTNUM([M:SOH2]BPTNUM)
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
 End
 
 
@@ -640,6 +724,7 @@ Call AM_BPCORD(VALEUR) From SUBSOH
 # Traigo los valores de la pantalla Sanycces de la dirección de entrega
 If !clalev([PP1]) : Local File BPDLVCUST [PP1] : Endif
 If !clalev([PP2]) : Local File BPADDRESS [PP2] : Endif
+If !clalev([YTRA]) : Local File YTRAN [YTRA] : Endif
 
 Read [PP1]BPD0 = VALEUR;[M:SOH1]BPAADD
 If fstat = 0
@@ -658,10 +743,31 @@ If fstat = 0
   [M:YSOH5]YMAIL     = [PP2]WEB(3)
   Affzo [M:YSOH5]YTELEFONO
   Affzo [M:YSOH5]YMAIL
+  # Actualizamos los datos del transportista asociado a la nueva dirección.
+  Read [YTRA]YTRAN0 = [M:SOH2]BPTNUM
+  If !fstat
+    [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
+    [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
+    Affzo [M:SOH2]YSERVDEF
+    Affzo [M:SOH2]YTERMDEF
+  Endif
 Endif
 
 Close Local File [PP1]
 Close Local File [PP2]
+Close Local File [YTRA]
+
+#  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No) - INI
+  If !clalev([YBPC]) : Local File BPCUSTOMER [YBPC] : Endif
+
+  Read [YBPC]BPC0 = VALEUR
+  If !fstat
+    [M:YSOH5]YMAILTRACK = [YBPC]YMAILTRACK
+    Affzo [M:YSOH5]YMAILTRACK
+  Endif
+
+  Close Local File [YBPC]
+#  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No) - FIN
 
 # Bloqueo STD
 GPE = 1
@@ -678,6 +784,10 @@ GPE = 1
     Endif
   Endif
 # @01@ - JLP - FIN
+
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - INI
+  Call AM_BPTNUM([M:SOH2]BPTNUM)
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
 End
 
 ######################################################################################
@@ -709,7 +819,6 @@ End
 
 ######################################################################################
 Subprog AV_NBLIG
-
 # Muestro la info del stock al posicionarme en la línea
 If [M:SOH4]ITMREF(nolign-1) <> "" and GREP=""
 
@@ -778,7 +887,6 @@ If [M:SOH4]ITMREF(nolign-1) <> "" and GREP=""
   Affzo [M:SOH4]WSTKTXT
   Affzo [M:SOH4]WALLTXT
 Endif
-#Gosub CALCULO_SHIDAT #@NUN48
 End
 
 
@@ -797,21 +905,19 @@ End
 ######################################################################################
 Subprog AM_ITMREF(VALEUR)
 Variable Char    VALEUR()
+
 # @03@ - JLP - 20-05-2024 - INI
 # COMPRUEBO SI EL PEDIDO DE VENTA SE HA GENERADO DE EDI, SI ES ASI, PONEMOS LA FECHA DE EXP. DE LAS LINEAS
 # CON LA FECHA QUE NOS TRAE, SI NO VIENE DE EDI SE HACE EL CALCULO
 If !clalev([YZOCTL]) : Local File ZOCRECTL [YZOCTL] : Endif
 If !clalev([YZOC1C]) : Local File ZOCERE1C [YZOC1C] : Endif
 
-
    Filter [YZOCTL] Where [F:YZOCTL]SOHNUM = [M:SOH0]SOHNUM
       Read [F:YZOCTL]ZOCTL0 First
         If !fstat and [F:YZOCTL]YESTADO = 2
            Read [F:YZOC1C]ZOC1C0 = [F:YZOCTL]CONTADOR
-#               If GUSER ='NUN28' : Infbox "dentro read: " - num$([F:YZOCTL]CONTADOR)- num$([M:SOH4]DSHIDAT(nolign-1)): Endif
                [M:SOH4]DSHIDAT(nolign-1) = gdat$(val(mid$([F:YZOC1C]C7,7,2)),val(mid$([F:YZOC1C]C7,5,2)),val(mid$([F:YZOC1C]C7,1,4)))
                Affzo [M:SOH4]DSHIDAT(nolign-1)
-#                If GUSER ='NUN28' : Infbox "despues read: " - num$([M:SOH4]DSHIDAT(nolign-1)) : Endif
                Filter[YZOCTL]
         Else
           If !clalev([PP1]) : Local File ITMFACILIT [PP1] : Endif
@@ -858,7 +964,6 @@ If !clalev([YZOC1C]) : Local File ZOCERE1C [YZOC1C] : Endif
             Close Local File [PP1],[PP2]
         Endif
     Close Local File [YZOCTL],[YZOC1C]
-#     If GUSER ='NUN28' : Infbox "AM_ITMREF DESPUES: " - [M:SOH4]DSHIDAT(nolign-1) : Endif
 
 # @03@ - JLP - 20-05-2024 - FIN
 
@@ -966,20 +1071,19 @@ Return
 ######################################################################################
 #  @03@ - EQM
 $CALCULO_SHIDAT
+
     If !clalev([YITF])  : Local File ITMFACILIT [YITF] : Endif
-    If !clalev([YFCY2])  : Local File FACILITY   [YFCY2]  : Endif
+    If !clalev([YFCY])  : Local File FACILITY   [YFCY]  : Endif
+
 
     For I=0 To [M:SOH4]NBLIG-1
-        If I < 0 or I >= [M:SOH4]NBLIG
-          Break
-        Endif
         If  [M:SOH4]LINTYP(I)<>6 and [M:SOH4]LINTYP(I)<>8 and [M:SOH4]LINTYP(I)<>9
                 Read [YITF]ITF0 = [M:SOH4]ITMREF(I);[M:SOH0]SALFCY
                 If !fstat
-                    Read [YFCY2]FCY0 = [M:SOH0]SALFCY
+                    Read [YFCY]FCY0 = [M:SOH0]SALFCY
                     If fstat = 0
                         DSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
-                        Call CTL_JOU(DSTDAT, [YFCY2]UVYDAY, [YFCY2]UVYCOD, 1) From CONTX3
+                        Call CTL_JOU(DSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                        [M:SOH4]DSHIDAT(I) = DSTDAT
 #                        [M:SOH4]EXTDLVDAT(I) = DSTDAT
@@ -994,10 +1098,10 @@ $CALCULO_SHIDAT
          If  [M:SOH4]LINTYP(I)=9
                 Read [YITF]ITF0 = [M:SOH4]ITMREF(I);[M:SOH0]SALFCY
                 If fstat = 0
-                    Read [YFCY2]FCY0 = [M:SOH0]SALFCY
+                    Read [YFCY]FCY0 = [M:SOH0]SALFCY
                     If fstat = 0
                         YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
-                        Call CTL_JOU(YDSTDAT, [YFCY2]UVYDAY, [YFCY2]UVYCOD, 1) From CONTX3
+                        Call CTL_JOU(YDSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                        [M:SOH4]DSHIDAT(I)   = YDSTDAT
 #                        [M:SOH4]EXTDLVDAT(I) = YDSTDAT
@@ -1012,10 +1116,10 @@ $CALCULO_SHIDAT
                     If ([M:SOH4]ZLINASOC(I)=[M:SOH4]SOPLIN(YX)) and [M:SOH4]LINTYP(YX)=9
                         Read [YITF]ITF0 = [M:SOH4]ITMREF(YX);[M:SOH0]SALFCY
                         If fstat = 0
-                            Read [YFCY2]FCY0 = [M:SOH0]SALFCY
+                            Read [YFCY]FCY0 = [M:SOH0]SALFCY
                             If fstat = 0
                                 YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
-                                Call CTL_JOU(YDSTDAT, [YFCY2]UVYDAY, [YFCY2]UVYCOD, 1) From CONTX3
+                                Call CTL_JOU(YDSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                                [M:SOH4]DSHIDAT(I)   = YDSTDAT
 #                                [M:SOH4]EXTDLVDAT(I) = YDSTDAT
@@ -1032,10 +1136,10 @@ $CALCULO_SHIDAT
              If [M:SOH4]LINTYP(I+1)=9
                  Read [YITF]ITF0 = [M:SOH4]ITMREF(I+1);[M:SOH0]SALFCY
                  If fstat = 0
-                     Read [YFCY2]FCY0 = [M:SOH0]SALFCY
+                     Read [YFCY]FCY0 = [M:SOH0]SALFCY
                      If fstat = 0
                          YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
-                         Call CTL_JOU(YDSTDAT, [YFCY2]UVYDAY, [YFCY2]UVYCOD, 1) From CONTX3
+                         Call CTL_JOU(YDSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                         [M:SOH4]DSHIDAT(I)   = YDSTDAT
 #                         [M:SOH4]EXTDLVDAT(I) = YDSTDAT
@@ -1049,7 +1153,7 @@ $CALCULO_SHIDAT
      Next
 
     Close Local File [YITF]
-    Close Local File [YFCY2]
+    Close Local File [YFCY]
 
 Return
 
@@ -1060,47 +1164,23 @@ Value Date FECHA
 Local Integer ENCONTRADO : ENCONTRADO = 0
 Local Date YDSTAT
 
-ENCONTRADO = 0
   While ENCONTRADO = 0
-    # Verifica si la fecha está bloqueada
-    If (func SPEYBPICK.FECH_BLOQ(PLANTA, ITM, FECHA)) = 1
-      # Si está bloqueada, suma un día
-      FECHA += 1
+    If (func SPEYBPICK.FECH_BLOQ(PLANTA,ITM,FECHA)) = 1
+      # Si existe le sumo un dia
+        FECHA +=1
     Else
-      # Ajusta por fin de semana
-      If dayn(FECHA) = 6
-        FECHA += 2
-      Elsif dayn(FECHA) = 7
-        FECHA += 1
-      Endif
-
-      # Verifica si después del ajuste sigue sin estar bloqueada
-      If (func SPEYBPICK.FECH_BLOQ(PLANTA, ITM, FECHA)) = 0
-        ENCONTRADO = 1
-      Endif
+      # Si no existe pongo a 1
+      ENCONTRADO = 1
     Endif
   Wend
 
-  YDSTAT = FECHA
-# Codigo Antes
+    If dayn(FECHA) = 6
+        FECHA+=2
+    Elsif dayn(FECHA) = 7
+       FECHA+=1
+    Endif
 
-#  While ENCONTRADO = 0
-#    If (func SPEYBPICK.FECH_BLOQ(PLANTA,ITM,FECHA)) = 1
-#      # Si existe le sumo un dia
-#        FECHA +=1
-#    Else
-#      # Si no existe pongo a 1
-#      ENCONTRADO = 1
-#    Endif
-#  Wend
-#
-#    If dayn(FECHA) = 6
-#        FECHA+=2
-#    Elsif dayn(FECHA) = 7
-#       FECHA+=1
-#    Endif
-#
-#  YDSTAT = FECHA
+  YDSTAT = FECHA
 
 End YDSTAT
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
@@ -1130,10 +1210,17 @@ If !clalev([F:YAUS]): Local File AUTILIS [YAUS]  : Endif
       Endif
       Close Local File[F:YAUS]
   Endif
+
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - INI
+#If [F:SOH]YSERVDEF = '' and [F:SOH]YTERMDEF = ''
+#  Call AM_BPTNUM([M:SOH2]BPTNUM)
+#Endif
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
+
 Return
 ######################################################################################
 ######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 22/10/2024 11:13:54 (NUN11)
+## Etiqueta añadida por el supervisor (pantalla SOH4) 24/10/2024 12:58:37 (NUN11)
 ######################################################################################
 Subprog AM_QTY(VALEUR)
 Variable Decimal VALEUR
@@ -1141,64 +1228,41 @@ If [M:SOH4]FMINUM(nolign-1) <>'' and [M:SOH4]FMI(nolign-1) = 5
 Errbox "No puedes modificar la cantidad del pedido, ya se ha creado la contramarca"
 mkstat = 2
 Endif
-
 End
 
 
 ######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 25/10/2024 10:40:49 (NUN28)
-######################################################################################
-#  @05@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
-Subprog C_DSHIDAT(VALEUR)
-Variable Date    VALEUR
-End
+# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
+Funprog GET_FAM_DES(ITM)
+Value Char ITM
+Local Char DESCRIP(70), FAM(30), DES(40)
 
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 25/10/2024 11:10:52 (NUN28)
-######################################################################################
+  DESCRIP =''
+  DES =''
+  FAM =''
 
-Subprog AV_DSHIDAT(VALEUR)
-Variable Date    VALEUR
+  If !clalev([YATEX]): Local File ATEXTRA [YATEX]  : Endif
+  If !clalev([YBLQ]): Local File ITMMASTER [YITM]  : Endif
 
-End
+  Read [YITM]ITM0 = ITM
+    If !fstat
+      FAM = [YITM]TSICOD(0)
+    Endif
 
+  Read [YATEX]AXX0 = 'ATABDIV';'LNGDES';'SPA';'20';FAM
+    If !fstat
+        DES =  [YATEX]TEXTE
+    Endif
 
-Subprog AM_DSHIDAT(VALEUR)
-Variable Date    VALEUR
-If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),VALEUR)) = 1
-    Errbox "ACCIÓN NO PERMITIDA. FECHA DE EXPEDICIÓN BLOQUEADA PARA "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", PÓNGASE CON EL RESPONSABLE DE ESTA SECCIÓN DE PREPICKING."
-    mkstat=2
-  Endif
-End
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 06/11/2024 07:07:24 (NUN28)
-######################################################################################
-Subprog AM_DDEMDLVDAT(VALEUR)
-Variable Date    VALEUR
-End
-######################################################################################
-#  @05@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
+    DESCRIP = FAM-"-"-DES
 
+End DES
+# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
 ######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH4) 18/12/2024 08:43:35 (NUN28)
 ######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 25/10/2024 11:17:24 (NUN28)
-######################################################################################
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas. - INI
 Subprog AS_DSHIDAT(VALEUR)
 Variable Date    VALEUR
-Local Date FECH_ANT : FECH_ANT = VALEUR
-
-#  For I = 0 To [M:SOH4]NBLIG-1
-#     If [M:SOH4]FMINUM(I) <>'' and [M:SOH4]FMI(I) = 5
-#       NOL = I
-#         If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(NOL)
-#             Errbox "No es psible modificar la fecha de Expedición de un asociado. Producto principal puesto en producción."
-#             mkstat = 2
-#          Endif
-#     Endif
-#  Next
 # @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
   If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),VALEUR)) = 1
     Errbox "ACCIÓN NO PERMITIDA. FECHA DE EXPEDICIÓN BLOQUEADA PARA "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", PÓNGASE CON EL RESPONSABLE DE ESTA SECCIÓN DE PREPICKING."
@@ -1206,29 +1270,38 @@ Local Date FECH_ANT : FECH_ANT = VALEUR
   Endif
 # @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 End
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 06/11/2024 12:20:49 (NUN28)
-######################################################################################
-Subprog AP_DSHIDAT(VALEUR)
+
+Subprog AM_DSHIDAT(VALEUR)
 Variable Date    VALEUR
-
-End
-######################################################################################
-
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 29/10/2024 14:44:38 (NUN28)
-######################################################################################
-Subprog C_ZASOCIADO(VALEUR)
-Variable Integer VALEUR
+# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
+  If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),VALEUR)) = 1
+    Errbox "ACCIÓN NO PERMITIDA. FECHA DE EXPEDICIÓN BLOQUEADA PARA "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", PÓNGASE CON EL RESPONSABLE DE ESTA SECCIÓN DE PREPICKING."
+    mkstat=2
+  Endif
+# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
 End
 
 
 ######################################################################################
 ######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 29/10/2024 14:47:58 (NUN28)
+## Etiqueta añadida por el supervisor (pantalla SOH4) 18/12/2024 08:46:39 (NUN28)
 ######################################################################################
-#  @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
+Subprog AS_WALLQTY(VALEUR)
+Variable Decimal VALEUR
+# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
+ If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),[M:SOH4]DSHIDAT(nolign-1))) = 1
+      Errbox "Acción no permitida. Fecha de expedición bloqueada para "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", póngase con el responsable de esta sección de prepicking."
+      mkstat = 2
+  Endif
+# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH4) 10/06/2025 09:56:07 (NUN12)
+######################################################################################
+#  @07@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
 Subprog AS_ZASOCIADO(VALEUR)
 Variable Integer VALEUR
 
@@ -1237,35 +1310,15 @@ Variable Integer VALEUR
       mkstat = 2 : VALEUR = 2
       zonsui = "[M:SOH4]ZASOCIADO(nolign-1)"
   Endif
+
 End
+
 ######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 29/10/2024 15:06:39 (NUN28)
-######################################################################################
-Subprog AS_ZLINASOC(VALEUR)
-Variable Decimal VALEUR
-#Local Integer NOL : NOL = 0
-#
-#  For I=0 To [M:SOH4]NBLIG-1
-#    If [M:SOH4]FMINUM(I) <>'' and [M:SOH4]FMI(I) = 5 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(I)
-#      NOL = I
-#        If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(I)
-#          Errbox "No es posible cambiar el nº de línea asociada. Producto principal puesto en producción."
-#          mkstat = 2
-#        Endif
-#    Endif
-#  Next
-End
-#  @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - FIN
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 30/10/2024 08:52:42 (NUN28)
-######################################################################################
-# @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
+# @07@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
 Subprog AM_ZLINASOC(VALEUR)
 Variable Decimal VALEUR
 
-  If (func YBLOQPDV.EXISTE_ZLINSOC(VALEUR)) = 1
+If (func YBLOQPDV.EXISTE_ZLINSOC(VALEUR)) = 1
       If [M:SOH4]ZASOCIADO(nolign-1) = 2 and (func YBLOQPDV.ASOC_ART(VALEUR)) = 1
         Errbox "No es posible asociar a esa línea, no es un producto de producción."
         mkstat = 2
@@ -1296,111 +1349,9 @@ Variable Decimal VALEUR
     zonsui = "[M:SOH4]ZASOCIADO(nolign-1)"
     VALEUR = 0
   Endif
+
 End
-# @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - FIN
-
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 05/11/2024 07:33:29 (NUN28)
-######################################################################################
-# @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - INI
-Subprog AS_FMI(VALEUR)
-Variable Integer VALEUR
-
-#  For I = 0 To [M:SOH4]NBLIG-1
-#     If [M:SOH4]FMINUM(I) <>'' and [M:SOH4]FMI(I) = 5
-#       NOL = I
-#         If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(NOL)
-#             Errbox "No es psible modificar el Origen del Articulo de un asociado. Producto principal puesto en producción."
-#             mkstat = 2
-#          Endif
-#     Elsif [M:SOH4]FMINUM(I) ='' and [M:SOH4]FMI(I) = 5 and [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]ZLINASOC(nolign-1) = [M:SOH4]SOPLIN(I)
-#        Errbox "No es psible modificar el Origen del Articulo de un asociado."
-#        mkstat = 2
-#     Endif
-#  Next
-End
-# @08@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - FIN
-######################################################################################
-#  @07@ - JLP - 29-10-2024 - Bloqueo en las lineas que son asociadas. - FIN
-# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
-Funprog GET_FAM_DES(ITM)
-Value Char ITM
-Local Char DESCRIP(70), FAM(30), DES(40)
-
-  DESCRIP =''
-  DES =''
-  FAM =''
-
-  If !clalev([YATEX]): Local File ATEXTRA [YATEX]  : Endif
-  If !clalev([YBLQ]): Local File ITMMASTER [YITM]  : Endif
-
-  Read [YITM]ITM0 = ITM
-    If !fstat
-      FAM = [YITM]TSICOD(0)
-    Endif
-
-  Read [YATEX]AXX0 = 'ATABDIV';'LNGDES';'SPA';'20';FAM
-    If !fstat
-        DES =  [YATEX]TEXTE
-    Endif
-
-    DESCRIP = FAM-"-"-DES
-
-End DES
-# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 13/11/2024 16:26:44 (NUN28)
-######################################################################################
-#Subprog AV_ALLQTY(VALEUR)
-#Variable Decimal VALEUR
-#End
-
-
-######################################################################################
-
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 13/11/2024 16:29:52 (NUN28)
-######################################################################################
-Subprog AS_ALLQTY(VALEUR)
-Variable Decimal VALEUR
-#  If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),[M:SOH4]DSHIDAT(nolign-1))) = 1
-#      Errbox "Acción no permitida. Fecha de expedición bloqueada para "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", póngase con el responsable de esta sección de prepicking."
-#      mkstat = 2
-#  Endif
-End
-
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 14/11/2024 09:01:56 (NUN28)
-######################################################################################
-Subprog AS_WALLQTY(VALEUR)
-Variable Decimal VALEUR
- If (func SPEYBPICK.FECH_BLOQ([M:SOH0]SALFCY,[M:SOH4]ITMREF(nolign-1),[M:SOH4]DSHIDAT(nolign-1))) = 1
-      Errbox "Acción no permitida. Fecha de expedición bloqueada para "-(func GET_FAM_DES([M:SOH4]ITMREF(nolign-1)))-", póngase con el responsable de esta sección de prepicking."
-      mkstat = 2
-  Endif
-End
-######################################################################################
-# @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 03/12/2024 11:36:53 (NUN48)
-######################################################################################
-Subprog APRES_NBLIG
-#  Gosub CALCULO_SHIDAT
-End
-
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla WK2SAN014) 03/12/2024 12:08:46 (NUN48)
-######################################################################################
-Subprog AVANT_NBLIG
-  Call AV_NBLIG
-End
-
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla SOH4) 07/05/2025 13:59:00 (NUN50)
+# @07@ - JLP - 16-04-2025 - Bloqueos asociados en PDV - FIN
 ######################################################################################
 #  @09@ - SCD - 23/04/2025 - INI
 
@@ -1459,6 +1410,254 @@ $ACTUALIZAR_PRECIOS_ASOCIADOS
       Endif
     Next
   Endif
+
+## 2026-00039.ini
+## esta modificación está comentada porque no se ha podido validar
+## si continúa dando problemas el proceso específico actual
+## deberíamos comentar el específico de Nunsys (lo de arriba)
+## y descomentar el código del ticket 2026-00039
+#  If [M:SOH4]ZASOCIADO(nolign-1) <> 2
+#    Local Integer LNUMLIN : [L]LNUMLIN = nolign
+#    Local Integer LNUMLINASOC : [L]LNUMLINASOC = [M:SOH4]SOPLIN(nolign-1)
+#    For YI=[L]LNUMLIN To [M:SOH4]NBLIG-1
+#      If [M:SOH4]ZLINASOC(YI) = [L]LNUMLINASOC and func YCONFIG.CHECK_CONFIG([M:SOH4]ITMREF(YI)) = 2
+#        [M:SOH4]GROPRI(YI) = [M:SOH4]NETPRI(nolign-1)
+#        Local Integer NOL
+#        NOL = YI
+#        Call CLCNETPRI([M]QTY(NOL), [M:SOH0]CUR, NOL) From TRTVENPRI
+#        Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 1) From TRTVENPRI
+#        [M:SOH4]UPDFLG(YI) = 2
+#
+#        Affzo [M:SOH4]UPDFLG(YI)
+#        Affzo [M:SOH4]GROPRI(YI)
+#        Affzo [M:SOH4]NETPRI(YI)
+#
+#      Endif
+#      If [M:SOH4]ZASOCIADO(nolign-1) <> 2 Then Break Endif
+#    Next
+#  Endif
+## 2026-00039.fin
 Return
 
 #  @09@ - SCD - 23/04/2025 - FIN
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH4) 03/07/2025 07:12:54 (NUN28)
+######################################################################################
+#Subprog AM_GROPRI(VALEUR)
+#Variable Decimal VALEUR
+#End
+#
+#Subprog AM_DISCRGVAL1(VALEUR)
+#Variable Decimal VALEUR
+#End
+#
+#Subprog AM_DISCRGVAL2(VALEUR)
+#Variable Decimal VALEUR
+#End
+#
+#Subprog AM_DISCRGVAL3(VALEUR)
+#Variable Decimal VALEUR
+#End
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH2) 12/02/2026 08:30:03 (NUN28)
+######################################################################################
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - INI
+Subprog AM_BPTNUM(VALEUR)
+Variable Char    VALEUR()
+
+  If !clalev([YTRA]): Local File YTRAN [YTRA]  : Endif
+  If !clalev([YBPD]): Local File BPDLVCUST [YBPD]  : Endif
+  If !clalev([YSER]) : Local File YTRASERV [YSER]  : Endif
+
+  Read [YBPD]BPD0 = [M:SOH0]BPCORD;[M:SOH1]BPAADD
+  If !fstat and [YBPD]YCONCERTA = 2 and VALEUR = 'NA000008'
+    [M:SOH2]YSERVDEF = 'A'
+    [M:SOH2]YTERMDEF = '031'
+    Affzo [M:SOH2]YSERVDEF,YTERMDEF
+  Else
+    Read [YTRA]YTRAN0 = VALEUR
+    If !fstat
+      [M:SOH2]YSERVDEF = [YTRA]YSERVDEF
+      [M:SOH2]YTERMDEF = [YTRA]YTERMDEF
+      Affzo [M:SOH2]YSERVDEF,YTERMDEF
+    Else
+      [M:SOH2]YSERVDEF = ''
+      [M:SOH2]YTERMDEF = ''
+      Affzo [M:SOH2]YSERVDEF,YTERMDEF
+    Endif
+  Endif
+End
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH2) 13/02/2026 09:06:41 (NUN28)
+######################################################################################
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - INI
+Subprog C_YSERVDEF(VALEUR)
+Variable Char    VALEUR()
+  If !clalev([YSER]) : Local File YTRASERV [YSER]  : Endif
+  Read [YSER]YTRAN0 = [M:SOH2]BPTNUM;VALEUR
+    If fstat and VALEUR <> ''
+      Errbox "Este servicio no existe para este transportista: "-[M:SOH2]BPTNUM
+      mkstat = 2
+    Endif
+End
+######################################################################################
+Subprog C_YTERMDEF(VALEUR)
+Variable Char    VALEUR()
+  If !clalev([YTER]) : Local File YTERMSERV [YTER] : Endif
+  Read [YTER]YTERSV0 = [M:SOH2]BPTNUM;VALEUR
+    If fstat and VALEUR <> ''
+      Errbox "Este termino no existe para este transportista: "-[M:SOH2]BPTNUM
+      mkstat = 2
+    Endif
+End
+#  @10@ - JLP - 10-02-2026 - Añadir el campo servicio y termino del transportista - FIN
+######################################################################################
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YSOH5) 20/02/2026 11:47:39 (NUN21)
+######################################################################################
+#  @11@ - JMF - 20-02-2026 - Controlar cambio concertación - INI
+Subprog AM_YCONCERTA(VALEUR)
+  Variable Integer VALEUR
+
+  If [M:SOH2]BPTNUM = "NA000008"
+    If VALEUR = 1
+      [M:SOH2]YSERVDEF = 'Y'
+    Else
+      [M:SOH2]YSERVDEF = 'A'
+    Endif
+    Affzo [M:SOH2]YSERVDEF
+  Endif
+End
+#  @11@ - JMF - 20-02-2026 - Controlar cambio concertación - FIN
+######################################################################################
+
+#  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios - INI
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YSOH5) 26/02/2026 15:13:39 (NUN21)
+######################################################################################
+Subprog C_YCONTACTO(VALEUR)
+  Variable Char    VALEUR()
+
+  If [M:YSOH5]YCONCERTA = 2 and VALEUR = ''
+    Infbox ("Para pedidos con Concertación, es obligatorio indicar el Contacto")
+    mkstat = 2
+  Endif
+End
+
+Subprog C_YTELEFONO(VALEUR)
+  Variable Char    VALEUR()
+
+  If [M:YSOH5]YCONCERTA = 2 and VALEUR = ''
+    Infbox ("Para pedidos con Concertación, es obligatorio indicar el Teléfono")
+    mkstat = 2
+  Endif
+End
+
+Subprog C_YMAIL(VALEUR)
+  Variable Char    VALEUR()
+  If [M:YSOH5]YCONCERTA = 2 and VALEUR = ''
+    Infbox ("Para pedidos con Concertación, es obligatorio indicar el Mail")
+    mkstat = 2
+  Endif
+End
+######################################################################################
+#  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios - FIN
+
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SOH4) 05/03/2026 15:06:35 (SN070)
+######################################################################################
+Subprog AM_ITMDES(VALEUR)
+Variable Char    VALEUR()
+# 26002.ini
+  If VALEUR <> '' Then
+    [M:SOH4]ZITMDESMODIF(nolign-1) = 2
+  Else
+    [M:SOH4]ZITMDESMODIF(nolign-1) = 1
+  Endif
+  Affzo [M:SOH4]ZITMDESMODIF(nolign-1)
+# 26002.fin
+End
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+# 2026-00006
+$UPD_KITS_REPORT
+
+
+Local Integer LCONPRI,LCONSEC,LLINEAPADRE
+Local Char    LITMPADRE(50),LDTOPADRE(50)
+
+  If !clalev([F:ZSOQ0]) Then : Local File SORDERQ [F:ZSOQ0] : Endif
+  If !clalev([F:ZSOP0]) Then : Local File SORDERP [F:ZSOP0] : Endif
+  If !clalev([F:ZSOQ1]) Then : Local File SORDERQ [F:ZSOQ1] : Endif
+  If !clalev([F:ZSOP1]) Then : Local File SORDERP [F:ZSOP1] : Endif
+
+  For [L]LCONPRI=0 To [M:SOH4]NBLIG-1
+    Raz LITMPADRE,LDTOPADRE
+    If [M:SOH4]LINTYP([L]LCONPRI) = 9 Then
+      If [M:SOH4]TSICOD1([L]LCONPRI) = '001' Then
+        [L]LLINEAPADRE  = [M:SOH4]SOPLIN([L]LCONPRI)
+        [L]LITMPADRE    = [M:SOH4]ITMREF([L]LCONPRI)
+        If [M:SOH4]DISCRGVAL1([L]LCONPRI) <> 0 Then
+          [L]LDTOPADRE    = num$([M:SOH4]DISCRGVAL1([L]LCONPRI))
+        Endif
+        If [M:SOH4]DISCRGVAL2([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SOH4]DISCRGVAL2([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SOH4]DISCRGVAL2([L]LCONPRI))
+          Endif
+        Endif
+        If [M:SOH4]DISCRGVAL3([L]LCONPRI) <> 0 Then
+          If [L]LDTOPADRE = '' Then
+            [L]LDTOPADRE    = num$([M:SOH4]DISCRGVAL3([L]LCONPRI))
+          Else
+            [L]LDTOPADRE   += '+' + num$([M:SOH4]DISCRGVAL3([L]LCONPRI))
+          Endif
+        Endif
+        Read [F:ZSOQ0]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+        Read [F:ZSOP0]SOP0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+        [F:ZSOQ0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSOQ0]ZVARESTDTO  = [L]LDTOPADRE
+        [F:ZSOP0]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+        [F:ZSOP0]ZVARESTDTO  = [L]LDTOPADRE
+        If !adxlog Then : Trbegin [F:ZSOQ0] : Endif
+        Rewrite [F:ZSOQ0]
+        Rewrite [F:ZSOP0]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+        [L]LCONPRI += 1
+        While [M:SOH4]LINTYP([L]LCONPRI) = 8
+          Read [F:ZSOQ1]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+          Read [F:ZSOP1]SOP0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN([L]LCONPRI);[M:SOH4]SOPLIN([L]LCONPRI)
+          [F:ZSOQ1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+          [F:ZSOQ1]ZVARESTDTO  = [L]LDTOPADRE
+          [F:ZSOP1]ZVAREST     = num$([L]LLINEAPADRE) + [L]LITMPADRE
+          [F:ZSOP1]ZVARESTDTO  = [L]LDTOPADRE
+          If !adxlog Then : Trbegin [F:ZSOQ1] : Endif
+          Rewrite [F:ZSOQ1]
+          Rewrite [F:ZSOP1]
+          If !fstat Then
+            Commit
+          Else
+            Rollback
+          Endif
+          [L]LCONPRI += 1
+        Wend
+      Endif
+    Endif
+  Next
+
+  Close Local File [ZSOQ0],[ZSOP0],[ZSOQ1],[ZSOP1]
+
+Return

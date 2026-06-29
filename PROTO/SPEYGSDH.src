@@ -1,25 +1,19 @@
-#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#<AdxTL>@(#)0.0.0.0 $Revision$
 #<AdxTL>@(#)0.0.0.0 $Revision$
 ##############################################################
 #
 # @01@ - SCD - 05/09/2023 - Cambios para el tipo factura, cliente factura y stock pillado.
 # @02@ - SCD - 06/06/2024 - Cambios en la forma de llamar a generar la entrega.
-# @04@: RAP    07-10-2024
+# @04@: RAP    07-10-2024 - PRELIN solo coge la ultima linea, corrigo para que coja la linea correcta
 # @05@: EQM    18-11-2024 - Añadimos filtros transportista
 # @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error
 # @07@: DSR    24-12-2024 - Ajuste de la cantidad asignada en la línea del vale de preparación
-#
-##############################################################
-#   Openo filpath("TRA","prueba_imp_entrega","TXT"),0 Using [XXX]
-#    Wrseq "entra proceso"          ;   Using  [XXX]
-#    Gosub OK
-#    Openo Using [XXX]
-
+# 2026-00034 - JCP.25052026.Control de bloque en Generación entregas Sanycces
 ##############################################################
 $ACTION
 Case ACTION
-  When "DEBUT"  :   Gosub DEBUT
-  When "OK"     :   Gosub OK
+  When "DEBUT"    :   Gosub DEBUT
+  When "OK"      :   Gosub OK
   When "EXEC"   :   Gosub TEST_SDH
   When "INIT"   :   Gosub INIT
 Endcase
@@ -40,7 +34,7 @@ $DEBUT
       # @05@: EQM -
       [M:YGSDH]YDOCUMENTA = 2
       Affzo [M:YGSDH]YDOCUMENTA
-      [M:YGSDH]YMODENTREGA = 2
+      [M:YGSDH]YMODENTREGA = 1
       Affzo [M:YGSDH]YMODENTREGA
 
       zonsui = "[M:YGSDH]FECHAEXP"
@@ -48,6 +42,7 @@ $DEBUT
 
 Return
 # @05@: EQM    18-11-2024 - Añadimos filtros transportista - FIN
+
 ##############################################################
 $INIT
 
@@ -59,6 +54,20 @@ $INIT
 Return
 
 ##############################################################
+#$DEBUT
+## Pongo valores por defecto
+#[M:YGSDH]SOCIEDAD = "1"
+#Affzo [M:YGSDH]SOCIEDAD
+#[M:YGSDH]PLANTA   = "11"
+#Affzo [M:YGSDH]PLANTA
+#[M:YGSDH]TIPOSDH  = "SDH"
+#Affzo [M:YGSDH]TIPOSDH
+#
+#zonsui = "[M:YGSDH]FECHAEXP"
+#Return
+
+
+####################################################
 $OPEN_TABLES
 If !clalev([Y01]) : Local File STOPREH    [Y01] : Endif
 If !clalev([Y02]) : Local File STOPRED    [Y02] : Endif
@@ -99,16 +108,17 @@ Return
 
 ##############################################
 $OK
+  # @02@ - SCD - 06/06/2024 - INI
   # @05@ -
   If GFONCTION1='YGENSDH'
-      # @02@ - SCD - 06/06/2024 - INI
       Local Integer TRACE : TRACE = 2 # 1 = No Traza --- 2 = Si Traza
       Local Char VACIO : VACIO = '' # 1 = No Traza --- 2 = Si Traza
       #Llamamos a la funcion de generar entregas
       Call GEN_SDH([L]TRACE,VACIO)
+
       # @02@ - SCD - 06/06/2024 - FIN
-  Endif
-  # @05@ -
+    Endif
+    # @05@ -
 Return
 
 
@@ -179,6 +189,7 @@ Filter [Y02] Where evalue(CRITERIOL) Order By [Y02]PRELIN Asc
           Trbegin [Y10]
             Write [Y10]
           Commit
+          #Call LIBERA_STOCK([Y05]STOFCY,[Y05]ITMREF, [Y05]STOCOU, [Y03]SEQ)
           Call LIBERA_STOCK([Y05]STOFCY,[Y05]ITMREF, [Y05]STOCOU, [Y03]SEQ,[Y02]PRHNUM,[Y02]PRELIN) # @07@ #
         # @01@ - SCD - 05/09/2023 - FIN
         Endif
@@ -190,13 +201,12 @@ Filter [Y02] Where evalue(CRITERIOL) Order By [Y02]PRELIN Asc
 
   Next
 Filter [Y02]
-#  Call ECR_TRACE ("Control: linea LLIT " - num$(LLIT),0) From GESECRAN
 
-## Genero cabecera
+# Genero cabecera
 If LLIT > 0
   Gosub GEN_CAB
-#
-#  # Lanzo importación
+
+  # Lanzo importación
   Gosub IMPORT
 Endif
 
@@ -285,8 +295,6 @@ Openo
 
 # Lanzo la importación
 Call IMP_MODEL("no read","YSDH2",LFILE,LRTN,LCTR,LNER)
-
-
 If LRTN <> 0
   Call REGENERA_STOCK([Y01]PRHNUM)
 Endif
@@ -334,9 +342,9 @@ Local Mask IMPOBJ2    [IMP2]
 PRTN = 0
 mkstat = 0 : fstat = 0 : GERRTRACE = 0
 # Lanzamiento de la importación silenciosa
-If GSERVEUR<>1
-Call OUVRE_TRACE("Importación silenciosa") From LECFIC  #@05@ - EQM -
-Endif
+If GSERVEUR<>1 # @05@ -
+Call OUVRE_TRACE("Importación silenciosa") From LECFIC
+Endif # @05@ -
 Call IMPORTSIL(PMOD,PFILE) From GIMPOBJ
 
 # @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error - INI
@@ -345,10 +353,9 @@ If GSERVEUR = 1 and ((fstat <> 0 and fstat <> 4) or GERRTRACE <> 0) Then
 Endif
 # @06@: JLP    22-11-2024 - Añadimos una llamada de workflow para que envie cuando la generación da error - FIN
 
-If GSERVEUR<>1
-Call FERME_TRACE From LECFIC #@05@ - EQM -
-Endif
-
+If GSERVEUR<>1 # @05@ -
+Call FERME_TRACE From LECFIC
+Endif # @05@ -
 
 # En caso de error...
 If (fstat <> 0 and fstat <> 4) or GERRTRACE <> 0 Then
@@ -371,8 +378,10 @@ If fstat = 0
   For [Y06] Where [Y06]SDHNUM = [Y04]SDHNUM
     [Y06]PRHNUM = [Y01]PRHNUM
     #@04@: RAP    07-10-2024
+    #[Y06]PRELIN = [Y02]PRELIN
     [Y06]PRELIN = func LINEA_VALE([Y06]SOHNUM,[Y06]SOPLIN,[Y01]PRHNUM)
     #@04@: RAP    07-10-2024
+
     Trbegin [Y06]
       Rewrite [Y06]
     Commit
@@ -405,7 +414,7 @@ Else
 Endif
 
 
-If PTRA = "read" Then      #@05@ - EQM
+If PTRA = "read" Then
     Call LEC_TRACE From LECFIC
 Endif
 
@@ -420,6 +429,8 @@ End
 #################################################################
 
 # @01@ - SCD - 05/09/2023 - INI
+
+#Subprog LIBERA_STOCK(PS_STOFCY,PS_ITM, PF_COU, PI_SEQ)
 # @07@ # - Añado VVAL y VLIN
 Subprog LIBERA_STOCK(PS_STOFCY,PS_ITM, PF_COU, PI_SEQ, VVAL,VLIN)
 
@@ -427,8 +438,6 @@ Subprog LIBERA_STOCK(PS_STOFCY,PS_ITM, PF_COU, PI_SEQ, VVAL,VLIN)
   Value Char PS_ITM
   Value Decimal PF_COU
   Value Integer PI_SEQ
-  Value Char VVAL
-  Value Integer VLIN
   Local Integer LRET
 
   Call SUPALL(PS_STOFCY,PS_ITM,PF_COU,PI_SEQ,LRET) From STKALL
@@ -438,6 +447,7 @@ Subprog LIBERA_STOCK(PS_STOFCY,PS_ITM, PF_COU, PI_SEQ, VVAL,VLIN)
    If LRET = 0
     Call MAJ_LIN_PREP(VVAL,VLIN)
    Endif
+
 End
 
 #################################################################
@@ -469,6 +479,7 @@ Subprog REGENERA_STOCK(PS_VCRNUM)
 End
 
 # @01@ - SCD - 05/09/2023 - END
+
 
 
 #################################################################
@@ -518,6 +529,7 @@ Subprog GEN_SDH(PI_TRACE, PS_NUM)
 
   # Abro pantalla de proceso en curso
   If PI_TRACE=2 : Call TEMPON("Generación entregas Sanycces") From GESECRAN : Endif
+
   # Apertura de tablas
   Gosub OPEN_TABLES
 
@@ -530,7 +542,7 @@ Subprog GEN_SDH(PI_TRACE, PS_NUM)
   Local Char CRITERIOS1(250) : CRITERIOS1="1=1"
   Global Integer CUANTOS
   Global Integer LINE
-  Global Char LPEDIDO(30)(1..20)
+  Global Char LPEDIDO(40)(1..500)
 
   CRITERIOS1 += " & [Y01]DLVFLG=2"                  # Estado del vale = entregable
   CRITERIOS1 += " & [Y01]STOFCY=[M:YGSDH]PLANTA"    # Planta
@@ -576,13 +588,19 @@ Subprog GEN_SDH(PI_TRACE, PS_NUM)
   Local Integer FLG
   Local Integer M_ENT
 
-
+#Infbox CRITERIOS1
 
   Filter [Y01] Where evalue(CRITERIOS1) Order By [Y01]PRHNUM Asc
     For [Y01]
   # @01@ - SCD - 05/09/2023 - INI
        [L]FLG   = 0
        [L]M_ENT = 0
+
+      # 2026-00034.ini
+        If func CONTROL_BLOQUEO([Y01]PRHNUM) <> '0' Then
+          FLG = 1
+        Endif
+      # 2026-00034.fin
 
        # Si el cliente no tiene valor en el campo 'Modo de entrega SANYCCES', salto a siguiente
        Read [Y11]BPC0 = [Y01]BPCORD
@@ -593,7 +611,7 @@ Subprog GEN_SDH(PI_TRACE, PS_NUM)
           [L]M_ENT = [Y11]YMODENT
         Endif
        Endif
-       # @05@: EQM - INI
+        # @05@: EQM - INI
        Read [Y12]BPT0=[Y01]BPTNUM
        If !fstat
               If [Y12]YMODENTREGA<>[M:YGSDH]YMODENTREGA
@@ -685,7 +703,6 @@ Subprog GEN_SDH(PI_TRACE, PS_NUM)
 End
 # @02@ - SCD - 06/06/2024 - FIN
 
-
 Funprog LINEA_VALE(PVENTA, PVENTALIN, VALE)
     Value Char PVENTA
     Value Char VALE
@@ -705,20 +722,6 @@ Funprog LINEA_VALE(PVENTA, PVENTALIN, VALE)
     Close File [YYPRE]
 
 End LINEAVALE
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla YGENSDH) 18/11/2024 15:17:48 (NUN14)
-######################################################################################
-Subprog AV_CLIENTEINI(VALEUR)
-Variable Char    VALEUR()
-Local Integer ST
-
-
-End
-
-
-######################################################################################
-
-
 
 $TEST_SDH
   If GSERVEUR=1
@@ -737,7 +740,7 @@ $TEST_SDH
       Local Char CRITERIOS1(250) : CRITERIOS1="1=1"
       Global Integer CUANTOS
       Global Integer LINE
-      Global Char LPEDIDO(30)(1..20)
+      Global Char LPEDIDO(30)(1..500)
 
       CRITERIOS1 += " & [Y01]DLVFLG=2"                  # Estado del vale = entregable
       CRITERIOS1 += " & [Y01]STOFCY=[M:YGSDH]PLANTA"    # Planta
@@ -788,6 +791,12 @@ $TEST_SDH
       # @01@ - SCD - 05/09/2023 - INI
            [L]FLG   = 0
            [L]M_ENT = 0
+
+        # 2026-00034.ini
+          If func CONTROL_BLOQUEO([Y01]PRHNUM) <> '0' Then
+            FLG = 1
+          Endif
+        # 2026-00034.fin
 
            # Si el cliente no tiene valor en el campo 'Modo de entrega SANYCCES', salto a siguiente
            Read [Y11]BPC0 = [Y01]BPCORD
@@ -886,3 +895,60 @@ $TEST_SDH
   Endif
 
 Return
+
+##############################################################
+# 2026-00034
+Funprog CONTROL_BLOQUEO(PPRHNUM)
+Value Char PPRHNUM
+
+Local   Integer K
+Local   Char    MACHINE(GDIMFIC),USER(50)
+Local   Char    PROCESS(20),LOGIN(GLONALO),NOM(GLONDES),MAIL(GLONDES)
+Global  Char    GASUNTOZPD(250),GTEXTOZPD(250),GCORREOZPD(250)
+
+  Local Mask PSADX [PSA]
+  Call TEMPON("O") From GESECRAN
+  Call LISTE("") From PSADX
+  If !clalev([F:ZVPD]) Then : Local File ZVPDVENDPR [F:ZVPD] : Endif
+  Filter [F:ZVPD] Where PRHNUM = PPRHNUM
+  For    [F:ZVPD]
+    [L]PROCESS = num$(func ZSANLIB01.COMPRUEBA_BLOQUEO('SOH',[F:ZVPD]SOHNUM))
+    # si el proceso está bloqueado devuelve el id asociado
+    If [L]PROCESS <> '0' Then
+      K = find([L]PROCESS,[M:PSA]UID(0..[M:PSA]NBLIG-1))
+      If K Then
+        [L]LOGIN   = toupper([M:PSA]USER(K-1))
+        [L]MACHINE = [M:PSA]CLIENT(K-1)
+        If LOGIN<>""
+          If clalev([F:AUS])=0 : Local File AUTILIS [AUS] : Endif
+          Read [AUS]LOGIN = [L]LOGIN
+          If !fstat
+            [L]USER  = [F:AUS]USR
+            [L]NOM   = [F:AUS]NOMUSR
+            [L]MAIL  = [F:AUS]ADDEML
+            Break
+          Endif
+        Endif
+      Endif
+    Endif
+  Next
+  Call TEMPOFF From GESECRAN
+
+  If [L]PROCESS <> '0' Then
+    [V]GCORREOZPD = 'itsoporte@sanycces.es;cargas@sanycces.es;'+[L]MAIL
+    [V]GASUNTOZPD = 'Pedido bloqueado por otro usuario'
+    [V]GTEXTOZPD  = "Hola,"+chr$(13)+chr$(10)+chr$(13)+chr$(10)
+    [V]GTEXTOZPD += 'El pedido' - [F:ZVPD]SOHNUM - 'está abierto por el usuario' - [L]USER - "(" + [L]NOM + ').' + chr$(13)+chr$(10)+chr$(13)+chr$(10)
+    [V]GTEXTOZPD += 'El documento' - [F:ZVPD]PRHNUM - 'queda pendientre de entregar hasta que se elimine el bloqueo.' + chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)
+    [V]GTEXTOZPD += 'Un saludo.'
+    Call WORKFLOW (1,"ZPD","","INFO1") From AWRK
+  Endif
+
+  Filter [F:ZVPD]
+  Close Local File [ZVPD]
+
+  If dim([V]GCORREOZPD)>0   Then : Kill [V]GCORREOZPD : Endif
+  If dim([V]GASUNTOZPD)>0   Then : Kill [V]GASUNTOZPD : Endif
+  If dim([V]GTEXTOZPD)>0    Then : Kill [V]GTEXTOZPD  : Endif
+
+End [L]PROCESS

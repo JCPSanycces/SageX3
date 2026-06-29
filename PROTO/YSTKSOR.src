@@ -1,6 +1,8 @@
-#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
+#@01@ - EQM - Subimos YSTOCOU de 50 a 200
 $ACTION
-Return #De momento quitamos el punto hasta nuevo aviso
+#Return #De momento quitamos el punto hasta nuevo aviso
+
   #--
 
   Case ACTION
@@ -17,7 +19,7 @@ If GFONCTION = 'FUNPREP2'
   If clalev([F:YYSTA])=0  Local File STOALL [YYSTA]  Endif
   If clalev([F:YYITF])=0  Local File ITMFACILIT [YYITF]  Endif
   If clalev([F:YYITMT])=0  Local File YITMTECNICO [YYITMT]  Endif
-  Local Char YSTOCOU(30)(10)
+  Local Char YSTOCOU(30)(200)  #Subimos de 10 a 50 límite contenedores #@01@ - EQM 
   Local Integer YNBLIG: YNBLIG = 0
   Local Char YWFILSTA(60)
 

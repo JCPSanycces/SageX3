@@ -1,5 +1,9 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+#//////////////////////////////////////////////////////////////////////////////////////////////#
 # @01@ - JLP - 03-12-2024 - A pedir = (Stock máximo - Disp.venta - En reaprov) / (Lote técnico)
+# @02@ - EQM - 18-08-2025 - Redondeo a 2 dec para que aparezca ok en excel
+# @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+#//////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
   When "DEBUT"    :  Gosub DEBUT
@@ -32,7 +36,7 @@ $BUSCAR
 Gosub LIMPIO_LINEAS
 
 # Fecha de arranque
-Local Date F_ARRANQUE : F_ARRANQUE = gdat$(13,08,2024)
+Local Date F_ARRANQUE : F_ARRANQUE = gdat$(01,10,2024)
 
 # Apertura de tablas
 If !clalev([PP1]) : Local File ITMMASTER     [PP1] : Endif
@@ -85,6 +89,12 @@ If [M:YAPSA]CFAMILIAH <> ""
   CRITERIOS2 += " & [PP1]TSICOD(1)<=[M:YAPSA]CFAMILIAH"
 Endif
 
+# @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+# si no se indica comprador se ignora el filtro en vez de buscarlo vacío adrede
+If [M:YAPSA]CCOMPRADOR <> ""
+  CRITERIOS2 += " & [PP1]BUY=[M:YAPSA]CCOMPRADOR"
+Endif
+# @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
 
 # Cargo pantalla (máximo 3000 líneas)
 Local Integer CONTA
@@ -112,6 +122,8 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
     Read [P11] First
     If fstat = 0
       [M:YAPSA]PPRINCIPAL(nolign-1)       = [P11]BPSNUM
+    Else  #21/01/2026
+      [M:YAPSA]PPRINCIPAL(nolign-1)       = ""       #21/01/2026
     Endif
     Filter [P11]
 
@@ -150,12 +162,14 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
     Endif
 
     [M:YAPSA]LIMITEREAP(nolign-1)   = [PP2]REOTSD
-    [M:YAPSA]STOCKMAX(nolign-1)     = [PP2]MAXSTO
+    [M:YAPSA]STOCKMAX(nolign-1)     = ar2([PP2]MAXSTO) # @02@ - EQM - Redondeo ar2
     [M:YAPSA]LOTEECO(nolign-1)      = [PP2]REOMINQTY
     [M:YAPSA]LOTETEC(nolign-1)      = [PP2]MFGLOTQTY
     [M:YAPSA]PLAZOENT(nolign-1)     = [PP2]OFS
 
-
+     # @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+    [M:YAPSA]COMPRADOR(nolign-1)    = [PP1]BUY
+    # @03@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
 
 
     #** Campos calculados
@@ -241,9 +255,10 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
     [M:YAPSA]DISPVENTA(nolign-1) = [M:YAPSA]DISPFUTURO(nolign-1) - [M:YAPSA]PTEREC(nolign-1)
 
     # Aplico el filtro de disp.futuro < stock minimo
-    If [M:YAPSA]CDISPONIBLE = 2
-      If [M:YAPSA]DISPFUTURO(nolign-1) >= [M:YAPSA]STKMINCAL(nolign-1) : Goto SIGUIENTE : Endif
-    Endif
+    #21/01/2026. Muevo este control lineas abajo tras el cálculo del STKMINCAL
+#    If [M:YAPSA]CDISPONIBLE = 2
+#      If [M:YAPSA]DISPFUTURO(nolign-1) >= [M:YAPSA]STKMINCAL(nolign-1) : Goto SIGUIENTE : Endif
+#    Endif
 
     # Informaciones de la demanda. Busco en tabla de histórico si hoy-365 < fecha arranque
     If 1=2 # 07/06/2024. No calculo la demanda mensual; voy a buscarla al proceso de Rupturas sanycces
@@ -302,38 +317,44 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
         [L]D90_OF += [PP5]RETQTY
       Next
     Filter [PP5]
-    [M:YAPSA]DEMANDA90(nolign-1) = ([L]DH90_PV + [L]D90_PV + [L]DH90_OF + [L]D90_OF) / 3
+    [M:YAPSA]DEMANDA90(nolign-1) = ar2(([L]DH90_PV + [L]D90_PV + [L]DH90_OF + [L]D90_OF) / 3) # @02@ - EQM - Redondeo ar2
 
     # Meses stock actual 90D = Disp. venta/Demanda 90D
     If [M:YAPSA]DEMANDA90(nolign-1) > 0
-      [M:YAPSA]MESACT90(nolign-1) = [M:YAPSA]DISPVENTA(nolign-1) /[M:YAPSA]DEMANDA90(nolign-1)
+      [M:YAPSA]MESACT90(nolign-1) = ar2([M:YAPSA]DISPVENTA(nolign-1) /[M:YAPSA]DEMANDA90(nolign-1)) # @02@ - EQM - Redondeo ar2
     Endif
 
     # Meses stock futuro a 90D = Disp. futuro/Demanda 90D
     If [M:YAPSA]DEMANDA90(nolign-1) > 0
-      [M:YAPSA]MESFUT90(nolign-1) = [M:YAPSA]DISPFUTURO(nolign-1) /[M:YAPSA]DEMANDA90(nolign-1)
+      [M:YAPSA]MESFUT90(nolign-1) = ar2([M:YAPSA]DISPFUTURO(nolign-1) /[M:YAPSA]DEMANDA90(nolign-1)) # @02@ - EQM - Redondeo ar2
     Endif
 
     # STOCK MIN CAL: DEMANDA MENSUAL * (PLAZO ENTREGA / 30)
-    [M:YAPSA]STKMINCAL(nolign-1) = [M:YAPSA]DEMANDAM(nolign-1) * ([M:YAPSA]PLAZOENT(nolign-1) / 30)
+    [M:YAPSA]STKMINCAL(nolign-1) = ar2([M:YAPSA]DEMANDAM(nolign-1) * ([M:YAPSA]PLAZOENT(nolign-1) / 30)) # @02@ - EQM - Redondeo ar2
+
+    #21/01/2026 Aplico el filtro de disp.futuro < stock minimo
+    If [M:YAPSA]CDISPONIBLE = 2
+      If [M:YAPSA]DISPFUTURO(nolign-1) > [M:YAPSA]LIMITEREAP(nolign-1) : Goto SIGUIENTE : Endif
+      If [M:YAPSA]DISPFUTURO(nolign-1) = 0 and [M:YAPSA]LIMITEREAP(nolign-1) = 0 : Goto SIGUIENTE : Endif
+    Endif
 
     # STOCK MIN CAL 90D: DEMANDA 90D * (PLAZO ENTREGA / 30)
-    [M:YAPSA]STKMINCAL90(nolign-1) = [M:YAPSA]DEMANDA90(nolign-1) * ([M:YAPSA]PLAZOENT(nolign-1) / 30)
+    [M:YAPSA]STKMINCAL90(nolign-1) = ar2([M:YAPSA]DEMANDA90(nolign-1) * ([M:YAPSA]PLAZOENT(nolign-1) / 30)) # @02@ - EQM - Redondeo ar2
 
     # STOCK MAX CAL: STOCK MIN CAL * 2
-    [M:YAPSA]STOCKMAXCAL(nolign-1) = [M:YAPSA]STKMINCAL(nolign-1) * 2
+    [M:YAPSA]STOCKMAXCAL(nolign-1) = ar2([M:YAPSA]STKMINCAL(nolign-1) * 2) # @02@ - EQM - Redondeo ar2
 
     # STOCK MAX CAL 90D: STOCK MIN CAL 90D * 2
-    [M:YAPSA]STOCKMAXCAL9(nolign-1) = [M:YAPSA]STKMINCAL90(nolign-1) * 2
+    [M:YAPSA]STOCKMAXCAL9(nolign-1) = ar2([M:YAPSA]STKMINCAL90(nolign-1) * 2) # @02@ - EQM - Redondeo ar2
 
     # MESES STOCK ACTUAL: DISP. VENTA / DEMANDA MENSUAL
     If [M:YAPSA]DEMANDAM(nolign-1) <> 0
-      [M:YAPSA]MESESSTKACT(nolign-1) = [M:YAPSA]DISPVENTA(nolign-1) / [M:YAPSA]DEMANDAM(nolign-1)
+      [M:YAPSA]MESESSTKACT(nolign-1) = ar2([M:YAPSA]DISPVENTA(nolign-1) / [M:YAPSA]DEMANDAM(nolign-1)) # @02@ - EQM - Redondeo ar2
     Endif
 
     # MESES STOCK FUTURO: DISP. FUTURO / DEMANDAD MENSUAL
     If [M:YAPSA]DEMANDAM(nolign-1) <> 0
-      [M:YAPSA]MESESSTKFUT(nolign-1) = [M:YAPSA]DISPFUTURO(nolign-1) / [M:YAPSA]DEMANDAM(nolign-1)
+      [M:YAPSA]MESESSTKFUT(nolign-1) = ar2([M:YAPSA]DISPFUTURO(nolign-1) / [M:YAPSA]DEMANDAM(nolign-1)) # @02@ - EQM - Redondeo ar2
     Endif
 
     # Precio y descuento 1 del artículo
@@ -440,7 +461,7 @@ Filter [XX1] Where evalue(CRITERIOS1) and evalue(CRITERIOS2) Order By [PP1]ITMRE
 
     CONTA +=1
     If CONTA = 3000
-      Errbox "Atención!! No se van a cargar todos los registros en pantalla (Máximo 3.000 líneas)"
+      Errbox "¡Atención! No se van a cargar todos los registros en pantalla (Máximo 3.000 líneas)"
       Break
     Endif
 

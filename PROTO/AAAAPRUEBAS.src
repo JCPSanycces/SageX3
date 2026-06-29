@@ -1,0 +1,10 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char    SALFCY(50) : [L]SALFCY = '11'
+Local Char    SOHNUM(50)
+Local Integer STAT
+Call NUMERO("ZPDV",SALFCY,date$,"null",SOHNUM,STAT) From SUBANM
+Infbox SOHNUM
+End
+
+#13780
+#PDV112613781

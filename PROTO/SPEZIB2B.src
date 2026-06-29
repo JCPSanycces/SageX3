@@ -1,0 +1,144 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEZIB2B
+# Description : Específico pantalla B2B
+# Module      : Datos base
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Auren España
+# Created date: 20/04/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "SEL_TABLE"          : Gosub SEL_TABLE
+  When "VERF_TABLE"         : Gosub VERF_TABLE
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$SEL_TABLE
+  Case TABLE
+    When "ZSELATRB2B"     : Gosub SEL_ZSELATRB2B
+  Endcase
+Return
+
+##############################################################
+$VERF_TABLE
+  Case TABLE
+    When "ZSELATRB2B"     : Gosub VERF_ZSELATRB2B
+  Endcase
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$SEL_ZSELATRB2B
+  If !clalev([F:ZAX0]) Then : Local File ATEXTRA [F:ZAX0] : Endif
+
+  TIT(0) = "Selección del atributo"-[M:ZIB2B]DESATRIBUTO(nolign-1)
+
+  ORDRE = "IDENT2"
+  START = "IDENT2"
+  SENS  = 1
+  DEFPAGE = 5
+
+  SIZCOL = 600
+  SIZLIG = 150
+
+  Default File [F:ZAX0]
+
+  CRITERE = "CODFIC = 'ATABDIV' and ZONE = 'LNGDES' and LANGUE='SPA' and IDENT1='"+num$([M:ZIB2B]NTABVAR(nolign-1))+"'"
+  GSELFAC = 1
+  NBCOL = 0
+  NBCOL +=1 : COL(NBCOL) = "[F:ZAX0]IDENT2" : TIT(NBCOL) = "Código"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZAX0]TEXTE"  : TIT(NBCOL) = "Valor"
+Return
+
+##############################################################
+$VERF_ZSELATRB2B
+  [M:ZIB2B]DESVALATRIB(nolign-1) = [F:ZAX0]TEXTE
+  Affzo [M:ZIB2B]DESVALATRIB(nolign-1)
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+######################################################################################
+## Después de modificar el campo 'Código' atributo (pantalla ZITMB2B) 20/04/2026 11:15:45 (SN070)
+######################################################################################
+Subprog AM_CODATRIBUTO(VALEUR)
+Variable Char    VALEUR()
+  If VALEUR <> "" Then
+    # rellena la descripción del atributo y la tabla varia en la que está
+    If !clalev([F:ZADI0]) Then : Local File ATABDIV [F:ZADI0] : Endif
+    Read [F:ZADI0]CODE = 6031;VALEUR
+    If !fstat Then
+      [M:ZIB2B]DESATRIBUTO(nolign-1)  = [F:ZADI0]A1
+      [M:ZIB2B]NTABVAR(nolign-1)      = [F:ZADI0]N1
+      Affzo [M:ZIB2B]DESATRIBUTO,NTABVAR
+    Endif
+    Close Local File [ZADI0]
+  Endif
+End
+
+######################################################################################
+## Control en el campo 'Código' atributo (pantalla ZITMB2B) 20/04/2026 14:46:13 (SN070)
+######################################################################################
+Subprog C_CODATRIBUTO(VALEUR)
+Variable Char    VALEUR()
+  # controla que no se repita el atributo
+  Call UNICITE(VALEUR, [M:ZIB2B]CODATRIBUTO(0..[M:ZIB2B]NBLIG-1)) From OBJDIV
+End
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+#**
+#* devuelve la descripción del valor del atributo
+#*
+#* @param PNUMTAB > número de la tabla varia
+#* @param PCODATR > código del atributo
+#*!
+Funprog SETDESV(PNUMTAB,PCODATR)
+Value Integer PNUMTAB
+Value Char    PCODATR
+
+Local Char LRET(250)
+# P1 = Campo donde devuelve el resultado
+# P2 = CODFIC
+# P3 = ZONE
+# P4 = IDENT1
+# P5 = IDENT2
+  Call LECTEXTRA(LRET,'ATABDIV','LNGDES',num$(PNUMTAB),PCODATR) From ATEXTRA
+End LRET
+
+##############################################################
+#**
+#* devuelve la descripción del atributo
+#*
+#* @param PNUMTAB > número de la tabla varia
+#* @param PCODATR > código del atributo
+#*!
+Funprog SETDESA(PNUMTAB,PCODATR)
+Value Integer PNUMTAB
+Value Char    PCODATR
+
+Local Char LRET(250)
+
+  If !clalev([F:ZADI0]) Then : Local File ATABDIV [F:ZADI0] : Endif
+  Read [F:ZADI0]CODE = PNUMTAB;PCODATR
+  If !fstat Then
+    LRET = [F:ZADI0]A1
+  Endif
+  Close Local File [ZADI0]
+End LRET

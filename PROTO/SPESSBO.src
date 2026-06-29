@@ -1,6 +1,14 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 $ACTION
-If GUSER='NUN12' : Infbox ACTION : Endif
+If GUSER='SN070' : Infbox ACTION : Endif
 Case ACTION
 Endcase
 Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla SSELBOD) 05/03/2026 14:36:22 (SN069)
+######################################################################################
+Subprog IB_WTEXTE1
+End
+
+
+######################################################################################

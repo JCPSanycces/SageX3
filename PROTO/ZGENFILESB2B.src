@@ -1,0 +1,681 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZGENFILESB2B
+# Description : Proceso de generación de ficheros para el B2B
+# Module      :
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 26/03/2025
+############################################################################
+
+Gosub INIT
+Gosub EXEC
+End
+
+$ACTION
+
+#If GUSER="ADMIN" Then : Infbox ACTION : Endif
+Case ACTION
+  When "INIT"       : Gosub INIT
+  When "EXEC"       : Gosub EXEC
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$INIT
+  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+  Local Char    PORT(100)       : PORT      = '2221'
+  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+  Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
+  Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS','','')
+  Local Char    FTPFOLDER(100)
+  Local Char    LINDEX(100)
+  Local Integer RESULT
+Return
+
+##############################################################
+$EXEC
+#  Call FICHERO_ARTICULOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+#  Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+#  Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+#  Call FICHERO_STOCKS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+Subprog FICHERO_ARTICULOS(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT)
+Value     Char    P_SERVER
+Value     Char    P_PORT
+Value     Char    P_USER
+Value     Char    P_PWD
+Value     Char    P_FTPFOLDER
+Value     Char    P_LPATH
+Value     Char    P_LPATHDES
+Value     Char    P_LINDEX
+Variable  Integer P_RESULT
+
+Local     Char    LDIRIMPORT(250)
+Local     Char    LDIRPROCESADOS(250)
+Local     Char    LFILE(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
+Local     Char    LINDEX(250)
+Local     Char    LFECHA(100),LHORA(100)
+Local     Char    LCRITITM(250)
+Local     Integer LCONT
+
+Local     Char    LSEP(1) : [L]LSEP = ","
+Local     Char    LSKU(250),LATTSETCODE(250),LPRODUCTTYPE(250),LNAME(250),LPRICE(250),LURLKEY(250),LVISIBILITY(250),LTAXCLASSNAME(250)
+Local     Char    LWEIGHT(250),LPRODUCTWEB(250),LCOLOR(250),LMANETA(250),LFLEXIBLE(250),LCANOMEN(250),LEMBELLECEDOR(250),LTELEDUCHA(250),LROCIADOR(250)
+
+  If GSERVEUR
+    Call ECR_TRACE("Envío de artículos al B2B",0) From GESECRAN
+  Endif
+
+  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
+  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LCRITITM         = "1=1"
+  [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
+  [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
+  [L]LINDEX           = "products_" + LFECHA + "_" + LHORA
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
+  P_FTPFOLDER         = "PRODUCTS"
+  P_LPATHDES         += "\ARTICULOS"
+
+  If !clalev([F:ZVIB]) Then : Local File ZVITMB2B [F:ZVIB] : Endif
+  Filter [F:ZVIB] Where evalue([L]LCRITITM) Order By ORDEN Asc
+
+  If rowcount([F:ZVIB]) = 0 Then : End : Endif
+
+  # borramos el fichero si existe...
+  If filinfo(LFILE, 7) > 0 Then
+    System "ae_rm " + LFILE
+  Endif
+
+  # se abre el fichero
+  adxifs = ";"
+  adxirs = chr$(13)+chr$(10)
+  adxium = 0
+  Openo LFILE Using [ZB2B]
+
+  Raz [L]LCONT
+  For [ZVIB]
+    [L]LSKU           = '"'+ctrans(vireblc([F:ZVIB]SKU,2),'""','')+'"'
+    [L]LATTSETCODE    = '"'+ctrans(vireblc([F:ZVIB]ATTSETCODE,2),'""','')+'"'
+    [L]LPRODUCTTYPE   = '"'+ctrans(vireblc([F:ZVIB]PRODUCTTYPE,2),'""','')+'"'
+    [L]LNAME          = '"'+ctrans(vireblc([F:ZVIB]NAME,2),'""','')+'"'
+    [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$([F:ZVIB]PRICE),2),'""',''),',','.')+'"'
+    [L]LURLKEY        = '"'+ctrans(vireblc([F:ZVIB]URLKEY,2),'""','')+'"'
+    [L]LVISIBILITY    = '"'+ctrans(vireblc([F:ZVIB]VISIBILITY,2),'""','')+'"'
+    [L]LTAXCLASSNAME  = '"'+ctrans(vireblc([F:ZVIB]TAXCLASSNAME,2),'""','')+'"'
+    [L]LWEIGHT        = '"'+ctrans(ctrans(vireblc(num$([F:ZVIB]WEIGHT),2),'""',''),',','.')+'"'
+    [L]LPRODUCTWEB    = '"'+ctrans(vireblc([F:ZVIB]PRODUCTWEB,2),'""','')+'"'
+    [L]LCOLOR         = '"'+ctrans(vireblc([F:ZVIB]COLOR,2),'""','')+'"'
+    [L]LMANETA        = '"'+ctrans(vireblc([F:ZVIB]MANETA,2),'""','')+'"'
+    [L]LFLEXIBLE      = '"'+ctrans(vireblc([F:ZVIB]FLEXIBLE,2),'""','')+'"'
+    [L]LCANOMEN       = '"'+ctrans(vireblc([F:ZVIB]CANOMEN,2),'""','')+'"'
+    [L]LEMBELLECEDOR  = '"'+ctrans(vireblc([F:ZVIB]EMBELLECEDOR,2),'""','')+'"'
+    [L]LTELEDUCHA     = '"'+ctrans(vireblc([F:ZVIB]TELEDUCHA,2),'""','')+'"'
+    [L]LROCIADOR      = '"'+ctrans(vireblc([F:ZVIB]ROCIADOR,2),'""','')+'"'
+
+    # escribe los datos del artículo
+    Wrseq [L]LSKU + [L]LSEP + [L]LATTSETCODE + [L]LSEP + [L]LPRODUCTTYPE + [L]LSEP + [L]LNAME + [L]LSEP + [L]LPRICE + [L]LSEP +
+&         [L]LURLKEY + [L]LSEP + [L]LVISIBILITY + [L]LSEP + [L]LTAXCLASSNAME + [L]LSEP + [L]LWEIGHT + [L]LSEP + [L]LPRODUCTWEB + [L]LSEP +
+&         [L]LCOLOR + [L]LSEP + [L]LMANETA + [L]LSEP + [L]LFLEXIBLE + [L]LSEP + [L]LCANOMEN + [L]LSEP + [L]LEMBELLECEDOR + [L]LSEP +
+&         [L]LTELEDUCHA + [L]LSEP + [L]LROCIADOR
+&   Using [ZB2B]
+
+    [L]LCONT += 1
+    If [L]LCONT > 5 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  Next
+  Filter [F:ZVIB]
+  Close Local File [ZVIB]
+
+  # se cierra el fichero
+  Openo Using [ZB2B]
+
+  # envío al servidor FTP
+  P_LINDEX = [L]LINDEX
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+End
+
+##############################################################
+Subprog FICHERO_CLIENTES(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT)
+Value     Char    P_SERVER
+Value     Char    P_PORT
+Value     Char    P_USER
+Value     Char    P_PWD
+Value     Char    P_FTPFOLDER
+Value     Char    P_LPATH
+Value     Char    P_LPATHDES
+Value     Char    P_LINDEX
+Variable  Integer P_RESULT
+
+Local     Char    LDIRIMPORT(250)
+Local     Char    LDIRPROCESADOS(250)
+Local     Char    LFILE(250)
+Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
+Local     Char    LFECHA(100),LHORA(100)
+Local     Char    LCRITBPC(250)
+Local     Integer LCONT
+
+Local     Char    LSEP(1) : [L]LSEP = ","
+Local     Char    LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(250),LSTORE_ID(250),LCREATED_IN(250),LFIRSTNAME(250),LLASTNAME(250)
+Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBOTA(250),LPHONECOM(250),LWHATSAPPCOM(250),LRAZONSOCIAL(250)
+
+  If GSERVEUR
+    Call ECR_TRACE("Envío de clientes al B2B",0) From GESECRAN
+  Endif
+
+  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
+  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LCRITBPC         = "CLIENTE_B2B<>''"
+  [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
+  [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
+  [L]LINDEX           = "customers_" + LFECHA + "_" + LHORA
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
+  P_FTPFOLDER         = "CUSTOMERS"
+  P_LPATHDES         += "\CLIENTES"
+
+  If !clalev([F:ZVBB]) Then : Local File ZVBPCB2B [F:ZVBB] : Endif
+  Filter [F:ZVBB] Where evalue([L]LCRITBPC)
+
+  If rowcount([F:ZVBB]) = 0 Then : End : Endif
+
+  # borramos el fichero si existe...
+  If filinfo(LFILE, 7) > 0 Then
+    System "ae_rm " + LFILE
+  Endif
+
+  # se abre el fichero
+  adxifs = ";"
+  adxirs = chr$(13)+chr$(10)
+  adxium = 0
+  Openo LFILE Using [ZB2B]
+
+  Raz [L]LCONT
+
+#  Filter [F:ZVBB] Where evalue([L]LCRITBPC) Order By ORDEN Asc
+  Wrseq '"email","_website","_store","website_id","store_id","created_in","firstname","lastname","group_id","allow_login","approve_account",' +
+&       '"puede_rebotar_presupuestos","phonecomercial","whatsappcomercial","razonsocial"'
+& Using [ZB2B]
+
+  For [ZVBB]
+
+    [L]LEMAIL         = '"'+ctrans(vireblc('abc'+[F:ZVBB]EMAIL,2),'""','')+'"'
+    [L]LWEBSITE       = '"'+ctrans(vireblc([F:ZVBB]WEBSITE,2),'""','')+'"'
+    [L]LSTORE         = '"'+ctrans(vireblc([F:ZVBB]STORE,2),'""','')+'"'
+    [L]LWEBSITE_ID    = '"'+ctrans(vireblc([F:ZVBB]WEBSITE_ID,2),'""','')+'"'
+    [L]LSTORE_ID      = '"'+ctrans(vireblc([F:ZVBB]STORE_ID,2),'""','')+'"'
+    [L]LCREATED_IN    = '"'+ctrans(vireblc([F:ZVBB]CREATED_IN,2),'""','')+'"'
+    [L]LFIRSTNAME     = '"'+ctrans(vireblc([F:ZVBB]FIRSTNAME,2),'""','')+'"'
+    [L]LLASTNAME      = '"'+ctrans(vireblc([F:ZVBB]LASTNAME,2),'""','')+'"'
+    [L]LGROUP_ID      = '"'+ctrans(vireblc([F:ZVBB]GROUP_ID,2),'""','')+'"'
+    [L]LALLOW_LOGIN   = '"'+ctrans(vireblc([F:ZVBB]ALLOW_LOGIN,2),'""','')+'"'
+    [L]LAPPROVE_ACC   = '"'+ctrans(vireblc([F:ZVBB]APPROVE_ACC,2),'""','')+'"'
+    [L]LPUEDE_REBOTA  = '"'+ctrans(vireblc([F:ZVBB]PUEDE_REBOTA,2),'""','')+'"'
+    [L]LPHONECOM      = '"'+ctrans(vireblc([F:ZVBB]PHONECOM,2),'""','')+'"'
+    [L]LWHATSAPPCOM   = '"'+ctrans(vireblc([F:ZVBB]WHATSAPPCOM,2),'""','')+'"'
+    [L]LRAZONSOCIAL   = '"'+ctrans(vireblc([F:ZVBB]FIRSTNAME,2),'""','')+'"'
+
+    # escribe los datos del cliente
+    Wrseq [L]LEMAIL + [L]LSEP + [L]LWEBSITE + [L]LSEP + [L]LSTORE + [L]LSEP + [L]LWEBSITE_ID + [L]LSEP + [L]LSTORE_ID + [L]LSEP + [L]LCREATED_IN + [L]LSEP +
+&         [L]LFIRSTNAME + [L]LSEP + [L]LLASTNAME + [L]LSEP + [L]LGROUP_ID + [L]LSEP + [L]LALLOW_LOGIN + [L]LSEP + [L]LAPPROVE_ACC + [L]LSEP +
+&         [L]LPUEDE_REBOTA + [L]LSEP + [L]LPHONECOM + [L]LSEP + [L]LWHATSAPPCOM + [L]LSEP + [L]LRAZONSOCIAL
+&   Using [ZB2B]
+
+    [L]LCONT += 1
+    If [L]LCONT > 1 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  Next
+  Filter [F:ZVBB]
+  Close Local File [ZVBB]
+
+  # se cierra el fichero
+  Openo Using [ZB2B]
+
+  # envío al servidor FTP
+  P_LINDEX = [L]LINDEX
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+End
+
+##############################################################
+Subprog FICHERO_DIRECCIONES(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT)
+Value     Char    P_SERVER
+Value     Char    P_PORT
+Value     Char    P_USER
+Value     Char    P_PWD
+Value     Char    P_FTPFOLDER
+Value     Char    P_LPATH
+Value     Char    P_LPATHDES
+Value     Char    P_LINDEX
+Variable  Integer P_RESULT
+
+Local     Char    LDIRIMPORT(250)
+Local     Char    LDIRPROCESADOS(250)
+Local     Char    LFILE(250)
+Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
+Local     Char    LFECHA(100),LHORA(100)
+Local     Char    LCRITBPA(250)
+Local     Integer LCONT
+
+Local     Char    LSEP(1) : [L]LSEP = ","
+Local     Char    LWEBSITE(250),LENTITYID(250),LEMAIL(250),LCITY(250),LCOMPANY(250),LCOUNTRYID(250),LFIRSTNAME(250),LLASTNAME(250)
+Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEPHONE(250),LADDRESSBILL(250),LADDRESSSHIP(250)
+
+  If GSERVEUR
+    Call ECR_TRACE("Envío de direcciones de clientes al B2B",0) From GESECRAN
+  Endif
+
+  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
+  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LCRITBPA         = "CLIENTE_B2B<>''"
+  [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
+  [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
+  [L]LINDEX           = "customeraddress_" + LFECHA + "_" + LHORA
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
+  P_FTPFOLDER         = "CUSTOMERSADDRESS"
+  P_LPATHDES         += "\DIRECCIONESCLIENTES"
+
+  If !clalev([F:ZVBA]) Then : Local File ZVBPAB2B [F:ZVBA] : Endif
+  Filter [F:ZVBA] Where evalue([L]LCRITBPA)
+
+  If rowcount([F:ZVBA]) = 0 Then : End : Endif
+
+  # borramos el fichero si existe...
+  If filinfo(LFILE, 7) > 0 Then
+    System "ae_rm " + LFILE
+  Endif
+
+  # se abre el fichero
+  adxifs = ";"
+  adxirs = chr$(13)+chr$(10)
+  adxium = 0
+  Openo LFILE Using [ZB2B]
+
+  Raz [L]LCONT
+
+  Wrseq '"_website","_entity_id","_email","city","company","country_id","firstname","lastname","postcode","region","region_id",' +
+&       '"street","telephone","_address_default_billing_","_address_default_shiping_"'
+& Using [ZB2B]
+
+  For [ZVBA]
+
+    [L]LWEBSITE       = '"'+ctrans(vireblc([F:ZVBA]WEBSITE,2),'""','')+'"'
+    [L]LENTITYID      = '"'+ctrans(vireblc([F:ZVBA]ENTITYID,2),'""','')+'"'
+    [L]LEMAIL         = '"'+ctrans(vireblc('abc'+[F:ZVBA]EMAIL,2),'""','')+'"'
+    [L]LCITY          = '"'+ctrans(vireblc([F:ZVBA]CITY,2),'""','')+'"'
+    [L]LCOMPANY       = '"'+ctrans(vireblc([F:ZVBA]COMPANY,2),'""','')+'"'
+    [L]LCOUNTRYID     = '"'+ctrans(vireblc([F:ZVBA]COUNTRYID,2),'""','')+'"'
+    [L]LFIRSTNAME     = '"'+ctrans(vireblc([F:ZVBA]FIRSTNAME,2),'""','')+'"'
+    [L]LLASTNAME      = '"'+ctrans(vireblc([F:ZVBA]LASTNAME,2),'""','')+'"'
+    [L]LPOSTCODE      = '"'+ctrans(vireblc([F:ZVBA]POSTCODE,2),'""','')+'"'
+    [L]LREGION        = '"'+ctrans(vireblc([F:ZVBA]REGION,2),'""','')+'"'
+    [L]LREGIONID      = '"'+ctrans(vireblc([F:ZVBA]REGIONID,2),'""','')+'"'
+    [L]LSTREET        = '"'+ctrans(vireblc([F:ZVBA]STREET,2),'""','')+'"'
+    [L]LTELEPHONE     = '"'+ctrans(vireblc([F:ZVBA]TELEPHONE,2),'""','')+'"'
+    [L]LADDRESSBILL   = '"'+ctrans(vireblc([F:ZVBA]ADDRESSBILL,2),'""','')+'"'
+    [L]LADDRESSSHIP   = '"'+ctrans(vireblc([F:ZVBA]ADDRESSSHIP,2),'""','')+'"'
+
+    # escribe los datos de las direcciones
+    Wrseq [L]LWEBSITE + [L]LSEP + [L]LENTITYID + [L]LSEP + [L]LEMAIL + [L]LSEP + [L]LCITY + [L]LSEP + [L]LCOMPANY + [L]LSEP + [L]LCOUNTRYID + [L]LSEP +
+&         [L]LFIRSTNAME + [L]LSEP + [L]LLASTNAME + [L]LSEP + [L]LPOSTCODE + [L]LSEP + [L]LREGION + [L]LSEP + [L]LREGIONID + [L]LSEP +
+&         [L]LSTREET + [L]LSEP + [L]LTELEPHONE + [L]LSEP + [L]LADDRESSBILL + [L]LSEP + [L]LADDRESSSHIP
+&   Using [ZB2B]
+
+    [L]LCONT += 1
+    If [L]LCONT > 2 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  Next
+  Filter [F:ZVBA]
+  Close Local File [ZVBA]
+
+  # se cierra el fichero
+  Openo Using [ZB2B]
+
+  # envío al servidor FTP
+  P_LINDEX = [L]LINDEX
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+End
+
+##############################################################
+Subprog FICHERO_STOCKS(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT)
+Value     Char    P_SERVER
+Value     Char    P_PORT
+Value     Char    P_USER
+Value     Char    P_PWD
+Value     Char    P_FTPFOLDER
+Value     Char    P_LPATH
+Value     Char    P_LPATHDES
+Value     Char    P_LINDEX
+Variable  Integer P_RESULT
+
+Local     Char    LDIRIMPORT(250)
+Local     Char    LDIRPROCESADOS(250)
+Local     Char    LFILE(250)
+Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
+Local     Char    LFECHA(100),LHORA(100)
+Local     Char    LCRITSTK(250)
+Local     Integer LCONT
+
+Local     Char    LSEP(1) : [L]LSEP = ","
+Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
+
+  If GSERVEUR
+    Call ECR_TRACE("Envío de stocks al B2B",0) From GESECRAN
+  Endif
+
+  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
+  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LCRITSTK         = "1=1"
+  [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
+  [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
+  [L]LINDEX           = "stocks_" + LFECHA + "_" + LHORA
+  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
+  P_FTPFOLDER         = "STOCKS"
+  P_LPATHDES         += "\STOCKS"
+
+  If !clalev([F:ZVSB]) Then : Local File ZVSTKB2B [F:ZVSB] : Endif
+  Filter [F:ZVSB] Where evalue([L]LCRITSTK)
+
+  If rowcount([F:ZVSB]) = 0 Then : End : Endif
+
+  # borramos el fichero si existe...
+  If filinfo(LFILE, 7) > 0 Then
+    System "ae_rm " + LFILE
+  Endif
+
+  # se abre el fichero
+  adxifs = ";"
+  adxirs = chr$(13)+chr$(10)
+  adxium = 0
+  Openo LFILE Using [ZB2B]
+
+  Raz [L]LCONT
+
+  Wrseq '"source_code","sku","quantity","status"'
+& Using [ZB2B]
+
+  For [ZVSB]
+
+    [L]LSOURCECODE  = '"'+ctrans(vireblc([F:ZVSB]SOURCECODE,2),'""','')+'"'
+    [L]LSKU         = '"'+ctrans(vireblc([F:ZVSB]SKU,2),'""','')+'"'
+    [L]LQUANTITY    = '"'+ctrans(ctrans(vireblc(num$([F:ZVSB]QUANTITY),2),'""',''),',','.')+'"'
+    [L]LESTADO      = '"'+ctrans(vireblc([F:ZVSB]ESTADO,2),'""','')+'"'
+
+    # escribe los datos del stock
+    Wrseq [L]LSOURCECODE + [L]LSEP + [L]LSKU + [L]LSEP + [L]LQUANTITY + [L]LSEP + [L]LESTADO
+&   Using [ZB2B]
+
+    [L]LCONT += 1
+    If [L]LCONT > 2 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  Next
+  Filter [F:ZVSB]
+  Close Local File [ZVSB]
+
+  # se cierra el fichero
+  Openo Using [ZB2B]
+
+  # envío al servidor FTP
+  P_LINDEX = [L]LINDEX
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+End
+
+##############################################################
+Subprog FICHERO_PRECIOS(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT)
+Value     Char    P_SERVER
+Value     Char    P_PORT
+Value     Char    P_USER
+Value     Char    P_PWD
+Value     Char    P_FTPFOLDER
+Value     Char    P_LPATH
+Value     Char    P_LPATHDES
+Value     Char    P_LINDEX
+Variable  Integer P_RESULT
+
+Local     Char    LDIRIMPORT(250)
+Local     Char    LDIRPROCESADOS(250)
+Local     Char    LFILE(250)
+Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
+Local     Char    LCRITPRI(250)
+Local     Char    LBPCSTR(250)
+Local     Char    LBPCEND(250)
+Local     Char    LITMSTR(250)
+Local     Char    LITMEND(250)
+Local     Integer LCONT
+
+Local     Char    LSEP(1) : [L]LSEP = ","
+Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTION(250)
+
+  If GSERVEUR
+    Call ECR_TRACE("Envío de precios al B2B",0) From GESECRAN
+  Endif
+
+  [L]LDIRIMPORT       = filpath("FTP\B2B","","")
+  [L]LDIRPROCESADOS   = filpath("FTP\B2B\ENVIADOS","","")
+  [L]LCRITPRI         = "1=1"
+  P_FTPFOLDER         = "customer_price_import/entrada"
+  P_LPATHDES         += "\PRECIOS"
+
+  If !clalev([M:SPP1])  Then : Local Mask SPPRT       [M:SPP1]  : Endif
+  If !clalev([F:SPQ])   Then : Local File SPRICPRTQ   [F:SPQ]   : Endif
+  If !clalev([F:ZSPQ])  Then : Local File SPRICPRTQ   [F:ZSPQ]  : Endif
+  If !clalev([F:SPP])   Then : Local File SPPRTCONF   [F:SPP]   : Endif
+  If !clalev([F:ZSPP])  Then : Local File SPPRTCONF   [F:ZSPP]  : Endif
+  If !clalev([F:ZVBP])  Then : Local File ZVBPCB2B    [F:ZVBP]  : Endif
+  If !clalev([F:ZVIT])  Then : Local File ZVITMB2B    [F:ZVIT]  : Endif
+  If !clalev([F:ZVBG])  Then : Local File ZVBPCB2BGR  [F:ZVBG]  : Endif
+  If !clalev([F:ZVPR])  Then : Local File ZVPRIB2B    [F:ZVPR]  : Endif
+
+######### GENERACIÓN DEL CATÁLOGO DE TARIFAS - INICIO #########
+  # busca los límites del cliente
+  Filter [F:ZVBP] Order By BPCNUM Asc
+  Read [F:ZVBP] First
+  If !fstat Then
+    [L]LBPCSTR = [F:ZVBP]BPCNUM
+  Endif
+  Read [F:ZVBP] Last
+  If !fstat Then
+    [L]LBPCEND = [F:ZVBP]BPCNUM
+  Endif
+
+  # busca los límites del artículo
+  Filter [F:ZVIT] Order By SKU    Asc
+  Read [F:ZVIT] First
+  If !fstat Then
+    [L]LITMSTR = [F:ZVIT]SKU
+  Endif
+  Read [F:ZVIT] Last
+  If !fstat Then
+    [L]LITMEND = [F:ZVIT]SKU
+  Endif
+
+#[L]LITMSTR = '0000_000000'
+#[L]LITMEND = '0029298900'
+
+# ms Artículos Sanitarios
+[L]LITMSTR = 'BDM50154BM'
+[L]LITMEND = 'WCS50254WM'
+
+# ms Artículos Griferías
+#[L]LITMSTR = 'ACCLV002BG'
+#[L]LITMEND = 'WCSH001RM'
+
+# ms Artículos TODOS
+#[L]LITMSTR = '0000_000000'
+#[L]LITMEND = 'ZVISITASCLIENTES'
+
+
+  Gosub OUVRE       From SUBSPP
+  Gosub LIENS       From SUBSPP
+
+  Raz [M:SPP1]
+  Gosub RAZCRE      From SUBSPP
+
+  VALIDATION = "O"
+
+  [M:SPP1]COD       = "B2B"
+  [M:SPP1]DESAXX    = "B2B"
+  [M:SPP1]DAT       = date$
+  [M:SPP1]SALFCY    = "11"
+  [M:SPP1]STOFCY    = "11"
+  [M:SPP1]FLGCUR    = 2
+#  [M:SPP1]CUR       = "EUR"
+  [M:SPP1]FLGPRITYP = 2
+#  [M:SPP1]PRITYP    = 1
+  [M:SPP1]FLGCHGTYP = 1
+  [M:SPP1]CHGTYP    = 1
+  [M:SPP1]BPCSTR    = [L]LBPCSTR
+  [M:SPP1]BPCEND    = [L]LBPCEND
+  [M:SPP1]ITMSTR    = [L]LITMSTR
+  [M:SPP1]ITMEND    = [L]LITMEND
+  Affzo [M:SPP1]
+
+  # limpia la tabla de configuración de catálogo
+  Call DEBTRANS From GLOCK
+  If !adxlog Then : Trbegin [F:ZSPP] : Endif
+  Delete  [F:ZSPP] Where COD = [M:SPP1]COD
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  # limpia la tabla de impresión del catálogo
+  Gosub DEL_CAT     From SUBSPP
+
+  # rellena la tabla de configuración del catálogo
+  Raz [F:ZSPP]
+  [F:ZSPP]COD       = [M:SPP1]COD
+  [F:ZSPP]LANDESSHO = "SPA~"+[M:SPP1]COD
+  [F:ZSPP]DAT       = [M:SPP1]DAT
+  [F:ZSPP]BPCSTR    = [M:SPP1]BPCSTR
+  [F:ZSPP]BPCEND    = [M:SPP1]BPCEND
+  [F:ZSPP]ITMSTR    = [M:SPP1]ITMSTR
+  [F:ZSPP]ITMEND    = [M:SPP1]ITMEND
+  [F:ZSPP]FLGCUR    = [M:SPP1]FLGCUR
+  [F:ZSPP]FLGPRITYP = [M:SPP1]FLGPRITYP
+  [F:ZSPP]FLGCHGTYP = [M:SPP1]FLGCHGTYP
+  [F:ZSPP]CUR       = [M:SPP1]CUR
+  [F:ZSPP]PRITYP    = [M:SPP1]PRITYP
+  [F:ZSPP]CHGTYP    = [M:SPP1]CHGTYP
+  [F:ZSPP]SALFCY    = [M:SPP1]SALFCY
+  [F:ZSPP]STOFCY    = [M:SPP1]STOFCY
+  If !adxlog Then : Trbegin [F:ZSPP] : Endif
+  Write [F:ZSPP]
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  Gosub INICRE      From SUBSPP
+  Read [F:SPP]SPP0 = [M:SPP1]COD
+  Gosub GEN_CAT     From SUBSPP
+  Default File [SPP]
+######### GENERACIÓN DEL CATÁLOGO DE TARIFAS - FIN #########
+
+
+  Filter [F:ZVBG] Order By BPCNUM Asc
+  If rowcount([F:ZVBG]) = 0 Then : End : Endif
+
+  For [F:ZVBG]
+
+    Filter [F:ZVPR] Where BPCORD = [F:ZVBG]BPCNUM
+    If rowcount([F:ZVPR]) = 0 Then : Goto NEXT1 : Endif
+
+    [L]LINDEX = [F:ZVBG]EMAIL
+    [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'@','_AT_')
+    [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'.','_DOT_')
+    [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'+','_PLUS_')
+#[L]LINDEX = "m_DOT_salvador_AT_sanycces_DOT_es"
+    [L]LFILE  = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
+
+    # borramos el fichero si existe...
+    If filinfo([L]LFILE, 7) > 0 Then
+      System "ae_rm " + [L]LFILE
+    Endif
+
+    # se abre el fichero
+    adxifs = ";"
+    adxirs = chr$(13)+chr$(10)
+    adxium = 0
+    Openo [L]LFILE Using [ZB2B]
+
+#    Raz [L]LCONT
+
+    Wrseq '"sku","price","discounttype","qty","description"'  Using [ZB2B]
+
+    For [F:ZVPR]
+      Raz [L]LDESCRIPTION
+      LSKU          = '"'+ctrans(vireblc([F:ZVPR]SKU,2),'""','')+'"'
+      If [F:ZVPR]PRICE > 0 Then
+        [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$([F:ZVPR]PRICE),2),'""',''),',','.')+'"'
+      Else
+        [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$(0.1),2),'""',''),',','.')+'"'
+      Endif
+      [L]LDISCOUNTTYPE    = '"'+ctrans(vireblc([F:ZVPR]DISCOUNTTYPE,2),'""','')+'"'
+      [L]LQTY             = '"'+ctrans(vireblc([F:ZVPR]QTY,2),'""','')+'"'
+#      LDESCRIPTION  = '"'+ctrans(vireblc([F:ZVPR]DESCRIPTION,2),'""','')+'"'
+      If [F:ZVPR]DTO1 <> 0 Then
+        If [L]LDESCRIPTION  = '' Then
+          [L]LDESCRIPTION  += num$([F:ZVPR]DTO1) + '%'
+        Endif
+      Endif
+      If [F:ZVPR]DTO2 <> 0 Then
+        If [L]LDESCRIPTION  = '' Then
+          [L]LDESCRIPTION  += num$([F:ZVPR]DTO2) + '%'
+        Else
+          [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO2) + '%'
+        Endif
+      Endif
+      If [F:ZVPR]DTO3 <> 0 Then
+        If [L]LDESCRIPTION  = '' Then
+          [L]LDESCRIPTION  += num$([F:ZVPR]DTO3) + '%'
+        Else
+          [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO3) + '%'
+        Endif
+      Endif
+      If [L]LDESCRIPTION <> '' Then : [L]LDESCRIPTION = '"' + [L]LDESCRIPTION + '"' : Endif
+
+      # escribe los datos de precios
+      Wrseq [L]LSKU + [L]LSEP + [L]LPRICE + [L]LSEP + [L]LDISCOUNTTYPE + [L]LSEP + [L]LQTY + [L]LSEP + [L]LDESCRIPTION
+&     Using [ZB2B]
+    Next
+
+#    [L]LCONT += 1
+#    If [L]LCONT > 2 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    Filter [F:ZVPR]
+
+    # se cierra el fichero
+    Openo Using [ZB2B]
+
+    # envío al servidor FTP
+    P_LINDEX = [L]LINDEX
+    Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+$NEXT1
+  Next
+
+  Filter [F:ZVBG]
+
+End

@@ -1,40 +1,15 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+Local Char PS_NUM(20)(5)
+PS_NUM(0) = 'FAC11250900707'
+PS_NUM(1)='FAC11250900703'
+PS_NUM(2)='FAC11250900659'
+PS_NUM(3)='FAC11250900669'
+PS_NUM(4)='FAC11250900673'
 
-#Local Char ARTICULO : ARTICULO = 'T_BN11814070'
-#
-#Infbox "El articulo: "- ARTICULO - " tiene el EAN siguiente: "- func EAN_ARTICULO_T_(ARTICULO)
-#
-#End
-#
-#
-#Funprog EAN_ARTICULO_T_(YARTICULO)
-#Value Char YARTICULO
-#Local Char EAN_T_(50)
-#
-#If !clalev([F:YITM])    : Local File ITMMASTER  [F:YITM]   : Endif
-#If !clalev([F:YITM1])    : Local File ITMMASTER  [F:YITM1]   : Endif
-#
-#  Read [F:YITM]ITM0 = YARTICULO
-#    If !fstat
-#      Read [F:YITM1]ITM0 = [F:YITM]SEAKEY
-#        If !fstat
-#          EAN_T_ = [F:YITM1]EANCOD
-#        Endif
-#    Endif
-#
-#End EAN_T_
-
-# YBIMP = 177,65
-# YIMPUES = 37,31
-# SUM_SVCRFOOT = 22,45
-# GET_TOTAL_IMPUESTOS = 4,71
-
-# YTOT 21 = 42,02
-
-
-Local Char PS_NUM(20) : PS_NUM = 'FAV11240800104'
-
-Infbox num$(func GET_CALCULOS(PS_NUM,18)) - num$(func GET_CALCULOS(PS_NUM,19)) - num$(func GET_CALCULOS(PS_NUM,21)) - num$(func GET_CALCULOS(PS_NUM,22))
+For I = 0 To len(PS_NUM)-1
+#Infbox PS_NUM(I)
+  Infbox num$(func GET_CALCULOS(PS_NUM(I),18)) - num$(func GET_CALCULOS(PS_NUM(I),19)) - num$(func GET_CALCULOS(PS_NUM(I),21)) - num$(func GET_CALCULOS(PS_NUM(I),22))
+Next
 
 End
 

@@ -245,7 +245,8 @@ If !clalev([Z1]) : Local File BPCUSTOMER [Z1] : Endif
 If !clalev([Z2]) : Local File BPSUPPLIER [Z2] : Endif
 
 Local Char CUENTA_DETALLE
-If left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0),3)='ABR' or left$(REGISTRO(0),2)='LV' or left$(REGISTRO(0),3)='RPP' # @01@ - JLP - 03-09-2024 - NUEVOS FILTROS
+If left$(REGISTRO(0),4)='ZABC' or left$(REGISTRO(0),4)='ZFAC' or left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0),3)='ABR' or left$(REGISTRO(0),2)='LV' or left$(REGISTRO(0
+& ),3)='RPP' # @01@ - JLP - 03-09-2024 - NUEVOS FILTROS
 #If left$(REGISTRO(0),3)='FAV' or left$(REGISTRO(0),3)='ABV' or left$(REGISTRO(0),3)='NC0' or left$(REGISTRO(0),2)='LV' # @01@ - JLP - 03-09-2024 - Filtros anteriores
   [L]SUM430 += val(ctrans(REGISTRO(9),",","."))
   Read [Z1]BPC0 = REGISTRO(3)
@@ -256,7 +257,7 @@ If left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0)
       When "CLIUE" : [L]CUENTA_DETALLE = "43000001"
     Endcase
   Endif
-Elsif left$(REGISTRO(0),3)='FAP' or left$(REGISTRO(0),2)='LC' or left$(REGISTRO(0),3)='ABP' # @01@ - JLP - 03-09-2024 - NUEVOS FILTROS
+Elsif left$(REGISTRO(0),3)='FAP' or left$(REGISTRO(0),2)='LC' or left$(REGISTRO(0),3)='ABP' or left$(REGISTRO(0),4)='WFAP' or left$(REGISTRO(0),4)='WABP'# @01@ - JLP - 03-09-2024 - NUEVOS FILTROS
 #Elsif left$(REGISTRO(0),3)='ABC' or left$(REGISTRO(0),3)='FAC' or left$(REGISTRO(0),3)='FAS'or left$(REGISTRO(0),2)='LC' or left$(REGISTRO(0),3)='RAP' or left$(REGISTRO(0),3)='ABO'
 # @01@ - JLP - 03-09-2024 - FILTROS ANTERIORES
 

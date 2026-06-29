@@ -14,6 +14,7 @@
 # Codigo Actividad:
 #######################################################################################
 #@01@: (Y119) NUN22	07-03-2024	Modificaciones y correcciones para adaptar el proceso a las necesidades del cliente
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
 
 $ACTION
 Case ACTION
@@ -41,6 +42,12 @@ $OUVRE
   Local Char REGISTRO(250), REGISTRO1(250), REGISTRO2(250), REGISTRO3(250), REGISTRO4(250), WCONTADOR(20)
   Local Integer STAT, WERE1TLIN, WERE1PLIN, WERE1LLIN, LNGTH
   Local Integer I_OK : [L]I_OK=1 #@01@
+  #@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  Global Char YC_PED(20)
+  Global Char YC_PED1(20)
+  Global Char YN_PED(20)
+  Global Decimal YIMP_TOT_NET
+  #@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
   #--
   If !clalev([F:ZOCTL]): Local File ZOCRECTL [F:ZOCTL]   : Endif
   If !clalev([F:ZOC1C]): Local File ZOCERE1C [F:ZOC1C]   : Endif
@@ -253,6 +260,12 @@ $ERE1C
       Rollback
   Endif
   #@01@ - Fin
+
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  YN_PED = vireblc([F:ZOC1C]C3,4)
+  YIMP_TOT_NET = [F:ZOC1C]C20
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
 Return
 
   #-- textos
@@ -324,7 +337,18 @@ $ERE1P
   Endif
   #@01@ - Fin
 Return
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+  If mid$(REGISTRO,7,3) = 'BY ' Then
+    YC_PED1 = mid$(REGISTRO,10,17)
+    If !clalev([F:ZEBP])   : Local File EDIBPRPAR [F:ZEBP]    : Endif
 
+    Filter [F:ZEBP] Where EXCEDICOD = vireblc(YC_PED1,4)
+      For [F:ZEBP]
+        YC_PED = [F:ZEBP]BPANUM
+      Next
+    Filter [F:ZEBP]
+  Endif
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
   #-- linea detalle
 $ERE1L
   #--
@@ -403,6 +427,19 @@ $ERE1L
       Rollback
   Endif
   #@01@ - Fin
+
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+        If func PEDIDO_DUPLICADO(YC_PED, YN_PED, YIMP_TOT_NET, WCONTADOR) = 1
+          If !clalev([F:YZTL]): Local File ZOCRECTL [F:YZTL]   : Endif
+            Read [F:YZTL]ZOCTL0 = WCONTADOR
+              If !fstat
+                [F:YZTL]YINCIDENCIA = 5 # DUPLICADO
+                Rewrite [F:YZTL]
+              Endif
+
+        Endif
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+
 Return
 
 #---------------------------------------------------------------------------------------------------#
@@ -431,3 +468,28 @@ Value Char PS_FICHERO()
     Endif
     #@01@- Fin
 End
+
+####################################################################################
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+Funprog PEDIDO_DUPLICADO(C_PED, N_PED, IMP_TOT_NET, YCONTADOR)
+Value Char C_PED          # CLIENTE PEDIDO
+Value Char N_PED          # NUMERO PEDIDO
+Value Decimal IMP_TOT_NET  # IMPORTE TOTAL NETO
+Value Char YCONTADOR      # Nº CONTADOR EDI
+Local Integer RESULT : RESULT = 0  # 0 = NO ESTA DUPLICADO / 1 = ESTA DUPLICADO
+
+  If !clalev([F:YZOC1C])  : Local File ZOCERE1C  [F:YZOC1C]   : Endif
+  If !clalev([F:YZOC])    : Local File ZOCSOH    [F:YZOC]     : Endif
+
+    Filter [F:YZOC1C] Where vireblc([F:YZOC1C]C3,4) = N_PED and [F:YZOC1C]C20 = IMP_TOT_NET #and [F:YZOC1C]CONTADOR <> YCONTADOR
+      For [F:YZOC1C]
+          Read [F:YZOC]ZOCSOH0 = [F:YZOC1C]CONTADOR
+            If !fstat and [F:YZOC]BPCORD = vireblc(C_PED,4)
+              RESULT = 1
+            Endif
+      Next
+    Filter [F:YZOC1C]
+
+End RESULT
+#@02@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
+#####################################################################################

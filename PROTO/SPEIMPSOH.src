@@ -6,16 +6,16 @@
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
 #######################################################################################
+# 2026-00027 - JCP.24042026.Pedido plataforma LM Italia que faltan algunas ref en pedido Sage
+#######################################################################################
 
 
 $ACTION
-Call ESCRIBIR_TRAZA('ACTION: ' + ACTION, '')
   Case [L]ACTION
     When "IMP_OUVRE" : Gosub IMP_OUVRE
     When "AP_IMPORT" : Gosub AP_IMPORT
     When "IMP_INICRE" : Gosub IMP_INICRE
     When "IMP_APRES_CRE" : Gosub IMP_APRES_CRE
-    When "IMP_MODIF" : Gosub IMP_MODIF
 
   Endcase
 Return
@@ -25,13 +25,12 @@ Return
 $IMP_OUVRE
   Local Char S_PRODUCT(GLONITM)(0..)
   Local Decimal F_PRECBRU(0..)
-  Call ESCRIBIR_TRAZA('Llego hasta IMP_OUVRE', '')
 Return
 ##########################################################################################################
 
 #################################### Después de importación #########################################
 $AP_IMPORT
-Call ESCRIBIR_TRAZA('Llego hasta AP_IMPORT', '')
+
   If VALIMP(0) = 'L'
       S_PRODUCT(NBLIG) = VALIMP(1)
       If GIMP(90) <> ''
@@ -49,10 +48,10 @@ Return
 
 #################################### Inicialización de la creación del pedido #########################################
 $IMP_INICRE
-Call ESCRIBIR_TRAZA('Llego hasta IMP_INICRE', '')
+
   For WI=0 To maxtab(S_PRODUCT)
         If F_PRECBRU(WI) > 0 and S_PRODUCT(WI) = [M:SOH4]ITMREF(WI)
-            [M:SOH4]GROPRI = F_PRECBRU(WI)
+            [M:SOH4]GROPRI(WI) = F_PRECBRU(WI)
             Affzo [M:SOH4]GROPRI(WI)
 
             Local Decimal WANCNETPRI
@@ -66,11 +65,7 @@ Call ESCRIBIR_TRAZA('Llego hasta IMP_INICRE', '')
             If mkstat=2 [M]NETPRI(NLIG)=WANCNETPRI : Return Endif
         Endif
 
-
     Next
-
-
-
 
 Return
 ##########################################################################################################
@@ -81,7 +76,7 @@ $DEF_DIVPRIPFM
   Local Decimal  QTY
   Local Char     BPC(GLONBPC), CUR(GLONCUR), SITE(GLONFCY), NOMZONE
   Local Date     DAT
-Call ESCRIBIR_TRAZA('Llego hasta DEF_DIVPRIPFM', '')
+
   DISCRGNUM = 0
   QTY       = [M]QTY(WI)
   BPC       = [M:SOH0]BPCORD
@@ -102,7 +97,7 @@ $DIVNETPRI
 Local Decimal  GROPRI, MAJREM(0..8), NETPRI
 Local Shortint I
 Local Decimal  WSVGNETPRI
-Call ESCRIBIR_TRAZA('Llego hasta DIVNETPRI', '')
+
 #If TRAIT="DIVNETPRI" Gosub DEF_DIVNETPRI Endif
 
 # Si l'on est sur une ligne d'avoir en valeur, pas de calcul du prix net
@@ -163,7 +158,7 @@ Local  Decimal WQTY
 Local  Integer INICPRPRI, XSTOMGTCOD
 Local  Decimal XCPRPRI, XCOEF, XPFM
 Local  Decimal WSVGPFM, WSVGCPRPRI, WSVGNETPRINOT, WSVGNETPRIATI
-Call ESCRIBIR_TRAZA('Llego hasta DIVPFM', '')
+
 #If find(TRAIT,"DIVPFM","DIVPFMOUV") Gosub DEF_DIVPFM Endif
 
 # Bug 43723 : Calcul du prix de revient pour les gratuits
@@ -442,6 +437,8 @@ End
 $IMP_APRES_CRE
   Local    Char     PARAM_T (25) (0..10)
 
+  If !clalev([F:ZSOQ]) Then : Local File SORDERQ [F:ZSOQ] : Endif
+
   # - Resteamos los bloques 2/3/4
   Raz [M:SOH4]DLRNOT
   Raz [M:SOH4]INRNOT
@@ -467,28 +464,16 @@ $IMP_APRES_CRE
     Call VALTTC ("GESSOH", PARAM_T) From TRTVENFACR       # - Proceso que actualiza los campos de (Valuation)
 
     Rewrite [F:SOH]                                       # - Reescribimos [SOH]
+
+# 2026-00027.ini
+    If [M:SOH4]ITMREFBPC(WI) <> "" and find(left$([M:SOH4]YITMCOMP(WI),2),"48") Then
+      Read [F:ZSOQ]SOQ0 = [M:SOH0]SOHNUM;[M:SOH4]SOPLIN(WI);[M:SOH4]SOPLIN(WI)
+      If !fstat Then
+        [F:ZSOQ]YITMCOMP = [M:SOH4]ITMREFBPC(WI)
+        Rewrite [F:ZSOQ]
+      Endif
+    Endif
+# 2026-00027.fin
   Next
-Call ESCRIBIR_TRAZA('Llego hasta IMP_APRES_CRE', '')
+
  Return
-
-$IMP_MODIF
-Call ESCRIBIR_TRAZA('Llego hasta IMP_MODIF', '')
-Return
-
-#########################################################################
-Subprog ESCRIBIR_TRAZA (MENSAJE, MENSAJECLB)
-  Value Char MENSAJE
-  Value Clbfile MENSAJECLB
-
-  Openo filpath("YTRAZA","Yspeimpsoh_"+format$("D:DDMMYYYY",date$),"txt") Using [XLOG]
-
-  If MENSAJE <> ''
-    Wrseq date$-time$-MENSAJE   Using [XLOG]
-  Endif
-
-  If MENSAJECLB <> ''
-    Wrseq date$-time$-MENSAJECLB Using [XLOG]
-  Endif
-
-  Openo Using [XLOG]
-End

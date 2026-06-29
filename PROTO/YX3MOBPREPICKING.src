@@ -1,11 +1,10 @@
-#<AdxTL>@(#)0.0.0.0 $Revision$ 
 #<AdxTL>@(#)0.0.0.0 $Revision$
 ########################################################################################################
 #
-# @01@ - SCD - 03/06/2024 - Ajustes para I3- calcula que la cantidad no supere lo que ya hay asignado + lo que hay en el pedido
+# @01@ - SCD - 03/06/2024 - Ajustes para I3
 # @02@ - AMB - 16/06/2025 -  MEJORAS I3-PREPARACION Y AÑADIR LECTURA DE NUMEROS DE SERIE EN I3-PREPICKING
 # @03@ - ALC - 24/06/2025 -  MEJORAS I3-PREPARACION AJUSTE LPN EN NUMEROS DE SERIE
-
+#
 ########################################################################################################
 #**
 #* APP devuelve la lista de clientes de un intervalo de pedidos filtrado por fecha
@@ -570,7 +569,6 @@ For [F:YSOQ]
    Endif # YITT
   PRES="200"
   PMESS="OK"
-  Infbox "PITMREF " +PITMREF +"PLPNNUM "+PLPNNUM +"PQTY " + num$(PQTY) +"PQTYLPN"+ num$(PQTYLPN)
 Next
 
 #Si no hay caja, la creamos
@@ -681,7 +679,6 @@ Subprog TESTCODIGOBARRAS(PSOHNUM, PSHIDAT, PTSICOD0, PTSICOD1, PCODIGOBARRAS, PL
   Value Char PCODIGOBARRAS()
   Value Char PLPNNUM
   Value Decimal PQTY
-
   Variable Char PITMREF()
   Variable Char PPCU()
   Variable Char PSTU()
@@ -847,79 +844,6 @@ Local Integer LRESIMP : Raz LRESIMP # estado impresión factura
 
 End
 
-#Subprog ASIGNACION_DETALLADA2(PEDIDO,CONTENEDOR, LRET, LMESS)
-#  Value Char PEDIDO
-#  Value Char CONTENEDOR
-#  Variable Integer LRET
-#  Variable Char LMESS
-#
-#  Local Char PLANTA(2)
-#  Local Integer LRET1
-#  Local Integer LRET2
-#  Local Integer LRET3
-#
-#  Local Decimal CANT_RUPTURA
-#
-#  # Apertura de tablas
-#  If !clalev([YSTO]) : Local File STOCK [YSTO] : Endif
-#  If !clalev([YSTA]) : Local File STOALL [YSTA] : Endif
-#  If !clalev([YSOQ]) : Local File SORDERQ [YSOQ] : Endif
-#
-#  Filter [YSOQ] Where SOHNUM = PEDIDO and YLPNNUM = CONTENEDOR
-#  For [YSOQ]
-#    PLANTA = [YSOQ]STOFCY
-#    Filter [YSTO] Where LPNNUM = CONTENEDOR and ITMREF = [YSOQ]ITMREF
-#    Read [YSTO] First
-#    If fstat = 0 Then
-#      # Primero comprobamos si existen cantidades en ruptura
-#      Raz CANT_RUPTURA
-#      Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YSOQ]SOPLIN and [YSTA]ALLTYP = 5
-#      For [YSTA]
-#        CANT_RUPTURA += [YSTA]QTYSTUACT
-#      Next
-#
-#      # Eliminamos la asignación global
-#      # Necesito saber el número de secuencia de la asignación
-#      Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YSOQ]SOPLIN and [YSTA]ALLTYP = 1
-#      Read [YSTA] First
-#      If fstat = 0 Then
-#        # Desasignamos sólo si tiene asignación goblal
-#          Call SUPALL(PLANTA, [YSOQ]ITMREF, 0.0, [YSTA]SEQ , LRET1) From STKALL
-#          Infbox('ASIGNACIÓN GLOBAL ELIMINADA')
-#        # A continuación hacemos la asignación detallada
-#        Call CREALL(2, PLANTA, [YSOQ]ITMREF, [YSTO]STOCOU, date$, [YSTO]QTYSTU, [YSTO]QTYSTU, 2, PEDIDO, [YSOQ]SOPLIN, [YSOQ]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","",
-#& "","",1,"",LRET2) From STKALL
-#          Infbox('FIN ASIGNACIÓN DETALLADA')
-#
-#        # Por último, actualizamos la línea de pedido
-#        Call MAJALLORD(PEDIDO, [YSOQ]SOPLIN, [YSOQ]SOPLIN, 2, 1, [YSTO]QTYSTU, CANT_RUPTURA, LRET3) From TRTVENALL
-#
-#        Filter [YSTA]
-#      Endif
-#
-#      Filter [YSTO]
-#    Endif
-#  Next
-#
-#  Filter [YSOQ]
-#
-#  # Resultados
-#  LRET = 1
-#  LMESS = "Si hemos llegado hasta aquí, se supone que está bien"
-#
-#  # Cierre de tablas
-#  Close Local File [YSTO]
-#  Close Local File [YSTA]
-#  Close Local File [YSOQ]
-#End
-
-
-###############################################################################################
-###############################################################################################
-###############################################################################################
-###############################################################################################
-
-
 Subprog ASIGNACION_DETALLADA(PEDIDO,CONTENEDOR, LRET, LMESS)
   Value Char PEDIDO
   Value Char CONTENEDOR
@@ -942,10 +866,7 @@ Subprog ASIGNACION_DETALLADA(PEDIDO,CONTENEDOR, LRET, LMESS)
   Local Integer NUM_LINEAS : Raz NUM_LINEAS
   Local Integer CONTADOR
 
-  [YI3T]PARAM = PEDIDO - " - " - CONTENEDOR - " - " -num$(LRET) - " - " -LMESS
 
-  Filter [YI3PR]
-  Filter [YSTA]
   Filter [YI3PR] Where [YI3PR]LPNNUM = CONTENEDOR and [YI3PR]SOHNUM = PEDIDO
     For [YI3PR]
       Raz CANT_RUPTURA
@@ -953,7 +874,6 @@ Subprog ASIGNACION_DETALLADA(PEDIDO,CONTENEDOR, LRET, LMESS)
       For [YSTA]
         CANT_RUPTURA += [YSTA]QTYSTUACT
       Next
-      Filter [YSTA]
 
       Filter [YSTA] Where VCRNUM = PEDIDO and VCRLIN = [YI3PR]SOPLIN and VCRSEQ = [YI3PR]SOPSEQ and [YSTA]ALLTYP = 1
         NUM_LINEAS = rowcount([YSTA])
@@ -963,18 +883,12 @@ Subprog ASIGNACION_DETALLADA(PEDIDO,CONTENEDOR, LRET, LMESS)
           Gosub GESTIONA_ASIGNACION
           CONTADOR += 1
         Next
-
-#        Read [YSTA] First
-#        If fstat = 0 Then
-#          Gosub GESTIONA_ASIGNACION
-
-#        Endif
-      Filter [YSTA]
     Next
   Filter [YI3PR]
+  Filter [YSTA]
   # Resultados
   LRET = 1
-  LMESS = "Si hemos llegado hasta aquí, se supone que está bien"
+  LMESS = "Ok"
 
   # Cierre de tablas
   Close Local File [YSTA]
@@ -986,54 +900,42 @@ $GESTIONA_ASIGNACION
 
   Local Integer QTY_DETALLE : QTY_DETALLE=0
 
+  Local Char OPERACION(50)
 
   # Eliminamos la asignación global
   # Necesito saber el número de secuencia de la asignación
   # Desasignamos sólo si tiene asignación goblal
   Call SUPALL([YSTA]STOFCY, [YSTA]ITMREF, [YSTA]STOCOU, [YSTA]SEQ , LRET1) From STKALL
-  # Actualizo la línea del pedido
-  # Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPSEQ, 1, 1, 0, CANT_RUPTURA, LRET3) From TRTVENALL
+
   # A continuación hacemos la asignación detallada
   If CONTADOR = NUM_LINEAS
     Filter [YSTO] Where LPNNUM = CONTENEDOR and ITMREF = [YSTA]ITMREF
-      Read [YSTO] First
-      If fstat = 0 Then
-        #Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, [YSTO]QTYSTU, [YSTO]QTYSTU, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
-        Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, [YI3PR]LPNQTY, [YI3PR]LPNQTY, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
+    #Filter [YSTO] Where STOCOU = [YSTA]STOCOU
+    Read [YSTO] First
+    If fstat = 0 Then
+      Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, [YI3PR]LPNQTY, [YI3PR]LPNQTY, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
 & LRET2) From STKALL
-        Infbox([YSTA]ITMREF + " - " + num$(LRET2))
-
-        # Por último, actualizamos la línea de pedido
-        Read [YSOQ1]SOQ0 = PEDIDO;[YI3PR]SOPLIN; [YI3PR]SOPSEQ
-        If !fstat
-          Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, 2, 1, [YSOQ1]ALLQTYSTU, CANT_RUPTURA, LRET3) From TRTVENALL
-        Endif
-      Endif
-    Filter [YSTO]
-
+        # Actualizamos la línea de pedido
+      Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, 2, 1, [YI3PR]LPNQTY, CANT_RUPTURA, LRET3) From TRTVENALL
+      # Borramos el registro de YI3PREPA ya asignado detalladamente
+      Delete [YI3PR] Curr
+    Endif
 
     Filter [YSTO] Where LPNNUM = '' and ITMREF = [YSTA]ITMREF
-      Read [YSTO] First
-      If fstat = 0 Then
-        QTY_DETALLE = func YX3MOBPREPICKING.QTY_SIN_CAJA(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPSEQ)
-        If [L]QTY_DETALLE > 0
-          Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, QTY_DETALLE, QTY_DETALLE, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
+    Read [YSTO] First
+    If fstat = 0 Then
+      QTY_DETALLE = func YX3MOBPREPICKING.QTY_SIN_CAJA(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPSEQ)
+      If [L]QTY_DETALLE > 0
+        Call CREALL(2, [YSTA]STOFCY, [YSTA]ITMREF, [YSTO]STOCOU, date$, QTY_DETALLE, QTY_DETALLE, 2, PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, "", date$, "", "","","","","",0.00,0.00,"","","","",1,"",
 & LRET2) From STKALL
-          # Por último, actualizamos la línea de pedido
-          Read [YSOQ1]SOQ0 = PEDIDO;[YI3PR]SOPLIN; [YI3PR]SOPSEQ
-          If !fstat
-            Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, 2, 1, [YSOQ1]ALLQTYSTU, CANT_RUPTURA, LRET3) From TRTVENALL
-          Endif
-        Endif
+          # Actualizamos la línea de pedido
+        Call MAJALLORD(PEDIDO, [YI3PR]SOPLIN, [YI3PR]SOPLIN, 2, 1, [YI3PR]LPNQTY, CANT_RUPTURA, LRET3) From TRTVENALL
+        # Borramos el registro de YI3PREPA ya asignado detalladamente
+        Delete [YI3PR] Curr
       Endif
+    Endif
     Filter [YSTO]
-
-    # Esto hace que cuando finalices una caja con un articulo el cual tenga la línea completa
-    # Eso si, previamente se asigna la cantidad sin caja completando la línea
-
-    Delete [YI3PR] Where [YI3PR]LPNNUM = CONTENEDOR & [YI3PR]SOHNUM = PEDIDO & [YI3PR]SOPLIN = [YI3PR]SOPLIN & [YI3PR]SOPSEQ = [YI3PR]SOPSEQ
   Endif
-
 Return
 
 #**

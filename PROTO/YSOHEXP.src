@@ -1,10 +1,12 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$ 
 #@001@ - RAP- 120924 - Añado filtro para no cargar las lineas si el estado es saldada
-#@002@ - EQM - Controlamos botón fecha modificación
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas
+#@002@ - SCD- 100226 - Se permite a SN031 poder darle al boton modificar
+# 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
+#@003@ - ALC.01062026 - Corregir colores líneas
+
 ######################################################################################
 $ACTION
-#If GUSER = 'NUN28' : Infbox ACTION : Endif
+
 Case ACTION
   When "OUVRE"        Gosub OUVRE
   When "DEBUT"        Gosub DEBUT
@@ -23,7 +25,7 @@ $SETBOUT
    CHMEN +=  "Y"
    Read[YAUS]CODUSR=GUSER
    If !fstat
-   If [YAUS]USR='SN004' or [YAUS]USR='SN007'
+   If [YAUS]USR='SN004' or [YAUS]USR='SN007'or [YAUS]USR='SN031' #@002@ - SCD- 100226 - Se permite a SN031 poder darle al boton modificar
 
        CHMEN +=  "M"
    Endif
@@ -39,7 +41,6 @@ Return
 
 ######################################################################################
 $OUVRE
-
     If clalev([F:YSOH]) <=0 :  Local File SORDER       [YSOH]  : Endif
     If clalev([F:YSOQ]) <=0 :  Local File SORDERQ      [YSOQ]  : Endif
     If clalev([F:YSOP]) <=0 :  Local File SORDERP      [YSOP]  : Endif
@@ -70,22 +71,10 @@ Return
 ######################################################################################
 $SELECCIONAR
 # Marco todas las líneas
-#For I=0 To [M:YEXP]NBLIG-1
-#  [M:YEXP]MARCAR(I)= 2
-#  Affzo [M:YEXP]MARCAR(I)
-#Next
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas - INI
 For I=0 To [M:YEXP]NBLIG-1
-      If (func SPEYBPICK.FECH_BLOQ([M:YEXP]YSALFCY,[M:YEXP]YARTICULO(I),[M:YEXP]YSHIDATNEW)) = 1
-        [M:YEXP]MARCAR(I) = 1
-        Grizo [M:YEXP]MARCAR(I)
-        Affzo [M:YEXP]MARCAR(I)
-      Else
-        [M:YEXP]MARCAR(I) = 2
-        Affzo [M:YEXP]MARCAR(I)
-      Endif
+  [M:YEXP]MARCAR(I)= 2
+  Affzo [M:YEXP]MARCAR(I)
 Next
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas - FIN
 Return
 
 
@@ -273,6 +262,10 @@ Local Integer SIGO
           [M:YEXP]YCTPDTE(F)      = [YSOQ]QTY - [YSOQ]DLVQTY         # cantidad pendiente entrega
           [M:YEXP]YPESONETO(F)    = [YSOQ]DSPLINWEI  # peso línea
           [M:YEXP]LASOCIADO(F)    = [YSOQ]ZASOCIADO  # artículo asociado
+          # ALC -@003@- INI
+          Read [F:YSOH]SOH0 = YSOHNUM1
+          [M:YEXP]HLDSTA(F) = [F:YSOH]HLDSTA
+          # ALC -@003@- FIN
 
           [M:YEXP]DDEMDLVDAT(F)   = [YSOQ]DEMDLVDAT
 
@@ -327,10 +320,7 @@ Local Integer SIGO
               [M:YEXP]DESBPAADD(F)=[F:YBPD]BPDNAM
             Endif
           Endif
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas - INI
-#          [M:YEXP]MARCAR(F) = 2
-          [M:YEXP]MARCAR(F) = 1
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas - FIN
+          [M:YEXP]MARCAR(F) = 2
           [M:YEXP]SOPLIN(F) = [YSOQ]SOPLIN
           [M:YEXP]SOQSEQ(F) = [YSOQ]SOQSEQ
           #MODIF AMB  18 dic. 2023  @01 - AÑADIMOS INFORMACION DE CONTRAMARCA
@@ -506,6 +496,14 @@ Else
 Endif
 
 GBOUT5 = ""
+
+# 26001.ini
+  If [M:YEXP]YCTRUPTURA(nolign-1) = 0 Then
+    GBOUT6 = ""
+  Else
+    GBOUT6 = "Ruptura Sanycces:" - [M:YEXP]YARTICULO(nolign-1)
+  Endif
+# 26001.fin
 End
 
 ######################################################################################
@@ -556,104 +554,57 @@ End
 
 
 ######################################################################################
-Subprog AV_MARCAR(VALEUR)
-Variable Integer VALEUR
-# Marco en azul si asociados
-If [M:YEXP]LASOCIADO(nolign-1) = 2
-  Chgstl NBLIG(nolign-1) With "MTC3"
-Elsif [M:YEXP]YCTRUPTURA(nolign-1) <> 0
-  Chgstl NBLIG(nolign-1) With "AEXPEXC1"
-Elsif [M:YEXP]YCTDASIGNA(nolign-1) = 0   # or [M:YEXP]YCTDASIGNA(nolign-1) = null)
-  Chgstl NBLIG(nolign-1) With "AERROR"
-Elsif [M:YEXP]HLDSTA(nolign-1) = 2 or [M:YEXP]CDTSTA(nolign-1) > 1
-  Chgstl NBLIG(nolign-1) With "BACKRED"
-Else
-Chgstl NBLIG(nolign-1) With "NORMAL"
-Endif
-#If [M:YEXP]SOHNUM(nolign-1) = 'PDV112400512'
-#  Infbox num$([M:YEXP]YCTDASIGNA(nolign-1)) - " aaa " - num$(dim([M:YEXP]YCTDASIGNA(nolign-1)))
+
+# @003@ - 01/06/2026 - INI OLD
+#Subprog AV_MARCAR(VALEUR)
+#Variable Integer VALEUR
+## Marco en azul si asociados
+#If [M:YEXP]LASOCIADO(nolign-1) = 2
+#  Chgstl NBLIG(nolign-1) With "MTC3"
+#Elsif [M:YEXP]YCTRUPTURA(nolign-1) <> 0
+#  Chgstl NBLIG(nolign-1) With "AEXPEXC1"
+#Elsif [M:YEXP]YCTDASIGNA(nolign-1) = 0   # or [M:YEXP]YCTDASIGNA(nolign-1) = null)
+#  Chgstl NBLIG(nolign-1) With "AERROR"
+#Elsif [M:YEXP]HLDSTA(nolign-1) = 2 or [M:YEXP]CDTSTA(nolign-1) > 1
+#  Chgstl NBLIG(nolign-1) With "BACKRED"
+#Else
+#Chgstl NBLIG(nolign-1) With "NORMAL"
 #Endif
-End
+##If [M:YEXP]SOHNUM(nolign-1) = 'PDV112400512'
+##  Infbox num$([M:YEXP]YCTDASIGNA(nolign-1)) - " aaa " - num$(dim([M:YEXP]YCTDASIGNA(nolign-1)))
+##Endif
+#End
+
+# @003@ - 01/06/2026 - FIN OLD
+
+# @003@ - 01/06/2026 - INI NEW
 
 
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla YEXP) 28/10/2024 12:59:11 (NUN28)
-######################################################################################
-Subprog IB_YSHIDATNEW
-End
+Subprog AV_MARCAR(VALEUR)
+  Variable Integer VALEUR
 
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas - INI
-Subprog AM_YSHIDATNEW(VALEUR)
-Variable Date    VALEUR
+  # ROJO - Ruptura o OF con ruptura
+  If [M:YEXP]YCTRUPTURA(nolign-1) <> 0 or ([M:YEXP]YASIGNAOF(nolign-1) = 5 or [M:YEXP]YASIGNAOF(nolign-1) = 4)
+    Chgstl NBLIG(nolign-1) With "BACKRED"
 
-For I=0 To [M:YEXP]NBLIG-1
-      If (func SPEYBPICK.FECH_BLOQ([M:YEXP]YSALFCY,[M:YEXP]YARTICULO(I),[M:YEXP]YSHIDATNEW)) = 1
-        [M:YEXP]MARCAR(I) = 1
-        Affzo [M:YEXP]MARCAR(I)
-      Endif
-Next
-End
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla YEXP) 28/10/2024 15:34:44 (NUN28)
-######################################################################################
-Subprog C_MARCAR(VALEUR)
-Variable Integer VALEUR
-Local Char YTSICOD(30) : YTSICOD = ''
-Local Char YDESC(30)   : YDESC = ''
+  # NARANJA - OF sin lanzar o falta transportista
+  Elsif [M:YEXP]YBPTNUM(nolign-1) = "" or ([M:YEXP]YFMI(nolign-1) = 5 and [M:YEXP]YFMINUM(nolign-1) = '')
+    Chgstl NBLIG(nolign-1) With "BACKORANGE"
 
-If GUSER='NUN28' : Infbox "C_MARCAR" : Endif
+  # AMARILLO - Pedido bloqueado o crédito sobrepasado
+  Elsif [M:YEXP]HLDSTA(nolign-1) = 2 or [M:YEXP]CDTSTA(nolign-1) = 3
+    Chgstl NBLIG(nolign-1) With "BACKYELLOW"
 
- If !clalev([YATEX]): Local File ATEXTRA [YATEX]  : Endif
- If !clalev([YITM]): Local File ITMMASTER [YITM]  : Endif
+  # AZUL - Asociados
+  Elsif [M:YEXP]LASOCIADO(nolign-1) = 2
+    Chgstl NBLIG(nolign-1) With "MTC3"
+    Chgstl [M:YEXP]LASOCIADO(nolign-1) With "MTC3"
 
-    Read [YITM]ITM0 = [M:YEXP]YARTICULO(nolign-1)
-      If !fstat
-         YTSICOD = [YITM]TSICOD
-      Endif
-
-    Read [YATEX]AXX0 = 'ATABDIV';'LNGDES';'SPA';'20';YTSICOD
-      If !fstat
-        YDESC = [YATEX]TEXTE
-      Endif
-
-  If (func SPEYBPICK.FECH_BLOQ([M:YEXP]YSALFCY,[M:YEXP]YARTICULO(nolign-1),[M:YEXP]YSHIDATNEW)) = 1
-        Errbox "Fecha de la familia "- YTSICOD -"-"-YDESC-" bloqueada."
-        [M:YEXP]MARCAR(nolign-1) = 1
-        Affzo [M:YEXP]MARCAR(nolign-1)
-      Endif
-End
-#@003@ - JLP - Control de modificación de fechas de la pantalla de fechas bloqueadas - FIN
-######################################################################################
-######################################################################################
-## Etiqueta añadida por el supervisor (pantalla YEXP) 07/11/2024 09:02:48 (NUN28)
-######################################################################################
-Subprog AM_MARCAR(VALEUR)
-Variable Integer VALEUR
-
-If GUSER='NUN28' : Infbox "AM_MARCAR" : Endif
-
- If !clalev([YATEX]): Local File ATEXTRA [YATEX]  : Endif
- If !clalev([YITM]): Local File ITMMASTER [YITM]  : Endif
-
-    Read [YITM]ITM0 = [M:YEXP]YARTICULO(nolign-1)
-      If !fstat
-         YTSICOD = [YITM]TSICOD
-      Endif
-
-    Read [YATEX]AXX0 = 'ATABDIV';'LNGDES';'SPA';'20';YTSICOD
-      If !fstat
-        YDESC = [YATEX]TEXTE
-      Endif
-
-  If (func SPEYBPICK.FECH_BLOQ([M:YEXP]YSALFCY,[M:YEXP]YARTICULO(nolign-1),[M:YEXP]YSHIDATNEW)) = 1
-        Errbox "Fecha de la familia "- YTSICOD -"-"-YDESC-" bloqueada."
-        [M:YEXP]MARCAR(nolign-1) = 1
-        Affzo [M:YEXP]MARCAR(nolign-1)
-      Endif
+  Else
+    Chgstl NBLIG(nolign-1) With "NORMAL"
+  Endif
 
 End
-
+# @003@ - 01/06/2026 - FIN NEW
 
 ######################################################################################

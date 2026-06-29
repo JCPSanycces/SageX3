@@ -1,0 +1,66 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEPPL
+# Description : Específico Entrada de tarifas
+# Module      : Compras
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 02/04/2026
+############################################################################
+# 2026-00011 - JCP.02042026.Tarifas de compra. Añadir la descripción del artículo completa
+############################################################################
+
+$ACTION
+
+#If GUSER="ADMIN" Then : Infbox ACTION : Endif
+Case ACTION
+  When "SETBOUT"          : Gosub SETBOUT
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$SETBOUT
+# 2026-00011.ini
+  If find(GFLAG,"T40","T60") Then
+    Chgfmt [M:PPLW]ZITMDES1 With "K:10"   # muestra el campo
+  Else
+    Chgfmt [M:PPLW]ZITMDES1 With "-K:10"  # oculta el campo
+  Endif
+# 2026-00011.fin
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+# 2026-00011
+#**
+#* devuelve la descripción de artículo
+#*
+#* @param PITM
+#*!
+Funprog GET_ITMDES1(PITM)
+Value Char PITM
+  If find(GFLAG,"T40","T60") Then
+    If !clalev([F:ZITM]) Then : Local File ITMMASTER [F:ZITM] : Endif
+    Read [F:ZITM]ITM0 = PITM
+    If !fstat Then
+      End [F:ZITM]ITMDES1
+    Endif
+    Close Local File [ZITM]
+  Endif
+End ''

@@ -1,14 +1,14 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$ 
-############################################################################################
+#/////////////////////////////////////////////////////////////////////////////////////////////#
 # @01@ - EQM - 05/09/2024 - Mostramos ZANCHO,ZALTO,ZLARGO del pedido de venta
 # @02@ - EQM - 05/09/2024 - Ocultamos opciones en menú situación
 # @03@ - EQM - 11/09/2024 - Añado acceso botón ped. venta
 # @04@ - EQM - 11/09/2024 - Añadimos filtro fecha entrega ini y fin
 # @05@ - EQM - 11/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
-# @06@ - EQM - 05/11/2024 - Arreglo impresión parcial
-# @07@ - EQM - 16/04/2025 - Modificamos GNSERIE de 200 a 350
-
-############################################################################################
+# @06@ - EQM - 16/09/2025 - Mejoras etiquetas  - BORRAR DE ZETIQSER - ZETIQPROD - ZETIQMOTOR - ZETIQASOC  ESTO : When "__REPORT"        : [L]PARAMETRE(I) = "__REPORT="+W_REPORT+".rpt"
+# @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+# @08@ - EQM - 29/04/2026 - Añadimos nº etiqueta en ZDOSFAB al imprimir inicios
+#/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
   When "DEBUT"      :  Gosub DEBUT
@@ -18,7 +18,7 @@ Endcase
 Return
 
 
-############################################################################################
+##############################################
 $DEBUT
 # Limpio la pantalla
 Raz [M:YPSA]
@@ -27,7 +27,7 @@ Affzo [M:YPSA]
 Return
 
 
-############################################################################################
+######################################################
 $SEL_TABLE
   Case COUZON
     When "CLIPAG": Gosub S_CLIPAG
@@ -35,7 +35,7 @@ $SEL_TABLE
 Return
 
 
-############################################################################################
+######################################################
 $S_CLIPAG
 # Selección de clientes pagadores
 If !clalev([F:YPA]) Then: Local File YCLIPA     [YPA] : Endif
@@ -61,7 +61,7 @@ NBCOL +=1 : COL(NBCOL) = "[YPA]RAZON"  : TIT(NBCOL) = "Razón social"
 Return
 
 
-############################################################################################
+##############################################
 $BOUTON
 Case BOUT
   When "Z"  :   Gosub BUSCAR
@@ -76,7 +76,7 @@ Endcase
 Return
 
 
-############################################################################################
+##############################################
 $IMPRIMIR
 Local Integer HAY
 # Impresión de varias OFs
@@ -102,7 +102,7 @@ Endif
 Return
 
 
-############################################################################################
+##############################################
 $BUSCAR
 # Limpio el bloque de líneas
 Gosub LIMPIO_LINEAS
@@ -330,6 +330,9 @@ For [PP1]
           Break
         Next
         Filter [PP6]
+		If [M:YPSA]PLANO(nolign-1)   <> 2
+		  [M:YPSA]PLANO(nolign-1)   = 1
+		Endif
         Read [PP3]SOQ0 = [PP2]VCRNUMORI;[PP2]VCRLINORI;[PP2]VCRSEQORI
         If fstat = 0
           [M:YPSA]FECHAPED(nolign-1)  = [PP3]ORDDAT
@@ -400,7 +403,7 @@ For J=0 To [M:YPSA]PIE-1
   [M:YPSA]RAZON(J)       = ""
   [M:YPSA]YALTA(J)       = 0
   [M:YPSA]YRAL(J)        = ""
-  [M:YPSA]PLANO(J)       = 0
+  [M:YPSA]PLANO(J)       = 1
   [M:YPSA]YUNIDAD(J)     = ""
   [M:YPSA]YLINEA(J)      = 0
   [M:YPSA]CANTIDADI(J)   = 0
@@ -559,8 +562,7 @@ If HAY = 2
           Errbox "La orden " +  [M:YPSA]OF(I) + " no se puede dar de Alta porque no se ha Iniciado completamente"
         Else
           # Si tiene números de serie, cargo vector
-          #Global Char GNSERIE(25)(200) # @07@ - EQM
-          Global Char GNSERIE(25)(350)
+          Global Char GNSERIE(25)(200)
           Local Integer LSERIE
           Filter [J1] Where [J1]MFGNUM = [M:YPSA]OF(I) and [J1]MFGLIN = [M:YPSA]YLINEA(I)
             [L]LSERIE = rowcount([J1])
@@ -620,21 +622,35 @@ End
 ######################################################################################
 Subprog AV_SEL(VALEUR)
 Variable Integer VALEUR
+Local Char YESTILO(10)
 # Modificación 12/07/24. Linea en rosa si Ctd. Alta es = a Ctd. iniciada
 #If [M:YPSA]YALTA(nolign-1) = 2
 If [M:YPSA]CANTIDADA(nolign-1) = [M:YPSA]CANTIDAD(nolign-1)
-  Chgstl PIE(nolign-1) With "MTC1"  # OFs con alta en rosa
+  YESTILO = "MTC1"  # OFs con alta en rosa
 # Modificación 12/07/24. Linea en verde si Ctd. Lanzada es = a Ctd. iniciada
 #Elsif [M:YPSA]YINICIADA(nolign-1) = 2
 Elsif [M:YPSA]CANTIDAD(nolign-1) = [M:YPSA]CANTIDADI(nolign-1)
-  Chgstl PIE(nolign-1) With "MTC2"  # OFs iniciadas en verde
+  YESTILO = "MTC2"  # OFs iniciadas en verde
 Elsif [M:YPSA]FECHA(nolign-1) > [M:YPSA]FECHAENTR(nolign-1)
-  Chgstl PIE(nolign-1) With "NET3"  # Si fecha > fecha entrega en amarillo
+  YESTILO = "NET3"  # Si fecha > fecha entrega en amarillo
 Elsif [M:YPSA]YMFECHA(nolign-1) = 2
-  Chgstl PIE(nolign-1) With "MTC3"  # OFs fechas modificadas en azul
+  YESTILO = "MTC3"  # OFs fechas modificadas en azul
 Else
-  Chgstl PIE(nolign-1) With ""
+  YESTILO = ""
 Endif
+
+# @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
+If [M:YPSA]PLANO(nolign-1) = 2
+  # versión negrita de los estilos
+  If YESTILO = ""
+    Chgstl PIE(nolign-1) With "CIG1" # sólo negrita
+  Else
+    Chgstl PIE(nolign-1) With "Y"+YESTILO+"N" # color+negrita
+  Endif
+Else
+  Chgstl PIE(nolign-1) With YESTILO
+Endif
+# @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
 End
 
 
@@ -703,6 +719,7 @@ Subprog BAJA_CONSUMO(PORIGEN,PQTY_INI,PQTY_LAN,PNUMERO,PLINEA,PPLANTA, PITMREF, 
   If !clalev([YMFS])  Then : Local File YMFGSERIE   [YMFS] : Endif
   If !clalev([YMFI])  Then : Local File MFGITM      [YMFI] : Endif
   If !clalev([YMTK])  Then : Local File MFGHEADTRK  [YMTK] : Endif
+
 
   FECHA = vireblc(num$(date$),4) : FECHA = mid$(FECHA,1,2)+mid$(FECHA,4,2)+mid$(FECHA,7,4)
   HORA = vireblc(num$(time$),4)  : HORA = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
@@ -820,7 +837,7 @@ Subprog ALTA_OF(PORIGEN,PCANTIDAD,PNUMERO, PLINEA, PPLANTA, PITMREF, PALTA)
     Read [YMTK] First
     If fstat = 0
       [L]LMTK = [YMTK]MFGTRKNUM
-      [YMTK]YCANTIDAD = PCANTIDAD  #revisar EQM
+      [YMTK]YCANTIDAD = PCANTIDAD
       Trbegin [YMTK]
         Rewrite [YMTK]
       Commit
@@ -1130,10 +1147,18 @@ Value Integer MOFLIN
 Value Char MFECHA
 Value Char MITM
 Value Integer MCANTIDAD
-
+#@06@ - EQM - INI
+Local Char N_NETI_EAN(20)
+Local Char N_NETI_SER(20)
+Local Char N_NETI_MOT(20)
+Local Char N_NETI_COR(20)
+Local Char N_NETI_ASO(20)
+#@06@ - EQM - FIN
 
 # Impresión de la OF
-Call PRINT_OF(MORI,MPLA,MOF,MFECHA,0)
+#Call PRINT_OF(MORI,MPLA,MOF,MFECHA) # @06@ - EQM - Añado parámetros
+#Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0)# @08@ EQM - Añado parámetro
+Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0,0)
 
 # Impresiones de la etiqueta EAN13 - nº serie - motor/metal
 If !clalev([XP1]) : Local File ITMMASTER [XP1] : Endif
@@ -1144,6 +1169,7 @@ If !clalev([XP5]) : Local File YMFGSERIE [XP5] : Endif
 If !clalev([XP6]) : Local File SORDERQ   [XP6] : Endif # @05@ - EQM
 If !clalev([XP7]) : Local File SORDERQ   [XP7] : Endif # @05@ - EQM
 If !clalev([XP8]) : Local File SORDERQ   [XP8] : Endif # @05@ - EQM
+If !clalev([XP9]) : Local File SORDERQ   [XP9] : Endif # @05@ - EQM
 
 # Guardo el número de etiquetas a imprimir de cada tipo
 Local Integer NETI_EAN
@@ -1162,18 +1188,27 @@ If fstat = 0
 #    If [XP2]ETQSER <> ""    : NETI_SER = [XP2]QTYETQSER   : Endif # @05@ - EQM
 #    If [XP2]ETQMOTOR <> ""  :  NETI_MOT =  [XP2]QTYETQMOT : Endif # @05@ - EQM
 #    If [XP2]ETQCORTE<>""     :  NETI_COR =  [XP2]QTYETQCOR   : Endif
+    #@06@ - EQM - INI
+    If MORI<>1
+        N_NETI_MOT=ctrans([XP2]ETQMOTOR,"Z","Y")
+        N_NETI_COR=ctrans([XP2]ETQCORTE,"Z","Y")
+        N_NETI_SER=ctrans([XP2]ETQSER,"Z","Y")
+        N_NETI_EAN=ctrans([XP2]ETQEAN13,"Z","Y")
+        N_NETI_ASO=ctrans("Z-ETIQASOC","Z","Y")
 
+    Endif
+    #@06@ - EQM - FIN
     Read [XP4]MFI0 = MOF;MOFLIN
     If fstat = 0
       NETI_MAX = [XP4]EXTQTY
       If [XP2]ETQEAN13  <> "" and [XP2]QTYETQEAN13>0    :  NETI_EAN =  [XP4]EXTQTY                  : Endif
       If [XP2]ETQSER <> ""    and [XP2]QTYETQSER>0      :  NETI_SER =  [XP4]EXTQTY                  : Endif
       If [XP2]ETQCORTE<>""    and [XP2]QTYETQCOR>0      :  NETI_COR =  [XP4]EXTQTY                  : Endif # @05@ - EQM
-      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  1                            : Endif # @05@ - EQM SOLO 1 PDF
+#      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  1                            : Endif # @05@ - EQM SOLO 1 PDF
+      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  [XP4]EXTQTY                  : Endif  # @06@ - EQM Un pdf por cada orden
     Endif
 
     # Imprimo las etiquetas por unidad producida
-
 #    For NETI_I = 1 To NETI_MAX # @05@ - EQM
       If [XP1]SERMGTCOD>1 #Si tiene gestión serie
           Filter [XP5] Where [XP5]MFGNUM = MOF and [XP5]MFGLIN = MOFLIN
@@ -1206,8 +1241,10 @@ If fstat = 0
 
           # Etiqueta Motor / Metal
           If NETI_MOT >0
-            Call PRINT_ETI(MOF,[XP2]ETQMOTOR,1)
-            [L]NETI_MOT -= 1
+            For I=1 To  NETI_MOT  # @06@ - EQM - Imprimos tantos pdf como cantidad
+                Call PRINT_ETI(MOF,[XP2]ETQMOTOR,1)
+                [L]NETI_MOT -= 1
+            Next
           Endif
 
 
@@ -1225,7 +1262,7 @@ If fstat = 0
           #Etiqueta corte Buscamos en el pedido de venta, donde tenemos los datos
           For [XP4] Where [XP4]MFGNUM=MOF
             Read [XP6]SOQ0 = [XP4]VCRNUMORI;[XP4]VCRLINORI;[XP4]VCRSEQORI
-            If fstat = 0
+            If !fstat
               If [XP6]ZALTO <>0 or [XP6]ZANCHO<>0 or [XP6]ZLARGO <>0
                 If [L]NETI_COR > 0
                     Call PRINT_ETI(MOF, [XP2]ETQCORTE,1)
@@ -1277,7 +1314,7 @@ If fstat = 0
           #Etiqueta corte Buscamos en el pedido de venta, donde tenemos los datos
           For [XP4] Where [XP4]MFGNUM=MOF
             Read [XP6]SOQ0 = [XP4]VCRNUMORI;[XP4]VCRLINORI;[XP4]VCRSEQORI
-            If fstat = 0
+            If!fstat
               If [XP6]ZALTO <>0 or [XP6]ZANCHO<>0 or [XP6]ZLARGO <>0
                 If [L]NETI_COR > 0
                     Call PRINT_ETI(MOF, [XP2]ETQCORTE,1)
@@ -1317,18 +1354,22 @@ Close Local File [XP5]
 Close Local File [XP6]# @05@ - EQM
 Close Local File [XP7]# @05@ - EQM
 Close Local File [XP8]# @05@ - EQM
+Close Local File [XP9]# @05@ - EQM
 
 End
 
 
 #############################################
-#Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA) # @06@ - EQM-
-Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VPARCIAL)
+#Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA) # @06@ - EQM - Añadimos num serie
+#Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC)# @08@ - EQM
+Subprog PRINT_OF(VORI,VPLA,VOF,VFECHA,VSERIE,VQPARC,VPAGS)
 Value Integer VORI
 Value Char VPLA
 Value Char VOF
 Value Char VFECHA
-Value Integer VPARCIAL # @06@ - EQM-
+Value Char VSERIE # @06@
+Value Integer VQPARC # @06@
+Value Integer VPAGS # @08@ - EQM
 
 Local Char TBVAL(20)(20)
 Local Char TBPAR(20)(20)
@@ -1363,10 +1404,17 @@ TBVAL(6) = VFECHA
 TBPAR(7) = "strdatfin"
 TBVAL(7) = VFECHA
 
-# @06@ - EQM-
-TBPAR(8) = "ctdparcial"
-TBVAL(8) = num$(VPARCIAL)
+# @06@ - EQM - Añadimos nuevos parámetros - INI
+TBPAR(8) = "nser"
+TBVAL(8) = num$(VSERIE)
 
+TBPAR(9) = "ctdparcial"
+TBVAL(9) = num$(VQPARC)
+# @06@ - EQM - Añadimos nuevos parámetros - FIN
+# @08@ - EQM - INI
+TBPAR(10) = "vpags"
+TBVAL(10) = num$(VPAGS)
+# @08@ - EQM - FIN
 
 If VORI = 1 # Lanzo la impresión desde los 3 puntos
   Call ETAT("Y-DOSFABR","YPRODSANY",TBPAR,TBVAL) From ETAT
@@ -1639,19 +1687,3 @@ End
 
 
 ######################################################################################
-#Según el botón, imprimos por destino impresora o PDF MORI
-$DESTINOS
-#      If [XP2]ETQEAN13  <> "" and [XP2]QTYETQEAN13>0
-#        NETI_EAN =  [XP4]EXTQTY
-#        If MORI=1
-#        Case  [XP2]ETQEAN13
-#        Where "Z-ETIQSNOKEN" Then [XP2]ETQEAN13="Y-ETIQSNOKEN"
-#        Endcase
-#        Endif
-#      Endif
-#      If [XP2]ETQSER <> ""    and [XP2]QTYETQSER>0      :  NETI_SER =  [XP4]EXTQTY                  : Endif
-#      If [XP2]ETQCORTE<>""    and [XP2]QTYETQCOR>0      :  NETI_COR =  [XP4]EXTQTY                  : Endif # @05@ - EQM
-#      If [XP2]ETQMOTOR <> ""  and [XP2]QTYETQMOT>0      :  NETI_MOT =  1                            : Endif
-#
-
-Return

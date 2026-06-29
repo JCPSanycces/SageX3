@@ -13,5 +13,4 @@ $ALIPICSRH
 
 # Por defecto pongo Actualización de Stock = No
 [M]RTNSTOUPD(NOL) = 1
-
 Return

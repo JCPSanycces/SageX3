@@ -75,6 +75,7 @@ For I=1 To NBPAR
  Endcase
  Endif
 Next
+
 Filter [F:MFP] Where evalue([L]CRITERE)
 Gosub TRT_MFP
 
@@ -87,12 +88,14 @@ End
 ###################################################################
 ###################################################################
 $TRT_MFP
+
 Raz WNUMLIG
 Local Decimal W_NUM
 Default File [MFP]
 For [F:MFP]MFP0
     Raz LDOSOK
-    W_OK = 0                                                # sr 02.03 demande 17319 + llc 05.03 18271
+    W_OK = 0
+                                              # sr 02.03 demande 17319 + llc 05.03 18271
     Read [F:MFG]MFG0 = [F:MFP]MFGNUM
     If !fstat
        # llc 05.03 18271
@@ -102,6 +105,7 @@ For [F:MFP]MFP0
        If WDATEND <> [0/0/0] & [F:MFG]STRDAT > WDATEND : Goto N_MFP : Endif
 
        # llc 05.03 18271
+
        For [MFI] Where MFGNUM = [F:MFG]MFGNUM & evalue(WCRITMFI)
              W_NUM=[F:MFI]EXTQTY
              W_OK = 1
@@ -109,9 +113,10 @@ For [F:MFP]MFP0
        Next
 
        # llc 05.03 18271
+
        If W_OK
           Call  TEST_DOSSIER(LDOSOK)
-          If LDOSOK <> 0
+          If LDOSOK <> 0 #or GUSER='NUN12'
              Call DEBTRANS From GLOCK
              If [L]IMPR = 1 Gosub TR1
              Else           Gosub TR2
@@ -125,6 +130,7 @@ Return
 
 ##########################################################################
 $TR1
+
 # llc 03.02 13245
 Local Integer WPICLIS
 Local Integer WROUSHE
@@ -205,6 +211,7 @@ Return
 
 ##############################
 $TR2
+
 Trbegin [ARM]
 #Création de l'enregistrement dans la table AREPORTM
 WNUMLIG      += 1
@@ -239,6 +246,7 @@ Local File MFGHEAD [MFG], MFGPRN [MFP], AREPORTM [ARM], MFGITM [MFI]
 Return
 
 $DECLARE
+
 Local Char    CRITERE(255), PARAM(30) , VALEUR(30) , ETAT(15)
 Local Integer WNUMLIG, NUMREQ
 Local Date    DATREF

@@ -1,12 +1,12 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# Gestión de la máscara YBLOPPICK (Especifico)
 $ACTION
-#If GUSER ='NUN28' : Infbox ACTION : Endif
+#Infbox ACTION
 Case ACTION
   When "OUVRE"    : Gosub OUVRE
   When "SETBOUT"  : Gosub SETBOUT
   When "DEBUT"    : Gosub DEBUT
   When "APRES_MODIF": Gosub APRES_MODIF
-  When "FIN"      : Gosub FIN
 Endcase
 
 Return
@@ -30,9 +30,6 @@ Return
 
 ######################################################################################
 $DEBUT
-
-  Lock YBLOQPREP
-
   If nolign = 0
     Gosub MOSTRAR_LINEAS
   Endif
@@ -42,12 +39,6 @@ Return
 $APRES_MODIF
 
 Return
-
-######################################################################################
-$FIN
-  Unlock YBLOQPREP
-Return
-######################################################################################
 
 ######################################################################################
 $MOSTRAR_LINEAS
@@ -140,7 +131,7 @@ Local Integer YBLOQ : YBLOQ = 0
 Local Char FAM_ART(20) : FAM_ART = ''
 Local Integer PRE : PRE = 0
 
-#  If GUSER ='NUN28' : Infbox "ANTES: " - num$(FECH) : Endif
+#  If GUSER ='NUN28' : Infbox "SUB: "- PLANTA - ITM - num$(FECH) : Endif
 
 If !clalev([YBLOF]): Local File YBLOQPREP [YBLOF]  : Endif
 If !clalev([YITM]): Local File ITMMASTER [YITM]  : Endif
@@ -160,7 +151,5 @@ If !clalev([YITMT]): Local File YITMTECNICO [YITMT]  : Endif
       If !fstat and [YBLOF]PLANTA = PLANTA and [YBLOF]FECHBLOQ = FECH and PRE = 2
         YBLOQ = 1
       Endif
-
-#    If GUSER ='NUN28' : Infbox num$(YBLOQ)-PLANTA-num$(FECH) : Endif
 
 End YBLOQ

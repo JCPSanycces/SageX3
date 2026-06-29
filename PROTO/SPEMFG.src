@@ -1,8 +1,7 @@
-#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$ Orden fabricación
 # @01@ - EQM - 04/09/2024 - Mostramos ZANCHO,ZALTO,ZLARGO del pedido de venta, DEMDLVDAT
 # @02@ - SCD - 27/09/2024 - Ajuste error al entrar a OF con subproductos
-# @03@ - SCD -02/10/2024 - Control fecha inicio
-# @04@ - EQM - 03/10/2024 - SOLO EN REAL Nos piden que solo puedan borrar órdenes Diego y Joaquin // deshabilitamos botón
+# @04@ - EQM - 03/10/2024 - SOLO EN REAL Nos piden que solo puedan borrar órdenes Diego y Joaquin / Aida(14/10/24) // deshabilitamos botón
 
 $ACTION
 Case ACTION
@@ -80,12 +79,9 @@ If rowcount([F:AOX])=0
 Endif
 Filter [AOX]
 Diszo [M:MFG1]ZLARGO,ZANCHO,ZALTO # @01@ - EQM
-# @04@ - EQM - INI - EN TEST DESACTIVADO
-#If GUSER<>'SN027' and GUSER<>'SN006'
-#    Call VIREBOUT(CHAINE,"A") From GOBJET
-#Endif
+# @04@ - EQM - INI
+If GUSER<>'SN027' and GUSER<>'SN006' and GUSER<>'SN036'and GUSER<>'NUN03' and GUSER <> 'SN033' and GUSER <> 'SN034' and GUSER <> 'SN056' and GUSER <> 'SN071'
+    Call VIREBOUT(CHAINE,"A") From GOBJET
+Endif
 # @04@ - EQM - FIN
-#  If GUSER <> 'SN006' and GUSER <> 'NUN14' # @03@ - SCD -02/10/2024 - Control fecha inicio
-#    Diszo [M:MFG1]STRDAT,ENDDAT            # @03@ - SCD -02/10/2024 - Control fecha inicio
-#  Endif                                    # @03@ - SCD -02/10/2024 - Control fecha inicio
 Return

@@ -1,67 +1,71 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
-###########################################################################
-# @01@ - EQM - 15/10/2024 - Si la recepción es de un contenedor, modificamos estado del contenedor YESTADO
-###########################################################################
 $ACTION
-    Case ACTION
-      When "APRES_CRE"     : Gosub APRES_CRE # @01@ - EQM
-      When "APRES_MOD"     : Gosub APRES_MOD # @01@ - EQM
-      When "ANNULE"        : Gosub ANNULE    # @01@ - EQM
-    Endcase
+#If GUSER='NUN48' : Infbox ACTION : Endif
+Case ACTION
+  When "APRES_CRE"    :   Gosub APRES_CRE
+  When "APRES_MOD"    :   Gosub APRES_MOD
+  When "ANNULE"       :   Gosub ANNULE
+Endcase
+
 Return
 
-#############################################################################
+#---------------------------------------------------------------------------------------------------#
+#                                           LABELS                                                  #
+#---------------------------------------------------------------------------------------------------#
 $APRES_CRE
-    Gosub ESTADO_CONTENEDORES # @01@ - EQM
+  If !func COMPROBAR_CONTENEDORES([M:PTH0]PTHNUM)
+  Else
+  Endif
 Return
-#############################################################################
+#---------------------------------------------------------------------------------------------------#
 $APRES_MOD
-    Gosub ESTADO_CONTENEDORES # @01@ - EQM
+  If !func COMPROBAR_CONTENEDORES([M:PTH0]PTHNUM)
+  Else
+  Endif
 Return
-#############################################################################
-# @01@ - EQM
-$ESTADO_CONTENEDORES
-
-  If clalev([F:YCTRH]) = 0  : Local File CONTAINER [YCTRH] : Endif
-  If clalev([F:YSHD])  = 0  : Local File SHIPMENTD [YSHD]  : Endif
-
-  For Y=0 To [M:PTH1]NBLIG-1
-    If [M:PTH1]SHIPNUM(Y)<>''
-        Read[YSHD]SHD0=[M:PTH1]SHIPNUM(Y);[M:PTH1]SHIPLIN(Y)
-        If [YSHD]CTRNUM<>''
-            Read [F:YCTRH]CTRH0=[YSHD]CTRNUM
-            If !fstat
-                [F:YCTRH]YESTADO=3
-                Rewrite[F:YCTRH]
-            Endif
-        Endif
-    Endif
-  Next
-  Close Local File [YCTRH]
-  Close Local File [YSHD]
-
-Return
-#############################################################################
-# @01@ - EQM
+#---------------------------------------------------------------------------------------------------#
 $ANNULE
-
-  If clalev([F:YCTRH]) = 0  : Local File CONTAINER [YCTRH] : Endif
-  If clalev([F:YSHD])  = 0  : Local File SHIPMENTD [YSHD]  : Endif
-
-  For Y=0 To [M:PTH1]NBLIG-1
-    If [M:PTH1]SHIPNUM(Y)<>''
-        Read[YSHD]SHD0=[M:PTH1]SHIPNUM(Y);[M:PTH1]SHIPLIN(Y)
-        If [YSHD]CTRNUM<>''
-            Read [F:YCTRH]CTRH0=[YSHD]CTRNUM
-            If !fstat
-                [F:YCTRH]YESTADO=2
-                Rewrite[F:YCTRH]
-            Endif
-        Endif
+  #Aquí todavía está la RECEPCIÓN en base de datos, justo antes del COMMIT
+  #If !clalev([YDCTR]) : Local File YVCTR [YDCTR] : Endif
+  If dim([M:PTH0]PTHNUM) > 0
+    If func DESMARCAR_CONTENEDORES([M:PTH0]PTHNUM) = 0
+#      Infbox "CONTENEDORES DESMARCADOS"
+    Else
+#      Infbox "NO SE HAN PODIDO DESMARCAR LOS CONTENEDORES"
     Endif
-  Next
-  Close Local File [YCTRH]
-  Close Local File [YSHD]
-
+  Endif
 Return
-#############################################################################
+#---------------------------------------------------------------------------------------------------#
+#                                           SUBPROGS                                                #
+#---------------------------------------------------------------------------------------------------#
+Funprog COMPROBAR_CONTENEDORES(YPTHNUM)
+Value Char YPTHNUM
+Local Integer I_RES : I_RES = 0
+
+If !clalev([YCRT]) : Local File YVCTR [YCRT] : Endif
+Filter [YCRT] Where [YCRT]PTHNUM = YPTHNUM
+For [YCRT]
+  If !func SPESHIP.MARCAR_CONTENEDOR([YCRT]CTRNUM, 3)
+#    Infbox "Contenedor NO marcado"
+  Else
+#     Infbox "Contenedor marcado"
+  Endif
+Next
+
+End I_RES
+#---------------------------------------------------------------------------------------------------#
+Funprog DESMARCAR_CONTENEDORES(YPTHNUM)
+Value Char YPTHNUM
+Local Integer I_RES : I_RES = 0
+
+If !clalev([YCRT]) : Local File YVCTR [YCRT] : Endif
+Filter [YCRT] Where [YCRT]PTHNUM = YPTHNUM
+For [YCRT]
+  If !func SPESHIP.MARCAR_CONTENEDOR([YCRT]CTRNUM, 2)
+#    Infbox "Contenedor NO marcado"
+  Else
+#     Infbox "Contenedor marcado"
+  Endif
+Next
+
+End I_RES

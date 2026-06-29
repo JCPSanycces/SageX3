@@ -60,7 +60,7 @@ $DEFINE_FIC_F1
     adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
     adxium = GASCII                  #-- adxium, ASCII
     #--
-    C_CARPETA = "CITAS\LMF1TEST"
+    C_CARPETA = "CITAS"
     #--
     C_NOMFIC  = "F1_"+WZCITANUM+"_"+num$(adxuid(1))+num$(time)
     C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"csv","","","")
@@ -75,7 +75,7 @@ $DEFINE_FIC_F2
     adxirs = chr$(13)+chr$(10)       #-- adxirs, separador de registro
     adxium = GASCII                  #-- adxium, ASCII
     #--
-    C_CARPETA = "CITAS\LMF1TEST"
+    C_CARPETA = "CITAS"
     #--
     C_NOMFIC  = "F2_"+WZCITANUM+"_"+num$(adxuid(1))+num$(time)
     C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"csv","","","")
@@ -241,16 +241,16 @@ Local Integer ENCONTRADO
       Wrseq [YSOH1]CUSORDREF;                           Using [ZCRE] #-- REFERENCIA
     Endif
 
-  Filter [YSPK1] Where [YSPK1]ZCITANUM = WZCITANUM and [YSPK1]VCRNUM = [YAPP]PRHNUM
-    For [YSPK1]
-      MATRIZ_BULTOS(MB) += [YSPK1]PCK
-      Read [YTAB]TPA0 = [YSPK1]PCK
-        If !fstat
-           MATRIZ_BULTOS(MB) = [YTAB]ZEMBLM
-        Endif
-      MB += 1
-    Next
-  Filter [YSPK1]
+#  Filter [YSPK1] Where [YSPK1]ZCITANUM = WZCITANUM and [YSPK1]VCRNUM = [YAPP]PRHNUM
+#    For [YSPK1]
+#      MATRIZ_BULTOS(MB) += [YSPK1]PCK
+#      Read [YTAB]TPA0 = [YSPK1]PCK
+#        If !fstat
+#           MATRIZ_BULTOS(MB) = [YTAB]ZEMBLM
+#        Endif
+#      MB += 1
+#    Next
+#  Filter [YSPK1]
 
   YPESO = func PESO_EMPAQUETADO([YSOH1]CUSORDREF,[YAPP]PRHNUM,WZCITANUM)
   Wrseq ctrans(num$(YPESO),".",",");               Using [ZCRE] #--
@@ -300,15 +300,15 @@ Local Char LREQSQL(250)(10)
 Local Decimal TOT_PESO : TOT_PESO = 0
 
    Raz LREQSQL
-   LREQSQL(0)=" SELECT D.ORINUM_0, O.CUSORDREF_0, Z.PRHNUM_0, S.YBRWEI_0 From " + nomap + ".YSPACKD P "
+   LREQSQL(0)=" SELECT D.ORINUM_0, O.CUSORDREF_0, Z.PRHNUM_0,Z.PACNUM_0, S.YBRWEI_0 From " + nomap + ".YSPACKD P "
    LREQSQL(1)=" INNER JOIN " + nomap + ".ZCITASTL Z ON Z.PACNUM_0=P.PACNUM_0 and Z.PRHNUM_0=P.VCRNUM_0"
    LREQSQL(2)=" INNER JOIN " + nomap + ".STOPRED D  ON D.PRHNUM_0=P.VCRNUM_0 and D.PRELIN_0=P.VCRLIN_0 "
    LREQSQL(3)=" INNER JOIN " + nomap + ".SORDER O ON O.SOHNUM_0=D.ORINUM_0 "
    LREQSQL(4)=" INNER JOIN " + nomap + ".YSPACK S ON P.VCRNUM_0 = S.VCRNUM_0 AND P.PACNUM_0 = S.PACNUM_0  "
    LREQSQL(5)=" Where Z.ZCITANUM_0 ='" + CITA + "'"
-   LREQSQL(6)=" GROUP By D.ORINUM_0, O.CUSORDREF_0, Z.PRHNUM_0, S.YBRWEI_0 "
+   LREQSQL(6)=" GROUP By D.ORINUM_0, O.CUSORDREF_0, Z.PRHNUM_0,Z.PACNUM_0, S.YBRWEI_0 "
 
-   For (Char SOHNUM, Char CUSORDREF, Char PRHNUM, Decimal PESO ) From '5' Sql LREQSQL(0..9) As [YAPP]
+   For (Char SOHNUM, Char CUSORDREF, Char PRHNUM, Char PACNUM, Decimal PESO ) From '5' Sql LREQSQL(0..9) As [YAPP]
     If [YAPP]CUSORDREF = YSOH and [YAPP]PRHNUM = YPRH
       TOT_PESO += [YAPP]PESO
     Endif

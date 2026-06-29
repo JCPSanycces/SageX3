@@ -353,8 +353,8 @@ Call ECR_TRACE (S_BPCEDICOD - S_CLIENTE,0) From GESECRAN
   Endif
 
 #@05@ - JLP - 22/10/2024 - Incidencia en el envio masivo de INVOICE (22/10/2024) - INI
-    Local Char YGLN(30)
-    YGLN = ''
+   Local Char YGLN(30)
+   YGLN = ''
 
     Read [F:YSIH4]SIH0 = [F:YSIV]NUM
     Read [F:YEBP]EBP0 = 1;[F:YSIH4]BPR;"001";"EDICOM"
@@ -683,9 +683,9 @@ $ECR_SINCD
       Wrseq format$("K:6X","SINCD");                             Using [ZCRE] # 1 Tipo de Registro “SINCD”
       Wrseq format$("K:2X",num$([L]I_NSVF));                     Using [ZCRE] # 2 Número Descuento/Cargo
 
-      Read [F:SFI]SFI0 = [F:YSVF]DTA
+      Read [F:YSFI]SFI0 = [F:YSVF]DTA
       If !fstat
-          If [F:SFI]INCDCR = 1    #Cargo = 1
+          If [F:YSFI]INCDCR = 1    #Cargo = 1
               Wrseq format$("K:1X","C");                         Using [ZCRE] # 3 Indicador Descuento/Cargo (A descuento / C cargo)
           Else                    #Descuento = 2
               Wrseq format$("K:1X","A");                         Using [ZCRE] # 3 Indicador Descuento/Cargo (A descuento / C cargo)
@@ -724,7 +724,7 @@ $ECR_SINCL
   If left$([F:YITM]ITMREF,2) = 'T_'
       Wrseq format$("K:15X",func EAN_ARTICULO_T_([F:YITM]ITMREF));Using [ZCRE] # 3  Código Artículo
   Else
-       Wrseq format$("K:15X",[F:YITM]EANCOD);                     Using [ZCRE] # 3  Código Artículo
+      Wrseq format$("K:15X",[F:YITM]EANCOD);                     Using [ZCRE] # 3  Código Artículo
   Endif
 #      Wrseq format$("K:15X",[F:YITM]EANCOD);                     Using [ZCRE] # 3  Código Artículo
 #@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
@@ -1091,6 +1091,16 @@ Funprog GET_CALCULOS(PS_NUM, OPC)
         YBIMP += [F:YSIHD]BASTAXLIN
         YIMPUES +=  [F:YSIHD]AMTTAXLIN
       Next
+
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - INI
+   Read [YSIH]SIH0 = PS_NUM
+      If !fstat
+        Local Decimal YIMP : YIMP = (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))
+        If ((YIMPUES-YIMP)-[YSIH]AMTTAX) = 0.01
+          YIMPUES = [YSIH]AMTTAX + YIMP
+        Endif
+      Endif
+#@06@ - JLP - 16/10/2025 - Modificación de diferentes campos que escribe en el fichero - FIN
 
     C22_1= YBIMP - (-1*func SUM_SVCRFOOT(PS_NUM))
     C22_2= YIMPUES - (-1*func GET_TOTAL_IMPUESTOS(PS_NUM))

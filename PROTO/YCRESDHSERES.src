@@ -4,10 +4,7 @@
 #@01@: NUN14  11-03-2024 (Y119) Cambios para EDI - DESADV
 #@02@: JLP    23-07-2024 (Y119) Ajustes para EDI - DESADV (LM-IT)
 #@03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales (LINEAS COMENTADAS)
-#@04@: RAP    07-10-2024 Arreglamos errores para generar correctamente los DESADV
-#@05@: JLP    04-11-2024 Incidencia en la generacion del fichero
 #@06@: JLP    16-10-2025 Mostrar en EAN de los articulos "T_" buscando por el campo clave de la ficha
-
 #######################################################################################
 
   Call ZCREINVSERES('ENV112200003', '','','','',[0/0/0],[0/0/0],0)
@@ -47,6 +44,7 @@ Subprog ZCREINVSERES(PCITA,PALBARAN,PVALE, PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN, P
   Gosub OUVRE
   If PALBARAN <> '' Then
     Filter [F:YSDH] Where SDHNUM = PALBARAN and (YENVIOEDI <= 1 or YENVIOEDI = PDUPLICADO)
+
   Else
     LCRITERIO = "1=1"
     # albarán
@@ -74,18 +72,24 @@ Subprog ZCREINVSERES(PCITA,PALBARAN,PVALE, PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN, P
     Filter [F:YSDH] Where (YENVIOEDI <= 1 or YENVIOEDI = PDUPLICADO) and evalue(LCRITERIO)
   Endif
 
+
 #  Call ECR_TRACE("Albaranes encontrado:"-num$(rowcount([F:YSDH])),0) From GESECRAN
 
     #-- EMBALAJES
     Local Char LPRHNUM
     Local Integer LPRHLIN
 
-  For [F:YSDH] #Where SDHNUM = PALBARAN
+  For [F:YSDH] # Where SDHNUM = PALBARAN
 
 #    Call ECR_TRACE("Albarán encontrado:"-[F:YSDH]SDHNUM,0) From GESECRAN
 
+  If PI_FICHERO_ABIERTO = 0
+
+  Endif
+
     Gosub DEFINE_FIC
     Gosub ECR_RECTL         #-- identificacion del mensaje
+
     If PI_FICHERO_ABIERTO = 0
       Gosub ECR_SINCC         #-- cabecera
       For WCAL = 1 To 4#@01@: NUN14  11-03-2024 (Y119) INI
@@ -94,49 +98,31 @@ Subprog ZCREINVSERES(PCITA,PALBARAN,PVALE, PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN, P
     Endif
 
 
-#@05@: JLP    04-11-2024 Incidencia en la generacion del fichero - INI
-      LPRHNUM = PVALE
-      If I < 1 and  PI_FICHERO_ABIERTO = 0 Then
-           Gosub ECR_SINCEMB_L0 # -- SUMATORIO DE LOS PALLETS NO RETORNABLES, ¿COMO LOS IDENTIFICO EN SAGE?
-           Gosub ECR_SINCEMB_L1 # -- SUMATORIO DE LOS PALLETS DE TIPO "C". ¿COMO LOS IDENTIFICO EN SAGE
-      Endif
+    For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM
+      LPRHNUM = [F:YSDD]PRHNUM
+      LPRHLIN = [F:YSDD]PRELIN
+  If PI_FICHERO_ABIERTO = 0
 
-      Local Integer LIN_PRE(30) : LIN_PRE = 0
-      Filter [F:YSDD01] Where [F:YSDD01]SDHNUM = PALBARAN and [F:YSDD01]PRHNUM = PVALE
-         For [F:YSDD01]
-            LIN_PRE = [F:YSDD01]PRELIN
-         Next
-      Filter [F:YSDD01]
+  Endif
+        Filter [F:YSPK] Where VCRNUM = LPRHNUM # and VCRLIN = LPRLIN # [F:YSDD]PRHNUM
 
-      Local Char NBULT(30) : NBULT = ''
-      Filter [F:YPACKD2] Where SDHNUM = PALBARAN and VCRNUM = PVALE and VCRLIN = LIN_PRE
-         For [F:YPACKD2]
-           NBULT = [F:YPACKD2]PACNUM
-         Next
-      Filter [F:YPACKD2]
 
-#@05@: JLP    04-11-2024 Incidencia en la generacion del fichero - FIN
+        For [F:YSPK]
 
-# #@05@: JLP    04-11-2024 Incidencia en la generacion del fichero CODIGO ANTES MOD 04-11-2024 - INI
-#    For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM
-#      LPRHNUM = [F:YSDD]PRHNUM
-#      LPRHLIN = [F:YSDD]PRELIN
-#        Read [YPACKD]VCRNUM = LPRHNUM
-#        Filter [F:YSPK] Where VCRNUM = LPRHNUM # and VCRLIN = LPRLIN # [F:YSDD]PRHNUM
-#        For [F:YSPK]
-#          If I < 1 and  PI_FICHERO_ABIERTO = 0 Then
-#            Gosub ECR_SINCEMB_L0 # -- SUMATORIO DE LOS PALLETS NO RETORNABLES, ¿COMO LOS IDENTIFICO EN SAGE?
-#            Gosub ECR_SINCEMB_L1 # -- SUMATORIO DE LOS PALLETS DE TIPO "C". ¿COMO LOS IDENTIFICO EN SAGE
-#          Endif
-#        Next
-#        Filter [F:YSPK]
-#        # POR CADA PAQUETE HAY QUE MOSTRAR LOS ARTÍCULOS QUE CONTIENE.
-#        # ¿NO HACEN FALTA LAS LINEAS DE ALBARÁN?
-#        # COMO IDENTIFICO UN ARTÍCULO DE UN PAQUETE CON UNA LÍNEA DE ALBARÁN??
-#        #LINEAS
-#        # For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM
-#    Next
-#@05@: JLP    04-11-2024 Incidencia en la generacion del fichero  CODIGO ANTES MOD 04-11-2024 - FIN
+
+          If I < 1 and  PI_FICHERO_ABIERTO = 0 Then
+            Gosub ECR_SINCEMB_L0 # -- SUMATORIO DE LOS PALLETS NO RETORNABLES, ¿COMO LOS IDENTIFICO EN SAGE?
+            Gosub ECR_SINCEMB_L1 # -- SUMATORIO DE LOS PALLETS DE TIPO "C". ¿COMO LOS IDENTIFICO EN SAGE
+          Endif
+        Next
+        Filter [F:YSPK]
+        # POR CADA PAQUETE HAY QUE MOSTRAR LOS ARTÍCULOS QUE CONTIENE.
+        # ¿NO HACEN FALTA LAS LINEAS DE ALBARÁN?
+        # COMO IDENTIFICO UN ARTÍCULO DE UN PAQUETE CON UNA LÍNEA DE ALBARÁN??
+        #LINEAS
+        # For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM
+
+    Next
 
 # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales - CODIGO PRUEBA
 #        For [F:YZCIT] Where [F:YZCIT]ZCITANUM = PCITA
@@ -154,27 +140,24 @@ Subprog ZCREINVSERES(PCITA,PALBARAN,PVALE, PSDHDEB, PSDHFIN, PBPCDEB, PBPCFIN, P
 # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales - CODIGO PRUEBA
 
 # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales - CODIGO ANTERIOR
-#     Filter [F:YSPK] Where VCRNUM = LPRHNUM # and VCRLIN = LPRLIN # [F:YSDD]PRHNUM # @05@: JLP    04-11-2024 Incidencia en la generacion del fichero - ANTES
-#     Filter [F:YSPK] Where ZCITANUM = PCITA and VCRNUM = LPRHNUM and PACNUM = NBULT # @05@: JLP    04-11-2024 Incidencia en la generacion del fichero
-     Filter [F:YZCIT] Where [F:YZCIT]ZCITANUM = PCITA and [F:YZCIT]PRHNUM = PVALE and [F:YZCIT]PACNUM = NBULT #@05@: JLP    04-11-2024 Incidencia en la generacion del fichero
-        For [F:YZCIT] #@05@: JLP    04-11-2024 Incidencia en la generacion del fichero
-#          If GUSER ='NUN28' : Infbox "NUM: "-num$(I) - "DOC: "-  [F:YZCIT]PRHNUM - "BULT: "-[F:YZCIT]PACNUM: Endif
-#        For [F:YSPK] # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
-#          If (func CABECERA(PCITA,[F:YSDH]SDHNUM,LPRHNUM))='1'# @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
+      Filter [F:YSPK] Where VCRNUM = LPRHNUM # and VCRLIN = LPRLIN # [F:YSDD]PRHNUM
+#        For [F:YSPK]
+        For [F:YSPK] # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
+          If (func CABECERA(PCITA,[F:YSDH]SDHNUM,LPRHNUM))='1'# @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
              Gosub ECR_SINCEMB #-- -- LINEA POR CADA PALET O BULTO ENVIADO -- TAMBIÉN LLAMADO CONTENEDOR secuencia de embalajes
-#          Endif
-        For [F:YPACKD] Where VCRNUM = PVALE and PACNUM = NBULT
-#        For [F:YPACKD] Where VCRNUM = [F:YZCIT]PRHNUM and PACNUM = [F:YZCIT]PACNUM #and  PACNUM = [F:YSPK]PACNUM
+          Endif
+
+        For [F:YPACKD] Where VCRNUM = PVALE and  PACNUM = [F:YSPK]PACNUM
           Filter [F:YSDD] Where SDHNUM = PALBARAN and PRHNUM = [F:YPACKD]VCRNUM and PRELIN = [F:YPACKD]VCRLIN
           For [F:YSDD] Where SDHNUM = [F:YSDH]SDHNUM and ([F:YSDD]LINTYP <> 3 and [F:YSDD]LINTYP <> 6)
-#            Gosub ECR_SINCL
-#            Gosub ECR_SINCOBS
-#            Gosub ECR_SINCQTY
+            Gosub ECR_SINCL
+            Gosub ECR_SINCOBS
+            Gosub ECR_SINCQTY
           Next
         Next
 
         Next
-      Filter [F:YZCIT]
+
       Filter [F:YSPK]
 # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales - CODIGO ANTERIOR
 
@@ -251,11 +234,6 @@ $OUVRE
    If !clalev([F:YZCIT]): Local File  ZCITASTL [F:YZCIT]   : Endif # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales (LINEAS COMENTADAS)
 
    If !clalev([F:YSPACK1]): Local File  YSPACKD [F:YSPACK1]   : Endif # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales (LINEAS COMENTADAS)
-   If !clalev([F:YPACKD2]): Local File  YPACKD2 [F:YPACKD2]   : Endif # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales (LINEAS COMENTADAS)
-   If !clalev([F:YZCIT]):   Local File  ZCITASTL  [F:YZCIT]   : Endif
-   If !clalev([F:YZCIT2]):   Local File  ZCITASTL  [F:YZCIT2]   : Endif
-   If !clalev([F:YPACKD5]): Local File  YPACKD5 [F:YPACKD5]   : Endif
-   If !clalev([F:YSDD01]): Local File  SDELIVERYD [F:YSDD01]   : Endif
   #--
  Return
 
@@ -270,8 +248,8 @@ $DEFINE_FIC
     C_CARPETA = "EDI\ISSUEEDICOM"
     #--
     C_NOMFIC  = PCITA
-    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
-
+#    C_FICHERO = filpath(C_CARPETA,C_NOMFIC,"txt","","","")
+    C_FICHERO = filpath("EDI","","")+"\ISSUEEDICOM\LMTEST\"+C_NOMFIC+".txt" # RUTA FICHERO ANTONIO
 
 #@01@: NUN14  11-03-2024 (Y119) - INI
 
@@ -681,13 +659,8 @@ $ECR_SINCEMB_L0
   For  [F:YSPK4]
     PESO_BRUTO += [F:YSPK4]YBRWEI
   Next
-# @05@: JLP    04-11-2024 Incidencia en la generacion del fichero - INI
-  If P = 0 # P = SUMATORIO DE PALETS DE LA CITA
-    Return
-  Endif
-# @05@: JLP    04-11-2024 Incidencia en la generacion del fichero - FIN
 
-#  Read [F:YSPK2] First
+  Read [F:YSPK2] First
 #@03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales - INI
 #  If rowcount([F:YSPK2]) = 0 Then
 #    Return
@@ -766,11 +739,7 @@ $ECR_SINCEMB_L1
   Filter [F:YSPK3] # Where VCRNUM = [F:YSDD]PRHNUM
   Read [F:YSPK3] First
 
-# @05@: JLP    04-11-2024 Incidencia en la generacion del fichero - INI
-  If B = 0 # B = SUMATORIO DE BULTOS DE LA CITA
-    Return
-  Endif
-# @05@: JLP    04-11-2024 Incidencia en la generacion del fichero - FIN
+
 
 #If GUSER='NUN28' : Infbox "YSPACK L1: "-num$(rowcount([F:YSPK3])): Endif
 #  If GUSER='NUN28' : Infbox "L1"-num$(rowcount([F:YSPK3])) - num$(sum([F:YSPK3]YBRWEI)) - num$([F:YSPK3]YBRWEI) - num$([F:YSPK3]NETWEI) - LPRHNUM : Endif
@@ -851,9 +820,7 @@ Return
 ###########################################################################################
 #-- secuencia de embalajes
 $ECR_SINCEMB
-  Filter [F:YSPK] Where VCRNUM = LPRHNUM and PACNUM = NBULT  and ZCITANUM = PCITA# @05@: JLP    04-11-2024 Incidencia en la generacion del fichero
-  For [F:YSPK] # @05@: JLP    04-11-2024 Incidencia en la generacion del fichero
-#    If GUSER='NUN28' : Infbox "PRH: "-[F:YSPK]VCRNUM - " PAC: "- [F:YSPK]PACNUM : Endif
+
 #  Read [F:YSPK]YSPH0 = LPRHNUM # @03@: JLP    12-09-2024 (Y119) Ajuste incidencia en linea de totales
   #--
   # Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  #
@@ -861,6 +828,7 @@ $ECR_SINCEMB
   I+=1
   Wrseq format$("K:12X",num$(I));                                 Using [ZCRE] #--  # 2 NÚMERO DE JERARQUÍA DE EMBALAJE C 12 7 M
   Wrseq format$("K:12X","1");                                     Using [ZCRE] #--  # 3 NÚMERO DE JERARQUÍA PADRE DE EMBALAJE C 12 19 O
+
 
   Read [F:YTAP]TPA0=[F:YSPK]PCK
 
@@ -876,7 +844,7 @@ $ECR_SINCEMB
   Else
     Wrseq format$("K:6X","C");                                     Using [ZCRE] #--  # 7 TIPO DE EMBALAJE, CODIFICADO C 6 51 O
   Endif
-  Wrseq format$("K:35X",[F:YSPK]VCRNUM - [F:YSPK]PACNUM);                                      Using [ZCRE] #--  # 8 TIPO DE EMBALAJE, TEXTO LIBRE C 35 57 O   ¿¿?¿¿¿??¿?
+  Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 8 TIPO DE EMBALAJE, TEXTO LIBRE C 35 57 O   ¿¿?¿¿¿??¿?
   Wrseq format$("K:6X","");                                       Using [ZCRE] #--  # 9 RESPONSABILIDAD PAGO TRANSPORTE DE EMBALAJE C 6 92 O
   Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 10 PESO NETO1 (AAC) N(14,3) 18 98 O
   Wrseq format$("K:18X","");                                      Using [ZCRE] #-- # 11 PESO NETO 2 N(14,3) 18 116 O
@@ -930,8 +898,7 @@ Call NUMERO_SSCC(YLFCY,YLITM,YLNUM,YLRET,"1" + left$([F:YECP]EXCEDICOD,8) + righ
   Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 45 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN INFERIOR C 35 758 O
   Wrseq format$("K:35X","");                                      Using [ZCRE] #--  # 44 NÚMERO SERIAL 2 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 723 O
   Wrseq format$("K:35X","")                                       Using [ZCRE] #--  #46 NÚMERO SERIAL 3 O NÚMERO DE IDENTIFICACIÓN SUPERIOR C 35 793 O
-Next # @05@: JLP    04-11-2024 Incidencia en la generacion del fichero
- Filter [F:YSPK]
+
 Return
 
 

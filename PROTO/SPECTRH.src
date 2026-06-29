@@ -12,21 +12,30 @@
 #-------------------------------------------------------------------------------------
 #######################################################################################
 #@01@ NUN22: 	17-09-2024	Encapsulamos en función la comprobación del estado del contenedor y registramos cambios en la tabla para poder filtrar en el browser
-#@02@ NUN12 (EQM) - 16/10/2024 - Mostramos YESTADO de la tabla
-#@03@ nun48 : YQUAFLG arrastar desde pedidos
+#@02@ NUN48:  18-11-2024  Modificación del recálculo del campo YIMPORTEBPS
+# 2026-00021 - JCP.15042026.Cálculo del campo Total AI divisa prov. en Contenedores de carga
+#######################################################################################
 
 $ACTION
 Case ACTION
   When "EXEBOUT"   :  Gosub EXEBOUT
   When "CREATION"  :  Gosub CREATION #@nun48
   When "MODIF"     :  Gosub MODIF #@nun48
-  When "APRES_CRE" :  Gosub APRES
-  When "APRES_MOD" :  Gosub APRES
   When "VERIF_CRE" :  Gosub VERIF
   When "VERIF_MOD" :  Gosub VERIF
   When "LIENS"     :  Gosub LIENS
   When "RAZCRE"    :  Gosub RAZCRE
+  When "APRES_CRE"    :  Gosub APRES_CRE #@nun48 #@02@#
+  When "APRES_MOD"    :  Gosub APRES_MOD #@nun48 #@02@#
 Endcase
+Return
+######################################
+$APRES_CRE
+  Gosub RECALCULAR_YIMPORTEBPS
+Return
+######################################
+$APRES_MOD
+  Gosub RECALCULAR_YIMPORTEBPS
 Return
 ######################################
 $CREATION
@@ -50,27 +59,32 @@ $LIENS
 # Muestro los valores de importe en divisa proveedor y divisa proveedor
 Gosub LIENS From SUBCTRHA
 
-If clalev([F:Z1]) = 0 : Local File BPSUPPLIER [Z1] : Endif
+#@nun48 - inicio
+#@nun48 - recalcular el importe divisa proveedor - me lo llevo a un subprograma para lanzarlo en diferentes eventos
+  #If clalev([F:Z1]) = 0 : Local File BPSUPPLIER [Z1] : Endif
+  #
+  #Local Char DIVISA_BPS
+  #Local Integer TIPO_CAMBIO
+  #Read [Z1]BPS0 = [M:CTRH2]BPSNUM
+  #If fstat = 0
+  #  [L]DIVISA_BPS  = [Z1]CUR
+  #  [L]TIPO_CAMBIO = [Z1]CHGTYP
+  #  [M:CTRH2]YDIVISABPS = [Z1]CUR
+  #
+  #Endif
+  #
+  #If [M:CTRH2]CUR = [M:CTRH2]YDIVISABPS
+  #  [M:CTRH2]YIMPORTEBPS = [M:CTRH2]TOTLINAMT
+  #Else
+  #  Local Integer STAT
+  #  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
+  #Endif
+  #
+  #Affzo [M:CTRH2]YDIVISABPS
+  #Affzo [M:CTRH2]YIMPORTEBPS
 
-Local Char DIVISA_BPS
-Local Integer TIPO_CAMBIO
-Read [Z1]BPS0 = [M:CTRH2]BPSNUM
-If fstat = 0
-  [L]DIVISA_BPS  = [Z1]CUR
-  [L]TIPO_CAMBIO = [Z1]CHGTYP
-  [M:CTRH2]YDIVISABPS = [Z1]CUR
-
-Endif
-
-If [M:CTRH2]CUR = [M:CTRH2]YDIVISABPS
-  [M:CTRH2]YIMPORTEBPS = [M:CTRH2]TOTLINAMT
-Else
-  Local Integer STAT
-  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
-Endif
-
-Affzo [M:CTRH2]YDIVISABPS
-Affzo [M:CTRH2]YIMPORTEBPS
+Gosub RECALCULAR_YIMPORTEBPS
+#@nun48 - fin
 
 #@01@ - Encapsulamiento de la función y almacenamiento en tabla
 ## Saco el estado del contenedor
@@ -95,12 +109,12 @@ Affzo [M:CTRH2]YIMPORTEBPS
 #  [M:CTRH]YESTADO = 1
 #Endif
 #Filter [S1]
-#@02@ - EQM - INI - Comentamos
+
 [M:CTRH]YESTADO = func GET_ESTADO_CONTENEDOR([M:CTRH]CTRNUM, [M:CTRH]SHIPNUM)
 [F:CTRH]YESTADO = [M:CTRH]YESTADO
-#@02@- EQM - FIN
+
 #Rewrite [F:CTRH]
-Affzo [M:CTRH]YESTADO #@02@ - EQM  - Comentamos
+Affzo [M:CTRH]YESTADO
 
 #Close Local File [S1]
 #Close Local File [S2]
@@ -134,10 +148,6 @@ Return
 
 
 ######################################
-$APRES
-#Gosub REESCRIBIR_CC_LINEAS
-Return
-######################################
 $VERIF
 # Calculo el valor del campo SPE de total unidades
 Local Integer TUNI
@@ -152,6 +162,7 @@ Affzo [M:CTRH2]YTUNIDADES
 Gosub REESCRIBIR_CC_LINEAS
 Call SET_CC_PEDIDO([M:CTRH]CTRNUM)
 Return
+
 #######################################
 $REESCRIBIR_CC_LINEAS
 
@@ -162,8 +173,6 @@ $REESCRIBIR_CC_LINEAS
 
   Affzo [M:CTRH1]YQUAFLG
 Return
-
-
 ######################################################################################
 Subprog C_QTYUOM(VALEUR)
 Variable Decimal VALEUR
@@ -353,3 +362,33 @@ If !O_TRS
 Endif
 
 End
+################################################################
+$RECALCULAR_YIMPORTEBPS
+
+If clalev([F:Z1]) = 0 : Local File BPSUPPLIER [Z1] : Endif
+
+Local Char DIVISA_BPS(10)
+Local Integer TIPO_CAMBIO
+Read [Z1]BPS0 = [M:CTRH2]BPSNUM
+If fstat = 0
+  [L]DIVISA_BPS  = [Z1]CUR
+  [L]TIPO_CAMBIO = [Z1]CHGTYP
+  [M:CTRH2]YDIVISABPS = [Z1]CUR
+
+Endif
+Affzo [M:CTRH2]YDIVISABPS
+
+If [M:CTRH2]CUR = [M:CTRH2]YDIVISABPS
+  [M:CTRH2]YIMPORTEBPS = [M:CTRH2]TOTLINAMT
+Else
+# 2026-00021.ini
+#  Local Integer STAT
+#  Call CONVERT([M:CTRH2]CUR,[M:CTRH2]YDIVISABPS,[M:CTRH2]CUR,[L]TIPO_CAMBIO,date$,[M:CTRH2]TOTLINAMT,[M:CTRH2]YIMPORTEBPS,STAT) From TRTDEV
+  [M:CTRH2]YIMPORTEBPS = sigma(J=0,[M:CTRH1]NBLIG-1,([M:CTRH1]LINAMT(J)))    # suma el importe línea AI
+  Affzo [M:CTRH2]YIMPORTEBPS
+# 2026-00021.fin
+Endif
+
+Affzo [M:CTRH2]YIMPORTEBPS
+
+Return

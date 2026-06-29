@@ -1,5 +1,9 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
-Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,STOFCY,CUR,TEXTOC1,TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YERR)
+# 2026-00012 - JCP.01042026.Importar los pedidos EDI
+# 2026-00027 - JCP.24042026.Pedido plataforma LM Italia que faltan algunas ref en pedido Sage
+##############################################################################
+
+Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,STOFCY,CUR,TEXTOC1,TEXTOC2,ITMREF,ITMDES,SAU,QTY,GROPRI,YITMCOMP,YERR)
   #--
   Value    Char    SALFCY()
   Value    Char    SOHTYP()
@@ -18,6 +22,7 @@ Subprog ZCRESOH(SALFCY,SOHTYP,SOHNUM,BPCORD,BPAADD,ORDDAT,DEMDLVDAT,CUSORDREF,ST
   Value    Char    SAU()(0..)
   Value    Decimal QTY(0..)
   Value    Decimal GROPRI(0..)
+  Value    Char    YITMCOMP()(0..)          # 2026-00027.new
   Variable Integer YERR
   #--
   Gosub OUVRE
@@ -84,6 +89,12 @@ $ECR_HEAD
   Wrseq "E";                             Using [ZCRE]
   Wrseq SALFCY;                          Using [ZCRE] #--
   Wrseq SOHTYP;                          Using [ZCRE] #--
+# 2026-00012.ini
+  Local Integer STAT
+  If SOHNUM = ""
+    Call NUMERO("ZPDV",SALFCY,date$,"null",SOHNUM,STAT) From SUBANM
+  Endif
+# 2026-00012.fin
   Wrseq SOHNUM;                          Using [ZCRE] #--
   Wrseq BPCORD;                          Using [ZCRE] #--
   Wrseq BPAADD;                          Using [ZCRE] #--
@@ -111,7 +122,8 @@ $ECR_DET
       Wrseq num$(QTY(Z));                    Using [ZCRE] #--
       Wrseq num$(GROPRI(Z));                 Using [ZCRE] #--
       Wrseq "";                              Using [ZCRE] #--
-      Wrseq BPAADD                           Using [ZCRE] #--
+      Wrseq BPAADD;                          Using [ZCRE] #--
+      Wrseq YITMCOMP(Z)                      Using [ZCRE] # 2026-00027.new
     Endif
   Next
 Return
@@ -125,12 +137,10 @@ $IMPORTA
   [M:IMP2]MODIMP = C_MODELO
   [M:IMP2]NOMIMP = C_FICHERO
   [M:IMP2]TYPIMP = 2
-#  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
-Call IMPORTSIL('YZOCSOH',[M:IMP2]NOMIMP) From GIMPOBJ
+  Call IMPORTSIL([M:IMP2]MODIMP,[M:IMP2]NOMIMP) From GIMPOBJ
 
 # @04@ - JLP - 05-09-24 - Control para ver si da error la importación - INI
 # Control para ver si se ha importado el Pedido
-
 
   Sleep 3
 

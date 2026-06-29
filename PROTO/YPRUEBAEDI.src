@@ -6,7 +6,7 @@
   Local Char S_SQLMESS(250) #@01@
   Local Integer STAT,I_OKMOG,I_ERRTYP #@01@
   Local Decimal AF_DESC(3) #@01@
-  Local Char CONT : CONT = 'EDI-2400000286'
+  Local Char CONT : CONT = 'EDI-2400001277'
   Local Integer INCI : INCI = 0
 
 # Tablas...
@@ -56,13 +56,12 @@ Value Char CONT
 #    Infbox "EDI: "- [F:ZOCTL]CONTADOR
 #  Next
 
-For [F:ZOCTL] Where [F:ZOCTL]YESTADO = 2 and [F:ZOCTL]CONTADOR = 'EDI-2400000286'
+For [F:ZOCTL] Where [F:ZOCTL]YESTADO = 1 and [F:ZOCTL]CONTADOR = 'EDI-2400001277'
 # Adaptación codigo LIENS.....
 #  Infbox "CONT: "-CONT
   Read [F:ZOC1C]ZOC1C0 = [F:ZOCTL]CONTADOR
   If !fstat
     [M:ZOCERE1C] = [F:ZOC1C]
-    Infbox "ART: "- [M:ZOCERE1C]C3 # SALE BIEN
   Endif
   Affzo [M:ZOCERE1C]
 #  Infbox "[M:ZOCERE1C]CONTADOR" - [M:ZOCERE1C]CONTADOR - " - " - "[F:ZOC1C]CONTADOR" - [F:ZOC1C]CONTADOR
@@ -175,7 +174,6 @@ Value Char CONT
     [M:ZOCERESO]SAU(nolign) =     [F:ZOCSOQ]SAU
     [M:ZOCERESO]SOHLIN(nolign) =     [F:ZOCSOQ]SOHLIN
 #    Infbox "LIN: "-num$([F:ZOCSOQ]SOHLIN) - "ART: "-[M:ZOCERESO]ITMREF(nolign)- " DES: "-[M:ZOCERESO]ITMDES(nolign)
-    Infbox "ART COMPRA: "-[M:ZOCERESO]ITMCOMP(nolign)
     nolign += 1
   Next
 
@@ -226,8 +224,6 @@ Local Decimal AF_DESC(3)
   [M:ZOCERESO]CUSORDREF =  [M:ZOCERE1C]C3
   [M:ZOCERESO]CUR       =  [M:ZOCERE1C]C16
   [M:ZOCERESO]DEMDLVDAT = gdat$(val(mid$([M:ZOCERE1C]C7,7,2)),val(mid$([M:ZOCERE1C]C7,5,2)),val(mid$([M:ZOCERE1C]C7,1,4)))
-
-  Infbox "ART COMP: "- [M:ZOCERESO]CUSORDREF - " MASK 1C: " -[M:ZOCERE1C]C3
 
   If [M:ZOCERESO]BPCORD <> ''
       [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
@@ -311,8 +307,6 @@ Local Decimal AF_DESC(3)
     [M:ZOCERESO]ITMCOMP(I)  = vireblc([M:ZOCERE1L]C10(I),4) #@01@ - Rellenamos el artículo comprador con la información del fichero
     [M:ZOCERESO]SOHLIN(I)   = [M:ZOCERE1L]ERE1LLIN(I)
     [M:ZOCERESO]QTY(I)      = [M:ZOCERE1L]C13(I)
-
-    Infbox "ART COMP: "- [M:ZOCERESO]ITMCOMP(I)
 
     #Precios del fichero ORDERS
     If [M:ZOCERE1L]C22(I) = 0 Then

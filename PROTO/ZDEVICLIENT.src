@@ -1,0 +1,71 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZDEVICLIENT
+# Description : Específico del informe para presupuestos
+# Module      : Ventas
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 13/04/2026
+############################################################################
+# 2026-00020 - JC.14042026.Modificar el nombre del report cuando se imprimen presupuestos y pedidos de venta
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "FICHIER"    : Gosub FICHIER
+  When "FIN"        : Gosub FIN
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$FICHIER
+# 2026-00020.ini
+  # Forzamos el nombre y la ruta en el servidor para el modo Fichero (4)
+  If DESTINATION = 4
+    If clalev([M:SQH0]) > 0 and [M:SQH0]SQHNUM <> ""
+      # Definimos la ruta completa en la carpeta TMP del servidor
+      FICHIER = filpath("TMP", [M:SQH0]SQHNUM, "pdf")
+    Endif
+  Endif
+# 2026-00020.fin
+Return
+
+##############################################################
+$FIN
+Local Integer STAT : STAT = 0
+Local Char    LFILE(250) : LFILE = [M:SQH0]SQHNUM
+Local Char    PATH(250), URL(250)
+
+# 2026-00020.ini
+  Sleep 15
+
+  PATH = filpath("TMP",LFILE,'pdf')
+  FICDEF = LFILE
+  Call COPCLI(PATH,PATH,STAT) From ORDSYS
+# 2026-00020.fin
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+Subprog IMPRIME(NBPAR2,PARAMETRE2)
+Value    Integer NBPAR2
+Variable Char    PARAMETRE2()()
+End

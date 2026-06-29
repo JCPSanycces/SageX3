@@ -1,7 +1,5 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 # @01@ - EQM - 17/09/2024 - Modificamos cant enlace artículos fantasmas
-# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
-
 $ACTION
 Case ACTION
    When "EXEC": Gosub EXEC
@@ -17,11 +15,6 @@ $EXEC
 
 # Lanzo la acción STD
 Gosub EXEC From FUNMAUTF
-
-#  [F:MFG]STRDAT = date$+7# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
-#  [F:MFG]ENDDAT = date$+7# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
-#  Rewrite [F:MFG]# @02@ - SCD - 02/10/2024 - Ajuste fecha inicio
-
 
 # Cierro la tabla con esta abreviatura, ya que en el SUBMFGA la abre de forma forzada
 If clalev([F:ORD])>0 : Close Local File [ORD] : Endif
@@ -453,7 +446,6 @@ Return
 ## Modification des lignes
 #########################################################################
 $MODIF
-
 Local Integer I
 Local Integer J : J=0
 Local Char    WIPMEM(GLONVCR)(GMFMMAX) # FQ 59777 GA 11/2009 avant (15)(GMFMMAX) # 7761 llc 01.01
@@ -763,7 +755,6 @@ If WUPDWEI
 Endif
 #X3-84111.en
 #Trbegin [MFG] # NUN05
-
 Rewrite [MFG]
 #Commit        # NUN05
 If fstat : GOK=0 : Call FSTA("MFG") From GLOCK : Return : Endif
@@ -784,8 +775,21 @@ Local Integer LRET1
 Local Integer LRET
 
 
-
-
+# Modificación 27/11. Recalculo el número de líneas de MFM que se guarda en MFG
+#Local Integer LINEAS_MAT
+#For [X02] Where [X02]MFGNUM=[F:MFG]MFGNUM & [X02]CPNTYP=1
+#  If [X02]MATSTA <> 4 & [X02]RETQTY<>0
+#     [L]LINEAS_MAT +=1
+#  Endif
+#Next
+#Read [X01]MFG0 = [F:MFG]MFGNUM
+#If fstat = 0
+#  If [L]LINEAS_MAT <> [X01]MATLINNBR
+#    [X01]MATLINNBR = [L]LINEAS_MAT
+#    Rewrite [X01]
+#  Endif
+#Endif
+# Modificación FIN
 
 
 Read [X01]MFG0 = [F:MFG]MFGNUM
@@ -793,7 +797,7 @@ If fstat = 0
 # Modificación 27/11. Fuerzo a recalcular el número de registros en cabecera de la OF
 [L]HAY_ERROR = 2
 #  If [X01]ALLSTA = 3
-#    Filter [X02] Where [X02]MFGNUM = [X01]MFGNUM #and [X02]ALLSTA <> 3
+#    Filter [X02] Where [X02]CPNTYP = [X01]MFGNUM and [X02]ALLSTA <> 3
 #    If rowcount ([X02]) > 0 : [L]HAY_ERROR = 2 : Endif
 #    Filter [X02]
 #  Endif
@@ -827,7 +831,6 @@ If fstat = 0
          Endif
       Endif
     Next
-
      Local Integer XTOT
     # nouveau statut allocation (non alloué, partiel, complet)
     XTOT = [X01]OVRALLNBR + [X01]DETALLNBR

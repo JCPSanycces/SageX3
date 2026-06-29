@@ -1,6 +1,8 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# 2026-00013 - JCP.02042026.Ventana emergente del Cliente en Consulta Lineas Pedido
+############################################################################################
+
 # Selección automática de clientes a partir del campo SPE con las dos razones sociales concatenadas
-#@01@ - EQM - Mod if
 $ACTION
 Case ACTION
  When "SEL_TABLE"     : Gosub SEL_TABLE
@@ -11,9 +13,12 @@ Return
 
 #########################################################################
 $SEL_TABLE
-#If GFONCTION = 'YGENSDH'
-#  Return
-#Endif
+# 2026-00013.ini
+Return
+# 2026-00013.fin
+If GFONCTION = 'YGENSDH'
+  Return
+Endif
 Case TABLE
     When "BPCCHOICE" : Gosub S_SPE_BPC
 Endcase
@@ -27,15 +32,17 @@ If clalev([F:ATZ])=0 : Local File ATABZON    [ATZ] : Endif
 
 Local Char    UPVAL(type(VALEUR)-10) : UPVAL = toupper(VALEUR)
 Local Integer NBREC
-
-Read [BPR]BPR0=UPVAL
-#If !fstat : OK=0 : Return : Endif  #@01@ - EQM
-
-If !fstat
-  OK=0
-Else
-  Return
+If GUSER = 'NUN14'
+  Infbox UPVAL
 Endif
+Read [BPR]BPR0=UPVAL
+If !fstat : OK=0 : Return : Endif
+
+#If !fstat
+#  OK=0
+#Else
+#  Return
+#Endif
 
 ORDRE   = 'BPRNUM'
 START   = 'BPRNUM'

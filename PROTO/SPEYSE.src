@@ -1,8 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 $ACTION
-#If GUSER = 'NUN28' : Infbox ACTION : Endif
 Case ACTION
-  When "LABEL" : Gosub LABEL
+  When "DEBUT" : Gosub DEBUT
 Endcase
 
 Return
@@ -10,7 +9,24 @@ Return
 #---------------------------------------------------------------------------------------------------#
 #                                           LABELS                                                  #
 #---------------------------------------------------------------------------------------------------#
-$LABEL
+$DEBUT
+  If !clalev([YHIS]) : Local File YHISTSEG [YHIS] : Endif
+
+  nolign = 1
+  [M:YSE]NBLIG = 0
+
+  Filter [YHIS] Where YREFERENCIA = [M:PRH0]PRHNUM Order By CREDATTIM
+  For [YHIS]
+    [M:YSE] = [YHIS]
+
+    nolign +=1
+    [M:YSE]NBLIG += 1
+  Next
+  Filter [YHIS]
+
+  Affzo [M:YSE]
+
+  Close Local File [YHIS]
 Return
 
 #---------------------------------------------------------------------------------------------------#

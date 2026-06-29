@@ -1,0 +1,54 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZSBONFACB2B
+# Description : Específico del informe Z-FACVEN-B2B
+# Module      : Ventas
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 10/04/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "FICHIER"          : Gosub FICHIER
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$FICHIER
+Local Char ZDIR(250),ZFICH(250): Raz ZDIR,ZFICH
+
+  If dim(GPATHFACB2B) = 0 or dim(GNUMFACB2B) = 0 Then : Return : Endif
+
+  If GPATHFACB2B <> "" and GNUMFACB2B <> "" Then
+    If [F:ARP]RPTCOD ="Z-FACVEN-B2B" Then
+      FICHIER = GPATHFACB2B + GNUMFACB2B + ".pdf"
+    Endif
+  Endif
+
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+Subprog IMPRIME(NBPAR2,PARAMETRE2)
+Value    Integer NBPAR2
+Variable Char    PARAMETRE2()()
+End
