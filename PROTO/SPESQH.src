@@ -11,7 +11,7 @@
 ## Etiqueta añadida por el supervisor (pantalla SQH2) 24/08/2023 08:26:19 (NUN04)
 ######################################################################################
 $ACTION
-#If GUSER = 'NUN09' Then : Infbox ACTION : Endif
+#If GUSER = 'SN070' Then : Infbox ACTION : Endif
 
 Case ACTION
   When "LIENS_LIG"    : Gosub LIENS_LIG
@@ -641,6 +641,31 @@ Local Integer LCON
       Actzo [M:SQH2]ZCTRLMONTAJE([L]LCON)
       [M:SQH2]ZCTRLMONTAJE([L]LCON) = VALEUR
       Affzo [M:SQH2]ZCTRLMONTAJE([L]LCON)
+      [M:SQH2]UPDFLG([L]LCON) = VALEUR
+      Affzo [M:SQH2]UPDFLG([L]LCON)
+    Else
+      Break
+    Endif
+  Next
+
+End
+
+######################################################################################
+## Después de modificar el campo 'Control de medición' (pantalla SQH2) 29/06/2026 15:43:31 (SN070)
+######################################################################################
+# 2026-00053.ini
+Subprog AM_ZCTRLMEDIC(VALEUR)
+Variable Integer VALEUR
+
+Local Integer LCON
+
+  For [L]LCON = nolign To [M:SQH2]NBLIG-1
+    If [M:SQH2]LINTYP([L]LCON) = 8 Then
+      Actzo [M:SQH2]ZCTRLMEDIC([L]LCON)
+      [M:SQH2]ZCTRLMEDIC([L]LCON) = VALEUR
+      Affzo [M:SQH2]ZCTRLMEDIC([L]LCON)
+      [M:SQH2]UPDFLG([L]LCON) = VALEUR
+      Affzo [M:SQH2]UPDFLG([L]LCON)
     Else
       Break
     Endif
