@@ -311,7 +311,7 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
   Raz [L]LCONT
 
   Wrseq '"_website","_entity_id","_email","city","company","country_id","firstname","lastname","postcode","region","region_id",' +
-&       '"street","telephone","_address_default_billing_","_address_default_shiping_"'
+&       '"street","telephone","_address_default_billing_","_address_default_shipping_"'
 & Using [ZB2B]
 
   For [ZVBA]
