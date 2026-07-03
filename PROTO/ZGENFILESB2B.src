@@ -44,9 +44,9 @@ Return
 $EXEC
 #  Call FICHERO_ARTICULOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
-#  Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+  Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_STOCKS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
-  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+#  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 Return
 
 ##############################################################
@@ -311,14 +311,14 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
   Raz [L]LCONT
 
   Wrseq '"_website","_entity_id","_email","city","company","country_id","firstname","lastname","postcode","region","region_id",' +
-&       '"street","telephone","_address_default_billing_","_address_default_shiping_"'
+&       '"street","telephone","_address_default_billing_","_address_default_shipping_"'
 & Using [ZB2B]
 
   For [ZVBA]
 
     [L]LWEBSITE       = '"'+ctrans(vireblc([F:ZVBA]WEBSITE,2),'""','')+'"'
     [L]LENTITYID      = '"'+ctrans(vireblc([F:ZVBA]ENTITYID,2),'""','')+'"'
-    [L]LEMAIL         = '"'+ctrans(vireblc('abc'+[F:ZVBA]EMAIL,2),'""','')+'"'
+    [L]LEMAIL         = '"'+ctrans(vireblc([F:ZVBA]EMAIL,2),'""','')+'"'
     [L]LCITY          = '"'+ctrans(vireblc([F:ZVBA]CITY,2),'""','')+'"'
     [L]LCOMPANY       = '"'+ctrans(vireblc([F:ZVBA]COMPANY,2),'""','')+'"'
     [L]LCOUNTRYID     = '"'+ctrans(vireblc([F:ZVBA]COUNTRYID,2),'""','')+'"'
