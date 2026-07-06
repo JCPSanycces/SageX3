@@ -293,6 +293,7 @@ Openo LFILE
 
 Openo
 
+#If GUSER="SN006" Then Return Endif
 # Lanzo la importación
 Call IMP_MODEL("no read","YSDH2",LFILE,LRTN,LCTR,LNER)
 If LRTN <> 0
