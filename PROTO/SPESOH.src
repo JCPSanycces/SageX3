@@ -22,6 +22,7 @@
 # ZB2B - JCP.05052026.Tienda online B2B
 # XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
 # 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
+# 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
 #####################################################################################################
 
 $ACTION
@@ -93,6 +94,18 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
     Chgfmt [M:SOH4]ZATTFILEB2B  With "-K:10"
   Endif
 # ZB2B.fin
+
+# 2026-00066.ini
+  # si el pedido tiene alguna línea en un contenedor no permite saldar el pedido
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
+  Read [F:ZVAP0] First
+  If !fstat Then
+    Call VIREBOUT(CHAINE, "5") From GOBJET  # Botón 'Saldo'
+  Endif
+  Filter [F:ZVAP0]
+  Close Local File [ZVAP0]
+# 2026-00066.fin
 Return
 
 
@@ -1237,6 +1250,10 @@ If [M:SOH4]FMINUM(nolign-1) <>'' and [M:SOH4]FMI(nolign-1) = 5
 Errbox "No puedes modificar la cantidad del pedido, ya se ha creado la contramarca"
 mkstat = 2
 Endif
+
+# 2026-00066.ini
+  Gosub UPD_CANTIDAD_CONT
+# 2026-00066.fin
 End
 
 
@@ -1288,6 +1305,10 @@ Variable Date    VALEUR
     mkstat=2
   Endif
 # @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
+
+# 2026-00066.ini
+  Gosub UPD_FECHAEXP_CONT
+# 2026-00066.fin
 End
 
 
@@ -1676,6 +1697,97 @@ Local Char    LITMPADRE(50),LDTOPADRE(50)
 Return
 
 ##############################################################
+# 2026-00066
+# cuando se cambia la fecha de expedición de alguna línea que está en un contenedor
+# también se tiene que cambiar a todas las demás líneas que están en el mismo contenedor
+# y, además, se actualiza la fecha de entrega prevista
+$UPD_FECHAEXP_CONT
+  If !clalev([F:ZYTM0]) Then : Local File YITMTECNICO [F:ZYTM0] : Endif
+  Read [F:ZYTM0]YITT0 = [M:SOH4]ITMREF(nolign-1)
+  If !fstat and [F:ZYTM0]PREPICKING = 2 Then
+    Local Integer LNUMLINF,LNUMLINM,LNOL
+    Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
+    Call MESSAGE("Se actualizará la fecha al resto de líneas que están en el mismo contenedor") From GESECRAN
+    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+    Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
+    For [F:ZVAP0]
+#      If mod([F:ZVAP0]VCRLIN,1000) = 0 Then
+#        [L]LNUMLINF = [F:ZVAP0]VCRLIN
+#      Else
+#        [L]LNUMLINF = [F:ZVAP0]VCRLIN * 1000
+#      Endif
+      [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
+      [L]LNOL = nolign
+      For [L]LNUMLINM = 0 To [M:SOH4]NBLIG - 1
+        nolign = [L]LNUMLINM+1
+        If [M:SOH4]SOPLIN([L]LNUMLINM) <> [M:SOH4]SOPLIN([L]LNOL-1) Then
+          If [M:SOH4]SOPLIN([L]LNUMLINM)  = [L]LNUMLINF Then
+            [M:SOH4]DSHIDAT([L]LNUMLINM)  = [L]LFECHAMOD
+            Affzo [M:SOH4]DSHIDAT([L]LNUMLINM)
+            Call AM_DSHIDAT([L]LFECHAMOD) From SUBSOH
+            Break
+          Endif
+        Endif
+      Next
+      nolign = [L]LNOL
+    Next
+    Filter [F:ZVAP0]
+    Close Local File [ZVAP0]
+  Endif
+Return
+
+##############################################################
+# 2026-00066
+# cuando se cambia la 'Ctd. pedida' o 'Ctd. a asignar', sólo permite que sea
+# la que viene indicada en el contenedor. Además se cambia también la otra.
+# cambia 'Ctd. pedida' -> actualiza 'Ctd. a asigna' y viceversa
+$UPD_CANTIDAD_CONT
+  If !clalev([F:ZYTM0]) Then : Local File YITMTECNICO [F:ZYTM0] : Endif
+  Read [F:ZYTM0]YITT0 = [M:SOH4]ITMREF(nolign-1)
+  If !fstat and [F:ZYTM0]PREPICKING = 2 Then
+    Local Integer LNUMLINF
+    Local Decimal LQTY : [L]LQTY = VALEUR
+    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+    Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ITMREF = [M:SOH4]ITMREF(nolign-1)
+    For [F:ZVAP0]
+#      If mod([F:ZVAP0]VCRLIN,1000) = 0 Then
+#        [L]LNUMLINF = [F:ZVAP0]VCRLIN
+#      Else
+#        [L]LNUMLINF = [F:ZVAP0]VCRLIN * 1000
+#      Endif
+      [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
+      If [M:SOH4]SOPLIN(nolign-1) = [L]LNUMLINF Then
+        If [L]LQTY > [F:ZVAP0]QTYCAJAS Then
+          Call ERREUR("La cantidad no puede ser diferente a"-num$([F:ZVAP0]QTYCAJAS)-"unidades") From GESECRAN
+          mkstat=2
+        Else
+          [M:SOH4]QTY(nolign-1) = [L]LQTY
+          Affzo [M:SOH4]QTY(nolign-1)
+          [M:SOH4]WALLQTY(nolign-1) = [L]LQTY
+          Affzo [M:SOH4]WALLQTY(nolign-1)
+          Call AM_QTY_SPE([L]LQTY)
+          Call AP_QTY([L]LQTY) From SUBSOH
+          Call AV_WALLQTY([L]LQTY) From SUBSOH
+          Call AS_WALLQTY([L]LQTY) From SUBSOH
+          Call AP_WALLQTY([L]LQTY) From SUBSOH
+          Call AM_WALLQTY_SPE([L]LQTY)
+          Break
+        Endif
+      Endif
+    Next
+    Filter [F:ZVAP0]
+    Close Local File [ZVAP0]
+  Endif
+Return
+
+# --------------------------------------------------------------------------------
+# Affichage des champs suite à la recherche tarif
+# --------------------------------------------------------------------------------
+$AFF_RECH_TAR
+  Gosub AFF_RECH_TAR From SUBSOH1
+Return
+
+##############################################################
 #################    ACCIONES DE CAMPO    ####################
 ##############################################################
 ######################################################################################
@@ -1697,4 +1809,274 @@ Local Integer LCON
     Endif
   Next
 
+End
+
+######################################################################################
+## Después de modificar el campo 'Cantidad a asignar' (pantalla SOH4) 06/07/2026 13:22:58 (SN070)
+######################################################################################
+Subprog AM_WALLQTY(VALEUR)
+Variable Decimal VALEUR
+# 2026-00066.ini
+  Gosub UPD_CANTIDAD_CONT
+# 2026-00066.fin
+End
+
+##############################################################
+# 2026-00066
+Subprog AM_WALLQTY_SPE(VALEUR)
+Variable Decimal VALEUR
+
+Local    Integer NOL : NOL=nolign-1
+Local    Decimal WALLQTY, WALLCLI
+Local    Decimal WTOTDLVQTY, WCOEF
+Local    Integer OK
+
+  # --> Calcul du total déjà préparé/livré
+  WTOTDLVQTY = [M:SOH4]OPRQTY(NOL)+[M:SOH4]PREQTY(NOL)+[M:SOH4]ODLQTY(NOL)
+  If [M:SOH0]SOHCAT = 3
+    WTOTDLVQTY += [M:SOH4]INVQTY(NOL)
+  Else
+    WTOTDLVQTY += [M:SOH4]DLVQTY(NOL)
+  Endif
+  # --> Calcul de la nouvelle qté à allouer
+  WALLQTY=VALEUR-([M:SOH4]ALLQTY(NOL)+[M:SOH4]SHTQTY(NOL))
+  Raz GMESSAGE
+  If WALLQTY > 0
+    # Augmentation de la qté à allouer
+    # -------------------------------------
+    # FGR 10/03/2015 : X3SUIVI23273 (début)
+    # --> Blocage si dépassement en-cours
+    If !([M:SOH1]BETFCY = 2 & [M:SOH1]BETCPY <> 2) or GCTLBETFCY = 2 Then
+      #- Si pas (Intersit & non intersoc) ou si Ctrl intersit encours&prix
+      If [M:SOH1]CDTSTA = 3 & GCDTUNL = 1 Then
+        mkstat = 2
+        GMESSAGE = mess(101,197,1)
+        End
+      Elsif [M:SOH1]CDTSTA = 3 Then
+        # --> Si pas de blocage et dépassement d'en-cours : Dde de confirmation
+        GMESSAGE = mess(101,197,1)
+      Elsif [M:SOH1]CDTSTA = 4 Then
+        # --> Si Acompte non versé : Dde de confirmation
+        GMESSAGE = mess(102,197,1)
+      Endif
+    Elsif [M:SOH1]CDTSTA = 4 Then
+      # --> Si Acompte non versé : Dde de confirmation
+      GMESSAGE = mess(102,197,1)
+    Endif
+    # --> Ligne de contremarque
+    If find([M:SOH4]FMI(NOL),3,5)
+      If GMESSAGE<>"" GMESSAGE+="\" Endif
+      If [M:SOH4]FMI(NOL)=3
+        GMESSAGE+=mess(281,197,1)
+        If [M:SOH4]FMINUM(NOL)<>"" GMESSAGE-=":"-mess(142,191,1) : Endif
+      Endif
+      If [M:SOH4]FMI(NOL)=5
+        GMESSAGE+=mess(280,197,1)
+        If [M:SOH4]FMINUM(NOL)<>"" GMESSAGE-=":"-mess(143,191,1) : Endif
+      Endif
+    Endif
+  Endif
+#  # --> Si qté allouée supérieure à la qtée cdée : Dde de confirmation
+#  If VALEUR + WTOTDLVQTY > [M:SOH4]QTY(NOL)
+#    If GMESSAGE<>"" GMESSAGE+="\" Endif
+#    GMESSAGE+=mess(213,191,1)
+#  Endif
+  # -->Livraison ligne/cde complète : On doit tout allouer
+  If find([M:SOH2]DME,2,3)
+    #   Si la qté à allouer est inférieure au reste à allouer : Dde confirmation
+    If VALEUR < [M]QTY(NOL) - WTOTDLVQTY
+      If GMESSAGE<>"" GMESSAGE+="\" Endif
+      GMESSAGE+=mess(295,192,1)
+    Endif
+    If [M]STOMGTCOD(NOL) > 1
+      #       Calcul stock disponible
+      Local Integer WRET
+      Local Decimal WSTUDISSTU
+      Local Char    WNUM
+
+      If find(GUSERERBPC, 2,3) WNUM=vireblc(format$("K:15X",[M]BPCORD)+format$("K:3X",[M]DBPAADD(NOL)), 1) : Endif
+        Call STODISALL([M]DSTOFCY(NOL),[M]ITMREF(NOL),2,[M]DALLTYP(NOL),2,2,1,"",WNUM,"",WSTUDISSTU,WRET) From STKALL
+        If WRET=0
+          #           La qté à allouer doit être disponible
+          If WSTUDISSTU < [M]WALLQTYSTU(NOL)
+            GMESSAGE = mess(163,197,1)+num$(WSTUDISSTU)-[M]STU(NOL)
+            If [M]DALLTYP(NOL) = 2 & [M]LOT(NOL) <> "" GMESSAGE -= mess(43,197,1)-":"-[M]LOT(NOL) Endif
+            If [M]DALLTYP(NOL) = 2 & [M]LOC(NOL) <> "" GMESSAGE -= mess(426,197,1)-[M]LOC(NOL) Endif
+            mkstat=2 : GMESSAGE += "\"+mess(44,192,1) : End
+          Endif
+        Endif
+      Endif
+  Endif
+  If GMESSAGE <> ""
+    GMESSAGE+="\"+mess(205,100,1)
+    OK=1: Call OUINON(GMESSAGE,OK) From GESECRAN
+    Raz GMESSAGE : If OK=1 mkstat=2 : End : Endif
+  Endif
+  If WALLQTY <=0 End : Endif
+  # Dde d'utilisation des réservations clients
+  If GUSERERBPC=3
+    [M]RERBPCFLG(NOL)=1
+    Local Char WVCRRER(250)
+
+    WVCRRER= vireblc(format$("K:"+num$(GLONBPC)+"X",[M]BPCORD)+format$("K:"+num$(GLONBPD)+"X",[M]DBPAADD(NOL)), 1)
+    Call CAL_RERQTY(1,[M]ITMREF(NOL),[M]DSTOFCY(NOL),WVCRRER,[M]DSHIDAT(NOL),WALLCLI) From STKALL
+    If WALLCLI <> 0
+      GMESSAGE = mess(131,191,1)-num$(WALLCLI)-[M]STU(NOL)
+      OK=2 : Call OUINON (GMESSAGE-"\"-mess(130,191,1),OK) From GESECRAN
+      If OK = 2 [M]RERBPCFLG(NOL)=2 : Endif
+    Endif
+  Endif
+End
+
+##############################################################
+# 2026-00066
+Subprog AM_QTY_SPE(VALEUR)
+Variable Decimal VALEUR
+Local    Integer  NOL     : NOL=nolign-1
+Local    Shortint TYP
+Local    Decimal  QTY_UV, QTY_UV1, COEF
+Local    Integer  WRECH_TAR
+Local    Decimal  WSNETPRI, WSNETPRINOT, WSNETPRIATI
+Local    Decimal  WQTY
+
+Local    Decimal WCPO_QTY : WCPO_QTY = [M:SOH4]QTY(NOL)
+
+  # Controle article-site
+  Call CONTITF([M:SOH4]ITMREF(NOL),[M:SOH4]DSTOFCY(NOL),[M:SOH4]STOMGTCOD(NOL)) From TRTVENCTL
+  If mkstat = 2 GERR=1 : End : Endif
+
+  # Controle lié à la contremarque
+  Gosub CTR_CTM From SUBSOHB : If mkstat=2 End Endif
+  # Controle lié à l'inter-site : 15/01/04 : On bloque la modif de qté si inter-site
+  #Gosub CTR_BETFCY From SUBSOHB : If mkstat=2 End Endif
+
+  # Traitement d'une ligne de contremarque
+  Gosub TRT_CTM From SUBSOH1
+
+  # --> Calcul des montants de base calcul de taxe
+  Local    Decimal WUNTCLCAMT1, WUNTCLCAMT2 : Raz WUNTCLCAMT1, WUNTCLCAMT2
+  If [M]QTY(NOL) <> 0
+      WUNTCLCAMT1=[M]CLCAMT1(NOL)/[M]QTY(NOL) : WUNTCLCAMT2=[M]CLCAMT2(NOL)/[M]QTY(NOL)
+  Endif
+  Call ALICLCAMT([M:SOH4]ITMREF(NOL), VALEUR, NOL, "SOH4", [M:SOH4]CLCAMT1(NOL), [M:SOH4]CLCAMT2(NOL)) From TRTX3
+  # Pas de recherche tarif pour les gratuits
+  If [M:SOH4]FOCFLG(NOL) = 3 End : Endif
+  #-------------------------------------------#
+  # Recherche tarif si modif qte ou creation  #
+  #-------------------------------------------#
+  If GMODIF = 0
+      WRECH_TAR = 1
+      # 200515 : Progress billing / X3-217465 : Control on sales order line price search - 2020-10-12 by LD
+      # If the sales order line is linked to a progress billing
+      # If there is scheduled invoices linked to a billing situation not invoiced we can't modify the price (to avoid bad price when invoicing)
+      # So price calculation has to be inhibited
+      # This working flag indicates if, for the sales order line, there is scheduled invoices linked to a billing situation not invoiced
+#    If dim([M:SOH4]PBILDTOINV) <= 0 | [M:SOH4]PBILDTOINV(NOL)=1
+#    #   Price calculation can be done only if progress billing is not activated or if there is no scheduled invoices linked to a billing situation not invoiced
+#    # 200515 : Progress billing / X3-217465 : Control on sales order line price search - 2020-10-12 by LD
+#      If [M:SOH4]FOCFLG(NOL) = 2
+#          GMESSAGE = mess(7,191,1)+"\"+mess(21,191,1)
+#      Else
+#          GMESSAGE = mess(21,191,1)
+#      Endif
+#      Call OUINON(GMESSAGE,WRECH_TAR) From GESECRAN
+#      Raz GMESSAGE
+#      If WRECH_TAR=2 & find([M:SOH4]LINTYP(NOL),2,6,10) GTARFLG="1" Endif : # Bug 62571
+#    # 200515 : Progress billing / X3-217465 : Control on sales order line price search - 2020-10-12 by LD
+#    Endif
+#    # 200515 : Progress billing / X3-217465 : Control on sales order line price search - 2020-10-12 by LD
+#Else
+#    WRECH_TAR= 2
+  Endif
+  If WRECH_TAR = 2
+      # --------------- Recherche tarif -----------------
+      # Article normal ou composé
+      TYP=1
+      # Composant
+      If find([M:SOH4]LINTYP(NOL),3,4,5,7,8,9,11,12,13)
+          Local Integer ORI : ORI=NOL
+          While !find([M]LINTYP(ORI),2,6,10) & ORI >= 0 ORI-=1 Wend
+          If find([M]LINTYP(ORI),2,6,10) GPNTITMREF=[M]ITMREF(ORI) Endif
+          TYP=4
+      Endif
+      # --> Recherche tarif
+      Call RECH_TARIF(TYP,[M]ITMREF(NOL),NOL,VALEUR,"SOH",[M]GROPRI(NOL)) From TRTVENTAR
+  Endif
+
+  WSNETPRI=[M]NETPRI(NOL) : WSNETPRINOT=[M]NETPRINOT(NOL) : WSNETPRIATI=[M]NETPRIATI(NOL)
+  If WRECH_TAR=2 | [M]DETSQHNUM(NOL) = ""
+      If dim([M:SOH4]PBILDTOINV) > 0 & [M:SOH4]PBILDTOINV(NOL)=2
+        # Simulation Netpri calcul to see if the price is modified
+        Local Decimal  WNETPRI, WQTY
+        Local Integer I : I=NOL
+        WQTY=VALEUR
+        Gosub SIMUL_NETPRI From SUBSOHB
+        If [M:SOH4]NETPRI(NOL)<>WNETPRI
+          GMESSAGE=mess(293,191,1)-"\"-mess(601,192,1)-":"-mess(582,192,1) : mkstat=2 : End
+        Endif
+      Endif
+      # --> Calcul du prix net
+      Call CLCNETPRI(VALEUR, [M:SOH0]CUR, NOL) From TRTVENPRI
+      #If GDACLOK = 1
+      If GDACLOK = 1 | (dim([M:SOH4]PRGBILNUM) > 1 & [M:SOH4]PRGBILNUM(NOL) <> "")
+          WQTY = [M:SOH4]QTY(NOL)
+          [M:SOH4]QTY(NOL) = VALEUR
+          If GDACLOK = 2: GDACLOK = 99 : Endif
+          Call CTLNETPRI([M:SOH0]BPCORD,[M:SOH0]CHGTYP,[M:SOH0]ORDDAT,[M:SOH0]CUR,NOL) From TRTVENPRI
+          [M:SOH4]QTY(NOL) = WQTY
+          If mkstat=2 End Endif
+      Endif
+  Endif
+
+  # -- Calcul de la marge ssi recherche tarif ou mnts base clc taxe modifiés
+  If WRECH_TAR=2 | [M]CLCAMT1(NOL)/VALEUR<>WUNTCLCAMT1 | [M]CLCAMT2(NOL)/VALEUR<>WUNTCLCAMT2
+&              | [M]NETPRI(NOL)<>WSNETPRI | [M]NETPRINOT(NOL)<>WSNETPRINOT | [M]NETPRIATI(NOL)<>WSNETPRIATI
+      [M]QTY(NOL)=VALEUR
+      Call CLCPFM([M]DSTOFCY(NOL), [M:SOH1]PRITYP, [M]CHGTYP, [M:SOH0]ORDDAT, [M:SOH0]CUR, NOL, 2) From TRTVENPRI
+      If GDACLOK = 1
+          Call CTLPFM([M:SOH0]CUR,[M:SOH4]CPRPRI(NOL), NOL) From TRTVENPRI
+          If mkstat=2 End Endif
+      Endif
+      Affzo [M:SOH4]CPRPRI(NOL)
+      Affzo [M:SOH4]PFM(NOL)
+  Endif
+  If WRECH_TAR=2 | [M]DETSQHNUM(NOL) = ""
+      Gosub AFF_RECH_TAR
+  Endif
+
+  #--Changing the quantity or due to the price search, the invoice schedule has to be updated
+  If [M:SOH4]DINVCND(NOL)<>"" and WCPO_QTY<>VALEUR #CPO 18/01/2016 : and [M:SOH4]QTY(NOL)<>0
+    [M:SOH4]DINVCNDTOUPD(NOL)=[V]CST_AYES
+    [M:SOH4]DINVCNDTODIS(NOL)=[V]CST_AYES #CPO 18/01/2016 Thus, we only do it once after an order line modification
+    #--Here it is to early to call the redispatch for the global invoice condition schedule associated to the line
+    #--It will be done in "after line" action on P1_NBLIG
+  Else
+    [M:SOH4]DINVCNDTOUPD(NOL)=[V]CST_ANO
+    [M:SOH4]DINVCNDTODIS(NOL)=[V]CST_ANO #CPO 18/01/2016
+  Endif
+
+  If (NOL>([M]NBLIG-1)) or [M:SOH4]UPDFLG(NOL)=0 #--to avoid doing it twice for a newly inserted line (already done in AS_WALLQTY for nolign<=[M]NBLIG)
+    Gosub DISPLAY_QTY_STOCKSTATUS From SUBSOH1
+  Endif
+
+  Gosub UPD_PREP_MESS From SUBSOHA1
+
+  nolign=NOL+1
+  Raz [M:SOH4]TDLQTY(NOL), [M:SOH4]TDLQTYSTU(NOL)
+End
+
+######################################################################################
+## Inicializar los botones (pantalla SOH4) 06/07/2026 14:32:55 (SN070)
+######################################################################################
+Subprog IB_NBLIG
+# 2026-00066.ini
+  # si la línea está en un contenedor, se oculta el botón 'Saldo línea de pedido'
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ZLINEA1000 = [M:SOH4]SOPLIN(nolign-1)
+  Read [F:ZVAP0] First
+  If !fstat Then
+    GBOUT1 = ''
+  Endif
+  Close Local File [ZVAP0]
+# 2026-00066.fin
 End

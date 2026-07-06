@@ -3,6 +3,8 @@
 #@002@ - SCD- 100226 - Se permite a SN031 poder darle al boton modificar
 # 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
 #@003@ - ALC.01062026 - Corregir colores líneas
+# 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
+#####################################################################################################
 
 ######################################################################################
 $ACTION
@@ -367,6 +369,33 @@ Else
           Call CALC_DLVDAT([M:YEXP]YSHIDATNEW, [PP9]DAYLTI, [PP9]BPAADD,[PP9]BPCORD, 0, 0,
 &                          [PP9]EXTDLVDAT) From TRTVENDAT
           Rewrite [PP9]
+# 2026-00066.ini
+          # cuando se cambia la fecha de expedición de alguna línea que está en un contenedor
+          # también se tiene que cambiar a todas las demás líneas que están en el mismo contenedor
+          # y, además, se actualiza la fecha de entrega prevista
+          If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+          Filter [F:ZVAP0] Where ZSOHNUM = [M:YEXP]SOHNUM(K)
+          For [F:ZVAP0]
+            If [F:ZVAP0]ZLINEA1000 <> [M:YEXP]SOPLIN(K) Then
+              Read [PP9]SOQ0 = [M:YEXP]SOHNUM(K);[F:ZVAP0]ZLINEA1000;[F:ZVAP0]ZLINEA1000
+              If !fstat Then
+                [PP9]SHIDAT     = [M:YEXP]YSHIDATNEW
+                [PP9]EXTDLVDAT  = [M:YEXP]YSHIDATNEW
+                Call CALC_DLVDAT([M:YEXP]YSHIDATNEW, [PP9]DAYLTI, [PP9]BPAADD,[PP9]BPCORD, 0, 0,
+&                                [PP9]EXTDLVDAT) From TRTVENDAT
+                If !adxlog Then : Trbegin [F:PP9] : Endif
+                Rewrite [F:PP9]
+                If !fstat Then
+                  Commit
+                Else
+                  Rollback
+                Endif
+              Endif
+            Endif
+          Next
+          Filter [F:ZVAP0]
+          Close Local File [ZVAP0]
+# 2026-00066.fin
         Endif
       Endif
     Next
