@@ -139,7 +139,7 @@ Local Integer ZSTOP_PROC
   Read [F:ZVAP0] First
   If !fstat Then
     # mostramos el error
-    Call ERREUR("Línea en contenedor de prepicking. No se puede saldar") From GESECRAN
+    Call ERREUR("Línea en contenedor de prepicking.\No es posible saldar sin vaciar el contenedor.\Contactar al responsable.") From GESECRAN
     # activamos el flag de parada (Variable local que persiste durante el Traite)
     [L]ZSTOP_PROC = 1
     # señalizamos error al sistema

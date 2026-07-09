@@ -117,7 +117,7 @@ Case BOUT
         Read [F:ZVAP0] First
         If !fstat Then
           # mostramos el error
-          Call ERREUR("Hay alguna línea en un contenedor de prepicking. No se puede saldar") From GESECRAN
+          Call ERREUR("Hay alguna línea en un contenedor de prepicking.\No es posible saldar sin vaciar el contenedor.\Contactar al responsable.") From GESECRAN
           # señalizamos error al sistema
           OK    = 0     # indica estado de error/fallo
           GOK   = 0     # aborta la transacción si estuviera abierta
@@ -1713,33 +1713,38 @@ Return
 # también se tiene que cambiar a todas las demás líneas que están en el mismo contenedor
 # y, además, se actualiza la fecha de entrega prevista
 $UPD_FECHAEXP_CONT
+Local Integer LNUMLINF,LNUMLINM,LNOL
+Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
+
   If !clalev([F:ZYTM0]) Then : Local File YITMTECNICO [F:ZYTM0] : Endif
-  Read [F:ZYTM0]YITT0 = [M:SOH4]ITMREF(nolign-1)
-  If !fstat and [F:ZYTM0]PREPICKING = 2 Then
-    Local Integer LNUMLINF,LNUMLINM,LNOL
-    Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
-    Call MESSAGE("Se actualizará la fecha al resto de líneas que están en el mismo contenedor de prepicking") From GESECRAN
-    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
-    Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
-    For [F:ZVAP0]
-      [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
-      [L]LNOL = nolign
-      For [L]LNUMLINM = 0 To [M:SOH4]NBLIG - 1
-        nolign = [L]LNUMLINM+1
-        If [M:SOH4]SOPLIN([L]LNUMLINM) <> [M:SOH4]SOPLIN([L]LNOL-1) Then
-          If [M:SOH4]SOPLIN([L]LNUMLINM)  = [L]LNUMLINF Then
-            [M:SOH4]DSHIDAT([L]LNUMLINM)  = [L]LFECHAMOD
-            Affzo [M:SOH4]DSHIDAT([L]LNUMLINM)
-            Call AM_DSHIDAT([L]LFECHAMOD) From SUBSOH
-            Break
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+
+  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LPNNUM = [M:SOH4]ZCONTPREP(nolign-1)
+  Read [F:ZVAP0] First
+  If !fstat Then
+    Read [F:ZYTM0]YITT0 = [M:SOH4]ITMREF(nolign-1)
+    If !fstat and [F:ZYTM0]PREPICKING = 2 Then
+      Call MESSAGE("Se actualizará la fecha al resto de líneas que están en el mismo contenedor de prepicking.\Para separar fechas de expecición, contactar al responsable") From GESECRAN
+      For [F:ZVAP0]
+        [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
+        [L]LNOL = nolign
+        For [L]LNUMLINM = 0 To [M:SOH4]NBLIG - 1
+          nolign = [L]LNUMLINM+1
+          If [M:SOH4]SOPLIN([L]LNUMLINM) <> [M:SOH4]SOPLIN([L]LNOL-1) Then
+            If [M:SOH4]SOPLIN([L]LNUMLINM)  = [L]LNUMLINF Then
+              [M:SOH4]DSHIDAT([L]LNUMLINM)  = [L]LFECHAMOD
+              Affzo [M:SOH4]DSHIDAT([L]LNUMLINM)
+              Call AM_DSHIDAT([L]LFECHAMOD) From SUBSOH
+              Break
+            Endif
           Endif
-        Endif
+        Next
+        nolign = [L]LNOL
       Next
-      nolign = [L]LNOL
-    Next
-    Filter [F:ZVAP0]
-    Close Local File [ZVAP0]
+    Endif
   Endif
+  Filter [F:ZVAP0]
+  Close Local File [ZVAP0]
 Return
 
 ##############################################################
@@ -1759,7 +1764,8 @@ $UPD_CANTIDAD_CONT
       [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
       If [M:SOH4]SOPLIN(nolign-1) = [L]LNUMLINF Then
         If [L]LQTY > [F:ZVAP0]QTYCAJAS Then
-          Call ERREUR("La cantidad no puede ser diferente a"-num$([F:ZVAP0]QTYCAJAS)-"unidades del contenedor de prepicking") From GESECRAN
+          Call ERREUR("La cantidad no puede ser diferente a"-num$([F:ZVAP0]QTYCAJAS)-
+&                     "unidades del contenedor de prepicking\Para cambios, primero hay que vaciar el contenedor.\Contactar al responsable") From GESECRAN
           mkstat=2
         Else
           [M:SOH4]QTY(nolign-1) = [L]LQTY
