@@ -276,7 +276,7 @@ Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LWEBSITE(250),LENTITYID(250),LEMAIL(250),LCITY(250),LCOMPANY(250),LCOUNTRYID(250),LFIRSTNAME(250),LLASTNAME(250)
-Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEPHONE(250),LADDRESSBILL(250),LADDRESSSHIP(250)
+Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEPHONE(250),LADDRESSBILL(250),LADDRESSSHIP(250),LIDBPADDRESS(250)
 
   If GSERVEUR
     Call ECR_TRACE("Envío de direcciones de clientes al B2B",0) From GESECRAN
@@ -311,7 +311,7 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
   Raz [L]LCONT
 
   Wrseq '"_website","_entity_id","_email","city","company","country_id","firstname","lastname","postcode","region","region_id",' +
-&       '"street","telephone","_address_default_billing_","_address_default_shipping_"'
+&       '"street","telephone","_address_default_billing_","_address_default_shipping_","erpid"'
 & Using [ZB2B]
 
   For [ZVBA]
@@ -331,11 +331,12 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
     [L]LTELEPHONE     = '"'+ctrans(vireblc([F:ZVBA]TELEPHONE,2),'""','')+'"'
     [L]LADDRESSBILL   = '"'+ctrans(vireblc([F:ZVBA]ADDRESSBILL,2),'""','')+'"'
     [L]LADDRESSSHIP   = '"'+ctrans(vireblc([F:ZVBA]ADDRESSSHIP,2),'""','')+'"'
+    [L]LIDBPADDRESS   = '"'+ctrans(vireblc([F:ZVBA]ERPID,2),'""','')+'"'
 
     # escribe los datos de las direcciones
     Wrseq [L]LWEBSITE + [L]LSEP + [L]LENTITYID + [L]LSEP + [L]LEMAIL + [L]LSEP + [L]LCITY + [L]LSEP + [L]LCOMPANY + [L]LSEP + [L]LCOUNTRYID + [L]LSEP +
 &         [L]LFIRSTNAME + [L]LSEP + [L]LLASTNAME + [L]LSEP + [L]LPOSTCODE + [L]LSEP + [L]LREGION + [L]LSEP + [L]LREGIONID + [L]LSEP +
-&         [L]LSTREET + [L]LSEP + [L]LTELEPHONE + [L]LSEP + [L]LADDRESSBILL + [L]LSEP + [L]LADDRESSSHIP
+&         [L]LSTREET + [L]LSEP + [L]LTELEPHONE + [L]LSEP + [L]LADDRESSBILL + [L]LSEP + [L]LADDRESSSHIP + [L]LSEP + [L]LIDBPADDRESS
 &   Using [ZB2B]
 
     [L]LCONT += 1
