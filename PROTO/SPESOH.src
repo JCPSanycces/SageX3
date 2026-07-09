@@ -95,17 +95,6 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
   Endif
 # ZB2B.fin
 
-# 2026-00066.ini
-  # si el pedido tiene alguna línea en un contenedor no permite saldar el pedido
-  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
-  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
-  Read [F:ZVAP0] First
-  If !fstat Then
-    Call VIREBOUT(CHAINE, "5") From GOBJET  # Botón 'Saldo'
-  Endif
-  Filter [F:ZVAP0]
-  Close Local File [ZVAP0]
-# 2026-00066.fin
 Return
 
 
@@ -118,6 +107,28 @@ Case BOUT
       Errbox "El estado de crédito del pedido no permite la contramarca"
       GERR = 1
     Endif
+  When "5"
+    # 2026-00066.ini
+    Local Integer L
+      # Si la línea está en un contenedor...
+      If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+      For L=0 To [M:SOH4]NBLIG-1
+        Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ZLINEA1000 = [M:SOH4]SOPLIN(L)
+        Read [F:ZVAP0] First
+        If !fstat Then
+          # mostramos el error
+          Call ERREUR("Hay alguna línea en un contenedor de prepicking. No se puede saldar") From GESECRAN
+          # señalizamos error al sistema
+          OK    = 0     # indica estado de error/fallo
+          GOK   = 0     # aborta la transacción si estuviera abierta
+          GPE   = 1     # inhibe el estándar de la etiqueta AVANTBOUT actual
+          FIN   = 1     # ordenamos finalizar el proceso
+          GERR  = 1
+          Break
+        Endif
+      Next
+      Close Local File [ZVAP0]
+    # 2026-00066.fin
 Endcase
 Return
 
@@ -1711,11 +1722,6 @@ $UPD_FECHAEXP_CONT
     If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
     Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
     For [F:ZVAP0]
-#      If mod([F:ZVAP0]VCRLIN,1000) = 0 Then
-#        [L]LNUMLINF = [F:ZVAP0]VCRLIN
-#      Else
-#        [L]LNUMLINF = [F:ZVAP0]VCRLIN * 1000
-#      Endif
       [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
       [L]LNOL = nolign
       For [L]LNUMLINM = 0 To [M:SOH4]NBLIG - 1
@@ -1750,11 +1756,6 @@ $UPD_CANTIDAD_CONT
     If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
     Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ITMREF = [M:SOH4]ITMREF(nolign-1)
     For [F:ZVAP0]
-#      If mod([F:ZVAP0]VCRLIN,1000) = 0 Then
-#        [L]LNUMLINF = [F:ZVAP0]VCRLIN
-#      Else
-#        [L]LNUMLINF = [F:ZVAP0]VCRLIN * 1000
-#      Endif
       [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
       If [M:SOH4]SOPLIN(nolign-1) = [L]LNUMLINF Then
         If [L]LQTY > [F:ZVAP0]QTYCAJAS Then
@@ -2065,18 +2066,26 @@ Local    Decimal WCPO_QTY : WCPO_QTY = [M:SOH4]QTY(NOL)
   Raz [M:SOH4]TDLQTY(NOL), [M:SOH4]TDLQTYSTU(NOL)
 End
 
-######################################################################################
-## Inicializar los botones (pantalla SOH4) 06/07/2026 14:32:55 (SN070)
-######################################################################################
-Subprog IB_NBLIG
-# 2026-00066.ini
-  # si la línea está en un contenedor, se oculta el botón 'Saldo línea de pedido'
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+# 2026-00066
+#**
+#* devuelve el contenedor de prepicking
+#*
+#* @param PSOPLIN > número de línea
+#*!
+Funprog GET_CONTPREP(PSOPLIN)
+Value Integer PSOPLIN
+
+Local Char LRET(50)
+  # la línea está en un contenedor
   If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
-  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ZLINEA1000 = [M:SOH4]SOPLIN(nolign-1)
+  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ZLINEA1000 = PSOPLIN
   Read [F:ZVAP0] First
   If !fstat Then
-    GBOUT1 = ''
+    [L]LRET = [F:ZVAP0]LPNNUM
   Endif
   Close Local File [ZVAP0]
-# 2026-00066.fin
-End
+End LRET
