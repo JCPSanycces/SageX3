@@ -809,7 +809,6 @@ End
 #**
 #* creación de pedidos en Sage desde Magento
 #*
-#* @param PSOHNUM       > número de pedido (en blanco)
 #* @param PBPCORD       > código de cliente
 #* @param PBPCNAM       > razón social
 #* @param PBPAADD       > dirección
@@ -828,10 +827,9 @@ End
 #* @param PZLARGO       > largo
 #* @param PYCOMENCLI    > comentarios de cliente
 #*!
-Subprog PUT_SOH(PSOHNUM,PBPCORD,PBPCNAM,PBPAADD,PORDDAT,PCUSORDREF,PZSOHNUMB2B,PZTEXTO1B2B,
+Subprog PUT_SOH(PBPCORD,PBPCNAM,PBPAADD,PORDDAT,PCUSORDREF,PZSOHNUMB2B,PZTEXTO1B2B,
 &               PITMREF,PEC,PVERSIONEC,PQTY,PZATTFILEB2B,PYRAL,PZALTO,PZANCHO,PZLARGO,PYCOMENCLI)
 # parámetros de cabecera
-Variable  Char    PSOHNUM()
 Value     Char    PBPCORD(),PBPCNAM(),PBPAADD(),PCUSORDREF()
 Value     Char    PZSOHNUMB2B(),PZTEXTO1B2B()
 Value     Date    PORDDAT()
@@ -1032,7 +1030,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
     Gosub GET_BPIDIR
 
     # cabecera
-    Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + "" + ";" + vireblc([F:ZSB21]ZBPCORD,2) + ";" + vireblc([F:ZSB21]ZBPCNAM,2) + ";" + vireblc([F:ZSB21]ZBPAADD,2) + ";" +
+    Wrseq "E" + ";" + "11" + ";" + "SON" + ";" + vireblc([F:ZSB21]ZBPCORD,2) + ";" + vireblc([F:ZSB21]ZBPCNAM,2) + ";" + vireblc([F:ZSB21]ZBPAADD,2) + ";" +
 &         vireblc(ctrans(num$([F:ZSB21]ZORDDAT),'/',''),2) + ";" + vireblc([F:ZSB21]ZCUSORDREF,2) + ";" + "11" + ";" + "EUR" + ";" +
 &         vireblc([F:ZSB21]ZSOHNUMB2B,2) + ";" + vireblc([F:ZSB21]ZTEXTO1B2B,2) + ";" +
 &         [L]LBPCNAM0 + ";" + [L]LBPAORD + ";" + [L]LBPCADDLIG0 + ";" + [L]LBPCADDLIG1 + ";" + [L]LBPCADDLIG2 + ";" + [L]LBPCPOSCOD + ";" +
@@ -1170,7 +1168,6 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
     # importación correcta
     If [L]LRTN = 0 Then
       If GZSOHNUMB2B <> "" Then
-        [L]PSOHNUM  = GZSOHNUMB2B
         GMESSAGE    = "Se ha creado el pedido"-GZSOHNUMB2B
       Endif
     Else
