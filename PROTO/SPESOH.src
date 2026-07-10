@@ -117,7 +117,7 @@ Case BOUT
         Read [F:ZVAP0] First
         If !fstat Then
           # mostramos el error
-          Call ERREUR("Hay alguna línea en un contenedor de prepicking.\No es posible saldar sin vaciar el contenedor.\Contactar al responsable.") From GESECRAN
+          Call ERREUR("Hay alguna línea en un contenedor de prepicking.\No es posible saldar sin vaciar el contenedor.\Contactar con el responsable.") From GESECRAN
           # señalizamos error al sistema
           OK    = 0     # indica estado de error/fallo
           GOK   = 0     # aborta la transacción si estuviera abierta
@@ -1724,7 +1724,7 @@ Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
   If !fstat Then
     Read [F:ZYTM0]YITT0 = [M:SOH4]ITMREF(nolign-1)
     If !fstat and [F:ZYTM0]PREPICKING = 2 Then
-      Call MESSAGE("Se actualizará la fecha al resto de líneas que están en el mismo contenedor de prepicking.\Para separar fechas de expecición, contactar al responsable") From GESECRAN
+      Call MESSAGE("Se actualizará la fecha al resto de líneas que están en el mismo contenedor de prepicking.\Para separar fechas de expecición, contactar con el responsable") From GESECRAN
       For [F:ZVAP0]
         [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
         [L]LNOL = nolign
@@ -1765,7 +1765,7 @@ $UPD_CANTIDAD_CONT
       If [M:SOH4]SOPLIN(nolign-1) = [L]LNUMLINF Then
         If [L]LQTY > [F:ZVAP0]QTYCAJAS Then
           Call ERREUR("La cantidad no puede ser diferente a"-num$([F:ZVAP0]QTYCAJAS)-
-&                     "unidades del contenedor de prepicking\Para cambios, primero hay que vaciar el contenedor.\Contactar al responsable") From GESECRAN
+&                     "unidades del contenedor de prepicking\Para cambios, primero hay que vaciar el contenedor.\Contactar con el responsable") From GESECRAN
           mkstat=2
         Else
           [M:SOH4]QTY(nolign-1) = [L]LQTY
