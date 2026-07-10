@@ -1765,7 +1765,7 @@ $UPD_CANTIDAD_CONT
       If [M:SOH4]SOPLIN(nolign-1) = [L]LNUMLINF Then
         If [L]LQTY > [F:ZVAP0]QTYCAJAS Then
           Call ERREUR("La cantidad no puede ser diferente a"-num$([F:ZVAP0]QTYCAJAS)-
-&                     "unidades del contenedor de prepicking\Para cambios, primero hay que vaciar el contenedor.\Contactar con el responsable") From GESECRAN
+&                     "unidades del contenedor de prepicking\Para reducir cantidad contactar con el responsable") From GESECRAN
           mkstat=2
         Else
           [M:SOH4]QTY(nolign-1) = [L]LQTY
