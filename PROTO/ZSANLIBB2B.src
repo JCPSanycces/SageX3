@@ -372,7 +372,7 @@ End
 #*!
 Subprog GET_SDHINFO(PCLIMGT,PDATEINI,PDATEDEB,
 &                   PNUMPAG,PTOTALPAGS,PTOTALENTREGAS,PMAXPAGINA,
-&                   PENTREGA,PFECHA,PPEDIDO,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PNUMLINEAS,PLINKPDF)
+&                   PENTREGA,PFECHA,PPEDIDO,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PTRANSPORTISTA,PNUMLINEAS,PLINKPDF)
 # parámetros de entrada
 Value     Char    PCLIMGT()
 Value     Char    PDATEINI()
@@ -391,6 +391,7 @@ Variable  Char    PCONDPAGO()(1..50)
 Variable  Char    PELEMFACT()(1..50)
 Variable  Char    PDOCPREP()(1..50)
 Variable  Char    PTRACKING()(1..50)
+Variable  Char    PTRANSPORTISTA()(1..50)
 Variable  Integer PNUMLINEAS(1..50)
 Variable  Char    PLINKPDF()(1..50)
 # variables locales
@@ -485,6 +486,7 @@ Local     Integer LREGINI,LREGFIN
         PELEMFACT(I)        = vireblc([F:ZVSH]ELEM_FACT,2)
         PDOCPREP(I)         = vireblc([F:ZVSH]DOC_PREP,2)
         PTRACKING(I)        = vireblc([F:ZVSH]TRACKING,2)
+        PTRANSPORTISTA(I)   = vireblc([F:ZVSH]TRANSPORT,2)
         PLINKPDF(I)         = vireblc([F:ZVSH]LINKPDF,2)
         Filter [F:ZSDD]
         [L]LREGINI += 1
@@ -533,7 +535,7 @@ End
 #* @param PLIMPORTEAI     > importe de la línea antes de impuestos
 #* @param PLIMPORTEII     > importe de la línea impuestos incluidos
 #*!
-Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
+Subprog GET_SDDINFO(PENTREGA,PNUMPAG,PFECHA,PTIMPORTEAI,PTIMPORTEII,PCLIMGT,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PTRANSPORTISTA,PTOTALPAGS,PTOTALLINEAS,PMAXPAGINA,
 &                   PLINEA,PARTICULO,PDESARTICULO,PPEDIDO,PLINEAPEDIDO,PCANTIDAD,
 &                   PLPRECIOBRUTO,PDTO1,PDTO2,PDTO3,PLPRECIONETO,PLIMPORTEAI,PLIMPORTEII)
 # parámetros de salida - cabecera
@@ -547,6 +549,7 @@ Variable  Char    PCONDPAGO()
 Variable  Char    PELEMFACT()
 Variable  Char    PDOCPREP()
 Variable  Char    PTRACKING()
+Variable  Char    PTRANSPORTISTA()
 Variable  Integer PTOTALPAGS()
 Variable  Integer PTOTALLINEAS()
 Variable  Integer PMAXPAGINA()
@@ -590,12 +593,13 @@ Local     Integer LREGINI,LREGFIN
       If [F:ZVSH]FECHA <> [0/0/0] Then
         PFECHA      = num$(format$(GFMD,[F:ZVSH]FECHA))
       Endif
-      PTIMPORTEAI   = [F:ZVSH]IMPORTEAI
-      PTIMPORTEII   = [F:ZVSH]IMPORTEII
-      PCONDPAGO     = vireblc([F:ZVSH]COND_PAGO,2)
-      PELEMFACT     = vireblc([F:ZVSH]ELEM_FACT,2)
-      PDOCPREP      = vireblc([F:ZVSH]DOC_PREP,2)
-      PTRACKING     = vireblc([F:ZVSH]TRACKING,2)
+      PTIMPORTEAI     = [F:ZVSH]IMPORTEAI
+      PTIMPORTEII     = [F:ZVSH]IMPORTEII
+      PCONDPAGO       = vireblc([F:ZVSH]COND_PAGO,2)
+      PELEMFACT       = vireblc([F:ZVSH]ELEM_FACT,2)
+      PDOCPREP        = vireblc([F:ZVSH]DOC_PREP,2)
+      PTRACKING       = vireblc([F:ZVSH]TRACKING,2)
+      PTRANSPORTISTA  = vireblc([F:ZVSH]TRANSPORT,2)
       Filter [F:ZVBB] Where BPCNUM = [F:ZSDH]BPCORD
       Read [F:ZVBB] First
       If !fstat Then
