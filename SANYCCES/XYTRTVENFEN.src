@@ -1,0 +1,61 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : XYTRTVENFEN
+# Description : Específico Pantalla de criterios de Asignaciones
+# Module      : Ventas
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 09/07/2026
+############################################################################
+# 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "SETBOUT"          : Gosub SETBOUT
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$SETBOUT
+# 2026-00066.ini
+  Gosub SETBOUT From TRTVENFEN
+
+  # Si tiene alguna línea en un contenedor...
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
+  Read [F:ZVAP0] First
+  If !fstat Then
+    Call VIREBOUT(CHMEN, "2") From GOBJET
+    [M:SAL7]ZINFO = "'Cancelación asignación' está deshabilitada porque ya hay prepickings realizados. Contactar con el responsable."
+    Affzo   [M:SAL7]ZINFO
+  Else
+    Raz     [M:SAL7]ZINFO
+    Chgfmt  [M:SAL7]ZINFO With "-K:250"
+    Affzo   [M:SAL7]ZINFO
+  Endif
+  Close Local File [ZVAP0]
+
+  GPE=1
+# 2026-00066.fin
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
