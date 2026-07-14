@@ -1,4 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+Infbox num$(func ZSANLIB01.GETVALID_CPN('DVP112600081'))
+End
+
 ##############################################################
 #**
 #* Sustituir un carácter por una cadena de caracteres
@@ -840,4 +843,42 @@ Local Integer LRET      # lret = 0 -> no bloqueo ; lret = 1 -> sí bloqueo
     LRET = 0
   Endif
   Close Local File [ZALK]
+End LRET
+
+##############################################################
+#**
+#* devuelve el estado de validación de una devolución de compra
+#*
+#* @param PPNHNUM
+#*!
+Funprog GETVALID_CPN(PPNHNUM)
+Value Char PPNHNUM
+
+Local Integer LRET
+
+  If !clalev([F:ZPNH]) Then : Local File PRETURN [F:ZPNH] : Endif
+  Read [F:ZPNH]PNH0 = PPNHNUM
+  If !fstat Then
+    LRET = [F:ZPNH]CFMFLG
+  Endif
+  Close Local File [ZPNH]
+End LRET
+
+##############################################################
+#**
+#* devuelve el estado de facturación de una devolución de compra
+#*
+#* @param PPNHNUM
+#*!
+Funprog GETFACT_CPN(PPNHNUM)
+Value Char PPNHNUM
+
+Local Integer LRET
+
+  If !clalev([F:ZPNH]) Then : Local File PRETURN [F:ZPNH] : Endif
+  Read [F:ZPNH]PNH0 = PPNHNUM
+  If !fstat Then
+    LRET = [F:ZPNH]INVFLG
+  Endif
+  Close Local File [ZPNH]
 End LRET
