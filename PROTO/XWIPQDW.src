@@ -1,0 +1,101 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+# XVT - 03/09/2021 - Modificar el objeto de selección de respuestas
+# de ofertas de compra: mostrar la descripción del artículo
+# se parte del fuente original
+###########################################################################
+# TRTACHAOF1           Traitements liés aux AOF              Module ACHAT #
+# ----------------------------------------------------------------------- #
+# ACTIONS modélisation WEB (Sélection dans une table GACTION)             #
+#   - SELPPDBPS  : Sélection des demandes d'appel d'offre fournisseur     #
+#   - SELPPDLIG  : Sélection de la ligne de la demande                    #
+#                                                                         #
+$ACTION
+Case ACTION
+ When "SEL_TABLE"
+  #--------------------------------------------#
+  # Avant ouverture de la fenêtre de sélection #
+  #--------------------------------------------#
+  Case TABLE
+   When "SELPPDLIG"    : Gosub SEL_SELPPDLIG
+  Endcase
+Endcase
+
+##########################################################################
+# PQUOTATD: S/P utilisé en création/duplication de réponses aux appels   #
+# Les sélections ne fonctionnent pas en WEB sur table temporaire         #
+# ---------------------------------------------------------------------- #
+#   WPQDLIN  : Numéro de ligne de l'appel d'offre sélectionné            #
+#   WPQHFCY  : Site de l'appel d'offre                                   #
+#   WPQHNUM  : Numéro de l'appel d'offre                                 #
+#   WBPSNUM  : Fournisseur de l'appel d'offre                            #
+# Remarques  : Ce sous-programme est utilisé en création de réponse      #
+# ---------------------------------------------------------------------- #
+# Remplacé par l'action SELPPDLIG avec paramètres           MBT 15/01/01 #
+#   Zone courante AZC : Numéro de ligne de l'appel d'offre sélectionné   #
+#   PARAM(1) = FCY    : Site de l'appel d'offre                          #
+#   PARAM(2) = NUM    : Numéro de l'appel d'offre                        #
+#   PARAM(3) = BPSNUM : Fournisseur                                      #
+##########################################################################
+#ACTION NON UTILISEE CREEE POUR TEST
+#--------------------------------------------#
+# Avant ouverture de la fenêtre de sélection #
+#--------------------------------------------#
+$SEL_SELPPDLIG
+Local Integer  WPQDLIN          : WPQDLIN=VALEUR
+Local Char     WPQHFCY(GLONFCY) : WPQHFCY=PARAM(1)
+Local Char     WPQHNUM(GLONPQH) : WPQHNUM=PARAM(2)
+Local Char     WBPSNUM(GLONBPS) : WBPSNUM=PARAM(3)
+Local Integer  SAVNOLIGN        : SAVNOLIGN=nolign
+Local Libelle  FLAGSEL          : FLAGSEL=0
+Local Char     CRIT(250)
+Local Char     WART(GLONITM)(200)
+Local Char     WDES(100)(200)         #XVT03/09/21.n
+Local Integer  WLIN         (200)
+Local Char     WNUM(GLONVCR)(200)
+#----- Ouverture tables si nécessaire -----#
+If clalev([F:ATZ])=0  Local File ATABZON   [ATZ] : Endif
+If clalev([F:PQD])=0  Local File PQUOTATD  [PQD] : Endif
+If clalev([F:PPH])=0  Local File PRESP     [PPH] : Endif
+#----- Définition table temporaire en mémoire -----#
+#añadimos ,Char ITMDES(100) #XVT03/09/21.n
+#y [L]WDES,                 #XVT03/09/21.n
+Local File (Char ITMREF(GLONITM)
+&,Char ITMDES(100)
+&,Integer PQDLIN,Char PQHNUM(GLONPQH))
+&           From Variable [L]WART,
+&           [L]WDES,
+&           [L]WLIN,[L]WNUM As [SEL]
+#----- En création ou duplication ne proposer que les articles sans réponse -----#
+CRIT="[F:PQD]PQHFCY=WPQHFCY"
+If WPQHNUM<>""  CRIT+=" & [F:PQD]PQHNUM=WPQHNUM" : Endif
+Filter [PQD] Where evalue(CRIT)
+nolign=1
+For [PQD]
+  Filter [PPH] Where BPSNUM=WBPSNUM & PQHNUM=[F:PQD]PQHNUM & PQDLIN=[F:PQD]PQDLIN
+  Read [PPH] PPH0 First
+  If fstat
+    [L]WART(nolign-1)=[F:PQD]ITMREF
+    [L]WDES(nolign-1)=[F:PQD]ITMDES     #XVT03/09/21.n
+    [L]WLIN(nolign-1)=[F:PQD]PQDLIN
+    [L]WNUM(nolign-1)=[F:PQD]PQHNUM
+    nolign+=1
+    If nolign=dim([L]WART) : Break : Endif
+  Endif
+Next
+Filter [PPH] : Filter [PQD]
+If nolign=1  GERR=2 : GMESSAGE=mess(99,100,1) : OK=0 : Return : Endif
+#-----
+TIT(0)=mess(14,195,1)
+CRITERE(1)='ITMREF<>""'
+ORDRE="ITMREF"
+#XVT03/09/21 AÑADIMOS LA COL(2)='ITMDES' ...  Y AUMENTAMOS EL ÍNDICE DEL RESTO DE FILAS
+COL(1)="ITMREF" : Call TEXTFIC("PQUOTATD","ITMREF",1,TIT(1)) From OBJDIV
+COL(2)="ITMDES" : Call TEXTFIC("PQUOTATD","ITMDES",1,TIT(2)) From OBJDIV
+COL(3)="PQDLIN" : Call TEXTFIC("PQUOTATD","PQDLIN",1,TIT(3)) From OBJDIV
+COL(4)="PQHNUM" : Call TEXTFIC("PQUOTATD","PQHNUM",1,TIT(4)) From OBJDIV
+#NBCOL=3  #XVT03/09/21.O
+NBCOL=4   #XVT03/09/21.n
+START="PQDLIN"
+SIZLIG=160 : SIZCOL=160
+Default File [SEL]
+Return
