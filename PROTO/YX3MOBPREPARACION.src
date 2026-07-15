@@ -1003,6 +1003,8 @@ Subprog NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT,
         If rowcount([YSTO]) = 0
           Filter [YSTO]
           Filter [YSTO] Where SERNUM = PCODIGOBARRAS
+          Infbox "llego"-num$(rowcount([YSTO]))
+
           If rowcount([YSTO]) = 0
              PRES = "110"
              PMESS = "El código leído no es válido"
@@ -1364,6 +1366,9 @@ Subprog PUTYSPACKDET(PPRHNUM, PPRELIN ,PQTYPCU, PPACNUM, PSERNUM, PLOT, PLPNNUM,
     # NOTA: los productos asociados los encontraremos en la tabla SORDERQ por el campo ZLINASOC
     INDICE_ASOCIADO = NUM_LINEA
 
+    If !clalev([YPRE2]) Then : Local File STOPRED [YPRE2] : Endif
+    Local Integer LINEA_PREP_ASOC
+
     Filter [YSOQ] Where SOHNUM = [YPRE]ORINUM and [YSOQ]ZLINASOC = [YPRE]ORILIN
     For [YSOQ]
        # Necesitamos saber la proporción que corresponde al artículo asociado en función de la cantidad del artículo principal en el pedido
@@ -1372,9 +1377,21 @@ Subprog PUTYSPACKDET(PPRHNUM, PPRELIN ,PQTYPCU, PPACNUM, PSERNUM, PLOT, PLPNNUM,
         # Metemos el asociado en el bulto
         NUM_LINEA += 1
         I += 1
+        Raz LINEA_PREP_ASOC
+        Filter [YPRE2] Where [YPRE2]PRHNUM=PPRHNUM and [YPRE2]ORINUM=[YPRE]ORINUM and [YPRE2]ORILIN=[YSOQ]SOPLIN and [YPRE2]ITMREF=[YSOQ]ITMREF
+
+        For [YPRE2]
+          LINEA_PREP_ASOC=[YPRE2]PRELIN
+          Break
+        Next
+
+        Filter [YPRE2]
+        If LINEA_PREP_ASOC = 0 Then
+          LINEA_PREP_ASOC = PPRELIN
+        Endif
 
         [YSPD]VCRNUM=PPRHNUM
-        [YSPD]VCRLIN=PPRELIN
+        [YSPD]VCRLIN=LINEA_PREP_ASOC
         [YSPD]STOFCY="11"
         [YSPD]CPY="1"
         [YSPD]VCRTYP=3

@@ -2,6 +2,8 @@
 #//////////////////////////////////////////////////////////////////////////////////////////////#
 #@001@ - RAP - 20/09/2024 - Añado funcionalidad para el campo CFECHARECD y filtrar en f. recepcion pedido
 # @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
+# @03@ - JMF - 01/07/2026 - Fecha recepción prevista en blanco para pedidos
+# @04@ - JMF - 01/07/2026 - Cantidad cargada y pendiente de carga en pedidos
 # 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
 # 2026-00040 - JCP.15062026.Cálculo de la demanda en Artículo-Planta
 #//////////////////////////////////////////////////////////////////////////////////////////////#
@@ -60,6 +62,8 @@ If !clalev([QQ7]) : Local File SHIPMENTD     [QQ7] : Endif
 If !clalev([QQ8]) : Local File MFGMAT        [QQ8] : Endif
 If !clalev([Q10]) : Local File SORDERQ       [Q10] : Endif
 If !clalev([Q11]) : Local File ITMBPS        [Q11] : Endif
+If !clalev([XY7]) : Local File SHIPMENTD     [XY7] : Endif
+If !clalev([XY5]) : Local File CONTAINERD    [XY5] : Endif
 
 # Enlazo ITM-ITMBPS
 Link [QQ2] With [QQ1]ITM0 = [QQ2]ITMREF As [XX1] Where [QQ2]PIO = 0
@@ -129,7 +133,7 @@ CRITERIOS2 += " & [QQ4]LINCLEFLG<>2"
 #@001@ - RAP - 20/09/2024 - FIN
 
 # @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR
-# si no se indica comprador se ignora el filtro en vez de buscarlo vacío adrede
+# si no se indica comprador se ignora el filtro en vez de buscarlo vacío
 If [M:YRUSA]CCOMPRADOR <> ""
   CRITERIOS1 += " & [QQ1]BUY=[M:YRUSA]CCOMPRADOR"
 Endif
@@ -150,7 +154,7 @@ Filter [XX1] Where evalue(CRITERIOS1) Order By [QQ1]ITMREF Asc
 
     # Busco los datos en pedidos de compra firmes no saldados
     # Si tengo registro, quito la línea de huérfano e indico la línea de pedido de compra
-    Filter [QQ4] Where [QQ4]POHFCY = [M:YRUSA]CPLANTA and [QQ4]ITMREF = [QQ1]ITMREF and [QQ4]LINSTA<3 and evalue(CRITERIOS2)
+    Filter [QQ4] Where [QQ4]POHFCY = [M:YRUSA]CPLANTA and [QQ4]ITMREF = [XX1]ITMREF and [QQ4]LINSTA<3 and evalue(CRITERIOS2)
       For [QQ4]
         [L]EN_PC      = 0
         [L]QTY_CON    = 0
@@ -284,6 +288,8 @@ Close Local File [QQ7]
 Close Local File [QQ8]
 Close Local File [Q10]
 Close Local File [Q11]
+Close Local File [XY5]
+Close Local File [XY7]
 Return
 
 
@@ -320,9 +326,27 @@ Call LECTEXTRA([M:YRUSA]ARTICULODES(NNOL-1),"ITMMASTER","DES1AXX",[M:YRUSA]ARTIC
 [M:YRUSA]LINEA(NNOL-1)        = NPLI
 [M:YRUSA]SECUENCIA(NNOL-1)    = NPSE
 [M:YRUSA]FECHAPREV(NNOL-1)    = NFEC  # Esta es la fecha pedido (para Pedido / Expedición / Contenedor)
-If NTIP >= 3 # Pedido / huérfana
+# @04@ - JMF - 01/07/2026 - Cantidad cargada y pendiente de carga en pedidos - INI
+If NTIP > 3 # Pedido / huérfana
   [M:YRUSA]CTDCARGADA(NNOL-1)   = 0
   [M:YRUSA]PDTERECCON(NNOL-1)   = NPDTE
+Elsif NTIP = 3 # Pedidos
+  # Tenemos que ver si hay cantidad cargada en contenedor sin recepcionar o en expedición y restarlo a la cantidad pendiente de cargar (PDTERECCON)
+
+
+  Local Decimal LENCONTENEDOR : Raz [L]LENCONTENEDOR
+  Filter [F:XY7] Where POHNUM = NDOC and POPLIN = NPLI and SHIQTYSTU <> RCPQTYSTU
+  For [F:XY7]
+    [L]LENCONTENEDOR = [L]LENCONTENEDOR + ([F:XY7]SHIQTYSTU - [F:XY7]RCPQTYSTU)
+  Next
+  Filter [F:XY5] Where POHNUM = NDOC and POPLIN = NPLI and POQSEQ = NPSE and SHIPNUM = ''
+  For [F:XY5]
+    [L]LENCONTENEDOR += [F:XY5]QTYSTU
+  Next
+
+  [M:YRUSA]CTDCARGADA(NNOL-1)   = 0
+  [M:YRUSA]PDTERECCON(NNOL-1)   = NQTY - [L]LENCONTENEDOR
+# @04@ - JMF - 01/07/2026 - Cantidad cargada y pendiente de carga en pedidos - FIN
 Else  # Expedición / Contenedor
   [M:YRUSA]CTDCARGADA(NNOL-1)   = NPDTE
   [M:YRUSA]PDTERECCON(NNOL-1)   = 0
@@ -335,8 +359,13 @@ If NTIP = 1
   [M:YRUSA]FECHARPRE(NNOL-1)    = NDAT # Esta es la fecha rec. prevista (para Expedición)
   [M:YRUSA]FECHAESEN(NNOL-1)    = "000000"
 Elsif NTIP = 2
-  [M:YRUSA]FECHAESEN(NNOL-1)    = NDAT # Esta es la fecha estim. entrega (para Contenedor)
   [M:YRUSA]FECHARPRE(NNOL-1)    = "000000"
+  [M:YRUSA]FECHAESEN(NNOL-1)    = NDAT # Esta es la fecha estim. entrega (para Contenedor)
+# @03@ - JMF - 01/07/2026 - Fecha recepción prevista en blanco para pedidos - INI
+Elsif NTIP = 3
+  [M:YRUSA]FECHARPRE(NNOL-1)    = "000000"
+  [M:YRUSA]FECHAESEN(NNOL-1)    = "000000"
+# @03@ - JMF - 01/07/2026 - Fecha recepción prevista en blanco para pedidos - FIN
 Endif
 
 # @02@ - JMF - 16/03/2026 - Nuevo filtro CCOMPRADOR

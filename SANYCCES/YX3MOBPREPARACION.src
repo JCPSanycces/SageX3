@@ -982,6 +982,7 @@ Subprog NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT,
   Local Char INFNAM
   Local Char DESTINO
   Local Char PRELPN
+  Local Integer CHECK_SERNUM : CHECK_SERNUM = 0
 
   If !clalev([YYPRE]) Then : Local File STOPRED      [YYPRE] : Endif
   If !clalev([YITM])  Then : Local File ITMMASTER    [YITM]  : Endif
@@ -1082,11 +1083,14 @@ Subprog NUEVOEMPAQUETADO(PPRHNUM, PCODIGOBARRAS, PUSUARIO, PLINEA_KIT, PCOD_KIT,
               Read [F:YSTO]STO5=[F:YYPRE]ITMREF;PCODIGOBARRAS
               If !fstat Then
                  #Si está en stock, buscamos que esté asignada a esta preparación STOALL
+
                 Filter [F:YSTA] Where VCRNUM=[F:YYPRE]PRHNUM and VCRLIN=[F:YYPRE]PRELIN and ITMREF= [F:YYPRE]ITMREF and STOCOU=[F:YSTO]STOCOU
-                  If rowcount([F:YSTA])=0 Then
+
+                  If rowcount([F:YSTA])=0 and CHECK_SERNUM = 0 Then
                     PRES="120"
                     PMESS="Número de serie no asignado a esta preparación"
                   Else
+                    CHECK_SERNUM = 1
                     For [F:YSTA]
                     #Por último tenemos que ver si el número de serie está en un bulto YPACKD
                     PRES="200"
