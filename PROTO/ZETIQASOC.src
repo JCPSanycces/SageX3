@@ -86,21 +86,20 @@ Return
 ##########################################################################
 $TR1
 Trbegin [ARM]
+    For WNUMLIG=1 To W_NUM
+      Raz [F:ARM]
 
-For WNUMLIG=1 To W_NUM
-  Raz [F:ARM]
-
-  [F:ARM]USR     = GUSER
-  [F:ARM]RPTCOD  = ETAT
-  [F:ARM]NUMREQ  = [L]NUMREQ
-  [F:ARM]NUMLIG  = WNUMLIG
-  [F:ARM]CLEA1   = [F:SOQ]SOHNUM
-  [F:ARM]CLEA2   = [F:SOQ]ITMREF
-  [F:ARM]CLEA3   = num$([F:SOQ]SOPLIN)
-  [F:ARM]CREDAT  = date$
-  Write [F:ARM]
-  If fstat : GOK = 0 : Call FSTA("ARM") From GLOCK : Goto AB_TR1 : Endif
-Next
+      [F:ARM]USR     = GUSER
+      [F:ARM]RPTCOD  = ETAT
+      [F:ARM]NUMREQ  = [L]NUMREQ
+      [F:ARM]NUMLIG  = WNUMLIG
+      [F:ARM]CLEA1   = [F:SOQ]SOHNUM
+      [F:ARM]CLEA2   = [F:SOQ]ITMREF
+      [F:ARM]CLEA3   = num$([F:SOQ]SOPLIN)
+      [F:ARM]CREDAT  = date$
+      Write [F:ARM]
+      If fstat : GOK = 0 : Call FSTA("ARM") From GLOCK : Goto AB_TR1 : Endif
+    Next
 Commit
 Return
 

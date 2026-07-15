@@ -1,4 +1,5 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# @01@ - EQM - 16/09/2025 - Mejoras etiquetas
 #################################################
 
 
@@ -87,9 +88,9 @@ If !fstat
       If GREPORT = "Z-ETIQNKSCH" #como imprime números de serie, no hace falta multiplicar por la cantidad producida
         W_NUM = [ZZ1]QTYETQSER
       Endif
-      If GREPORT = "Z-ETIQNKMOTOR" or GREPORT = "Z-ETIQMOTOR"
-#       W_NUM *= [ZZ1]QTYETQMOT
-        W_NUM = [F:MFI]EXTQTY*[ZZ1]QTYETQMOT
+      If GREPORT = "Z-ETIQNKMOTOR" or GREPORT = "Z-ETIQMOTOR" #electrica
+        W_NUM *= [ZZ1]QTYETQMOT
+    #   W_NUM = [F:MFI]EXTQTY*[ZZ1]QTYETQMOT # @01@ - EQM - 16/09/2025 COMENTAMOS
       Endif
       If GREPORT = "Z-ETIQCORTE"
         W_NUM = [ZZ1]QTYETQCOR
