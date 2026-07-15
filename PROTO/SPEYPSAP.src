@@ -3,6 +3,7 @@
 # @01@ - EQM - 30/09/2024 - Cambios etiquetas para imprimir por orden y nº correcto de copias
 # @02@ - EQM - 16/09/2025 - Mejoras etiquetas
 # @03@ - JLP - 01/04/2026 - Ajuste desarrollo para impresion etiquetas sin numero de serie
+# @04@ - EQM - 13/07/2026 - Gestión impresiones asociados
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -207,6 +208,8 @@ If GL1LLE(7)="1"
   If !clalev([XP9]) : Local File MFGMAT     [XP9] : Endif # @01@ - EQM
   If !clalev([XP10]): Local File SORDERQ    [XP10]: Endif # @01@ - EQM
   If !clalev([XP11]): Local File SORDERQ    [XP11]: Endif # @01@ - EQM
+  If !clalev([XP12]): Local File ITMMASTER  [XP12]: Endif # @04@ - EQM
+  If !clalev([XP13]): Local File ZITMLOGO   [XP13]: Endif # @04@ - EQM
   Local Integer NETI_COR # @02@ - EQM
 
   # Gestiono la impresión
@@ -260,7 +263,19 @@ If GL1LLE(7)="1"
                     For [XP10] Where  [XP10]SOHNUM=[XP11]SOHNUM and [XP10]ZLINASOC=[XP11]SOPLIN and [XP10]ZASOCIADO=2
                     Read[XP10]
                     If !fstat
-                        Call PRINT_ETI_ASO([XP10]SOHNUM,[XP10]ITMREF,[XP10]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM  From SPEYPSA
+                    # @04@ - EQM INI
+                    Read[XP12]ITM0=[XP10]ITMREF
+                    If !fstat
+                        Read [XP13]ZITML0=[XP12]TSICOD(1)
+                        If !fstat
+                            If [XP13]QTYETQEAN13>0
+                            # @04@ - EQM FIN
+                                Call PRINT_ETI_ASO([XP10]SOHNUM,[XP10]ITMREF,[XP10]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM  From SPEYPSA
+                            # @04@ - EQM - INI
+                            Endif
+                        Endif
+                    Endif
+                    # @04@ - EQM FIN
                     Endif
                     Next
                 Endif
@@ -381,6 +396,8 @@ If GL1LLE(7)="1"
   Close Local File [XP9] # @01@ - EQM
   Close Local File [XP10] # @01@ - EQM
   Close Local File [XP11] # @01@ - EQM
+  Close Local File [XP12] # @01@ - EQM
+  Close Local File [XP13] # @01@ - EQM
 
 
 # Para el caso de ALTA parcial...

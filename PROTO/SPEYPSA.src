@@ -8,6 +8,7 @@
 # @06@ - EQM - 16/09/2025 - Mejoras etiquetas  - BORRAR DE ZETIQSER - ZETIQPROD - ZETIQMOTOR - ZETIQASOC  ESTO : When "__REPORT"        : [L]PARAMETRE(I) = "__REPORT="+W_REPORT+".rpt"
 # @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
 # @08@ - EQM - 29/04/2026 - Añadimos nº etiqueta en ZDOSFAB al imprimir inicios
+# @09@ - EQM - 13/07/2026 - Eliminamos espacios en blanco
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -1161,16 +1162,18 @@ Local Char N_NETI_ASO(20)
 Call PRINT_OF(MORI,MPLA,MOF,MFECHA,"",0,0)
 
 # Impresiones de la etiqueta EAN13 - nº serie - motor/metal
-If !clalev([XP1]) : Local File ITMMASTER [XP1] : Endif
-If !clalev([XP2]) : Local File ZITMLOGO  [XP2] : Endif
-If !clalev([XP3]) : Local File MFGMAT    [XP3] : Endif
-If !clalev([XP4]) : Local File MFGITM    [XP4] : Endif
-If !clalev([XP5]) : Local File YMFGSERIE [XP5] : Endif
-If !clalev([XP6]) : Local File SORDERQ   [XP6] : Endif # @05@ - EQM
-If !clalev([XP7]) : Local File SORDERQ   [XP7] : Endif # @05@ - EQM
-If !clalev([XP8]) : Local File SORDERQ   [XP8] : Endif # @05@ - EQM
-If !clalev([XP9]) : Local File SORDERQ   [XP9] : Endif # @05@ - EQM
-
+If !clalev([XP1]) : Local File ITMMASTER   [XP1] : Endif
+If !clalev([XP2]) : Local File ZITMLOGO    [XP2] : Endif
+If !clalev([XP3]) : Local File MFGMAT      [XP3] : Endif
+If !clalev([XP4]) : Local File MFGITM      [XP4] : Endif
+If !clalev([XP5]) : Local File YMFGSERIE   [XP5] : Endif
+If !clalev([XP6]) : Local File SORDERQ     [XP6] : Endif # @05@ - EQM
+If !clalev([XP7]) : Local File SORDERQ     [XP7] : Endif # @05@ - EQM
+If !clalev([XP8]) : Local File SORDERQ     [XP8] : Endif # @05@ - EQM
+If !clalev([XP9]) : Local File SORDERQ     [XP9] : Endif # @05@ - EQM
+If !clalev([XP9]) : Local File SORDERQ     [XP9] : Endif # @05@ - EQM
+If !clalev([XP10]) : Local File ITMMASTER  [XP10]: Endif # @09@ - EQM
+If !clalev([XP11]) : Local File ZITMLOGO   [XP11]: Endif # @09@ - EQM
 # Guardo el número de etiquetas a imprimir de cada tipo
 Local Integer NETI_EAN
 Local Integer NETI_SER
@@ -1280,9 +1283,20 @@ If fstat = 0
           Read [XP6]
           If fstat = 0
               For [XP7] Where  [XP7]SOHNUM=[XP6]SOHNUM and [XP7]ZLINASOC=[XP6]SOPLIN and [XP7]ZASOCIADO=2
-              Read[XP7]
               If !fstat
-                  Call PRINT_ETI_ASO( [XP7]SOHNUM,[XP7]ITMREF,[XP7]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+                  # @09@ - EQM INI
+                  Read[XP10]ITM0=[XP7]ITMREF
+                  If !fstat
+                      Read [XP11]ZITML0=[XP10]TSICOD(1)
+                      If !fstat
+                          If [XP11]QTYETQEAN13>0
+                            # @09@ - EQM FIN
+                              Call PRINT_ETI_ASO( [XP7]SOHNUM,[XP7]ITMREF,[XP7]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+                               # @09@ - EQM - INI
+                          Endif
+                      Endif
+                  Endif
+                  # @09@ - EQM FIN
               Endif
               Next
           Endif
@@ -1335,7 +1349,19 @@ If fstat = 0
               For [XP7] Where  [XP7]SOHNUM=[XP8]SOHNUM and [XP7]ZLINASOC=[XP8]SOPLIN and [XP7]ZASOCIADO=2
               Read[XP7]
               If !fstat
-                  Call PRINT_ETI_ASO( [XP7]SOHNUM,[XP7]ITMREF,[XP7]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+              # @09@ - EQM INI
+                  Read[XP10]ITM0=[XP7]ITMREF
+                  If !fstat
+                      Read [XP11]ZITML0=[XP10]TSICOD(1)
+                      If !fstat
+                          If [XP11]QTYETQEAN13>0
+                            # @09@ - EQM FIN
+                              Call PRINT_ETI_ASO( [XP7]SOHNUM,[XP7]ITMREF,[XP7]SOPLIN,"Z-ETIQASOC",1)  From SPEYPSA      #ETIQUETA ASOCIADOS # @01@ - EQM
+                              # @09@ - EQM - INI
+                          Endif
+                      Endif
+                  Endif
+                  # @09@ - EQM FIN
               Endif
               Next
           Endif
@@ -1355,7 +1381,8 @@ Close Local File [XP6]# @05@ - EQM
 Close Local File [XP7]# @05@ - EQM
 Close Local File [XP8]# @05@ - EQM
 Close Local File [XP9]# @05@ - EQM
-
+Close Local File [XP10]# @09@ - EQM
+Close Local File [XP11]# @09@ - EQM
 End
 
 
