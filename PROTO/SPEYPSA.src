@@ -8,7 +8,7 @@
 # @06@ - EQM - 16/09/2025 - Mejoras etiquetas  - BORRAR DE ZETIQSER - ZETIQPROD - ZETIQMOTOR - ZETIQASOC  ESTO : When "__REPORT"        : [L]PARAMETRE(I) = "__REPORT="+W_REPORT+".rpt"
 # @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
 # @08@ - EQM - 29/04/2026 - Añadimos nº etiqueta en ZDOSFAB al imprimir inicios
-# @09@ - EQM - 13/07/2026 - Eliminamos espacios en blanco
+# @09@ - EQM - 13/07/2026 - Gestión impresiones asociados
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -1171,7 +1171,6 @@ If !clalev([XP6]) : Local File SORDERQ     [XP6] : Endif # @05@ - EQM
 If !clalev([XP7]) : Local File SORDERQ     [XP7] : Endif # @05@ - EQM
 If !clalev([XP8]) : Local File SORDERQ     [XP8] : Endif # @05@ - EQM
 If !clalev([XP9]) : Local File SORDERQ     [XP9] : Endif # @05@ - EQM
-If !clalev([XP9]) : Local File SORDERQ     [XP9] : Endif # @05@ - EQM
 If !clalev([XP10]) : Local File ITMMASTER  [XP10]: Endif # @09@ - EQM
 If !clalev([XP11]) : Local File ZITMLOGO   [XP11]: Endif # @09@ - EQM
 # Guardo el número de etiquetas a imprimir de cada tipo
@@ -1283,6 +1282,7 @@ If fstat = 0
           Read [XP6]
           If fstat = 0
               For [XP7] Where  [XP7]SOHNUM=[XP6]SOHNUM and [XP7]ZLINASOC=[XP6]SOPLIN and [XP7]ZASOCIADO=2
+              Read[XP7]
               If !fstat
                   # @09@ - EQM INI
                   Read[XP10]ITM0=[XP7]ITMREF

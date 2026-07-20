@@ -396,8 +396,8 @@ If GL1LLE(7)="1"
   Close Local File [XP9] # @01@ - EQM
   Close Local File [XP10] # @01@ - EQM
   Close Local File [XP11] # @01@ - EQM
-  Close Local File [XP12] # @01@ - EQM
-  Close Local File [XP13] # @01@ - EQM
+  Close Local File [XP12] # @04@ - EQM
+  Close Local File [XP13] # @04@ - EQM
 
 
 # Para el caso de ALTA parcial...
