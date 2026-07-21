@@ -1,0 +1,81 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEZACOF
+# Description : Específico Cierre de órdenes
+# Module      : Producción
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 21/07/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "DEBUT"            : Gosub DEBUT
+  When "BOUTON"           : Gosub BOUTON
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$DEBUT
+  Gosub CARGA_REGISTROS
+  Gosub APLICA_COLOR
+Return
+
+##############################################################
+$BOUTON
+  Case BOUT
+    When "a" Then : Gosub DEBUT
+  Endcase
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$CARGA_REGISTROS
+Local Integer I
+  If !clalev([F:ZACO]) Then : Local File ZAPPCIERREOF [F:ZACO] : Endif
+  Filter [F:ZACO] Order By MFGNUM Desc;NSERIE Asc
+  For [F:ZACO]
+    [M:ZACOF0]MFGNUM(I) = [F:ZACO]MFGNUM
+    [M:ZACOF0]ITMREF(I) = [F:ZACO]ITMREF
+    [M:ZACOF0]NSERIE(I) = [F:ZACO]NSERIE
+    [M:ZACOF0]ZCORREOUSER(I) = [F:ZACO]ZCORREOUSER
+    [M:ZACOF0]ZFECHACREA(I) = [F:ZACO]ZFECHACREA
+    [M:ZACOF0]ZHORACREA(I) = [F:ZACO]ZHORACREA
+    [M:ZACOF0]ZPROCESADO(I) = [F:ZACO]ZPROCESADO
+    Affzo [M:ZACOF0]NBLIG(I)
+    I += 1
+    If I > 3000 Then Break Endif
+  Next
+  [M:ZACOF0]NBLIG = rowcount([F:ZACO])
+  Affzo [M:ZACOF0]
+  Close Local File [ZACO]
+Return
+
+##############################################################
+$APLICA_COLOR
+Local Integer I
+  For I=0 To [M:ZACOF0]NBLIG-1
+    If [M:ZACOF0]ZPROCESADO(I) <> 2 Then
+      Chgstl [M:ZACOF0]NBLIG(I) With "BACKRED"
+    Endif
+  Next
+  Affzo [M:ZACOF0]
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################

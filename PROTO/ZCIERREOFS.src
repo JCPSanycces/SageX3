@@ -1,0 +1,371 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZCIERREOFS
+# Description : Específico Para el cierre de OFs pistoleteadas
+# Module      : Producción
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 15/07/2026
+############################################################################
+# 2026-00204 - JCP.16072026.Cierre de las OFs pistoleteadas desde la App
+############################################################################
+
+
+Gosub INIT
+Gosub EXEC
+Gosub FIN
+End
+
+##############################################################
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "INIT"           : Gosub INIT
+  When "EXEC"           : Gosub EXEC
+  When "FIN"            : Gosub FIN
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$INIT
+Local   Char    LCRIT(250)        : [L]LCRIT = "1=1"
+Local   Integer LALTA             : [L]LALTA = 0
+Local   Char    LNUMTRA(25),LMSG(250)
+Global  Char    GNSERIE(25)(200)
+Global  Char    GASUNTOZEO(250),GTEXTOZEO(250),GCORREOZEO(250)
+
+  If !clalev([F:ZITM0]) : Local File ITMMASTER    [F:ZITM0] : Endif
+  If !clalev([F:ZACO0]) : Local File ZAPPCIERREOF [F:ZACO0] : Endif
+
+  [L]LCRIT -= "and ZPROCESADO<>2"
+
+Return
+
+##############################################################
+$EXEC
+
+  Filter [F:ZACO0] Where evalue([L]LCRIT)
+
+  For [F:ZACO0]
+
+    # ejecuta el proceso de alta
+    Read [F:ZITM0]ITM0 = [F:ZACO0]ITMREF
+    If !fstat Then
+      If [F:ZITM0]SERMGTCOD >= 2
+        # el artículo tiene gestión de números de serie
+        [V]GNSERIE(0) = [F:ZACO0]NSERIE
+        Call ALTA_OF(2,1,[F:ZACO0]MFGNUM,[F:ZACO0]MFGLIN,"11",[F:ZACO0]ITMREF,[L]LALTA,[L]LNUMTRA) From ZCIERREOFS
+      Else
+        # el artículo NO tiene gestión de números de serie
+        Call ALTA_OF(2,1,[F:ZACO0]MFGNUM,[F:ZACO0]MFGLIN,"11",[F:ZACO0]ITMREF,[L]LALTA,[L]LNUMTRA) From ZCIERREOFS
+      Endif
+    Endif
+
+    If [L]LALTA = 0 Then
+      # marca el registro como procesado cuando el alta se haya completado correctamente
+      [F:ZACO0]ZPROCESADO = 2
+      If !adxlog Then : Trbegin [F:ZACO0] : Endif
+      Rewrite [F:ZACO0]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Else
+      # si no se ha procesado correctamente, se envía un aviso al correo
+      [V]GCORREOZEO = 'itsoporte@sanycces.es'
+      [V]GASUNTOZEO = 'Error al cerrar OFs'
+      [V]GTEXTOZEO  = "Hola,"+chr$(13)+chr$(10)+chr$(13)+chr$(10)
+      If [F:ZACO0]NSERIE <> "" Then
+        [V]GTEXTOZEO += 'La orden' - [F:ZACO0]MFGNUM - 'con número de serie' - [F:ZACO0]NSERIE - 'no se ha podido cerrar.' + chr$(13)+chr$(10)+chr$(13)+chr$(10)
+      Else
+        [V]GTEXTOZEO += 'La orden' - [F:ZACO0]MFGNUM - 'no se ha podido cerrar.' + chr$(13)+chr$(10)+chr$(13)+chr$(10)
+      Endif
+      [V]GTEXTOZEO += 'Traza adjunta al correo.'
+      If !GSERVEUR Then
+        GFILPATH      = filpath("TRA",[L]LNUMTRA,"tra")
+      Endif
+      Call WORKFLOW (1,"ZEO","","INFO1") From AWRK
+    Endif
+
+  Next
+  Filter [F:ZACO0]
+Return
+
+##############################################################
+$FIN
+  Close Local File [ZITM0],[ZACO0]
+  If dim([V]GNSERIE)    > 0 Then : Kill [V]GNSERIE    : Endif
+  If dim([V]GASUNTOZPD) > 0 Then : Kill [V]GASUNTOZPD : Endif
+  If dim([V]GTEXTOZPD)  > 0 Then : Kill [V]GTEXTOZPD  : Endif
+  If dim([V]GCORREOZPD) > 0 Then : Kill [V]GCORREOZPD : Endif
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$OPEN_FILE
+  adxifs = ";"
+  adxirs = chr$(13)+chr$(10)
+  Openo LFILE
+  # Iomode adxium (50)
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+Subprog ALTA_OF(PORIGEN,PCANTIDAD,PNUMERO, PLINEA, PPLANTA, PITMREF, PALTA, PMESSALTA)
+Value     Integer PORIGEN   # 1=completa, 2=parcial
+Value     Decimal PCANTIDAD
+Value     Char    PNUMERO
+Value     Integer PLINEA
+Value     Char    PITMREF
+Value     Char    PPLANTA
+Variable  Integer PALTA
+Variable  Char    PMESSALTA
+
+Local Char    LFILE(250)
+Local Char    FECHA(250),HORA(250)
+Local Char    PATHFILE(250)
+Local Integer LCONT : LCONT = 0
+
+  If !clalev([YMFM])  Then : Local File MFGMAT     [YMFM] : Endif
+  If !clalev([YMFH])  Then : Local File MFGHEAD    [YMFH] : Endif
+  If !clalev([YMFS])  Then : Local File YMFGSERIE  [YMFS] : Endif
+  If !clalev([YMTK])  Then : Local File MFGHEADTRK [YMTK] : Endif
+  If !clalev([YMFI])  Then : Local File MFGITM     [YMFI] : Endif
+
+
+  FECHA     = vireblc(num$(date$),4) : FECHA  = mid$(FECHA,1,2)+mid$(FECHA,4,2)+mid$(FECHA,7,4)
+  HORA      = vireblc(num$(time$),4) : HORA   = mid$(HORA,1,2)+mid$(HORA,4,2)+mid$(HORA,7,4)
+  PATHFILE  = filpath("","IMP","")
+  LFILE     = PATHFILE + "\ALTA_" + PNUMERO + "_" + FECHA + "_" + HORA + ".txt"
+
+  Call CREA_FICHERO_ALTA(PORIGEN,PCANTIDAD,LFILE,PPLANTA,PNUMERO,PLINEA,PITMREF,FECHA)
+
+  GERRTRACE = 0
+  Local Integer PRTN
+  Local Char    PCTR(250)
+  Local Integer PNER
+  Call IMP_MODEL("no read","YMKIAP",LFILE,PRTN,PCTR,PNER)
+  GERRTRACE = PNER
+  PMESSALTA = PCTR
+
+  # importación correcta
+  If GERRTRACE = 0 Then
+    # Busco el número del seguimiento
+    Local Char LMTK
+    Filter [YMTK] Where [YMTK]MFGNUM = PNUMERO and [YMTK]ITMTRKFLG = 2 Order By [YMTK]MFGTRKNUM Desc
+    Read [YMTK] First
+    If fstat = 0
+      [L]LMTK         = [YMTK]MFGTRKNUM
+      [YMTK]YCANTIDAD = PCANTIDAD
+      Trbegin [YMTK]
+        Rewrite [YMTK]
+      Commit
+    Endif
+    Filter [YMTK]
+
+    # Marco como generados el alta los números de serie
+    Trbegin [YMFS]
+      For W=0 To 199
+        If GNSERIE(W) <> ""
+          Filter [YMFS] Where [YMFS]MFGNUM = PNUMERO and [YMFS]MFGLIN = PLINEA and [YMFS]NSERIE = GNSERIE(W)
+          For [YMFS]
+            [YMFS]ALTA    = 2
+            [YMFS]MTKALTA = [L]LMTK
+            Rewrite [YMFS]
+          Next
+          Filter [YMFS]
+        Else
+          Break
+        Endif
+      Next
+    Commit
+
+    # Marco como generada el alta la OF
+    Local Decimal QTY_LAN
+    Read [YMFI]MFI0 = PNUMERO;PLINEA
+    If fstat = 0
+      [L]QTY_LAN = [YMFI]UOMEXTQTY
+    Endif
+
+    Read [F:YMFH]MFG0 = PNUMERO
+    If !fstat Then
+      Trbegin [F:YMFH]
+      [F:YMFH]YQTYALTA += PCANTIDAD
+      If [L]QTY_LAN = [F:YMFH]YQTYALTA    # Solamente marco Alta si se ha dado de alta toda la cantidad lanzada
+        [F:YMFH]YALTA = 2
+      Endif
+      Rewrite [F:YMFH]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Endif
+
+    PMESSALTA = "Proceso finalizado correctamente"
+  Endif
+  PALTA = GERRTRACE
+
+  Close Local File [YMFM], [YMFH], [YMFS], [YMFI]
+End
+
+##############################################################
+#**
+#* GENERAR FICHERO MODELO IMPORTACION ALTAS OF
+#*
+#*
+#*
+#*!
+Subprog CREA_FICHERO_ALTA(XORIGEN,XCANTIDAD,PFILE, PPLANTA, PMFGNUM, PMFGLIN, PITMREF,  PFECHA)
+  Value Integer XORIGEN  #1:global, 2:parcial
+  Value Decimal XCANTIDAD
+  Value Char PFILE()
+  Value Char PPLANTA
+  Value Char PMFGNUM
+  Value Integer PMFGLIN
+  Value Char PITMREF
+  Value Char PFECHA
+
+  Local Char LFILE(250)
+  Local Char LMFG(40)(1..20)
+  Local Char PATHFILE(250)
+  Local Integer LSEQ
+
+  If !clalev([YMFG])  Then : Local File MFGHEAD   [YMFG] : Endif
+  If !clalev([YMFI])  Then : Local File MFGITM    [YMFI] : Endif
+  If !clalev([YMFS])  Then : Local File YMFGSERIE [YMFS] : Endif
+
+  LFILE = PFILE
+
+  Gosub OPEN_FILE
+
+  Read [YMFG]MFG0 = PMFGNUM
+  If fstat = 0
+    For [YMFI] Where [F:YMFI]MFGNUM = [F:YMFG]MFGNUM and [F:YMFI]MFGLIN = PMFGLIN
+      # Si el articulo tiene número de serie, debo generar un registro por número de serie
+      Local Integer SI_SERIE
+      For [YMFS] Where [YMFS]MFGNUM = [F:YMFI]MFGNUM and [YMFS]MFGLIN = [F:YMFI]MFGLIN
+        SI_SERIE = 2
+        Break
+      Next
+
+      Wrseq 'M',
+&           "" + [F:YMFG]MFGFCY + "",
+&           "" + [F:YMFG]MFGNUM + "",
+&           "" + [F:YMFI]ITMREF + "",
+&           num$(XCANTIDAD),
+&           "" + [F:YMFI]UOM + "",
+&           num$([F:YMFI]UOMSTUCOE),
+&           "",
+&           "" + date$ + "",
+&           "STD"+ ";"
+
+      If SI_SERIE <> 2 # No hay número de serie
+        Wrseq 'S',
+&             "" + [F:YMFI]UOM + "",
+&             num$(XCANTIDAD) ,
+&             num$([F:YMFI]UOMSTUCOE) ,
+&             "" + [F:YMFI]LOT + ';'
+      Else
+        For R=0 To 199
+          If GNSERIE(R)<>""
+            Wrseq 'S',
+&                 "" + [F:YMFI]UOM + "",
+&                 num$(1) ,
+&                 num$([F:YMFI]UOMSTUCOE) ,
+&                 "" + [F:YMFI]LOT+ "",
+&                 "" + GNSERIE(R)+ ';'
+          Else
+            Break
+          Endif
+        Next
+      Endif
+    Next
+  Endif
+
+  Openo # CERRAMOS FICHERO ALTA
+  Close Local File [YMFG],[YMFI],[YMFS]
+
+End
+
+##############################################################
+Subprog IMP_MODEL(PTRA,PMOD,PFILE,PRTN,PCTR,PNER)
+Value     Char    PTRA
+Value     Char    PMOD
+Value     Char    PFILE
+Variable  Integer PRTN
+Variable  Char    PCTR
+Variable  Integer PNER
+
+#####
+# Proceso encargado de integrar un registro a traves de un modelo de datos..
+#####
+# PTRA  = indica si hay lectura de traza "read".- lee traza, "no read".- no lee traza
+# PMOD  = modelo a tratar
+# PFILE = el fichero a importar..
+
+Local File AOBJEXT    [AOE]
+Local File AOBJEXTD   [AOD]
+Local File AOBJET     [ZAOB]
+Local File ADOVAL     [ADW]
+Local File ATYPE      [ZATY]
+Local File AMSK       [ZAMK]
+Local File AMSKZON    [ZAMZ]
+Local File ATABLE     [ZATB]
+Local File ATABZON    [ZATZ]
+Local File ATABIND    [ZATI]
+Local File AFONCTION  [ZAFC]
+Local File APARIMPEXP [APX]
+Local Mask AOE0       [AOE0]
+Local Mask AOE1       [AOE1]
+Local Mask AOE2       [AOE2]
+Local Mask IMPTEST    [IEX]
+Local Mask IMPENCH    [DIA]
+Local Mask IMPOBJ2    [IMP2]
+
+
+  PRTN = 0
+  mkstat = 0 : fstat = 0 : GERRTRACE = 0
+  # Lanzamiento de la importación silenciosa
+  If !GSERVEUR Then
+    Call OUVRE_TRACE("Cierre de OF's") From LECFIC
+  Endif
+  Call IMPORTSIL(PMOD,PFILE) From GIMPOBJ
+  If !GSERVEUR Then
+    Call FERME_TRACE From LECFIC
+  Endif
+
+  If (fstat <> 0 and fstat <> 4) or GERRTRACE <> 0 Then
+    PCTR = GTRACE
+    PNER = GERRTRACE
+    PRTN = 1
+  Endif
+
+  If !GSERVEUR Then
+    If PTRA = "read" or GERRTRACE <> 0 Then
+      Call LEC_TRACE From LECFIC
+    Endif
+  Endif
+
+  mkstat = 0 : fstat = 0 : GERRTRACE = 0 : GOK = 1
+
+  Close Local File [AOE],[AOD],[ZAOB],[ADW],[ZATY],[ZAMK],[ZAMZ],[ZATB],[ZATZ],[ZATI],[ZAFC],[APX]
+  Close Local Mask [AOE0],[AOE1],[AOE2],[IEX],[DIA],[IMP2]
+
+End
