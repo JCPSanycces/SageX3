@@ -1733,7 +1733,9 @@ Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
           If [M:SOH4]SOPLIN([L]LNUMLINM) <> [M:SOH4]SOPLIN([L]LNOL-1) Then
             If [M:SOH4]SOPLIN([L]LNUMLINM)  = [L]LNUMLINF Then
               [M:SOH4]DSHIDAT([L]LNUMLINM)  = [L]LFECHAMOD
+              [M:SOH4]UPDFLG([L]LNUMLINM)   = 2
               Affzo [M:SOH4]DSHIDAT([L]LNUMLINM)
+              Affzo [M:SOH4]UPDFLG([L]LNUMLINM)
               Call AM_DSHIDAT([L]LFECHAMOD) From SUBSOH
               Break
             Endif
@@ -2087,8 +2089,8 @@ Value Integer PSOPLIN
 
 Local Char LRET(50)
   # la línea está en un contenedor
-  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
-  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ZLINEA1000 = PSOPLIN
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
+  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LINEA_PEDIDO = PSOPLIN
   Read [F:ZVAP0] First
   If !fstat Then
     [L]LRET = [F:ZVAP0]LPNNUM
