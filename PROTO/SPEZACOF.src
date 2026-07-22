@@ -43,7 +43,7 @@ Return
 $CARGA_REGISTROS
 Local Integer I
   If !clalev([F:ZACO]) Then : Local File ZAPPCIERREOF [F:ZACO] : Endif
-  Filter [F:ZACO] Order By MFGNUM Desc;NSERIE Asc
+  Filter [F:ZACO] Order By ZFECHACREA Desc;ZHORACREA Desc
   For [F:ZACO]
     [M:ZACOF0]MFGNUM(I) = [F:ZACO]MFGNUM
     [M:ZACOF0]ITMREF(I) = [F:ZACO]ITMREF
