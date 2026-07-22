@@ -650,11 +650,13 @@ Subprog C_NBLIG
     Endif
   Endif
 
-  # si la línea tiene contenedor de prepicking, no permite eliminar
+# 2026-00066.ini
   If [M:SOH4]ZCONTPREP(nolign-1) <> '' Then
+  # si la línea tiene contenedor de prepicking, no permite eliminar
     Call ERREUR("Borrado imposible.\La línea tiene el contenedor de prepicking" - [M:SOH4]ZCONTPREP(nolign-1) - "asociado") From GESECRAN
     mkstat=2
   Endif
+# 2026-00066.fin
 
 End
 
