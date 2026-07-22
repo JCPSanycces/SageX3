@@ -27,6 +27,7 @@
 
 $ACTION
 
+#If GUSER="SN070" Then Infbox ACTION Endif
 Case ACTION
   When "OUVRE"       : Gosub OUVRE
   When "INICRE"      : Gosub INICRE
@@ -111,9 +112,9 @@ Case BOUT
     # 2026-00066.ini
     Local Integer L
       # Si la línea está en un contenedor...
-      If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+      If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
       For L=0 To [M:SOH4]NBLIG-1
-        Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ZLINEA1000 = [M:SOH4]SOPLIN(L)
+        Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LINEA_PEDIDO = [M:SOH4]SOPLIN(L)
         Read [F:ZVAP0] First
         If !fstat Then
           # mostramos el error
@@ -1726,7 +1727,7 @@ Local Integer LNUMLINF,LNUMLINM,LNOL
 Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
 
   If !clalev([F:ZYTM0]) Then : Local File YITMTECNICO [F:ZYTM0] : Endif
-  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
 
   Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LPNNUM = [M:SOH4]ZCONTPREP(nolign-1)
   Read [F:ZVAP0] First
@@ -1735,7 +1736,7 @@ Local Date    LFECHAMOD : [L]LFECHAMOD = VALEUR
     If !fstat and [F:ZYTM0]PREPICKING = 2 Then
       Call MESSAGE("Se actualizará la fecha al resto de líneas que están en el mismo contenedor de prepicking.\Para separar fechas de expecición, contactar con el responsable") From GESECRAN
       For [F:ZVAP0]
-        [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
+        [L]LNUMLINF = [F:ZVAP0]LINEA_PEDIDO
         [L]LNOL = nolign
         For [L]LNUMLINM = 0 To [M:SOH4]NBLIG - 1
           nolign = [L]LNUMLINM+1
@@ -1769,10 +1770,10 @@ $UPD_CANTIDAD_CONT
   If !fstat and [F:ZYTM0]PREPICKING = 2 Then
     Local Integer LNUMLINF
     Local Decimal LQTY : [L]LQTY = VALEUR
-    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
     Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and ITMREF = [M:SOH4]ITMREF(nolign-1)
     For [F:ZVAP0]
-      [L]LNUMLINF = [F:ZVAP0]ZLINEA1000
+      [L]LNUMLINF = [F:ZVAP0]LINEA_PEDIDO
       If [M:SOH4]SOPLIN(nolign-1) = [L]LNUMLINF Then
         If [L]LQTY > [F:ZVAP0]QTYCAJAS Then
           Call ERREUR("La cantidad no puede ser diferente a"-num$([F:ZVAP0]QTYCAJAS)-
