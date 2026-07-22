@@ -27,6 +27,7 @@
 
 $ACTION
 
+#If GUSER="SN070" Then Infbox ACTION Endif
 Case ACTION
   When "OUVRE"       : Gosub OUVRE
   When "INICRE"      : Gosub INICRE
@@ -648,6 +649,13 @@ Subprog C_NBLIG
       Endif
     Endif
   Endif
+
+  # si la línea tiene contenedor de prepicking, no permite eliminar
+  If [M:SOH4]ZCONTPREP(nolign-1) <> '' Then
+    Call ERREUR("Borrado imposible.\La línea tiene el contenedor de prepicking" - [M:SOH4]ZCONTPREP(nolign-1) - "asociado") From GESECRAN
+    mkstat=2
+  Endif
+
 End
 
 
@@ -920,6 +928,9 @@ If [M:SOH4]ITMREF(nolign-1) <> "" and GREP=""
   Affzo [M:SOH4]WSTKTXT
   Affzo [M:SOH4]WALLTXT
 Endif
+#If GUSER="SN070"
+#Infbox "entra antes campo"
+#Endif
 End
 
 
