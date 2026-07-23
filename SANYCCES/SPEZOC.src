@@ -26,6 +26,7 @@
 #@11@: (Y119) NUN28 16-10-2025  Modificar el campo fecha pedido para que indique la fecha de importación a SAGE
 #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
 #@13@: (Y119) NUN28 18-11-2025  Modificación del campo YITMCOMP para que muestre correctamente la información
+#@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados
 # 2026-00027 - JCP.24042026.Pedido plataforma LM Italia que faltan algunas ref en pedido Sage
 ##-----------------------------------------------------------------------------------------------
 $ACTION
@@ -94,6 +95,7 @@ Return
 #############################################################################
 
 $LIENS
+If GUSER = 'NUN28' : Infbox "LIENS" : Endif
   #--
   Read [F:ZOC1C]ZOC1C0 = [F:ZOCTL]CONTADOR
   If !fstat
@@ -147,11 +149,11 @@ $LIENS
     Actzo [M:ZOCERESO]
   Endif
 
-
 #  #@01@ - Según la condición que se cumpla, la orden se queda en un estado u otro
-  #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
-    If [F:ZOCTL]YINCIDENCIA < 6
-#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
+  #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
+#    If [F:ZOCTL]YINCIDENCIA < 6
+    If [F:ZOCTL]YINCIDENCIA < 5             #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados
+#@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
     For I=0 To [M:ZOCERESO]NBLIG3-1
           If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
               [F:ZOCTL]YINCIDENCIA = 4
@@ -226,9 +228,25 @@ $LIENS
     [F:ZOCTL]YINCIDENCIA = 5
     [M:ZOCRECTL]YINCIDENCIA = 5
     Affzo [M:ZOCRECTL]YINCIDENCIA
+    Rewrite [F:ZOCTL]
   Endif
+
+#  Rewrite [F:ZOCTL]
+#  Affzo [M:ZOCRECTL]
 #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
 
+
+#@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - INI
+  If [M:ZOCRECTL]YINCIDENCIA = 5
+    Gosub CONTROL_2_INCIDENCIA
+  Else
+    If [F:ZOCTL]YINCIDENCIA2 <> 1
+    [F:ZOCTL]YINCIDENCIA2 = 1
+    [M:ZOCRECTL]YINCIDENCIA2 = 1
+    Rewrite [F:ZOCTL]
+    Endif
+  Endif
+#@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - FIN
 Return
 
 
@@ -254,7 +272,7 @@ $SETBOUT
 
  #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
 #  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=5
-  If [F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=6
+  If ([F:ZOCTL]YINCIDENCIA=1 or [F:ZOCTL]YINCIDENCIA>=6) and ([F:ZOCTL]YINCIDENCIA2=1 or [F:ZOCTL]YINCIDENCIA2>=6)     #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - INI
 #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
       Call VIREBOUT(CHAINE,"y") From GOBJET
   Endif
@@ -273,7 +291,10 @@ $EXEBOUT
           #@01@ - Impedimos la generación del pedido si el estado y las incidencias no son las correctas
           #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
 #          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>5)
-          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>6)
+          #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - INI
+#          If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>6)
+               If [F:ZOCTL]YESTADO<>1 or ([F:ZOCTL]YINCIDENCIA<>1 and [F:ZOCTL]YINCIDENCIA<>6) or ([F:ZOCTL]YINCIDENCIA2<>1 and [F:ZOCTL]YINCIDENCIA2<>6)
+          #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - FIN
           #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
               Errbox "Imposible generar el pedido."+chr$(10)+"Revise el estado/indicencias del pedido." Titled "Error importación" Sleep 10
           Else
@@ -289,9 +310,10 @@ $EXEBOUT
 #              [F:ZOCTL]YINCIDENCIA = 5
               [F:ZOCTL]YINCIDENCIA = 6
               #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
-
+              [F:ZOCTL]YINCIDENCIA2 = 6                               #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados
               Rewrite [F:ZOCTL]
               [M:ZOCRECTL]YINCIDENCIA = [F:ZOCTL]YINCIDENCIA
+              [M:ZOCRECTL]YINCIDENCIA2 = [F:ZOCTL]YINCIDENCIA2        #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados
               Affzo [M:ZOCRECTL]
           Endif
 
@@ -892,9 +914,13 @@ $GEN_MAS_PED
             Call ECR_TRACE ("Procesando ORDER -"-[F:ZOCTL2]CONTADOR,0) From GESECRAN
             #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - INI
 #            If [F:ZOCTL2]YESTADO<>1 or ([F:ZOCTL2]YINCIDENCIA<>1 and [F:ZOCTL2]YINCIDENCIA<>5)
-            If [ZOC]YESTADO<>1 or ([ZOC]YINCIDENCIA<>1 and [ZOC]YINCIDENCIA<>6)
+            #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - INI
+#            If [ZOC]YESTADO<>1 or ([ZOC]YINCIDENCIA<>1 and [ZOC]YINCIDENCIA<>6)
+            If [ZOC]YESTADO<>1 or ([ZOC]YINCIDENCIA<>1 and [ZOC]YINCIDENCIA<>6) or ([ZOC]YINCIDENCIA2<>1 and [ZOC]YINCIDENCIA2<>6)
+            #@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - FIN
             #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado. - FIN
                    Call ECR_TRACE ("Imposible generar el pedido. Revise el estado/indicencias del pedido.",1) From GESECRAN
+                   Goto ORDER_ERR #@12@: (Y119) NUN28 27-10-2025  Realizar control para un pedido duplicado.
             Else
                 Raz [L]S_MOG_ITMREF
                 Raz [L]S_MOG_ITMDES
@@ -1063,13 +1089,62 @@ $GEN_MAS_PED
     Endif
 
     #@nun48 - inicio - proceso para arreglar los duplicados y los nº de pedido
-    Call REESCRITURA_SOHNUM
+#    Call REESCRITURA_SOHNUM   #@14@:
     #@nun48 - fin
 
 Return
 #@01@ - Fin
 
+######################################################################################
+#@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - INI
+$CONTROL_2_INCIDENCIA
+ If [F:ZOCTL]YINCIDENCIA2 < 6
+      For I=0 To [M:ZOCERESO]NBLIG3-1
+          If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
+              [F:ZOCTL]YINCIDENCIA2 = 4
+#              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
+              [M:ZOCRECTL]YINCIDENCIA2 = 4
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC1"  # en ROJO
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC1"  # en ROJO
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC1"  # en ROJO
+              Break
+          Else
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC2"  # en VERDE
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC2"  # en VERDE
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC2"  # en VERDE
+          Endif
 
+          If [M:ZOCERESO]ITMREF(I) = ''
+              [F:ZOCTL]YINCIDENCIA2 = 3
+#              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
+              [M:ZOCRECTL]YINCIDENCIA2 = 3
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC1"  # en ROJO
+              Break
+          Else
+              Chgstl [M:ZOCERESO]ITMREF(I) With "MTC2"  # en VERDE
+          Endif
+
+          If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I)
+              [F:ZOCTL]YINCIDENCIA2 = 2
+#              Rewrite [F:ZOCTL] # @04@ - Comentado porque escribe 2 veces en la tabla y da error de "Registro Obsoleto"
+              [M:ZOCRECTL]YINCIDENCIA2 = 2
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC1"  # en ROJO
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC1"  # en ROJO
+#              Break
+          Else
+              Chgstl [M:ZOCERESO]NETPRI(I) With "MTC2"  # en VERDE
+              Chgstl [M:ZOCERESO]NETPRIS(I) With "MTC2"  # en VERDE
+          Endif
+      Next
+  Endif
+
+  If [M:ZOCERESO]BPCINV = ""
+      [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+      [F:ZOCSOH]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+      Rewrite [F:ZOCSOH]
+  Endif
+Return
+#@14@: (Y119) NUN28 08-07-2026  Ajuste por incidencia en los duplicados - FIN
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla ZOCERESO) 12/03/2024 11:42:26 (NUN14)
 ######################################################################################
