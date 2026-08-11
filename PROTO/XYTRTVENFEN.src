@@ -29,20 +29,22 @@ $SETBOUT
 # 2026-00066.ini
   Gosub SETBOUT From TRTVENFEN
 
-  # Si tiene alguna línea en un contenedor...
-  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
-  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
-  Read [F:ZVAP0] First
-  If !fstat Then
-    Call VIREBOUT(CHMEN, "2") From GOBJET
-    [M:SAL7]ZINFO = "'Cancelación asignación' está deshabilitada porque ya hay prepickings realizados. Contactar con el responsable."
-    Affzo   [M:SAL7]ZINFO
-  Else
-    Raz     [M:SAL7]ZINFO
-    Chgfmt  [M:SAL7]ZINFO With "-K:250"
-    Affzo   [M:SAL7]ZINFO
+  If (clalev([M:SQH0]) and [M:SQH0]BPCORD <> '') or (clalev([M:SOH0]) and [M:SOH0]BPCORD <> '') Then  # 29/07/2026  MS - Evitar control para cliente ventas simplificadas
+    # Si tiene alguna línea en un contenedor...
+    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+    Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
+    Read [F:ZVAP0] First
+    If !fstat Then
+      Call VIREBOUT(CHMEN, "2") From GOBJET
+      [M:SAL7]ZINFO = "'Cancelación asignación' está deshabilitada porque ya hay prepickings realizados. Contactar con el responsable."
+      Affzo   [M:SAL7]ZINFO
+    Else
+      Raz     [M:SAL7]ZINFO
+      Chgfmt  [M:SAL7]ZINFO With "-K:250"
+      Affzo   [M:SAL7]ZINFO
+    Endif
+    Close Local File [ZVAP0]
   Endif
-  Close Local File [ZVAP0]
 
   GPE=1
 # 2026-00066.fin
