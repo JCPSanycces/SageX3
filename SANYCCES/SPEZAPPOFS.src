@@ -1,0 +1,83 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEZAPPOFS
+# Description : Específico Validación de órdenes (Control de calidad)
+# Module      : Producción
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 14/08/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "DEBUT"            : Gosub DEBUT
+  When "BOUTON"           : Gosub BOUTON
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$DEBUT
+  Gosub CARGA_REGISTROS
+  Gosub APLICA_COLOR
+Return
+
+##############################################################
+$BOUTON
+  Case BOUT
+    When "a" Then : Gosub DEBUT
+  Endcase
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$CARGA_REGISTROS
+Local Integer I
+  Raz [M:ZAPPOFS0]
+  If !clalev([F:ZACO]) Then : Local File ZAPPVALIDAOF [F:ZACO] : Endif
+  Filter [F:ZACO] Order By ZFECHACREA Desc;ZHORACREA Desc
+  For [F:ZACO]
+    [M:ZAPPOFS0]MFGNUM(I)       = [F:ZACO]MFGNUM
+    [M:ZAPPOFS0]ITMREF(I)       = [F:ZACO]ITMREF
+    [M:ZAPPOFS0]NSERIE(I)       = [F:ZACO]NSERIE
+    [M:ZAPPOFS0]ZCORREOUSER(I)  = [F:ZACO]ZCORREOUSER
+    [M:ZAPPOFS0]ZFECHACREA(I)   = [F:ZACO]ZFECHACREA
+    [M:ZAPPOFS0]ZHORACREA(I)    = [F:ZACO]ZHORACREA
+    [M:ZAPPOFS0]ZPROCESADO(I)   = [F:ZACO]ZPROCESADO
+    I += 1
+    If I > 3000 Then Break Endif
+  Next
+  [M:ZAPPOFS0]NBLIG = I
+  Affzo [M:ZAPPOFS0]
+  Close Local File [ZACO]
+Return
+
+##############################################################
+$APLICA_COLOR
+Local Integer I
+  For I=0 To [M:ZAPPOFS0]NBLIG-1
+    If [M:ZAPPOFS0]ZPROCESADO(I) <> 2 Then
+      Chgstl [M:ZAPPOFS0]NBLIG(I) With "BACKRED"
+    Else
+      Chgstl [M:ZAPPOFS0]NBLIG(I) With ""
+    Endif
+  Next
+  Affzo [M:ZAPPOFS0]
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
