@@ -96,6 +96,42 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
   Endif
 # ZB2B.fin
 
+
+# 2026-00066.ini
+  Local Char V_SOHNUM(30)
+  V_SOHNUM = [M:SOH0]SOHNUM
+
+  # 1. Abrimos la vista de manera segura
+  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
+
+  # 2. Restringimos las columnas para transferir el mínimo volumen de datos posible [2]
+  Columns [F:ZVAP0] ([F:ZVAP0]LPNNUM, [F:ZVAP0]LINEA_PEDIDO, [F:ZVAP0]ZSOHNUM)
+
+  # 3. Aplicamos un único filtro por el número de pedido completo
+  Filter [F:ZVAP0] Where ZSOHNUM = V_SOHNUM
+
+  # 4. Leemos todos los registros del pedido en un único viaje a la base de datos [1]
+  For [F:ZVAP0]
+    Local Integer J
+
+    # Buscamos en caliente en qué línea de la cuadrícula de pantalla encaja este registro
+    For J = 0 To [M:SOH4]NBLIG-1
+      If [M:SOH4]SOPLIN(J) = [F:ZVAP0]LINEA_PEDIDO
+
+        # Asignamos el valor y refrescamos el campo
+        [M:SOH4]ZCONTPREP(J) = [F:ZVAP0]LPNNUM
+        Affzo [M:SOH4]ZCONTPREP(J)
+
+        Break : # Salimos del bucle interno al encontrar la coincidencia para esta línea
+      Endif
+    Next J
+  Next
+
+  # 5. Limpieza obligatoria de filtros y columnas para liberar recursos [3-5]
+  Columns [F:ZVAP0]
+  Filter [F:ZVAP0]
+# 2026-00066.fin
+
 Return
 
 
@@ -2087,23 +2123,3 @@ End
 ##############################################################
 ##################    FUNCIONES PROPIAS    ###################
 ##############################################################
-##############################################################
-# 2026-00066
-#**
-#* devuelve el contenedor de prepicking
-#*
-#* @param PSOPLIN > número de línea
-#*!
-Funprog GET_CONTPREP(PSOPLIN)
-Value Integer PSOPLIN
-
-Local Char LRET(50)
-  # la línea está en un contenedor
-  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
-  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LINEA_PEDIDO = PSOPLIN
-  Read [F:ZVAP0] First
-  If !fstat Then
-    [L]LRET = [F:ZVAP0]LPNNUM
-  Endif
-  Close Local File [ZVAP0]
-End LRET
