@@ -31,7 +31,7 @@ $SETBOUT
 
   If (clalev([M:SQH0]) and [M:SQH0]BPCORD <> '') or (clalev([M:SOH0]) and [M:SOH0]BPCORD <> '') Then  # 29/07/2026  MS - Evitar control para cliente ventas simplificadas
     # Si tiene alguna línea en un contenedor...
-    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
     Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM
     Read [F:ZVAP0] First
     If !fstat Then
@@ -43,6 +43,7 @@ $SETBOUT
       Chgfmt  [M:SAL7]ZINFO With "-K:250"
       Affzo   [M:SAL7]ZINFO
     Endif
+    Filter [F:ZVAP0]
     Close Local File [ZVAP0]
   Endif
 

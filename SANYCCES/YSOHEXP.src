@@ -373,11 +373,11 @@ Else
           # cuando se cambia la fecha de expedición de alguna línea que está en un contenedor
           # también se tiene que cambiar a todas las demás líneas que están en el mismo contenedor
           # y, además, se actualiza la fecha de entrega prevista
-          If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO3 [F:ZVAP0] : Endif
+          If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
           Filter [F:ZVAP0] Where ZSOHNUM = [M:YEXP]SOHNUM(K)
           For [F:ZVAP0]
-            If [F:ZVAP0]ZLINEA1000 <> [M:YEXP]SOPLIN(K) Then
-              Read [PP9]SOQ0 = [M:YEXP]SOHNUM(K);[F:ZVAP0]ZLINEA1000;[F:ZVAP0]ZLINEA1000
+            If [F:ZVAP0]LINEA_PEDIDO <> [M:YEXP]SOPLIN(K) Then
+              Read [PP9]SOQ0 = [M:YEXP]SOHNUM(K);[F:ZVAP0]LINEA_PEDIDO;[F:ZVAP0]LINEA_PEDIDO
               If !fstat Then
                 [PP9]SHIDAT     = [M:YEXP]YSHIDATNEW
                 [PP9]EXTDLVDAT  = [M:YEXP]YSHIDATNEW
