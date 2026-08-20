@@ -44,7 +44,8 @@ Global  Char    GASUNTOZEO(250),GTEXTOZEO(250),GCORREOZEO(250)
   If !clalev([F:ZITM0]) : Local File ITMMASTER    [F:ZITM0] : Endif
   If !clalev([F:ZACO0]) : Local File ZAPPCIERREOF [F:ZACO0] : Endif
 
-  [L]LCRIT -= "and ZPROCESADO<>2"
+#  [L]LCRIT -= "and ZPROCESADO<>2"
+  [L]LCRIT -= "and ZPROCESADO<>2 and ZTODO=2"
 
 Return
 
@@ -69,8 +70,11 @@ $EXEC
     Endif
 
     If [L]LALTA = 0 Then
-      # marca el registro como procesado cuando el alta se haya completado correctamente
-      [F:ZACO0]ZPROCESADO = 2
+      # marca los campos de control cuando el alta se haya completado correctamente
+      If [F:ZACO0]ZQTYLANZADA = [F:ZACO0]ZQTYLEIDA Then
+        [F:ZACO0]ZPROCESADO = 2
+      Endif
+      [F:ZACO0]ZTODO = 1
       If !adxlog Then : Trbegin [F:ZACO0] : Endif
       Rewrite [F:ZACO0]
       If !fstat Then
