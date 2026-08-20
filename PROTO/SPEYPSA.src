@@ -9,6 +9,7 @@
 # @07@ - AAS - 10/12/2025 - Añadir estilos negritas a la rejilla según valor de "Plano"
 # @08@ - EQM - 29/04/2026 - Añadimos nº etiqueta en ZDOSFAB al imprimir inicios
 # @09@ - EQM - 13/07/2026 - Gestión impresiones asociados
+# 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
 #/////////////////////////////////////////////////////////////////////////////////////////////#
 $ACTION
 Case ACTION
@@ -734,7 +735,10 @@ Subprog BAJA_CONSUMO(PORIGEN,PQTY_INI,PQTY_LAN,PNUMERO,PLINEA,PPLANTA, PITMREF, 
   Local Integer PRTN
   Local Char PCTR
   Local Integer PNER
-  Call IMP_MODEL("no read","YMKMS",LFILE,PRTN,PCTR,PNER)
+# 2026-00391.ini
+#  Call IMP_MODEL("no read","YMKMS",LFILE,PRTN,PCTR,PNER)
+  Call IMP_MODEL("no read","YMKMSSTA",LFILE,PRTN,PCTR,PNER)
+# 2026-00391.fin
   GERRTRACE = PNER
   If GERRTRACE = 0 Then
     If PORIGEN = 1
@@ -911,6 +915,10 @@ Local Char LFILE(250)
 Local Char LMFG(40)(1..20)
 
 If !clalev([YMMAT])  Then : Local File MFGMAT [YMMAT] : Endif
+# 2026-00391.ini
+  If !clalev([F:ZCI0]) Then : Local File ZCLIALT  [F:ZCI0] : Endif
+  If !clalev([F:ZMFI]) Then : Local File MFGITM   [F:ZMFI] : Endif
+# 2026-00391.fin
 
 
 Local Char PATHFILE(250)
@@ -949,15 +957,33 @@ Filter [YMMAT] Where MFGNUM = PMFGNUM and ([YMMAT]CPNTYP = 1 or [YMMAT]CPNTYP = 
       LMFG(14) = ""
       LMFG(15) = ""
       LMFG(16) = ""
+# 2026-00391.ini
+      Read [F:ZMFI]MFI0 = PMFGNUM;[YMMAT]MFGLIN
+      If !fstat Then
+        Read [F:ZCI0]ZCA0 = [F:ZMFI]BPCNUM;[YMMAT]ITMREF;PPLANTA
+        If !fstat Then
+          LMFG(17) = [F:ZCI0]STA
+        Else
+          LMFG(17) = ""
+        Endif
+      Endif
+# 2026-00391.fin
 
+# 2026-00391.ini
+#      Wrseq LMFG(1), LMFG(2), LMFG(3), LMFG(4), LMFG(5), LMFG(6), LMFG(7), LMFG(8), LMFG(9), LMFG(10), LMFG(11),
+#&     LMFG(12), LMFG(13), LMFG(14), LMFG(15), LMFG(16)
       Wrseq LMFG(1), LMFG(2), LMFG(3), LMFG(4), LMFG(5), LMFG(6), LMFG(7), LMFG(8), LMFG(9), LMFG(10), LMFG(11),
-&     LMFG(12), LMFG(13), LMFG(14), LMFG(15), LMFG(16)
+&     LMFG(12), LMFG(13), LMFG(14), LMFG(15), LMFG(16), LMFG(17)
+# 2026-00391.fin
     Endif
   Next
 Filter
 
 Openo # CERRAMOS FICHERO CONSUMO
 Close Local File [YMMAT]
+# 2026-00391.ini
+  Close Local File [ZCI0],[ZMFI]
+# 2026-00391.fin
 #Infbox PMFGNUM
 End
 

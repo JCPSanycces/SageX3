@@ -1,0 +1,250 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEZCA
+# Description : Específico Asignación de rutas por cliente
+# Module      : Datos base
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 18/08/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "OUVRE"          : Gosub OUVRE
+  When "DEBUT"          : Gosub DEBUT
+  When "SETBOUT"        : Gosub SETBOUT
+  When "MEN"            : Gosub MEN_
+  When "END"            : Gosub END_
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$OUVRE
+Global Char GESTADO(1)
+Global Char CHMEN(250)
+Return
+
+##############################################################
+$DEBUT
+  Gosub CARGA_INICIO
+Return
+
+##############################################################
+$SETBOUT
+  Raz CHMEN
+  CHMEN += "anagaeac"
+
+#Infbox "g2:"-[V]GESTADO
+#Infbox "chmen:"-CHMEN
+  Case [V]GESTADO
+    When ""   : Call VIREBOUT(CHMEN,"ag")     From GOBJET
+    When "n"  : Call VIREBOUT(CHMEN,"anae")   From GOBJET
+    When "g"  : Call VIREBOUT(CHMEN,"anae")   From GOBJET
+    When Default
+  Endcase
+Return
+
+##############################################################
+$MEN_
+  Case BOUT
+    When "n"  : Gosub NUEVO
+    When "g"  : Gosub GUARDAR
+    When "e"  : Gosub ELIMINAR
+    When "c"  : Gosub CANCELAR
+  Endcase
+
+  # REBT = 1 fuerza al Supervisor a ejecutar $SETBOUT y actualizar Syracuse
+  REBT = 1
+Return
+
+##############################################################
+$END_
+  If dim([V]GESTADO) > 0 Then : Kill [V]GESTADO : Endif
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$CARGA_INICIO
+Local Integer LCON0
+  If !clalev([F:ZCI0]) Then : Local File ZCLIALT [F:ZCI0] : Endif
+  If !clalev([F:ZCI1]) Then : Local File ZCLIALT [F:ZCI1] : Endif
+  Filter [F:ZCI0] Order By BPCNUM Asc
+  Read [F:ZCI0] First
+  If !fstat Then
+    [M:ZCA1]BPCNUM = [F:ZCI0]BPCNUM
+    Filter [F:ZCI1] Where BPCNUM = [F:ZCI0]BPCNUM
+    For [F:ZCI1]
+      [M:ZCA1]BPCNUM          = [F:ZCI1]BPCNUM
+      [M:ZCA1]ITMREF(LCON0)   = [F:ZCI1]ITMREF
+      [M:ZCA1]FCY(LCON0)      = [F:ZCI1]FCY
+      [M:ZCA1]STA(LCON0)      = [F:ZCI1]STA
+      [M:ZCA1]ZALT1(LCON0)    = [F:ZCI1]ZALT1
+      [M:ZCA1]ZALT2(LCON0)    = [F:ZCI1]ZALT2
+      [L]LCON0               += 1
+      If [L]LCON0 > 3000 Then : Break : Endif
+    Next
+    Filter [F:ZCI1]
+  Endif
+  Filter [F:ZCI0]
+
+  [M:ZCA1]NBLIG = [L]LCON0
+  Affzo [M:ZCA1]
+  Close Local File [ZCI0],[ZCI1]
+
+Return
+
+##############################################################
+$CARGA_REGISTROS
+Local Integer LCON0
+    Effzo [M:ZCA1]10
+  If !clalev([F:ZCI5]) Then : Local File ZCLIALT [F:ZCI5] : Endif
+  Filter [F:ZCI5] Where BPCNUM = [M:ZCA1]BPCNUM
+  For [F:ZCI5]
+    [M:ZCA1]BPCNUM          = [F:ZCI5]BPCNUM
+    [M:ZCA1]ITMREF(LCON0)   = [F:ZCI5]ITMREF
+    [M:ZCA1]FCY(LCON0)      = [F:ZCI5]FCY
+    [M:ZCA1]STA(LCON0)      = [F:ZCI5]STA
+    [M:ZCA1]ZALT1(LCON0)    = [F:ZCI5]ZALT1
+    [M:ZCA1]ZALT2(LCON0)    = [F:ZCI5]ZALT2
+    [L]LCON0               += 1
+    If [L]LCON0 > 3000 Then : Break : Endif
+  Next
+  Filter [F:ZCI5]
+
+  [M:ZCA1]NBLIG = [L]LCON0
+  Affzo [M:ZCA1]
+  Close Local File [ZCI5]
+
+Return
+
+##############################################################
+$NUEVO
+  Effzo [M:ZCA1]5,10
+  zonsui = "[M:ZCA1]BPCNUM"
+  [V]GESTADO = "n"
+Return
+
+##############################################################
+$GUARDAR
+Local Integer LCON1
+
+  # limpia la tabla antes de guardar
+  If !clalev([F:ZCI3]) Then : Local File ZCLIALT [F:ZCI3] : Endif
+  If !adxlog Then : Trbegin [F:ZCI3] : Endif
+  Delete [F:ZCI3] Where BPCNUM = [M:ZCA1]BPCNUM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  # guarda los registros
+  Filter [F:ZCI3] Order By BPCNUM;ITMREF
+  For [L]LCON1=0 To [M:ZCA1]NBLIG-1
+    [F:ZCI3]BPCNUM    = [M:ZCA1]BPCNUM
+    [F:ZCI3]ITMREF    = [M:ZCA1]ITMREF(LCON1)
+    [F:ZCI3]FCY       = [M:ZCA1]FCY(LCON1)
+    [F:ZCI3]STA       = [M:ZCA1]STA(LCON1)
+    [F:ZCI3]ZALT1     = [M:ZCA1]ZALT1(LCON1)
+    [F:ZCI3]ZALT2     = [M:ZCA1]ZALT2(LCON1)
+    If !adxlog Then : Trbegin [F:ZCI3] : Endif
+    Write [F:ZCI3]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+  [V]GESTADO = ""
+  Close Local File [ZCI3]
+Return
+
+##############################################################
+$ELIMINAR
+Local Integer LYESNO : [L]LYESNO = 2
+  Call OUINON("Eliminar el cliente"-[M:ZCA1]BPCNUM-"y todos sus artículos",[L]LYESNO) From GESECRAN
+  If [L]LYESNO = 2 Then
+    If !clalev([F:ZCI4]) Then : Local File ZCLIALT [F:ZCI4] : Endif
+    If !adxlog Then : Trbegin [F:ZCI4] : Endif
+    Delete [F:ZCI4] Where BPCNUM = [M:ZCA1]BPCNUM
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+    Close Local File [ZCI4]
+
+    Effzo [M:ZCA1]5,10
+    zonsui = "[M:ZCA1]BPCNUM"
+  Endif
+
+  [V]GESTADO = ""
+
+Return
+
+##############################################################
+$CANCELAR
+  [V]GESTADO = "c"
+  Gosub CARGA_INICIO
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+######################################################################################
+## Después de modificar el campo 'Cliente' (pantalla ZCLIALT1) 19/08/2026 14:44:45 (SN070)
+######################################################################################
+Subprog AM_BPCNUM(VALEUR)
+Variable Char    VALEUR()
+  If !clalev([F:ZCI2]) Then : Local File ZCLIALT [F:ZCI2] : Endif
+  Read [F:ZCI2]ZCA1 = VALEUR
+  If !fstat Then
+    [M:ZCA1]BPCNUM = VALEUR
+    Affzo [M:ZCA1]BPCNUM
+    Gosub CARGA_REGISTROS
+    [V]GESTADO = ""
+  Else
+    [V]GESTADO = "n"
+  Endif
+  Close Local File [ZCI2]
+End
+
+######################################################################################
+## Después de línea (pantalla ZCLIALT1) 19/08/2026 15:15:41 (SN070)
+######################################################################################
+Subprog APRES_NBLIG
+  [V]GESTADO = "g"
+End
+
+######################################################################################
+## Despues de modificar el campo NBLIG (pantalla ZCLIALT1) 19/08/2026 15:34:19 (SN070)
+######################################################################################
+Subprog AM_NBLIG
+  [V]GESTADO = "g"
+End
+
+######################################################################################
+## Control en el campo 'Artículo' (pantalla ZCLIALT1) 19/08/2026 15:50:52 (SN070)
+######################################################################################
+Subprog C_ITMREF(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCA1]ITMREF(0..[M:ZCA1]NBLIG-1)) From OBJDIV
+  If mkstat = 2 Then
+      VALEUR = ""
+  Endif
+End
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################

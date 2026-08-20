@@ -3,6 +3,7 @@
 # ZPR09 - Etiquetas - Acciones para gestion del fichero logo por cliente
 # NUN05 - comentamos desarrollo porque da un error. Creemos que este desarrollo se arrastra de otra instalación y no sirve.
 # 2026-00029 - JCP.11052026.Añadir al informe de DPRs el texto línea del pedido relacionado
+# 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
 ##############################################################################
 $ACTION
 #If GUSER="SN070" Then : Infbox ACTION : Endif
@@ -23,6 +24,10 @@ If fstat = 0 #and [YBPR]YRAZSOC = ""
   [YBPR]YRAZSOC = [BPR]BPRNAM(0) + [BPR]BPRNAM(1)
   Rewrite [YBPR]
 Endif
+
+# 2026-00391.ini
+  Gosub GUARDAR_SANYCCES
+# 2026-00391.fin
 
 Return
 
@@ -84,9 +89,16 @@ $LIENS
   Affzo [M:BPAC]XZIMPTXLIN
   GPE=1
 # 2026-00029.fin
+
+# 2026-00391.ini
+  Gosub CARGA_SANYCCES
+# 2026-00391.fin
+
 Return
 
-
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
 ######################################################################################
 Subprog AM_XYCONCERTA(VALEUR)
 Variable Integer VALEUR
@@ -130,6 +142,20 @@ Gosub CHARGE_BPD
 GPE = 1
 End
 
+######################################################################################
+## Después de modificar el campo 'Artículo' (pantalla ZBPC1) 20/08/2026 08:24:23 (SN070)
+######################################################################################
+Subprog C_ITMREF(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZBPC1]ITMREF(0..[M:ZBPC1]NBLIG-1)) From OBJDIV
+  If mkstat = 2 Then
+      VALEUR = ""
+  Endif
+End
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
 ######################################################################################
 $CHARGE_BPD
   [M:BPC4]XENAFLG      = [M:BPC4]ENAFLG(NOL)
@@ -210,3 +236,61 @@ $CHARGE_BPD
   Affzo [M:BPC4]10, 15, 20, 25, 30, 35, 40, 45,21     # Bloque 21 es SPE Sanycces
 Return
 # FGR 03/11/2014 : X3SUIVI103732 : ajout de [M:BPC4] au lieu de [M] (fin)
+
+##############################################################
+$CARGA_SANYCCES
+Local Integer LCON0
+
+# 2026-00391.ini
+  If !clalev([F:ZCI0]) Then : Local File ZCLIALT [F:ZCI0] : Endif
+  Filter [F:ZCI0] Where BPCNUM = [M:BPC0]BPCNUM
+  For [F:ZCI0]
+    [M:ZBPC1]ITMREF(LCON0)    = [F:ZCI0]ITMREF
+    [M:ZBPC1]FCY(LCON0)       = [F:ZCI0]FCY
+    [M:ZBPC1]STA(LCON0)       = [F:ZCI0]STA
+    [L]LCON0                 += 1
+    If [L]LCON0 > 3000 Then : Break : Endif
+  Next
+  Filter [F:ZCI0]
+
+  [M:ZBPC1]NBLIG = [L]LCON0
+  Affzo [M:ZBPC1]
+  Close Local File [ZCI0]
+# 2026-00391.fin
+
+Return
+
+##############################################################
+$GUARDAR_SANYCCES
+Local Integer LCON1
+
+# 2026-00391.ini
+  # limpia la tabla antes de guardar
+  If !clalev([F:ZCI1]) Then : Local File ZCLIALT [F:ZCI1] : Endif
+  If !adxlog Then : Trbegin [F:ZCI1] : Endif
+  Delete [F:ZCI1] Where BPCNUM = [M:BPC0]BPCNUM
+  If !fstat Then
+    Commit
+  Else
+    Rollback
+  Endif
+
+  # guarda los registros
+  For [L]LCON1=0 To [M:ZBPC1]NBLIG-1
+    [F:ZCI1]BPCNUM    = [M:BPC0]BPCNUM
+    [F:ZCI1]ITMREF    = [M:ZBPC1]ITMREF(LCON1)
+    [F:ZCI1]FCY       = [M:ZBPC1]FCY(LCON1)
+    [F:ZCI1]STA       = [M:ZBPC1]STA(LCON1)
+    If !adxlog Then : Trbegin [F:ZCI1] : Endif
+    Write [F:ZCI1]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Next
+
+  Close Local File [ZCI1]
+# 2026-00391.fin
+
+Return
