@@ -1,0 +1,51 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZPEFUNCFMDLV
+# Description : Punto de entrada Validación de entregas (masivo)
+# Module      : Producción
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 21/08/2026
+############################################################################
+# 2026-00406 - JCP.21082026.Añadir nuevo filtro de búsqueda en validación masiva de entregas
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "CFMDLVFIL"          : Gosub CFMDLVFIL
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+# Agregar criterios de selección para los envíos que se van a confirmar
+$CFMDLVFIL
+# 2026-00406.ini
+  If [M:DIA]ZBPTNUMDEB <> "" and [M:DIA]ZBPTNUMFIN = "" Then
+    FILSUP += " AND BPTNUM>='" + [M:DIA]ZBPTNUMDEB + "'"
+  Elsif [M:DIA]ZBPTNUMDEB = "" and [M:DIA]ZBPTNUMFIN <> "" Then
+    FILSUP += " AND BPTNUM<='" + [M:DIA]ZBPTNUMFIN + "'"
+  Elsif [M:DIA]ZBPTNUMDEB <> "" and [M:DIA]ZBPTNUMFIN <> "" Then
+    FILSUP += " AND BPTNUM>='" + [M:DIA]ZBPTNUMDEB + "' AND BPTNUM<='" + [M:DIA]ZBPTNUMFIN + "'"
+  Endif
+# 2026-00406.fin
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
