@@ -517,22 +517,26 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
 #[L]LITMEND = '0029298900'
 
 # ms Artículos Sanitarios
-[L]LITMSTR = 'BDM50154BM'
-[L]LITMEND = 'WCS50254WM'
+#[L]LITMSTR = 'BDM50154BM'
+#[L]LITMEND = 'WCS50254WM'
 
 # ms Artículos Griferías
 #[L]LITMSTR = 'ACCLV002BG'
 #[L]LITMEND = 'WCSH001RM'
 
 # ms Artículos TODOS
-#[L]LITMSTR = '0000_000000'
-#[L]LITMEND = 'ZVISITASCLIENTES'
+[L]LITMSTR = '0'
+[L]LITMEND = 'ZZZZ'
 
 # ms Filtros por familia grifería
 #[L]LITMCRI = "[F:ITM]TSICOD(0)='012'"
 
 # ms Filtros por subfamilia POOL
 #[L]LITMCRI = "[F:ITM]TSICOD(0)='0120016'"
+
+# Filtro por cliente
+[L]LBPCSTR = 'NA000154'
+[L]LBPCEND = 'NA000154'
 
 
   Gosub OUVRE       From SUBSPP
