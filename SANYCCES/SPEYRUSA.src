@@ -6,6 +6,7 @@
 # @04@ - JMF - 01/07/2026 - Cantidad cargada y pendiente de carga en pedidos
 # 26001 - JCP.26022026 - Añadir botón a Rupturas Sanycces desde la pantalla Modificación Fecha expedición
 # 2026-00040 - JCP.15062026.Cálculo de la demanda en Artículo-Planta
+# 2026-00353 - JCP.26082026.Actualización de fechas en el encurso desde ruptura
 #//////////////////////////////////////////////////////////////////////////////////////////////#
 
 $ACTION
@@ -591,6 +592,21 @@ If SIGO = 2
             Else
               Errbox [M:YRUSA]DOCUMENTO(LINE) + ". No se ha podido actualizar la fecha en la línea del pedido de compra"
             Endif
+# 2026-00353.ini
+            If !clalev([F:ZORD]) Then : Local File ORDERS [F:ZORD] : Endif
+            Filter [F:ZORD] Where STOFCY = [M:YRUSA]CPLANTA and VCRNUM = [M:YRUSA]DOCUMENTO(LINE) and VCRLIN = [M:YRUSA]LINEA(LINE)
+            For [F:ZORD]
+              [F:ZORD]ENDDAT = [M:YRUSA]FECHAPREV(LINE)
+              Rewrite [F:ZORD]
+              If !fstat Then
+                [L]EXITO = 2
+              Else
+                Errbox [M:YRUSA]DOCUMENTO(LINE) + ". No se ha podido actualizar la fecha en la línea del pedido de compra"
+              Endif
+            Next
+            Filter [F:ZORD]
+            Close Local File [ZORD]
+# 2026-00353.fin
           Commit
         Endif
       Endif
