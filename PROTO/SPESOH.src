@@ -23,6 +23,7 @@
 # XVT28052026 - EMISIÓN AUTOMÁTICA DE ANTICIPOS
 # 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
 # 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
+# 2026-00214 - JCP.27082026.Necesidades duplicación pedidos
 #####################################################################################################
 
 $ACTION
@@ -2118,6 +2119,29 @@ Local    Decimal WCPO_QTY : WCPO_QTY = [M:SOH4]QTY(NOL)
 
   nolign=NOL+1
   Raz [M:SOH4]TDLQTY(NOL), [M:SOH4]TDLQTYSTU(NOL)
+End
+
+######################################################################################
+## Después de modificar el campo 'Tercero pagador' (pantalla SOH1) 27/08/2026 11:37:58 (SN070)
+######################################################################################
+Subprog AP_BPCPYR(VALEUR)
+Variable Char    VALEUR()
+
+# 2026-00214.ini
+  If [M:SOH1]BPCINV = 'NA000008' and VALEUR = 'NA000008' Then
+    [M:SOH1]VACBPR    = 'EXE'
+    [M:SOH1]REP(0)    = ''
+    [M:SOH1]REP(1)    = ''
+    [M:SOH2]MDL       = '3-DAP'
+    [M:SOH2]BPTNUM    = VALEUR
+    [M:SOH2]YSERVDEF  = 'Y'
+    [M:SOH2]YTERMDEF  = '031'
+    [M:SOH3]PTE       = 'T02'
+    Affzo [M:SOH1]VACBPR,REP(0),REP(1)
+    Affzo [M:SOH2]BPTNUM,MDL,YSERVDEF,YTERMDEF
+    Affzo [M:SOH3]PTE
+  Endif
+# 2026-00214.fin
 End
 
 ##############################################################
