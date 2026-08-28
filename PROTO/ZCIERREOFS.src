@@ -9,6 +9,7 @@
 # Created date: 15/07/2026
 ############################################################################
 # 2026-00204 - JCP.16072026.Cierre de las OFs pistoleteadas desde la App
+# 2026-00453 - JCP.28082026.OF leída dos veces y sólo se ha cerrado una
 ############################################################################
 
 
@@ -44,7 +45,6 @@ Global  Char    GASUNTOZEO(250),GTEXTOZEO(250),GCORREOZEO(250)
   If !clalev([F:ZITM0]) : Local File ITMMASTER    [F:ZITM0] : Endif
   If !clalev([F:ZACO0]) : Local File ZAPPCIERREOF [F:ZACO0] : Endif
 
-#  [L]LCRIT -= "and ZPROCESADO<>2"
   [L]LCRIT -= "and ZPROCESADO<>2 and ZTODO=2"
 
 Return
@@ -73,8 +73,8 @@ $EXEC
       # marca los campos de control cuando el alta se haya completado correctamente
       If [F:ZACO0]ZQTYLANZADA = [F:ZACO0]ZQTYLEIDA Then
         [F:ZACO0]ZPROCESADO = 2
+        [F:ZACO0]ZTODO = 1
       Endif
-      [F:ZACO0]ZTODO = 1
       If !adxlog Then : Trbegin [F:ZACO0] : Endif
       Rewrite [F:ZACO0]
       If !fstat Then
