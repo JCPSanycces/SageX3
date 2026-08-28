@@ -526,6 +526,10 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
 [L]LITMSTR = '0'
 [L]LITMEND = 'ZZZZ'
 
+# Filtro por cliente
+[L]LBPCSTR = 'NA000154'
+[L]LBPCEND = 'NA000154'
+
   Gosub OUVRE       From SUBSPP
   Gosub LIENS       From SUBSPP
 
