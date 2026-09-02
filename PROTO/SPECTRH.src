@@ -260,6 +260,8 @@ Filter [S1]
 Close Local File [S1]
 Close Local File [S2]
 
+If PS_CTRNUM = 'CTR13250800015' [L]RI_ESTADO = 3 Endif
+
 End RI_ESTADO
 
 
