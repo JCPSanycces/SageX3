@@ -1,6 +1,10 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 # @01@ - EQM - 17/09/2024 - Modificamos cant enlace artículos fantasmas
+# 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
+############################################################################
+
 $ACTION
+#If GUSER="SN070" Then : Infbox "xyfunmautf:"-ACTION : Endif
 Case ACTION
    When "EXEC": Gosub EXEC
 Endcase
@@ -9,6 +13,23 @@ Return
 
 #########################################
 $EXEC
+
+# 2026-00391.ini
+      Global Char    GZMFGNUM(GLONVCR)
+      Global Integer GZMFMSEQ
+      Global Char    GZITMREF(GLONITM)
+      Global Char    GZSTOFCY(GLONFCY)
+      Global Char    GZBPCORD(GLONBPC) : [V]GZBPCORD = [M:SOH0]BPCORD
+
+      Global Integer GZFORCEA2
+      Global Integer GZALLOK
+
+      Global Decimal GZWALL
+      Global Decimal GZWSHT
+      Global Integer GZWRET
+
+      Global Char    GSUBESTADO(5)
+# 2026-00391.fin
 
 # Añado como componentes no creados a las OFs de contramarca, los artículos asociados añadidos en las líneas del pedido de venta
 # Esta función se lanza tanto desde el pedido de venta como desde la contramarca en los procesos automáticos de producción
@@ -437,6 +458,34 @@ For  [F:ZORD]                                             # 0 - Recorro la tabla
 # Cancelo la asignación global de la OF y la vuelvo a lanzar
 # Bloqueo la acción del STD
 # GPE=1
+
+# 2026-00391.ini
+  If GNAVIG(GPILNAV) = "GESSOH" Then
+    Local Integer LCTRLTRB
+    If !clalev([F:ZMFG]) Then : Local File MFGHEAD [F:ZMFG] : Endif
+    Read [F:ZMFG]MFG0 = [F:MFG]MFGNUM
+    If !fstat Then
+      [F:ZMFG]ALLSTA = 3
+      If !adxlog Then
+        Trbegin [F:ZMFG]
+        [L]LCTRLTRB = 0
+      Else
+        [L]LCTRLTRB = 1
+      Endif
+      Rewrite [F:ZMFG]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+      If [L]LCTRLTRB Then
+        Trbegin [MFG]
+      Endif
+    Endif
+    Close Local File [ZMFG]
+  Endif
+# 2026-00391.fin
+
 Return
 
 

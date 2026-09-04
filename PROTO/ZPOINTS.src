@@ -3,6 +3,9 @@
 #-- C.A. ZPR04 Fecha de entrega solicitada -->  <08/2022>
 # NUN05.10072023.NEW - Añado la función FUNMAUXXXX para que no entre en esta parte de código.
 #                     Comentado con D.S. Creemos que no es necesario ya que pasamos la OF firme y ya tenemos estos datos completados.
+# 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
+############################################################################
+
 $ACTION
   #--
   Case ACTION
@@ -11,6 +14,7 @@ $ACTION
     When "ORDMAJ"          : Gosub ORDMAJ       #-- ZPR04 / ORD
     When "LOAMSKMBP"       : Gosub LOAMSKMBP    #-- ZPR04 / Planes de seguimiento
     When "UPDMFIMAJ"       : Gosub UPDMFIMAJ
+    When "ALLCHOMAT"       : Gosub ALLCHOMAT
     When Default
   Endcase
 Return
@@ -196,3 +200,161 @@ $LOAMSKMBP
     Infbox num$([F:MFI]DEMDLVDAT)- num$([M:MBP]DEMDLVDAT(nolign-1))
   Endif
 Return
+
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$ALLCHOMAT
+# 2026-00391.ini
+  Gosub ASIGNAR_SUBESTADO
+# 2026-00391.fin
+Return
+
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+#######################################################################
+# ASIGNAR_SUBESTADO
+# Asignación específica de determinados componentes de OF.
+# Para el componente seleccionado:
+# - Busca stock disponible en estado GSUBESTADO
+# - Crea directamente una asignación detallada
+# - Pasa el estado GSUBESTADO a CREALL
+# - Actualiza MFGMAT
+# - Impide la asignación estándar global
+# #######################################################################
+$ASIGNAR_SUBESTADO
+  # Por defecto no intervenimos
+  GPE = 0
+
+  # buscar si el componente contiene subestados
+  If !GSERVEUR
+    If GNAVIG(GPILNAV-1) = "GESSOH"  and [F:MFG]MFGNUM <> "" Then
+      [V]GSUBESTADO = func ZSANLIB01.GET_SUBESTADO([F:MFM]ITMREF,GZBPCORD,[F:MFM]MFGFCY,[F:MFM]RETQTY)
+      If [V]GSUBESTADO <> '' Then
+        GZMFGNUM = [F:MFM]MFGNUM
+        GZMFMSEQ = [F:MFM]BOMSEQ
+        GZITMREF = [F:MFM]ITMREF
+        GZSTOFCY = [F:MFM]MFGFCY
+      Endif
+    Endif
+  Endif
+
+  # comprobar si es el componente que queremos tratar
+  If [F:MFM]MFGNUM = GZMFGNUM & [F:MFM]BOMSEQ = GZMFMSEQ & [F:MFM]ITMREF = GZITMREF & [F:MFM]MFGFCY = GZSTOFCY
+    Call ECR_TRACE("COMPONENTE "+GSUBESTADO+": "+[F:MFM]ITMREF,0) From GESECRAN
+
+    # variables locales
+    If !clalev([F:ZSTO]) Then : Local File STOCK [F:ZSTO] : Endif
+    Local Decimal ZSTOCOU
+    Local Decimal ZQTYSTU
+    Local Decimal ZQTYACT
+    Local Integer ZRET
+
+    Raz ZSTOCOU
+    Raz ZQTYSTU
+    Raz ZQTYACT
+    Raz ZRET
+
+    # buscar stock de GSUBESTADO disponible
+    # no utilizamos lote, sublote ni ubicación.
+    # buscamos directamente una línea de STOCK GSUBESTADO.
+    For [ZSTO] Where [F:ZSTO]STOFCY = GZSTOFCY & [F:ZSTO]ITMREF = GZITMREF & [F:ZSTO]STA = GSUBESTADO
+      # cantidad disponible para asignación
+      ZQTYSTU = [F:ZSTO]QTYSTU - [F:ZSTO]CUMALLQTY
+      ZQTYACT = [F:ZSTO]QTYSTUACT - [F:ZSTO]CUMALLQTA
+      If ZQTYSTU >= [F:MFM]RETQTY
+        ZSTOCOU = [F:ZSTO]STOCOU
+        Break
+      Endif
+    Next
+
+    # comprobar que hemos encontrado stock suficiente
+    If ZSTOCOU = 0
+      Call ECR_TRACE("NO HAY STOCK "+GSUBESTADO+" SUFICIENTE PARA "+[F:MFM]ITMREF,1) From GESECRAN
+      GPE = 1
+      GOK = 0
+      Return
+    Endif
+
+    #-------------------------------------------------------------------
+    # Crear asignación detallada
+    # LALL = 2 -> asignación detallada
+    # LFCY = planta stock
+    # LITM = artículo
+    # LCHR = STOCOU
+    # LQTY = cantidad en unidad de stock
+    # LQTA = cantidad activa
+    # LTYP = 10 -> OF
+    # LNUM = OF
+    # LLIN = línea OF
+    # LSEQ = BOMSEQ
+    # LSTA = GSUBESTADO
+    # No usamos:
+    # LOT
+    # SLO
+    # LOC
+    # SERNUM
+    # WRH
+    #----------------------------------------------------------------------
+    Call CREALL(2,
+&               GZSTOFCY,
+&               GZITMREF,
+&               ZSTOCOU,
+&               [31/12/2999],
+&               [F:MFM]RETQTY,
+&               [F:MFM]RETQTY,
+&               10,
+&               GZMFGNUM,
+&               [F:MFM]MFGLIN,
+&               [F:MFM]BOMSEQ,
+&               "",
+&               [F:MFM]RETDAT,
+&               "",
+&               "",
+&               GSUBESTADO,
+&               "",
+&               "",
+&               "",
+&               0,
+&               0,
+&               "",
+&               "",
+&               "",
+&               "",
+&               1,
+&               "",
+&               ZRET) From STKALL
+
+    # comprobar CREALL
+    If ZRET <> 0
+      Call ECR_TRACE("ERROR CREALL - RET="+num$(ZRET),1) From GESECRAN
+      GPE = 1
+      GOK = 0
+      Return
+    Endif
+
+    # actualizar MFGMAT
+    # hemos realizado nosotros la asignación porque GPE=1.
+    # por tanto el estándar no realizará esta parte.
+    [F:MFM]ALLQTY = [F:MFM]RETQTY
+    [F:MFM]SHTQTY = 0
+    [F:MFM]ALLSTA = 5
+
+    # impedir la asignación estándar
+    GPE = 1
+    Call ECR_TRACE("ASIGNACION "+GSUBESTADO+" CREADA - STOCOU="+num$(ZSTOCOU),0) From GESECRAN
+    Close Local File [ZSTO]
+  Endif
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################

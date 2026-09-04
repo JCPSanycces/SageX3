@@ -142,17 +142,6 @@ Gosub CHARGE_BPD
 GPE = 1
 End
 
-######################################################################################
-## Después de modificar el campo 'Artículo' (pantalla ZBPC1) 20/08/2026 08:24:23 (SN070)
-######################################################################################
-Subprog C_ITMREF(VALEUR)
-Variable Char    VALEUR()
-  Call UNICITE(VALEUR,[M:ZBPC1]ITMREF(0..[M:ZBPC1]NBLIG-1)) From OBJDIV
-  If mkstat = 2 Then
-      VALEUR = ""
-  Endif
-End
-
 ##############################################################
 ######################    ETIQUETAS    #######################
 ##############################################################
@@ -248,6 +237,7 @@ Local Integer LCON0
     [M:ZBPC1]ITMREF(LCON0)    = [F:ZCI0]ITMREF
     [M:ZBPC1]FCY(LCON0)       = [F:ZCI0]FCY
     [M:ZBPC1]STA(LCON0)       = [F:ZCI0]STA
+    [M:ZBPC1]PIO(LCON0)       = [F:ZCI0]PIO
     [L]LCON0                 += 1
     If [L]LCON0 > 3000 Then : Break : Endif
   Next
@@ -281,6 +271,7 @@ Local Integer LCON1
     [F:ZCI1]ITMREF    = [M:ZBPC1]ITMREF(LCON1)
     [F:ZCI1]FCY       = [M:ZBPC1]FCY(LCON1)
     [F:ZCI1]STA       = [M:ZBPC1]STA(LCON1)
+    [F:ZCI1]PIO       = [M:ZBPC1]PIO(LCON1)
     If !adxlog Then : Trbegin [F:ZCI1] : Endif
     Write [F:ZCI1]
     If !fstat Then

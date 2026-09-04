@@ -882,3 +882,86 @@ Local Integer LRET
   Endif
   Close Local File [ZPNH]
 End LRET
+
+##############################################################
+#**
+#* obtener el subestado de calidad para un cliente/artículo concreto
+#*
+#* @param PITM      > artículo
+#* @param PBPCORD   > cliente
+#* @param PFCY      > planta
+#* @param PQTY      > cantidad
+#*!
+Funprog GET_SUBESTADO(PITM,PBPCORD,PFCY,PQTY)
+Value Char    PITM,PBPCORD,PFCY
+Value Decimal PQTY
+
+Local Char    LRET(5)
+Local Decimal LSTO
+
+  If !clalev([F:ZCA0]) Then : Local File ZCLIALT  [F:ZCA0] : Endif
+  If !clalev([F:ZST0]) Then : Local File STOCK    [F:ZST0] : Endif
+  Filter [F:ZCA0] Where BPCNUM = PBPCORD and ITMREF = PITM and FCY = PFCY Order By PIO Asc
+  Read [F:ZCA0] First
+  If !fstat Then
+    For [F:ZCA0]
+      [L]LSTO = func ZSANLIB01.OBTENER_STOCK_DISP(PITM,PFCY,[F:ZCA0]STA)
+      If LSTO > PQTY Then
+        LRET = [F:ZCA0]STA
+        Break
+      Endif
+    Next
+  Endif
+  Filter [F:ZCA0]
+  Close Local File [ZCA0],[ZST0]
+
+End LRET
+
+################################################################
+#**
+#* devuelve el stock disponible
+#*
+#* @param V_ITMREF  > artículo
+#* @param V_STOFCY  > planta
+#* @param V_STA     > estado
+#*!
+Funprog OBTENER_STOCK_DISP(V_ITMREF, V_STOFCY, V_STA)
+Value Char V_ITMREF()
+Value Char V_STOFCY()
+Value Char V_STA()      # (ej. "A", "Q", "R" o subestados "A1", "QL", "A*", etc.)
+
+  Local Decimal L_STOCK_DISP
+  L_STOCK_DISP = 0
+
+  # 1. Abrimos la tabla STOCK utilizando un alias de forma segura
+  If !clalev([F:ZSTK]) : Local File STOCK [F:ZSTK] : Endif
+
+  # 2. Optimizamos el rendimiento transfiriendo únicamente los campos necesarios de la BD
+  Columns [F:ZSTK] (ITMREF, STOFCY, STA, QTYSTU, CUMALLQTY)
+
+  # 3. Aplicamos el filtro dinámico para buscar el artículo en la planta y estado seleccionados
+  # Si el parámetro del estado incluye un comodín (ej. "A*") para abarcar subestados
+  If right$(V_STA, 2) = "*"
+    Local Char V_STA_BASE(3)
+    V_STA_BASE = left$(V_STA, len(V_STA)-1)
+    Filter [F:ZSTK] Where ITMREF = V_ITMREF
+&                    and STOFCY = V_STOFCY
+&                    and left$(STA, len(V_STA_BASE)) = V_STA_BASE
+  Else
+    # Filtro exacto por el estado/subestado provisto
+    Filter [F:ZSTK] Where ITMREF = V_ITMREF
+&                    and STOFCY = V_STOFCY
+&                    and STA = V_STA
+  Endif
+
+  # 4. Recorremos las líneas de stock resultantes sumando la disponibilidad
+  For [F:ZSTK]
+    L_STOCK_DISP += ([F:ZSTK]QTYSTU - [F:ZSTK]CUMALLQTY)
+  Next
+
+  # 5. Restablecemos filtros y columnas para liberar el búfer de memoria
+  Filter [F:ZSTK]
+  Columns [F:ZSTK]
+  Close Local File [ZSTK]
+
+End L_STOCK_DISP
