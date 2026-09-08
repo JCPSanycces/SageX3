@@ -130,7 +130,7 @@ For [F:ZOCTL] Where [F:ZOCTL]YESTADO = 1
     Else
       Actzo [M:ZOCERESO]
     Endif
-
+    Gosub CONTROL_2_INCIDENCIA  # @02@ - JLP
  #    If [F:ZOCTL]YINCIDENCIA < 5 # @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
     If [F:ZOCTL]YINCIDENCIA < 6 # @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
        For I=0 To [M:ZOCERESO]NBLIG3-1
@@ -558,3 +558,62 @@ PRAF_DESC(2) = [M:SOH4]DISCRGVAL3
 
 End
 #######################################################################################
+#######################################################################################
+# @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado - INI
+$CONTROL_2_INCIDENCIA
+    If [F:ZOCTL]YINCIDENCIA2 < 6 and [F:ZOCTL]YINCIDENCIA = 5  # @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado
+        For I=0 To [M:ZOCERESO]NBLIG3-1
+            If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I) and [M:ZOCERESO]ITMREF(I) = ''
+                [F:ZOCTL]YINCIDENCIA2 = 4
+                Rewrite [F:ZOCTL]
+                [M:ZOCRECTL]YINCIDENCIA2 = 4
+#                Infbox "INCIDENCIA: "-num$([M:ZOCRECTL]YINCIDENCIA)
+                Break
+            Endif
+
+            If [M:ZOCERESO]ITMREF(I) = ''
+                [F:ZOCTL]YINCIDENCIA2 = 3
+                Rewrite [F:ZOCTL]
+                [M:ZOCRECTL]YINCIDENCIA2 = 3
+#                Infbox "INCIDENCIA: "-num$([M:ZOCRECTL]YINCIDENCIA)
+                Break
+            Endif
+
+            If [M:ZOCERESO]NETPRI(I) <> [M:ZOCERESO]NETPRIS(I)
+                [F:ZOCTL]YINCIDENCIA2 = 2
+                Rewrite [F:ZOCTL]
+                [M:ZOCRECTL]YINCIDENCIA2 = 2
+#                Infbox "INCIDENCIA: "-num$([M:ZOCRECTL]YINCIDENCIA)
+            Endif
+        Next
+    Endif
+
+    If [M:ZOCERESO]BPCINV = ""
+        [M:ZOCERESO]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+        [F:ZOCSOH]BPCINV = func CHECK_BPCINV([M:ZOCERESO]BPCORD)
+        Rewrite [F:ZOCSOH]
+    Endif
+
+    Affzo [M:ZOCRECTL]
+    Affzo [M:ZOCERESO]
+
+    [L]S_SQLMESS = "SELECT CASE WHEN EXISTS (SELECT 1 FROM ZOCERE1T WHERE CONTADOR_0 = '"+[F:ZOCTL]CONTADOR+
+&   "' AND CHARINDEX('PEDIDO ENTREGA DIRECTA',CONCAT(C3_0,C4_0,C5_0,C6_0,C7_0))>0) THEN 1 ELSE 0 END AS Encontrado"
+
+    For (Integer I_ENCONTRADO) From '5'  Sql [L]S_SQLMESS As [ZSQL]
+        If [ZSQL]I_ENCONTRADO
+            [M:ZOCERE1C]C10 = 'EDP'
+            [F:ZOC1C]C10 = 'EDP'
+            Rewrite [F:ZOC1C]
+            Affzo [M:ZOCERE1C]
+        Endif
+    Next
+
+    Raz [M:ZOCERE1C]
+    Raz [M:ZOCERE1T]
+    Raz [M:ZOCERE1P]
+    Raz [M:ZOCERE1L]
+    Raz [M:ZOCERESO]
+    Raz [M:ZOCRECTL]
+Return
+# @02@ - JLP - NUN28 - 30-10-2025  Control en el envio masivo para el duplicado - FIN
