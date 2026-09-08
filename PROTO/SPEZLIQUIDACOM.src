@@ -1,0 +1,233 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEZLIQUIDACOM
+# Description : Específico Liquidación de comisiones
+# Module      : Datos base
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 07/09/2026
+############################################################################
+
+Gosub DEBUT
+#Gosub MARCAR
+Gosub OK
+Gosub FIN
+End
+
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "DEBUT"          : Gosub DEBUT
+  When "OK"             : Gosub OK
+  When "BOUTON"         : Gosub BOUTON
+  When "MEN"            : Gosub MEN_
+  When "FIN"            : Gosub FIN
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$DEBUT
+
+Global Char   GCORREOZLQ(250),GFILEZLQ(250),GASUNTOZLQ(250),GTEXTOZLQ(250)
+Local Char    TBPAR(20)(1..20),TBVAL(50)(1..20)
+Local Integer I
+
+  If !clalev([F:ZBPR]) Then : Local File BPARTNER     [F:ZBPR] : Endif
+  If !clalev([F:ZBPA]) Then : Local File BPADDRESS    [F:ZBPA] : Endif
+  If !clalev([M:ZLC0]) Then : Local Mask ZLIQUIDACOM0 [M:ZLC0] : Endif
+
+  Default Mask  [M:ZLC0]
+  Raz           [M:ZLC0]
+
+  Link [F:ZBPR] With [F:ZBPA]BPA0 = 1;[F:ZBPR]BPRNUM;[F:ZBPR]BPAADD As [LNK]
+  Columns [LNK] ([F:ZBPR]BPRNUM,[F:ZBPR]BPRNAM,[F:ZBPR]CRN,[F:ZBPA]WEB(0),[F:ZBPR]LAN)
+  Filter [LNK] Where ENAFLG = 2 and REPFLG = 2 and ZLIQUIDACOM = 2
+  For    [LNK]
+    [M:ZLC0]BPRNUM(I) = [F:ZBPR]BPRNUM
+    [M:ZLC0]BPRNAM(I) = [F:ZBPR]BPRNAM
+    [M:ZLC0]CRN(I)    = [F:ZBPR]CRN
+    [M:ZLC0]WEB(I)    = [F:ZBPA]WEB(0)
+    [M:ZLC0]LAN(I)    = [F:ZBPR]LAN(0)
+    I += 1
+  Next
+  [M:ZLC0]NBLIG = I
+  Affzo [M:ZLC0]
+  Columns [LNK]
+  Filter [F:ZBPR]
+Return
+
+##############################################################
+$OK
+Local Integer I
+Local Date    LPRIMERDIA(50),LULTIMODIA(50)
+Local Char    LMES(50)
+
+  Call GET_FECHAS([L]LPRIMERDIA,[L]LULTIMODIA)
+
+  For I=0 To [M:ZLC0]NBLIG-1
+    If [M:ZLC0]ZSEL(I) = 2 Then
+      # parámetros de impresión de comisiones
+      NBPAR = 0
+      NBPAR += 1 : TBPAR(NBPAR) = "repdeb"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
+      NBPAR += 1 : TBPAR(NBPAR) = "repfin"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
+      NBPAR += 1 : TBPAR(NBPAR) = "datdeb"        : TBVAL(NBPAR) = num$([L]LPRIMERDIA)
+      NBPAR += 1 : TBPAR(NBPAR) = "datfin"        : TBVAL(NBPAR) = num$([L]LULTIMODIA)
+      NBPAR += 1 : TBPAR(NBPAR) = "detail"        : TBVAL(NBPAR) = "2"
+      NBPAR += 1 : TBPAR(NBPAR) = "liquidada"     : TBVAL(NBPAR) = "1"
+      NBPAR += 1 : TBPAR(NBPAR) = "impselections" : TBVAL(NBPAR) = "1"
+      NBPAR += 1 : TBPAR(NBPAR) = "mostrartipo"   : TBVAL(NBPAR) = "2"
+
+      If [M:ZLC0]LAN(I) = "SPA" Then
+        Case month([L]LPRIMERDIA)
+          When 1  : [L]LMES = "Enero"
+          When 2  : [L]LMES = "Febrero"
+          When 3  : [L]LMES = "Marzo"
+          When 4  : [L]LMES = "Abril"
+          When 5  : [L]LMES = "Mayo"
+          When 6  : [L]LMES = "Junio"
+          When 7  : [L]LMES = "Julio"
+          When 8  : [L]LMES = "Agosto"
+          When 9  : [L]LMES = "Septiembre"
+          When 10 : [L]LMES = "Octubre"
+          When 11 : [L]LMES = "Noviembre"
+          When 12 : [L]LMES = "Diciembre"
+        Endcase
+        [V]GASUNTOZLQ = "Comisiones"-[M:ZLC0]BPRNAM(I)-[L]LMES
+        [V]GTEXTOZLQ  = "Buenos días,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "adjuntamos liquidación de comisiones correspondientes al mes de " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Quedamos a la espera de recibir la factura."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Un saludo."
+      Elsif [M:ZLC0]LAN(I) = "FRA" Then
+        Case month([L]LPRIMERDIA)
+          When 1  : [L]LMES = "janvier"
+          When 2  : [L]LMES = "février"
+          When 3  : [L]LMES = "mars"
+          When 4  : [L]LMES = "avril"
+          When 5  : [L]LMES = "mai"
+          When 6  : [L]LMES = "juin"
+          When 7  : [L]LMES = "juillet"
+          When 8  : [L]LMES = "août"
+          When 9  : [L]LMES = "septembre"
+          When 10 : [L]LMES = "octobre"
+          When 11 : [L]LMES = "novembre"
+          When 12 : [L]LMES = "décembre"
+        Endcase
+        [V]GASUNTOZLQ = "Commissions"-[M:ZLC0]BPRNAM(I)-[L]LMES
+        [V]GTEXTOZLQ  = "Bonjour,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Vous trouverez ci-joint la liste des commissions correspondant au mois de " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Nous attendons de recevoir la facture."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Cordialement."
+      Else
+        Case month([L]LPRIMERDIA)
+          When 1  : [L]LMES = "January"
+          When 2  : [L]LMES = "February"
+          When 3  : [L]LMES = "March"
+          When 4  : [L]LMES = "April"
+          When 5  : [L]LMES = "May"
+          When 6  : [L]LMES = "June"
+          When 7  : [L]LMES = "July"
+          When 8  : [L]LMES = "August"
+          When 9  : [L]LMES = "September"
+          When 10 : [L]LMES = "October"
+          When 11 : [L]LMES = "November"
+          When 12 : [L]LMES = "December"
+        Endcase
+        [V]GASUNTOZLQ = "Commissions"-[M:ZLC0]BPRNAM(I)-[L]LMES
+        [V]GTEXTOZLQ  = "Good morning,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Please find attached the commission statement for the month of " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "We look forward to receiving the invoice."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Kind regards."
+      Endif
+
+      GCORREOZLQ  = [M:ZLC0]WEB(I)
+      GCORREOZLQ  ="jl.chiva@sanycces.es"
+      GFILEZLQ    = filpath("TMP","Comisiones_"+
+&                           num$(year([L]LPRIMERDIA))+"_"+
+&                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
+&                           [M:ZLC0]BPRNUM(I),"pdf")
+      GFILPATH    = GFILEZLQ
+
+      Call ETAT('Z_COM_REP_BATCH','FILE',"",0,"",TBPAR,TBVAL) From AIMP3
+
+      Call WORKFLOW (1,"ZLQ","","INFO1") From AWRK
+
+    Endif
+  Next
+Return
+
+##############################################################
+$BOUTON
+  Case BOUT
+    When "a"    : Gosub DEBUT
+  Endcase
+Return
+
+##############################################################
+$MEN_
+  Case BOUT
+    When "m"    : Gosub MARCAR
+    When "d"    : Gosub DESMARCAR
+  Endcase
+Return
+
+##############################################################
+$FIN
+  Close Local File [ZBPR],[ZBPA]
+  Close Local Mask [ZLC0]
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$MARCAR
+Local Integer I
+  For I=0 To [M:ZLC0]NBLIG-1
+    [M:ZLC0]ZSEL(I) = 2
+  Next
+  Affzo [M:ZLC0]
+Return
+
+##############################################################
+$DESMARCAR
+Local Integer I
+  For I=0 To [M:ZLC0]NBLIG-1
+    [M:ZLC0]ZSEL(I) = 1
+  Next
+  Affzo [M:ZLC0]
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################
+##############################################################
+#**
+#* devuelve el primer día del mes anterior y el último día del mes anterior
+#*
+#* @param PPRIMERDIA > primer día
+#* @param PULTIMODIA > último día
+#*!
+Subprog GET_FECHAS(PPRIMERDIA,PULTIMODIA)
+Variable Date PPRIMERDIA,PULTIMODIA
+
+Local Date DATE_HOY,MES_ANT
+
+  DATE_HOY    = date$
+  MES_ANT     = addmonth(DATE_HOY,-1)
+  PPRIMERDIA  = addmonth(date$, -1)
+  PPRIMERDIA  = gdat$(1, month(MES_ANT), year(MES_ANT))
+  PULTIMODIA  = eomonth(MES_ANT)
+
+End
