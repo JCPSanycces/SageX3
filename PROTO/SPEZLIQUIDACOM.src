@@ -84,7 +84,7 @@ LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
 
   For I=0 To [M:ZLC0]NBLIG-1
     If [M:ZLC0]ZSEL(I) = 2 Then
-      # parámetros de impresión de comisiones
+      # parámetros de impresión de comisiones en PDF
       NBPAR = 0
       NBPAR += 1 : TBPAR(NBPAR) = "repdeb"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
       NBPAR += 1 : TBPAR(NBPAR) = "repfin"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
@@ -179,6 +179,17 @@ LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
 
 # generar el fichero excel
       Sleep 30
+      # parámetros de impresión de comisiones en EXCEL
+      NBPAR = 0
+      NBPAR += 1 : TBPAR(NBPAR) = "repdeb"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
+      NBPAR += 1 : TBPAR(NBPAR) = "repfin"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
+      NBPAR += 1 : TBPAR(NBPAR) = "datdeb"        : TBVAL(NBPAR) = num$([L]LPRIMERDIA)
+      NBPAR += 1 : TBPAR(NBPAR) = "datfin"        : TBVAL(NBPAR) = num$([L]LULTIMODIA)
+      NBPAR += 1 : TBPAR(NBPAR) = "detail"        : TBVAL(NBPAR) = "1"
+      NBPAR += 1 : TBPAR(NBPAR) = "liquidada"     : TBVAL(NBPAR) = "1"
+      NBPAR += 1 : TBPAR(NBPAR) = "impselections" : TBVAL(NBPAR) = "1"
+      NBPAR += 1 : TBPAR(NBPAR) = "mostrartipo"   : TBVAL(NBPAR) = "2"
+
       GFILEZLQ    = filpath("IMPORT\COMISIONES","Comisiones_"+
 &                           num$(year([L]LPRIMERDIA))+"_"+
 &                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
@@ -187,7 +198,7 @@ LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
 
       Call ETAT('Z_COM_REP_BATCH','EXCEL3',"",0,"",TBPAR,TBVAL) From AIMP3
 
-      Sleep 300
+      Sleep 180
 
     Endif
   Next
