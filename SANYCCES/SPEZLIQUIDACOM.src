@@ -36,9 +36,10 @@ Return
 ##############################################################
 $DEBUT
 
-Global Char   GCORREOZLQ(250),GFILEZLQ(250),GASUNTOZLQ(250),GTEXTOZLQ(250)
-Local Char    TBPAR(20)(1..20),TBVAL(50)(1..20)
-Local Integer I
+Global Char     GCORREOZLQ(250),GFILEZLQ(250),GASUNTOZLQ(250)
+Global Clbfile  GTEXTOZLQ(2)
+Local Char      TBPAR(20)(1..20),TBVAL(50)(1..20)
+Local Integer   I
 
   If !clalev([F:ZBPR]) Then : Local File BPARTNER     [F:ZBPR] : Endif
   If !clalev([F:ZBPA]) Then : Local File BPADDRESS    [F:ZBPA] : Endif
@@ -100,31 +101,34 @@ Local Char    LMES(50)
           When 11 : [L]LMES = "Noviembre"
           When 12 : [L]LMES = "Diciembre"
         Endcase
-        [V]GASUNTOZLQ = "Comisiones"-[M:ZLC0]BPRNAM(I)-[L]LMES
-        [V]GTEXTOZLQ  = "Buenos días,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "adjuntamos liquidación de comisiones correspondientes al mes de " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Quedamos a la espera de recibir la factura."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Un saludo."
+        [V]GASUNTOZLQ = "Comisiones -"-[L]LMES
+        [V]GTEXTOZLQ  = "Estimado/a"-[M:ZLC0]BPRNAM(I)+":"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Adjunto encontrará la liquidación de comisiones correspondiente al mes de " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Le agradeceríamos que la revisara y nos enviara la factura correspondiente lo antes posible."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Si tiene cualquier duda o necesita información adicional, no dude en ponerse en contacto con nosotros."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Un cordial saludo,"
       Elsif [M:ZLC0]LAN(I) = "FRA" Then
         Case month([L]LPRIMERDIA)
-          When 1  : [L]LMES = "janvier"
-          When 2  : [L]LMES = "février"
-          When 3  : [L]LMES = "mars"
-          When 4  : [L]LMES = "avril"
-          When 5  : [L]LMES = "mai"
-          When 6  : [L]LMES = "juin"
-          When 7  : [L]LMES = "juillet"
-          When 8  : [L]LMES = "août"
-          When 9  : [L]LMES = "septembre"
-          When 10 : [L]LMES = "octobre"
-          When 11 : [L]LMES = "novembre"
-          When 12 : [L]LMES = "décembre"
+          When 1  : [L]LMES = "Janvier"
+          When 2  : [L]LMES = "Février"
+          When 3  : [L]LMES = "Mars"
+          When 4  : [L]LMES = "Avril"
+          When 5  : [L]LMES = "Mai"
+          When 6  : [L]LMES = "Juin"
+          When 7  : [L]LMES = "Juillet"
+          When 8  : [L]LMES = "Août"
+          When 9  : [L]LMES = "Septembre"
+          When 10 : [L]LMES = "Octobre"
+          When 11 : [L]LMES = "Novembre"
+          When 12 : [L]LMES = "Décembre"
         Endcase
-        [V]GASUNTOZLQ = "Commissions"-[M:ZLC0]BPRNAM(I)-[L]LMES
-        [V]GTEXTOZLQ  = "Bonjour,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Vous trouverez ci-joint la liste des commissions correspondant au mois de " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Nous attendons de recevoir la facture."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Cordialement."
+        [V]GASUNTOZLQ = "Relevé de Commissions -"-[L]LMES
+        [V]GTEXTOZLQ  = "Cher/Chère"-[M:ZLC0]BPRNAM(I)+","+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Veuillez trouver ci-joint le relevé de commissions correspondant au mois de " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Nous vous remercions de bien vouloir le vérifier et de nous faire parvenir la facture correspondante dans les meilleurs délais."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+
+& chr$(13)+
+&                       "Si vous avez la moindre question ou si vous avez besoin d’informations complémentaires, n’hésitez pas à nous contacter."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Cordialement,"
       Else
         Case month([L]LPRIMERDIA)
           When 1  : [L]LMES = "January"
@@ -140,15 +144,17 @@ Local Char    LMES(50)
           When 11 : [L]LMES = "November"
           When 12 : [L]LMES = "December"
         Endcase
-        [V]GASUNTOZLQ = "Commissions"-[M:ZLC0]BPRNAM(I)-[L]LMES
-        [V]GTEXTOZLQ  = "Good morning,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Please find attached the commission statement for the month of " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "We look forward to receiving the invoice."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
-&                       "Kind regards."
+        [V]GASUNTOZLQ = "Settlement Commission -"-[L]LMES
+        [V]GTEXTOZLQ  = "Dear"-[M:ZLC0]BPRNAM(I)+","+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Please find attached the settlement commission statement corresponding to " + [L]LMES + "."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "We would appreciate it if you could review it and send us the corresponding invoice as soon as possible."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Should you have any questions or require any further information, please do not hesitate to contact us."+chr$(10)+chr$(13)+chr$(10)+chr$(13)+chr$(10)+chr$(13)+
+&                       "Best regards,"
       Endif
 
       GCORREOZLQ  = [M:ZLC0]WEB(I)
-      GCORREOZLQ  ="jl.chiva@sanycces.es"
+
+# generar el fichero pdf
       GFILEZLQ    = filpath("TMP","Comisiones_"+
 &                           num$(year([L]LPRIMERDIA))+"_"+
 &                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
@@ -157,7 +163,21 @@ Local Char    LMES(50)
 
       Call ETAT('Z_COM_REP_BATCH','FILE',"",0,"",TBPAR,TBVAL) From AIMP3
 
-      Call WORKFLOW (1,"ZLQ","","INFO1") From AWRK
+      Sleep 600
+
+      Call WORKFLOW (1,"ZLQ","","SN061") From AWRK
+
+# generar el fichero excel
+      Sleep 30
+      GFILEZLQ    = filpath("IMPORT\COMISIONES","Comisiones_"+
+&                           num$(year([L]LPRIMERDIA))+"_"+
+&                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
+&                           [M:ZLC0]BPRNUM(I),"xls")
+      GFILPATH    = GFILEZLQ
+
+      Call ETAT('Z_COM_REP_BATCH','EXCEL3',"",0,"",TBPAR,TBVAL) From AIMP3
+
+      Sleep 300
 
     Endif
   Next
