@@ -24,6 +24,7 @@
 # 2026-00039 - JCP.15062026.No arrastra bien los precios de componentes de EC cuando se han manipulado líneas
 # 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
 # 2026-00214 - JCP.27082026.Necesidades duplicación pedidos
+# 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
 #####################################################################################################
 
 $ACTION
@@ -45,6 +46,7 @@ Case ACTION
   When "APRES_CRE"   : Gosub APRES_CRE #  @09@ - SCD - 23/04/2025 - Desarrollo CONFIGURADOR (YCONFIG - YSA08)
   When "INIMOD"      : Gosub INIMOD #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
   When "STYLE"       : Gosub STYLE  #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
+  When "INICRE_LIG"  : Gosub INICRE_LIG
 Endcase
 Return
 
@@ -53,6 +55,11 @@ $OUVRE
 # 2026-00039.ini
 Global Decimal GNETPRI,GREPCOE
 # 2026-00039.fin
+
+# 2026-00391.ini
+If !clalev([F:ZCAT]) Then : Local File ZCLIALT [F:ZCAT] : Endif
+# 2026-00391.fin
+
 Return
 
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
@@ -449,6 +456,40 @@ Endif
 GPE = 1
 Return
 
+######################################################################################
+INICRE_LIG
+# 2026-00391.ini
+  # llamada a la asignación para los artículos con subestado en venta directa al crear la línea desde presupuesto
+  If GNAVIG(GPILNAV-1) = "GESSQH"
+    Gosub INICRE_LIG From SUBSOHA
+    Local Decimal LCANTIDAD : [L]LCANTIDAD = [M:SOH4]QTY(NOL)
+    Gosub ASIGNA_LINEA
+    GPE=1
+  Endif
+# 2026-00391.fin
+Return
+
+######################################################################################
+$ASIGNA_LINEA
+# 2026-00391.ini
+Local Char LSUBESTADO(5)
+
+  # asignación para los artículos con subestado en venta directa
+  Filter [F:ZCAT] Where ITMREF = [M:SOH4]ITMREF(NOL) and FCY = [M:SOH0]SALFCY
+  Read [F:ZCAT] First
+  If !fstat Then
+    LSUBESTADO = func ZSANLIB01.GET_SUBESTADO([M:SOH4]ITMREF(NOL),[M:SOH0]BPCORD,[M:SOH0]SALFCY,LCANTIDAD)
+    If LSUBESTADO = "" Then : LSUBESTADO = "A1" : Endif
+    [M:SOH4]DALLTYP(NOL) = 2
+    [M:SOH4]STA(NOL)     = LSUBESTADO
+    [M:SOH4]UPDFLG(NOL)  = 2
+    Affzo [M:SOH4]DALLTYP(NOL)
+    Affzo [M:SOH4]STA(NOL)
+    Affzo [M:SOH4]UPDFLG(NOL)
+  Endif
+  Filter [F:ZCAT]
+# 2026-00391.fin
+Return
 
 ######################################################################################
 Subprog AM_ZASOCIADO(VALEUR)
@@ -638,6 +679,21 @@ If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]STOMGTCOD(nolign-1) = 1
   # Mato la acción STD
   GPE = 1
 Endif
+End
+
+######################################################################################
+## Después del campo Cantidad (pantalla SOH4) 10/09/2026 11:17:28 (SN070)
+######################################################################################
+Subprog AP_QTY(VALEUR)
+Variable Decimal VALEUR
+
+Local Integer NOL       : [L]NOL        = nolign-1
+Local Decimal LCANTIDAD : [L]LCANTIDAD  = VALEUR
+
+# 2026-00391.ini
+  # llamada a la asignación para los artículos con subestado en venta directa al añadir una nueva línea
+  Gosub ASIGNA_LINEA
+# 2026-00391.ini
 End
 
 ######################################################################################
@@ -1312,6 +1368,7 @@ Endif
 # 2026-00066.ini
   Gosub UPD_CANTIDAD_CONT
 # 2026-00066.fin
+
 End
 
 

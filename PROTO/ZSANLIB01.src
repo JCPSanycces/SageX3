@@ -901,12 +901,12 @@ Local Decimal LSTO
 
   If !clalev([F:ZCA0]) Then : Local File ZCLIALT  [F:ZCA0] : Endif
   If !clalev([F:ZST0]) Then : Local File STOCK    [F:ZST0] : Endif
-  Filter [F:ZCA0] Where BPCNUM = PBPCORD and ITMREF = PITM and FCY = PFCY Order By PIO Asc
+  Filter [F:ZCA0] Where BPCNUM = PBPCORD and ITMREF = PITM and FCY = PFCY and STA <> "A" Order By PIO Asc
   Read [F:ZCA0] First
   If !fstat Then
     For [F:ZCA0]
       [L]LSTO = func ZSANLIB01.OBTENER_STOCK_DISP(PITM,PFCY,[F:ZCA0]STA)
-      If LSTO > PQTY Then
+      If LSTO >= PQTY Then
         LRET = [F:ZCA0]STA
         Break
       Endif
@@ -960,6 +960,49 @@ Value Char V_STA()      # (ej. "A", "Q", "R" o subestados "A1", "QL", "A*", etc.
   Next
 
   # 5. Restablecemos filtros y columnas para liberar el búfer de memoria
+  Filter [F:ZSTK]
+  Columns [F:ZSTK]
+  Close Local File [ZSTK]
+
+End L_STOCK_DISP
+
+################################################################
+# OBTENER_STOCK_SUBESTADOS_A
+#
+# Devuelve el stock disponible de:
+#
+#   A1
+#   A2
+#   A3
+#   ...
+#
+# Excluye expresamente:
+#
+#   A
+#
+################################################################
+Funprog OBTENER_STOCK_SUBESTADOS_A(V_ITMREF,V_STOFCY)
+
+Value Char V_ITMREF()
+Value Char V_STOFCY()
+
+Local Decimal L_STOCK_DISP
+
+  L_STOCK_DISP = 0
+
+  If !clalev([F:ZSTK]) : Local File STOCK [ZSTK] : Endif
+
+  Columns [F:ZSTK] (ITMREF,STOFCY,STA,QTYSTU,CUMALLQTY)
+
+  Filter [F:ZSTK] Where ITMREF = V_ITMREF
+&                      and STOFCY = V_STOFCY
+&                      and left$(STA,1) = "A"
+&                      and STA <> "A"
+
+  For [F:ZSTK]
+    L_STOCK_DISP += [F:ZSTK]QTYSTU - [F:ZSTK]CUMALLQTY
+  Next
+
   Filter [F:ZSTK]
   Columns [F:ZSTK]
   Close Local File [ZSTK]

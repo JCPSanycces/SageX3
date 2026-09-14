@@ -20,14 +20,6 @@ $EXEC
       Global Char    GZITMREF(GLONITM)
       Global Char    GZSTOFCY(GLONFCY)
       Global Char    GZBPCORD(GLONBPC) : [V]GZBPCORD = [M:SOH0]BPCORD
-
-      Global Integer GZFORCEA2
-      Global Integer GZALLOK
-
-      Global Decimal GZWALL
-      Global Decimal GZWSHT
-      Global Integer GZWRET
-
       Global Char    GSUBESTADO(5)
 # 2026-00391.fin
 
@@ -460,6 +452,7 @@ For  [F:ZORD]                                             # 0 - Recorro la tabla
 # GPE=1
 
 # 2026-00391.ini
+  # cambiar el estado de la asignación en la orden a Completo porque, si no, no deja iniciar la OF
   If GNAVIG(GPILNAV) = "GESSOH" Then
     Local Integer LCTRLTRB
     If !clalev([F:ZMFG]) Then : Local File MFGHEAD [F:ZMFG] : Endif
