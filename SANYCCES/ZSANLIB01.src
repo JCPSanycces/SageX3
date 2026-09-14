@@ -879,3 +879,33 @@ Local Integer LRET
   Endif
   Close Local File [ZPNH]
 End LRET
+
+##############################################################
+#**
+#* devuelve la descripción del artículo en la línea de pedido
+#*
+#* @param PLINEA > línea de documento
+#*!
+Funprog GET_ITMDES(PLINEA)
+Value Integer PLINEA
+
+Local Char LRET(250)
+
+  If !clalev([F:ZSOP0]) Then : Local File SORDERP [F:ZSOP0] : Endif
+  If !clalev([F:ZMFI0]) Then : Local File MFGITM  [F:ZMFI0] : Endif
+
+  If [M:ORD2]WIPTYP(PLINEA) = 1 Then
+    Read [F:ZSOP0]SOP0 = [M:ORD2]VCRNUM(PLINEA);[M:ORD2]VCRLIN(PLINEA);[M:ORD2]VCRLIN(PLINEA)
+    If !fstat Then
+      LRET = [F:ZSOP0]ITMDES
+    Endif
+  Elsif [M:ORD2]WIPTYP(PLINEA) = 5 Then
+    Read [F:ZMFI0]MFI0 = [M:ORD2]VCRNUM(PLINEA);[M:ORD2]VCRLIN(PLINEA)
+    If !fstat Then
+      Read [F:ZSOP0]SOP0 = [F:ZMFI0]VCRNUMORI;[F:ZMFI0]VCRLINORI;[F:ZMFI0]VCRSEQORI
+      If !fstat Then
+        LRET = [F:ZSOP0]ITMDES
+      Endif
+    Endif
+  Endif
+End LRET
