@@ -152,23 +152,23 @@ Local Char    LMES(50)
 &                       "Best regards,"
       Endif
 
-#      GCORREOZLQ  = [M:ZLC0]WEB(I)
-#
-## generar el fichero pdf
-#      GFILEZLQ    = filpath("TMP","Comisiones_"+
-#&                           num$(year([L]LPRIMERDIA))+"_"+
-#&                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
-#&                           [M:ZLC0]BPRNUM(I),"pdf")
-#      GFILPATH    = GFILEZLQ
-#
-#      Call ETAT('Z_COM_REP_BATCH','FILE',"",0,"",TBPAR,TBVAL) From AIMP3
-#
-#      Sleep 600
-#
-#      Call WORKFLOW (1,"ZLQ","","SN061") From AWRK
-#
-## generar el fichero excel
-#      Sleep 30
+      GCORREOZLQ  = [M:ZLC0]WEB(I)
+
+# generar el fichero pdf
+      GFILEZLQ    = filpath("TMP","Comisiones_"+
+&                           num$(year([L]LPRIMERDIA))+"_"+
+&                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
+&                           [M:ZLC0]BPRNUM(I),"pdf")
+      GFILPATH    = GFILEZLQ
+
+      Call ETAT('Z_COM_REP_BATCH','FILE',"",0,"",TBPAR,TBVAL) From AIMP3
+
+      Sleep 600
+
+      Call WORKFLOW (1,"ZLQ","","SN061") From AWRK
+
+# generar el fichero excel
+      Sleep 30
       # parámetros de impresión de comisiones en EXCEL
       NBPAR = 0
       NBPAR += 1 : TBPAR(NBPAR) = "repdeb"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
