@@ -1,4 +1,4 @@
-#<AdxTL>@(#)0.0.0.0 $Revision$
+#<AdxTL>@(#)0.0.0.0 $Revision$ 
 #<AdxTL>@(#)0.0.0.0 $Revision$
 ##########################################################################
 #
@@ -348,7 +348,7 @@ For [XX01] Where [XX01]PRHNUM = PPRHNUM
     Read [XX02]SOP0 = [XX05]SOHNUM;[XX05]SOQSEQ;[XX05]SOPLIN
     If fstat = 0
       # Si el importe bruto es superior a 1.500€ lo muestro
-      If [XX02]NETPRINOT > 1500
+      If [XX02]NETPRINOT >= 1200
         [L]MUESTRO = 2
       Else
         [L]BRUTO_LINEA = [XX02]NETPRINOT
@@ -362,7 +362,7 @@ For [XX01] Where [XX01]PRHNUM = PPRHNUM
             If fstat = 0
               [L]BRUTO_LINEA += [XX04]NETPRINOT
             Endif
-            If [L]BRUTO_LINEA > 1500
+            If [L]BRUTO_LINEA >= 1200
               [L]MUESTRO = 2
               Break
             Endif
@@ -515,7 +515,7 @@ For [XX01] Where [XX01]PRHNUM = PPRHNUM
   For [XX02] Where [XX02]SOHNUM = [XX01]ORINUM and [XX02]SOPSEQ = [XX01]ORISEQ and [XX02]SOPLIN = [XX01]ORILIN
     # Si el importe bruto es superior a 1.500€ lo muestro
     [L]BRUTO_LINEA = [XX02]NETPRINOT
-    If [XX02]NETPRINOT > 1500
+    If [XX02]NETPRINOT >= 1200
       [L]MUESTRO = 2
       [L]BRUTO_TOTAL += [L]BRUTO_LINEA
     Endif
@@ -530,7 +530,7 @@ For [XX01] Where [XX01]PRHNUM = PPRHNUM
           Endif
         Next
       Filter
-      If [L]BRUTO_LINEA > 1500
+      If [L]BRUTO_LINEA >= 1200
         [L]MUESTRO = 2
         [L]BRUTO_TOTAL += [L]BRUTO_LINEA
       Endif
