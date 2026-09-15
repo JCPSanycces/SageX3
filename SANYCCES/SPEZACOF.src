@@ -44,7 +44,7 @@ $CARGA_REGISTROS
 Local Integer I
   Raz [M:ZACOF0]
   If !clalev([F:ZACO]) Then : Local File ZAPPCIERREOF [F:ZACO] : Endif
-  Filter [F:ZACO] Order By ZFECHACREA Desc;ZHORACREA Desc
+  Filter [F:ZACO] Where ZFECHACREA >= date$-30 Order By ZFECHACREA Desc;ZHORACREA Desc
   For [F:ZACO]
     [M:ZACOF0]MFGNUM(I)       = [F:ZACO]MFGNUM
     [M:ZACOF0]ITMREF(I)       = [F:ZACO]ITMREF
