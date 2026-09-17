@@ -230,6 +230,9 @@ Return
 # 2026-00391.ini
 $ASIGNAR_SUBESTADO
 Local Decimal LSTODISP
+Local Decimal LQTADEL
+Local Decimal LSHTDEL
+Local Integer LRETDEL
 
   Call ECR_TRACE("ALLCHOMAT - ITMREF="+[F:MFM]ITMREF+" BOMSEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
 
@@ -247,6 +250,9 @@ Local Decimal LSTODISP
   Raz GZITMREF
   Raz GZSTOFCY
   Raz GSUBESTADO
+  Raz LQTADEL
+  Raz LSHTDEL
+  Raz LRETDEL
 
   #------------------------------------------------------------
   # Solo intervenimos en creación de OF desde pedido de venta.
@@ -308,8 +314,84 @@ Local Decimal LSTODISP
 &       " STA="+GSUBESTADO+
 &       " QTY="+num$([F:MFM]RETQTY),0) From GESECRAN
 
+
       #----------------------------------------------------------
-      # 4. Realizar la asignación.
+      # 4. El estándar puede haber creado ya una asignación
+      #    global para esta línea de OF.
+      #
+      #    Antes de crear nuestra asignación detallada,
+      #    eliminamos las asignaciones existentes mediante
+      #    DELALL de STKALL.
+      #
+      #    LOPT = 1 -> solamente asignaciones.
+      #----------------------------------------------------------
+      Raz LQTADEL
+      Raz LSHTDEL
+      Raz LRETDEL
+
+      Call ECR_TRACE(
+&       "ANTES DELALL - MFGNUM="+[F:MFM]MFGNUM+
+&       " ITMREF="+[F:MFM]ITMREF+
+&       " MFGLIN="+num$([F:MFM]MFGLIN)+
+&       " SEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
+
+      Call DELALL(
+&                   10,
+&                   [F:MFM]MFGNUM,
+&                   [F:MFM]MFGLIN,
+&                   [F:MFM]BOMSEQ,
+&                   [F:MFM]ITMREF,
+&                   1,
+&                   LQTADEL,
+&                   LSHTDEL,
+&                   LRETDEL) From STKALL
+
+      Call ECR_TRACE(
+&       "DESPUES DELALL - LQTA="+num$(LQTADEL)+
+&       " LSHT="+num$(LSHTDEL)+
+&       " RET="+num$(LRETDEL),0) From GESECRAN
+
+
+      #----------------------------------------------------------
+      # 5. Control del resultado de DELALL.
+      #----------------------------------------------------------
+      If LRETDEL <> 0
+
+        Call ECR_TRACE(
+&         "ERROR DELALL - MFGNUM="+[F:MFM]MFGNUM+
+&         " ITMREF="+[F:MFM]ITMREF+
+&         " RET="+num$(LRETDEL),1) From GESECRAN
+
+        GPE = 1
+        GOK = 0
+        Return
+
+      Endif
+
+
+      #----------------------------------------------------------
+      # 6. Informar si realmente se ha eliminado una asignación.
+      #----------------------------------------------------------
+      If LQTADEL = 0
+
+        Call ECR_TRACE(
+&         "DELALL - NO SE HA ENCONTRADO ASIGNACION PARA "+
+&         "MFGNUM="+[F:MFM]MFGNUM+
+&         " ITMREF="+[F:MFM]ITMREF+
+&         " MFGLIN="+num$([F:MFM]MFGLIN)+
+&         " SEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
+
+      Else
+
+        Call ECR_TRACE(
+&         "DELALL - ASIGNACION ELIMINADA QTY="+
+&         num$(LQTADEL),0) From GESECRAN
+
+      Endif
+
+
+      #----------------------------------------------------------
+      # 7. Realizar la asignación.
       #----------------------------------------------------------
       Gosub REALIZAR_ASIGNACION
 
@@ -490,7 +572,7 @@ Raz LRET
 &                 [F:MFM]RETDAT,
 &                 "",
 &                 "",
-&                 "",
+&                 GSUBESTADO,
 &                 "",
 &                 "",
 &                 "",
