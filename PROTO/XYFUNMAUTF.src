@@ -676,6 +676,12 @@ For I=0 To [M:MFG2]NBLIG-1
            [F:MFM]WGGBOX = 1  # mm 12.10
         Endif
 
+# 2026-00391.ini
+        If [F:MFM]MATSTA = 1
+          Gosub CRE_ALL From MFGAUTLIB
+        Endif
+# 2026-00391.fin
+
         # Issue 91336 GA 09/2014 Write [MFM]
         Gosub WRITE_MFM From MFGAUTLIB
         #If GUSER = 'NUN04' Then : Infbox "modif wxiste = 5 - registro grabado" + [F:MFM]ITMREF  : Endif

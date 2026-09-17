@@ -18,6 +18,8 @@ Case ACTION
   When "SETBOUT"        : Gosub SETBOUT
   When "MEN"            : Gosub MEN_
   When "END"            : Gosub END_
+  When "SEL_TABLE"      : Gosub SEL_TABLE
+  When "VERF_TABLE"     : Gosub VERF_TABLE
   When Default
 Endcase
 
@@ -71,6 +73,20 @@ $END_
 Return
 
 ##############################################################
+$SEL_TABLE
+  Case TABLE
+    When "ZSELBPCALT"     : Gosub SEL_ZSELBPCALT
+  Endcase
+Return
+
+##############################################################
+$VERF_TABLE
+  Case TABLE
+    When "ZSELBPCALT"     : Gosub VERF_ZSELBPCALT
+  Endcase
+Return
+
+##############################################################
 ######################    ETIQUETAS    #######################
 ##############################################################
 ##############################################################
@@ -88,8 +104,6 @@ Local Integer LCON0
       [M:ZCA1]ITMREF(LCON0)   = [F:ZCI1]ITMREF
       [M:ZCA1]FCY(LCON0)      = [F:ZCI1]FCY
       [M:ZCA1]STA(LCON0)      = [F:ZCI1]STA
-      [M:ZCA1]ZALT1(LCON0)    = [F:ZCI1]ZALT1
-      [M:ZCA1]ZALT2(LCON0)    = [F:ZCI1]ZALT2
       [L]LCON0               += 1
       If [L]LCON0 > 3000 Then : Break : Endif
     Next
@@ -114,8 +128,6 @@ Local Integer LCON0
     [M:ZCA1]ITMREF(LCON0)   = [F:ZCI5]ITMREF
     [M:ZCA1]FCY(LCON0)      = [F:ZCI5]FCY
     [M:ZCA1]STA(LCON0)      = [F:ZCI5]STA
-    [M:ZCA1]ZALT1(LCON0)    = [F:ZCI5]ZALT1
-    [M:ZCA1]ZALT2(LCON0)    = [F:ZCI5]ZALT2
     [L]LCON0               += 1
     If [L]LCON0 > 3000 Then : Break : Endif
   Next
@@ -155,8 +167,6 @@ Local Integer LCON1
     [F:ZCI3]ITMREF    = [M:ZCA1]ITMREF(LCON1)
     [F:ZCI3]FCY       = [M:ZCA1]FCY(LCON1)
     [F:ZCI3]STA       = [M:ZCA1]STA(LCON1)
-    [F:ZCI3]ZALT1     = [M:ZCA1]ZALT1(LCON1)
-    [F:ZCI3]ZALT2     = [M:ZCA1]ZALT2(LCON1)
     If !adxlog Then : Trbegin [F:ZCI3] : Endif
     Write [F:ZCI3]
     If !fstat Then
@@ -199,6 +209,33 @@ $CANCELAR
 Return
 
 ##############################################################
+$SEL_ZSELBPCALT
+  If !clalev([F:ZVBC]) Then : Local File ZVBPCCLIALT [F:ZVBC] : Endif
+
+  TIT(0) = "Selección de cliente"
+
+  ORDRE = "BPCNUM"
+  START = "BPCNUM"
+  SENS  = 1
+  DEFPAGE = 5
+
+  SIZCOL = 600
+  SIZLIG = 150
+
+  Default File [F:ZVBC]
+
+  CRITERE = "1=1"
+  GSELFAC = 1
+  NBCOL = 0
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVBC]BPCNUM" : TIT(NBCOL) = "Cliente"
+
+Return
+
+##############################################################
+$VERF_ZSELBPCALT
+Return
+
+##############################################################
 #################    ACCIONES DE CAMPO    ####################
 ##############################################################
 ######################################################################################
@@ -231,17 +268,6 @@ End
 ######################################################################################
 Subprog AM_NBLIG
   [V]GESTADO = "g"
-End
-
-######################################################################################
-## Control en el campo 'Artículo' (pantalla ZCLIALT1) 19/08/2026 15:50:52 (SN070)
-######################################################################################
-Subprog C_ITMREF(VALEUR)
-Variable Char    VALEUR()
-  Call UNICITE(VALEUR,[M:ZCA1]ITMREF(0..[M:ZCA1]NBLIG-1)) From OBJDIV
-  If mkstat = 2 Then
-      VALEUR = ""
-  Endif
 End
 
 ##############################################################
