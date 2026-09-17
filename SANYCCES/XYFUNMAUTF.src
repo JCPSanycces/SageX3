@@ -678,7 +678,13 @@ For I=0 To [M:MFG2]NBLIG-1
 
 # 2026-00391.ini
         If [F:MFM]MATSTA = 1
-          Gosub CRE_ALL From MFGAUTLIB
+          If !clalev([ZCA2]) Then : Local File ZCLIALT [F:ZCA2] : Endif
+          Filter [F:ZCA2] Where ITMREF = [F:MFM]ITMREF
+          Read   [F:ZCA2] First
+          If !fstat Then
+            Gosub CRE_ALL From MFGAUTLIB
+          Endif
+          Filter [F:ZCA2]
         Endif
 # 2026-00391.fin
 
