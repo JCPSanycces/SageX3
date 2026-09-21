@@ -678,11 +678,13 @@ For I=0 To [M:MFG2]NBLIG-1
 
 # 2026-00391.ini
         If [F:MFM]MATSTA = 1
-          If !clalev([ZCA2]) Then : Local File ZCLIALT [F:ZCA2] : Endif
+          If !clalev([F:ZCA2]) Then : Local File ZCLIALT [F:ZCA2] : Endif
+          If !clalev([F:ORD])  Then : Local File ORDERS  [F:ORD]  : Endif
           Filter [F:ZCA2] Where ITMREF = [F:MFM]ITMREF
           Read   [F:ZCA2] First
           If !fstat Then
-            Gosub CRE_ALL From MFGAUTLIB
+#            Gosub CRE_ALL From MFGAUTLIB
+            Gosub ASIGNAR_SUBESTADO From ZPOINTS
           Endif
           Filter [F:ZCA2]
         Endif
