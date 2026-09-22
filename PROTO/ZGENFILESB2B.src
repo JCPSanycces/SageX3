@@ -29,10 +29,16 @@ Return
 ##############################################################
 ##############################################################
 $INIT
-  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+# STAGING
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
   Local Char    PORT(100)       : PORT      = '2221'
-  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
-  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
   Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
   Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
   Local Char    FTPFOLDER(100)
@@ -71,82 +77,79 @@ Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LINDEX(250)
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITITM(250)
-Local     Integer LCONT
 
-Local     Char    LSEP(1) : [L]LSEP = ","
-Local     Char    LSKU(250),LATTSETCODE(250),LPRODUCTTYPE(250),LNAME(250),LPRICE(250),LURLKEY(250),LVISIBILITY(250),LTAXCLASSNAME(250)
-Local     Char    LWEIGHT(250),LPRODUCTWEB(250),LCOLOR(250),LMANETA(250),LFLEXIBLE(250),LCANOMEN(250),LEMBELLECEDOR(250),LTELEDUCHA(250),LROCIADOR(250)
+Local     Integer I,LMAX    : LMAX = 10
+Local     Integer STAT,RESULT
+Local     Char    LFILES(GDIMFIC)(1..)
+Local     Char    FILELIST(GDIMFIC)(1..)
+Local     Char    ORDRE(250)
+Local     Char    LFILENAME(250)
 
   If GSERVEUR
-    Call ECR_TRACE("Envío de artículos al B2B",0) From GESECRAN
+    Call ECR_TRACE("Envío de artículos al B2B ["+num$(datetime$)+"]",0) From GESECRAN
   Endif
 
   [L]LDIRIMPORT       = filpath("B2B\FTP","","")
   [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
-  [L]LCRITITM         = "1=1"
-  [L]LFECHA           = vireblc(num$(date$),4) : [L]LFECHA = mid$([L]LFECHA,1,2)+mid$([L]LFECHA,4,2)+mid$([L]LFECHA,7,4)
-  [L]LHORA            = vireblc(num$(time$),4) : [L]LHORA  = mid$([L]LHORA,1,2)+mid$([L]LHORA,4,2)+mid$([L]LHORA,7,4)
-  [L]LINDEX           = "products_" + LFECHA + "_" + LHORA
-  [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "PRODUCTS"
   P_LPATHDES         += "\ARTICULOS"
 
-  If !clalev([F:ZVIB]) Then : Local File ZVITMB2B [F:ZVIB] : Endif
-  Filter [F:ZVIB] Where evalue([L]LCRITITM) Order By ORDEN Asc
+  RESULT = -1
 
-  If rowcount([F:ZVIB]) = 0 Then : End : Endif
+#Check if destination directory exists and creates it if not
+  STAT = filinfo (P_LPATHDES,7)
+  If STAT = -27 : End : Endif
+  If STAT = -20 : Call SYSTEME (adxmac(0),'ae_mkdir'-'"'+P_LPATHDES+'"',"",STAT) From ORDSYS : Endif
 
-  # borramos el fichero si existe...
-  If filinfo(LFILE, 7) > 0 Then
-    System "ae_rm " + LFILE
-  Endif
+#Delete files if they are present from a previous execution
+  If Delfile (filpath(P_LPATHDES,"FtpPut",'bat')) = -27 : End : Endif
 
-  # se abre el fichero
-  adxifs = ";"
-  adxirs = chr$(13)+chr$(10)
-  adxium = 0
-  Openo LFILE Using [ZB2B]
+  Sleep 5
 
-  Raz [L]LCONT
-  For [ZVIB]
-    [L]LSKU           = '"'+ctrans(vireblc([F:ZVIB]SKU,2),'""','')+'"'
-    [L]LATTSETCODE    = '"'+ctrans(vireblc([F:ZVIB]ATTSETCODE,2),'""','')+'"'
-    [L]LPRODUCTTYPE   = '"'+ctrans(vireblc([F:ZVIB]PRODUCTTYPE,2),'""','')+'"'
-    [L]LNAME          = '"'+ctrans(vireblc([F:ZVIB]NAME,2),'""','')+'"'
-    [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$([F:ZVIB]PRICE),2),'""',''),',','.')+'"'
-    [L]LURLKEY        = '"'+ctrans(vireblc([F:ZVIB]URLKEY,2),'""','')+'"'
-    [L]LVISIBILITY    = '"'+ctrans(vireblc([F:ZVIB]VISIBILITY,2),'""','')+'"'
-    [L]LTAXCLASSNAME  = '"'+ctrans(vireblc([F:ZVIB]TAXCLASSNAME,2),'""','')+'"'
-    [L]LWEIGHT        = '"'+ctrans(ctrans(vireblc(num$([F:ZVIB]WEIGHT),2),'""',''),',','.')+'"'
-    [L]LPRODUCTWEB    = '"'+ctrans(vireblc([F:ZVIB]PRODUCTWEB,2),'""','')+'"'
-    [L]LCOLOR         = '"'+ctrans(vireblc([F:ZVIB]COLOR,2),'""','')+'"'
-    [L]LMANETA        = '"'+ctrans(vireblc([F:ZVIB]MANETA,2),'""','')+'"'
-    [L]LFLEXIBLE      = '"'+ctrans(vireblc([F:ZVIB]FLEXIBLE,2),'""','')+'"'
-    [L]LCANOMEN       = '"'+ctrans(vireblc([F:ZVIB]CANOMEN,2),'""','')+'"'
-    [L]LEMBELLECEDOR  = '"'+ctrans(vireblc([F:ZVIB]EMBELLECEDOR,2),'""','')+'"'
-    [L]LTELEDUCHA     = '"'+ctrans(vireblc([F:ZVIB]TELEDUCHA,2),'""','')+'"'
-    [L]LROCIADOR      = '"'+ctrans(vireblc([F:ZVIB]ROCIADOR,2),'""','')+'"'
+  For I = 1 To LMAX
 
-    # escribe los datos del artículo
-    Wrseq [L]LSKU + [L]LSEP + [L]LATTSETCODE + [L]LSEP + [L]LPRODUCTTYPE + [L]LSEP + [L]LNAME + [L]LSEP + [L]LPRICE + [L]LSEP +
-&         [L]LURLKEY + [L]LSEP + [L]LVISIBILITY + [L]LSEP + [L]LTAXCLASSNAME + [L]LSEP + [L]LWEIGHT + [L]LSEP + [L]LPRODUCTWEB + [L]LSEP +
-&         [L]LCOLOR + [L]LSEP + [L]LMANETA + [L]LSEP + [L]LFLEXIBLE + [L]LSEP + [L]LCANOMEN + [L]LSEP + [L]LEMBELLECEDOR + [L]LSEP +
-&         [L]LTELEDUCHA + [L]LSEP + [L]LROCIADOR
-&   Using [ZB2B]
+    LFILENAME = "00"+num$(I)+"_*"
 
-    [L]LCONT += 1
-    If [L]LCONT > 5 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    #Check the files to upload
+    ORDRE = "dir /b /a-d-s-h "+P_LPATH+"\"+LFILENAME+"."+LFORMATO+" 2>nul"
+    Call SYSTEME2 (adxmac(0),ORDRE,"",RESULT,LFILES) From ORDSYS
+
+    If RESULT > 0
+
+      If GSERVEUR
+        Call ECR_TRACE("Subir ficheros"-LFILENAME-"["+num$(datetime$)+"]",0) From GESECRAN
+      Endif
+
+      #Create the command file to upload the files
+      Openo filpath(P_LPATHDES,"FtpPut","bat",nomap)
+      adxifs = ';'
+      adxirs = chr$(13) + chr$(10)
+      adxium = 50
+
+      Wrseq '"C:\WinSCP\WinSCP.com" /log="' + P_LPATHDES + '\PutLog.txt" /ini=nul /command "option batch continue" "option confirm off" "open sftp://' + P_USER + ':' + P_PWD  + '@' + P_SERVER +
+&           ':' + P_PORT + ' -hostkey=""ssh-rsa 3072 WkjpmzsiEuMI7nZl+XQPerweUEd8hJYmnMOx6OsiILw"""' +
+&           ' "cd ' + P_FTPFOLDER + '" "put ' + P_LPATH + '\' + LFILENAME + '.*" "exit" "/log=' + P_LPATHDES + '\PutLog.txt"'
+
+      Openo
+      System CHAINE = filpath(P_LPATHDES,"FtpPut","bat")
+
+      #Clean the script files
+      If Delfile (filpath(P_LPATHDES,"FtpPut",'bat')) = -27 : RESULT = -2 : End : Endif
+
+      #Move de uploaded files
+      ORDRE = "MOVE "+P_LPATH+"\"+LFILENAME+".* "+P_LPATHDES
+      Call SYSTEME2(adxmac(0),ORDRE,"",STAT,LFILENAME) From ORDSYS
+
+      If I = 1 Then
+        Sleep 600
+      Else
+        Sleep 180
+      Endif
+
+    Endif
 
   Next
-  Filter [F:ZVIB]
-  Close Local File [ZVIB]
 
-  # se cierra el fichero
-  Openo Using [ZB2B]
-
-  # envío al servidor FTP
-  P_LINDEX = [L]LINDEX
-  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
 End
 
@@ -176,7 +179,7 @@ Local     Char    LERPID(50),LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(2
 Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBOTA(250),LPHONECOM(250),LWHATSAPPCOM(250),LRAZONSOCIAL(250)
 
   If GSERVEUR
-    Call ECR_TRACE("Envío de clientes al B2B",0) From GESECRAN
+    Call ECR_TRACE("Envío de clientes al B2B ["+num$(datetime$)+"]",0) From GESECRAN
   Endif
 
   [L]LDIRIMPORT       = filpath("B2B\FTP","","")
@@ -279,7 +282,7 @@ Local     Char    LWEBSITE(250),LENTITYID(250),LEMAIL(250),LCITY(250),LCOMPANY(2
 Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEPHONE(250),LADDRESSBILL(250),LADDRESSSHIP(250),LIDBPADDRESS(250)
 
   If GSERVEUR
-    Call ECR_TRACE("Envío de direcciones de clientes al B2B",0) From GESECRAN
+    Call ECR_TRACE("Envío de direcciones de clientes al B2B ["+num$(datetime$)+"]",0) From GESECRAN
   Endif
 
   [L]LDIRIMPORT       = filpath("B2B\FTP","","")
@@ -380,7 +383,7 @@ Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
 
   If GSERVEUR
-    Call ECR_TRACE("Envío de stocks al B2B",0) From GESECRAN
+    Call ECR_TRACE("Envío de stocks al B2B ["+num$(datetime$)+"]",0) From GESECRAN
   Endif
 
   [L]LDIRIMPORT       = filpath("B2B\FTP","","")
@@ -471,7 +474,7 @@ Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTION(250)
 
   If GSERVEUR
-    Call ECR_TRACE("Envío de precios al B2B",0) From GESECRAN
+    Call ECR_TRACE("Envío de precios al B2B ["+num$(datetime$)+"]",0) From GESECRAN
   Endif
 
   [L]LDIRIMPORT       = filpath("B2B\FTP","","")
@@ -652,26 +655,17 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
       Endif
       [L]LDISCOUNTTYPE    = '"'+ctrans(vireblc([F:ZVPR]DISCOUNTTYPE,2),'""','')+'"'
       [L]LQTY             = '"'+ctrans(vireblc([F:ZVPR]QTY,2),'""','')+'"'
+      [L]LDESCRIPTION     = '"'+ctrans(ctrans(vireblc(num$([F:ZVPR]GROPRI),2),'""',''),',','.')+"€"
       If [F:ZVPR]DTO1 <> 0 Then
-        If [L]LDESCRIPTION  = '' Then
-          [L]LDESCRIPTION  += num$([F:ZVPR]DTO1) + '%'
-        Endif
+        [L]LDESCRIPTION  -= "-" - num$([F:ZVPR]DTO1) + '%'
       Endif
       If [F:ZVPR]DTO2 <> 0 Then
-        If [L]LDESCRIPTION  = '' Then
-          [L]LDESCRIPTION  += num$([F:ZVPR]DTO2) + '%'
-        Else
-          [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO2) + '%'
-        Endif
+        [L]LDESCRIPTION  -= '-' - num$([F:ZVPR]DTO2) + '%'
       Endif
       If [F:ZVPR]DTO3 <> 0 Then
-        If [L]LDESCRIPTION  = '' Then
-          [L]LDESCRIPTION  += num$([F:ZVPR]DTO3) + '%'
-        Else
-          [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO3) + '%'
-        Endif
+        [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO3) + '%'
       Endif
-      If [L]LDESCRIPTION <> '' Then : [L]LDESCRIPTION = '"' + [L]LDESCRIPTION + '"' : Endif
+      [L]LDESCRIPTION += '"'
 
       # escribe los datos de precios
       Wrseq [L]LSKU + [L]LSEP + [L]LPRICE + [L]LSEP + [L]LDISCOUNTTYPE + [L]LSEP + [L]LQTY + [L]LSEP + [L]LDESCRIPTION
