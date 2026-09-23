@@ -208,7 +208,9 @@ Return
 ##############################################################
 $ALLCHOMAT
 # 2026-00391.ini
-  Gosub ASIGNAR_SUBESTADO
+  If GNAVIG(GPILNAV) = "GESSOH" Then
+    Gosub ASIGNAR_SUBESTADO
+  Endif
 # 2026-00391.fin
 Return
 
