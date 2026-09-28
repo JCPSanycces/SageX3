@@ -52,7 +52,7 @@ $EXEC
 #  Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_STOCKS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
-  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+#  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 Return
 
 ##############################################################
@@ -192,7 +192,17 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
   P_FTPFOLDER         = "CUSTOMERS"
   P_LPATHDES         += "\CLIENTES"
 
-  If !clalev([F:ZVBB]) Then : Local File ZVBPCB2B [F:ZVBB] : Endif
+  If P_LINDEX <> "" Then
+    [L]LCRITBPC += " and EMAIL='" + P_LINDEX + "'"
+  Endif
+
+  If !clalev([F:ZBU0]) Then : Local File ZB2BUSUARIOS [F:ZBU0] : Endif
+  If !clalev([F:ZVBB]) Then : Local File ZVBPCB2B     [F:ZVBB] : Endif
+
+  If GSERVEUR
+    Call ECR_TRACE("Criterio de selección:"-[L]LCRITBPC,0) From GESECRAN
+  Endif
+
   Filter [F:ZVBB] Where evalue([L]LCRITBPC)
 
   If rowcount([F:ZVBB]) = 0 Then : End : Endif
@@ -228,7 +238,15 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
     [L]LLASTNAME      = '"'+ctrans(vireblc([F:ZVBB]LASTNAME,2),'""','')+'"'
     [L]LGROUP_ID      = '"'+ctrans(vireblc([F:ZVBB]GROUP_ID,2),'""','')+'"'
     [L]LALLOW_LOGIN   = '"'+ctrans(vireblc([F:ZVBB]ALLOW_LOGIN,2),'""','')+'"'
-    [L]LAPPROVE_ACC   = '"'+ctrans(vireblc([F:ZVBB]APPROVE_ACC,2),'""','')+'"'
+    [L]LAPPROVE_ACC   = '"Sí"'
+    Read [F:ZBU0]ZBU0 = [F:ZVBB]EMAIL
+    If !fstat Then
+      If [F:ZBU0]ZACTIVO  = 2 Then
+        [L]LAPPROVE_ACC   = '"Sí"'
+      Else
+        [L]LAPPROVE_ACC   = '"No"'
+      Endif
+    Endif
     [L]LPUEDE_REBOTA  = '"'+ctrans(vireblc([F:ZVBB]PUEDE_REBOTA,2),'""','')+'"'
     [L]LPHONECOM      = '"'+ctrans(vireblc([F:ZVBB]PHONECOM,2),'""','')+'"'
     [L]LWHATSAPPCOM   = '"'+ctrans(vireblc([F:ZVBB]WHATSAPPCOM,2),'""','')+'"'
@@ -253,6 +271,10 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
   # envío al servidor FTP
   P_LINDEX = [L]LINDEX
   Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+  If GSERVEUR
+    Call ECR_TRACE("Fin del envío de clientes al B2B ["+num$(datetime$)+"]",0) From GESECRAN
+  Endif
 
 End
 
@@ -294,6 +316,10 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
   [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "CUSTOMERSADDRESS"
   P_LPATHDES         += "\DIRECCIONESCLIENTES"
+
+  If P_LINDEX <> "" Then
+    [L]LCRITBPA += " and EMAIL='" + P_LINDEX + "'"
+  Endif
 
   If !clalev([F:ZVBA]) Then : Local File ZVBPAB2B [F:ZVBA] : Endif
   Filter [F:ZVBA] Where evalue([L]LCRITBPA)
@@ -492,6 +518,7 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
   If !clalev([F:ZVIT])  Then : Local File ZVITMB2B    [F:ZVIT]  : Endif
   If !clalev([F:ZVBG])  Then : Local File ZVBPCB2BGR  [F:ZVBG]  : Endif
   If !clalev([F:ZVPR])  Then : Local File ZVPRIB2B    [F:ZVPR]  : Endif
+  If !clalev([F:ZBPC])  Then : Local File BPCUSTOMER  [F:ZBPC]  : Endif
 
 ######### GENERACIÓN DEL CATÁLOGO DE TARIFAS - INICIO #########
   # busca los límites del cliente
@@ -541,6 +568,11 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
 [L]LBPCSTR = 'NA000154'
 [L]LBPCEND = 'NA000154'
 
+
+  If P_LINDEX <> "" Then
+    [L]LBPCSTR = "'" + P_LINDEX + "'"
+    [L]LBPCEND = "'" + P_LINDEX + "'"
+  Endif
 
   Gosub OUVRE       From SUBSPP
   Gosub LIENS       From SUBSPP
@@ -683,6 +715,11 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     # envío al servidor FTP
     P_LINDEX = [L]LINDEX
     Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+    # identifico al cliente como que ya se le ha enviado su tarifa a Magento
+    If P_RESULT > 0 Then
+      [F:ZBPC]ZB2BPRICEDAT = num$(datetime$)
+    Endif
 $NEXT1
   Next
 

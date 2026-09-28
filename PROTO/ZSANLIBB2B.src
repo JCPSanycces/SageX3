@@ -814,7 +814,8 @@ Local     Integer LREGINI,LREGFIN
 
   # cliente
   If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
-  Filter [F:ZBPC] Where ZUSUARIOB2B = vireblc(PCLIMGT,2)
+#  Filter [F:ZBPC] Where ZUSUARIOB2B = vireblc(PCLIMGT,2)
+  Filter [F:ZBPC] Where BPCNUM = vireblc(PBPCNUM,2)
   Read   [F:ZBPC] First
   If !fstat Then
     [L]LCRIT += " and CLIENTE_SAGE='" + vireblc([F:ZBPC]BPCNUM,2) + "'"
