@@ -1,0 +1,180 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZGENBPCB2B
+# Description : Proceso de generación de clientes para el B2B
+# Module      :
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 23/09/2026
+############################################################################
+
+Gosub INIT
+Gosub EXEC
+End
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "INIT"       : Gosub INIT
+  When "EXEC"       : Gosub EXEC
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$INIT
+# STAGING
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+  Local Char    PORT(100)       : PORT      = '2221'
+  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
+  Local Char    FTPFOLDER(100)
+  Local Char    LINDEX(100)
+  Local Integer RESULT
+Return
+
+##############################################################
+$EXEC
+# STAGING
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+  Local Char    PORT(100)       : PORT      = '2221'
+  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
+  Local Char    FTPFOLDER(100)
+  Local Char    LINDEX(100)
+  Local Integer RESULT
+
+
+# Variable donde recibiremos el parámetro
+  Local Char    LINDEX(250)
+  Local Integer V_NUMRQT    : V_NUMRQT = 0
+
+  If GSERVEUR
+    If !clalev([F:ZBCF1]) : Local File ZB2BCTRLFILE [F:ZBCF1] : Endif
+    If !clalev([F:ZBPC1]) : Local File BPCUSTOMER   [F:ZBPC1] : Endif
+
+    # eliminamos los registros antiguos
+    If !adxlog Then : Trbegin [F:ZBCF1] : Endif
+    Delete [F:ZBCF1] Where CREDATTIM <= date$ - 30
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+    Filter [F:ZBCF1]
+
+    Gosub ESPERAR_PENDIENTES
+
+    Raz [F:ZBCF1]
+
+    # Buscamos peticiones pendientes
+    Filter [F:ZBCF1] Where ZESTADO = 1 and ZNAMRQT = "ZGENBPCB2B" Order By ZNUMRQT Asc
+#    For [F:ZBCF1]
+    Read   [F:ZBCF1] First
+    If !fstat Then
+      LINDEX = [F:ZBCF1]ZPARAM(0)
+
+      # Cambiamos estado a 'En proceso'
+      [F:ZBCF1]ZESTADO = 2
+      If !adxlog Then : Trbegin [F:ZBCF1] : Endif
+      Rewrite [F:ZBCF1]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+
+      Call ECR_TRACE("Procesando B2B para usuario: " + LINDEX + " (Petición #" + num$([F:ZBCF1]ZNUMRQT) + ")", 0) From GESECRAN
+
+      ############## ENVÍO DE FICHEROS
+      Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+
+      Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+
+      Read [F:ZBPC1]BPC0 = [F:ZBCF1]ZPARAM(1)
+      If !fstat and [F:ZBPC1]ZB2BPRICEDAT = "" Then
+        LINDEX = [F:ZBPC1]BPCNUM
+        Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+      Endif
+      ############## ENVÍO DE FICHEROS
+
+      If RESULT > 0 Then
+        # Cambiamos estado a 'Finalizado'
+        [F:ZBCF1]ZESTADO = 3
+      Else
+        # Cambiamos estado a 'Error'
+        [F:ZBCF1]ZESTADO = 4
+      Endif
+      If !adxlog Then : Trbegin [F:ZBCF1] : Endif
+      Rewrite [F:ZBCF1]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+#    Next
+    Endif
+
+    Filter [F:ZBCF1]
+    Close Local File [ZBCF1]
+
+  Endif
+
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$ESPERAR_PENDIENTES
+Local Integer LPEND
+Local Integer LSEGUNDOS   : LSEGUNDOS   = 15      # tiempo de espera entre comprobaciones
+Local Integer LMAXVUELTAS : LMAXVUELTAS = 60      # ej: máx 15 min si LSEGUNDOS=15
+Local Integer LVUELTA     : LVUELTA     = 0
+
+  If !clalev([F:ZBCF2]) : Local File ZB2BCTRLFILE [F:ZBCF2] : Endif
+
+  Repeat
+    LPEND = 0
+
+    Filter [F:ZBCF2] Where ZESTADO = 2 and ZNAMRQT = "ZGENBPCB2B"
+    Read   [F:ZBCF2] First
+    If !fstat Then
+      LPEND = 1
+    Endif
+
+    If LPEND = 1
+      LVUELTA = LVUELTA + 1
+      If LVUELTA > LMAXVUELTAS
+        Call ECR_TRACE("Tiempo máximo de espera superado, hay registros en estado 2 sin resolver",0) From GESECRAN
+        Break
+      Endif
+      Sleep LSEGUNDOS
+    Endif
+    Filter [F:ZBCF2]
+
+  Until LPEND = 0
+
+  Close Local File [ZBCF2]
+
+Return

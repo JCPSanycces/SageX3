@@ -45,11 +45,17 @@ Local   Char  LFILE(200)
 Global  Char  GNUMENTB2B(50)
 Global  Char  GPATHENTB2B(50)
 # variables de conexión al FTP
-################################    OJO.ini   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
-Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+# STAGING
+#Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#Local Char    PORT(100)       : PORT      = '2221'
+#Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
 Local Char    PORT(100)       : PORT      = '2221'
-Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
-Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+
 Local Char    FTPFOLDER(100)  : FTPFOLDER = 'TEST_IMPORT/PDF'
 Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
 Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS\ENTREGASPDF','','')
@@ -59,7 +65,6 @@ Local Integer RESULT
 Local Char    LBUCKET(100)    : LBUCKET   = 'entregasany'
 Local Char    LREGION(100)    : LREGION   = 'eu-west-2'
 Local Char    LBASEURL(100)   : LBASEURL  = ''
-################################    OJO.fin   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ##########################################################
 
   Raz TBPAR, TBVAL
 
@@ -68,7 +73,9 @@ Local Char    LBASEURL(100)   : LBASEURL  = ''
   [L]LFECHAINI  = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
   [L]LFECHAFIN  = gdat$(val(mid$([L]LFECHALIMITEEND,1,2)),val(mid$([L]LFECHALIMITEEND,4,2)),val(mid$([L]LFECHALIMITEEND,7,4)))
 
-  [L]LCRIT =  "ZURLPDFB2B='' and CATEGORIA=1 and VALIDADA=2 and ZUSUARIOB2B <> '' and " +
+#  [L]LCRIT =  "ZURLPDFB2B='' and CATEGORIA=1 and VALIDADA=2 and ZUSUARIOB2B <> '' and " +
+#&             "FECHA>=[" + format$(GFMD,[L]LFECHAINI) + "] and FECHA<=[" + format$(GFMD,[L]LFECHAFIN) + "]"
+  [L]LCRIT =  "ZURLPDFB2B='' and CATEGORIA=1 and VALIDADA=2 and " +
 &             "FECHA>=[" + format$(GFMD,[L]LFECHAINI) + "] and FECHA<=[" + format$(GFMD,[L]LFECHAFIN) + "]"
 
   If !clalev([F:ZVEB]) Then : Local File ZVENTREGAB2B [F:ZVEB] : Endif

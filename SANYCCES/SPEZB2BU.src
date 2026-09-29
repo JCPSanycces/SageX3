@@ -1,0 +1,165 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : SPEZB2BU
+# Description : Específico Usuarios para el B2B
+# Module      : Datos base
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 22/09/2026
+############################################################################
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "OUVRE"              : Gosub OUVRE
+  When "APRES_CRE"          : Gosub APRES_CRE
+  When "APRES_MOD"          : Gosub APRES_MOD
+  When "SEL_TABLE"          : Gosub SEL_TABLE
+  When "VERF_TABLE"         : Gosub VERF_TABLE
+  When "FIN"                : Gosub FIN
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$OUVRE
+# STAGING
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+#  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+#  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+#  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
+#  Local Char    FTPFOLDER(100)
+#  Local Char    LINDEX(100)
+#  Local Integer RESULT
+
+  Local Integer ASTATUS, NBPAR, REQUESTID
+  Local Char    TBPAR(30)(1..10), TBVAL(250)(1..10)
+  Local Char    TIM(8), MESSAGE(250)
+  Local Date    DAT
+
+  If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
+Return
+
+##############################################################
+$APRES_CRE
+  Gosub GENFILES
+Return
+
+##############################################################
+$APRES_MOD
+  Gosub GENFILES
+Return
+
+##############################################################
+$SEL_TABLE
+  Case TABLE
+    When "ZSELDIRBPC"     : Gosub SEL_ZSELDIRBPC
+  Endcase
+Return
+
+##############################################################
+$VERF_TABLE
+  Case TABLE
+    When "ZSELDIRBPC"     : Gosub VERF_ZSELDIRBPC
+  Endcase
+Return
+
+##############################################################
+$FIN
+  Close Local File [F:ZBPC]
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################
+##############################################################
+$SEL_ZSELDIRBPC
+  If !clalev([F:BPD0]) Then : Local File BPDLVCUST [F:BPD0] : Endif
+  Filter [F:BPD0] Where BPCNUM = [M:ZB2BU0]BPCNUM
+
+  TIT(0) = "Direcciones de cliente"
+
+  ORDRE = "BPAADD"
+  START = "BPAADD"
+  SENS  = 1
+  DEFPAGE = 5
+
+  SIZCOL = 600
+  SIZLIG = 150
+
+  Default File [F:BPD0]
+
+  CRITERE = "1=1"
+  GSELFAC = 1
+  NBCOL = 0
+  NBCOL +=1 : COL(NBCOL) = "[F:BPD0]BPCNUM"     : TIT(NBCOL) = "Cliente"
+  NBCOL +=1 : COL(NBCOL) = "[F:BPD0]BPAADD"     : TIT(NBCOL) = "Dirección entrega"
+  NBCOL +=1 : COL(NBCOL) = "[F:BPD0]BPDNAM"     : TIT(NBCOL) = "Razón social"
+Return
+
+##############################################################
+$VERF_ZSELDIRBPC
+  [M:ZB2BU0]BPDNAM = [F:BPD0]BPDNAM
+  Affzo [M:ZB2BU0]BPDNAM
+Return
+
+##############################################################
+$GENFILES
+Local Integer ASTATUS , NBPAR , REQUESTID
+Local Char    TBPAR(30)(1..10) , TBVAL(250)(1..10) , TIM(8) , MESSAGE(250) , TACHE(30) , DOSSIER(30) , USER(10)
+Local Date    DAT
+
+  DAT       = date$
+  TIM       = "01:00"
+  TASKNAME  = "ZGENBPCB2B"
+  LFOLDER   = [S]nomap(0)
+  USER      = GACTX.USER
+  NBPAR     = 1 : TBPAR(NBPAR) = "CRIT1" : TBVAL(NBPAR) = [M:ZB2BU0]ZUSUARIOB2B
+
+  ASTATUS = func ASYRMNGTREQ.CRERQT(GACTX,LFOLDER,USER,TASKNAME,DAT,TIM,TBPAR,TBVAL,NBPAR,REQUESTID,MESSAGE)
+
+  If ASTATUS=0
+    MESSAGE="Request #"+num$(REQUESTID)+" launched successfully"
+
+    # Guardamos la relación entre la petición batch y el parámetro enviado
+    If !clalev([F:ZBCF0]) : Local File ZB2BCTRLFILE [F:ZBCF0] : Endif
+    [F:ZBCF0]ZNUMRQT    = REQUESTID
+    [F:ZBCF0]ZNAMRQT    = "ZGENBPCB2B"
+    [F:ZBCF0]ZPARAM(0)  = [M:ZB2BU0]ZUSUARIOB2B
+    [F:ZBCF0]ZPARAM(1)  = [M:ZB2BU0]BPCNUM
+    [F:ZBCF0]ZESTADO    = 1 # 1 = Pendiente
+    If !adxlog Then : Trbegin [F:ZBCF0] : Endif
+    Write [F:ZBCF0]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+    Close Local File [ZBCF0]
+
+  Else
+    MESSAGE="Error #"+num$(ASTATUS)+": "+MESSAGE
+  Endif
+
+Return
+
+##############################################################
+#################    ACCIONES DE CAMPO    ####################
+##############################################################
+
+##############################################################
+##################    FUNCIONES PROPIAS    ###################
+##############################################################

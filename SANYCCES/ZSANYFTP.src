@@ -62,7 +62,7 @@ Local     Char    LFILENAME(250)
       adxium = 50
 
       Wrseq '"C:\WinSCP\WinSCP.com" /log="' + LPATHDES + '\PutLog.txt" /ini=nul /command "option batch continue" "option confirm off" "open sftp://' + USER + ':' + PWD  + '@' + SERVER +
-&           ':' + PORT + ' -hostkey=""ssh-rsa 3072 69AIZg4NZcsJeet8bmpp9EZ/QCrD8rJHsCm2ce5q49k"""' +
+&           ':' + PORT + ' -hostkey=""ssh-rsa 3072 WkjpmzsiEuMI7nZl+XQPerweUEd8hJYmnMOx6OsiILw"""' +
 &           ' "cd ' + FTPFOLDER + '" "put ' + LPATH + '\' + left$(LFILENAME,len(LFILENAME)-4) + '.*" "exit" "/log=' + LPATHDES + '\PutLog.txt"'
 
       Openo
