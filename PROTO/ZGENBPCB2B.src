@@ -113,6 +113,7 @@ $EXEC
 
       Read [F:ZBPC1]BPC0 = [F:ZBCF1]ZPARAM(1)
       If !fstat and [F:ZBPC1]ZB2BPRICEDAT = "" Then
+        LINDEX = [F:ZBPC1]BPCNUM
         Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
       Endif
       ############## ENVÍO DE FICHEROS
@@ -147,9 +148,9 @@ Return
 ##############################################################
 $ESPERAR_PENDIENTES
 Local Integer LPEND
-Local Integer LSEGUNDOS   : LSEGUNDOS = 5       # tiempo de espera entre comprobaciones
-Local Integer LMAXVUELTAS : LMAXVUELTAS = 60    # ej: máx 5 min si LSEGUNDOS=5
-Local Integer LVUELTA     : LVUELTA = 0
+Local Integer LSEGUNDOS   : LSEGUNDOS   = 15      # tiempo de espera entre comprobaciones
+Local Integer LMAXVUELTAS : LMAXVUELTAS = 60      # ej: máx 15 min si LSEGUNDOS=15
+Local Integer LVUELTA     : LVUELTA     = 0
 
   If !clalev([F:ZBCF2]) : Local File ZB2BCTRLFILE [F:ZBCF2] : Endif
 

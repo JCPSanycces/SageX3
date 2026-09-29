@@ -515,7 +515,7 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
   If !clalev([F:SPP])   Then : Local File SPPRTCONF   [F:SPP]   : Endif
   If !clalev([F:ZSPP])  Then : Local File SPPRTCONF   [F:ZSPP]  : Endif
   If !clalev([F:ZVBP])  Then : Local File ZVBPCB2B    [F:ZVBP]  : Endif
-  If !clalev([F:ZVIT])  Then : Local File ZVITMB2B    [F:ZVIT]  : Endif
+#  If !clalev([F:ZVIT])  Then : Local File ZVITMB2B    [F:ZVIT]  : Endif
   If !clalev([F:ZVBG])  Then : Local File ZVBPCB2BGR  [F:ZVBG]  : Endif
   If !clalev([F:ZVPR])  Then : Local File ZVPRIB2B    [F:ZVPR]  : Endif
   If !clalev([F:ZBPC])  Then : Local File BPCUSTOMER  [F:ZBPC]  : Endif
@@ -532,16 +532,16 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     [L]LBPCEND = [F:ZVBP]BPCNUM
   Endif
 
-  # busca los límites del artículo
-  Filter [F:ZVIT] Order By SKU    Asc
-  Read [F:ZVIT] First
-  If !fstat Then
-    [L]LITMSTR = [F:ZVIT]SKU
-  Endif
-  Read [F:ZVIT] Last
-  If !fstat Then
-    [L]LITMEND = [F:ZVIT]SKU
-  Endif
+#  # busca los límites del artículo
+#  Filter [F:ZVIT] Order By SKU    Asc
+#  Read [F:ZVIT] First
+#  If !fstat Then
+#    [L]LITMSTR = [F:ZVIT]SKU
+#  Endif
+#  Read [F:ZVIT] Last
+#  If !fstat Then
+#    [L]LITMEND = [F:ZVIT]SKU
+#  Endif
 
 #[L]LITMSTR = '0000_000000'
 #[L]LITMEND = '0029298900'
@@ -555,8 +555,8 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
 #[L]LITMEND = 'WCSH001RM'
 
 # ms Artículos TODOS
-[L]LITMSTR = '0'
-[L]LITMEND = 'ZZZZ'
+#[L]LITMSTR = '0'
+#[L]LITMEND = 'ZZZZ'
 
 # ms Filtros por familia grifería
 #[L]LITMCRI = "[F:ITM]TSICOD(0)='012'"
@@ -719,6 +719,13 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     # identifico al cliente como que ya se le ha enviado su tarifa a Magento
     If P_RESULT > 0 Then
       [F:ZBPC]ZB2BPRICEDAT = num$(datetime$)
+      If !adxlog Then : Trbegin [F:ZBPC] : Endif
+      Rewrite [F:ZBPC]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
     Endif
 $NEXT1
   Next
