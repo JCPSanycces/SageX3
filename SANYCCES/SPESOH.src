@@ -25,6 +25,7 @@
 # 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
 # 2026-00214 - JCP.27082026.Necesidades duplicación pedidos
 # 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
+# 2026-00713 - JCP.30092026.Permitir duplicar pedidos de venta
 #####################################################################################################
 
 $ACTION
@@ -141,6 +142,11 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
   Filter [F:ZVAP0]
 # 2026-00066.fin
 
+# 2026-00713.ini
+  If !find(GUSER,"SN007","SN031","SN070") Then
+    Grizo [M:SOH0]SOHNUM
+  Endif
+# 2026-00713.fin
 Return
 
 
