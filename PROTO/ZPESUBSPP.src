@@ -29,6 +29,7 @@ $SPPGENSEL
   Endif
   If [M:SPP1]ZB2B = 2 Then
     FLTITMSUP += " AND ZB2B=2"
+    FLTITMSUP += " AND CREDAT>=date$-8"
   Endif
 Return
 

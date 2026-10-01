@@ -42,7 +42,8 @@ $INIT
   Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
   Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
   Local Char    FTPFOLDER(100)
-  Local Char    LINDEX(100)
+  Local Char    LINDEX1(100)
+  Local Char    LINDEX2(100)
   Local Integer RESULT
 Return
 
@@ -61,17 +62,13 @@ $EXEC
   Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
   Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
   Local Char    FTPFOLDER(100)
-  Local Char    LINDEX(100)
+  Local Char    LINDEX1(100)
+  Local Char    LINDEX2(100)
   Local Integer RESULT
 
 
-# Variable donde recibiremos el parámetro
-  Local Char    LINDEX(250)
-  Local Integer V_NUMRQT    : V_NUMRQT = 0
-
   If GSERVEUR
     If !clalev([F:ZBCF1]) : Local File ZB2BCTRLFILE [F:ZBCF1] : Endif
-    If !clalev([F:ZBPC1]) : Local File BPCUSTOMER   [F:ZBPC1] : Endif
 
     # eliminamos los registros antiguos
     If !adxlog Then : Trbegin [F:ZBCF1] : Endif
@@ -89,10 +86,9 @@ $EXEC
 
     # Buscamos peticiones pendientes
     Filter [F:ZBCF1] Where ZESTADO = 1 and ZNAMRQT = "ZGENBPCB2B" Order By ZNUMRQT Asc
-#    For [F:ZBCF1]
     Read   [F:ZBCF1] First
     If !fstat Then
-      LINDEX = [F:ZBCF1]ZPARAM(0)
+      LINDEX1 = [F:ZBCF1]ZPARAM(0)
 
       # Cambiamos estado a 'En proceso'
       [F:ZBCF1]ZESTADO = 2
@@ -104,17 +100,28 @@ $EXEC
         Rollback
       Endif
 
-      Call ECR_TRACE("Procesando B2B para usuario: " + LINDEX + " (Petición #" + num$([F:ZBCF1]ZNUMRQT) + ")", 0) From GESECRAN
+      Call ECR_TRACE("Procesando B2B para usuario: " + LINDEX1 + " (Petición #" + num$([F:ZBCF1]ZNUMRQT) + ")", 0) From GESECRAN
 
       ############## ENVÍO DE FICHEROS
-      Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+      # 1 = genera ficheros con tarifa
+      If [F:ZBCF1]ZPARAM(2) = '1'
+        Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,RESULT) From ZGENFILESB2B
 
-      Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+        Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,RESULT) From ZGENFILESB2B
 
-      Read [F:ZBPC1]BPC0 = [F:ZBCF1]ZPARAM(1)
-      If !fstat and [F:ZBPC1]ZB2BPRICEDAT = "" Then
-        LINDEX = [F:ZBPC1]BPCNUM
-        Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+        LINDEX1 = [F:ZBCF1]ZPARAM(1)
+        Call FICHERO_PRECIOS_FILTRO(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,LINDEX2,RESULT) From ZGENFILESB2B
+
+      # 2 = genera ficheros sin tarifa
+      Elsif [F:ZBCF1]ZPARAM(2) = '2'
+        Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,RESULT) From ZGENFILESB2B
+
+        Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,RESULT) From ZGENFILESB2B
+
+      # 3 = genera sólo tarifa
+      Elsif [F:ZBCF1]ZPARAM(2) = '3'
+        LINDEX1 = [F:ZBCF1]ZPARAM(1)
+        Call FICHERO_PRECIOS_FILTRO(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,LINDEX2,RESULT) From ZGENFILESB2B
       Endif
       ############## ENVÍO DE FICHEROS
 
@@ -132,7 +139,6 @@ $EXEC
       Else
         Rollback
       Endif
-#    Next
     Endif
 
     Filter [F:ZBCF1]

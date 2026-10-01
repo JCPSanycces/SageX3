@@ -46,15 +46,15 @@ Global  Char  GNUMFACB2B(50)
 Global  Char  GPATHFACB2B(50)
 # variables de conexión al FTP
 # STAGING
-#Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
-#Local Char    PORT(100)       : PORT      = '2221'
-#Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
-#Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
-# PRODUCCIÓN
-Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
 Local Char    PORT(100)       : PORT      = '2221'
-Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
-Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+#Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+#Local Char    PORT(100)       : PORT      = '2221'
+#Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+#Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
 
 Local Char    FTPFOLDER(100)  : FTPFOLDER = 'TEST_IMPORT/PDF'
 Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')

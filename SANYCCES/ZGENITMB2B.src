@@ -1,0 +1,79 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################
+# Script name : ZGENITMB2B
+# Description : Proceso de generación diaria de artículos para el B2B. Sube al FTP los ficheros que se generan con las vistas del SQL
+# Module      :
+# Version     : 1
+# Created by  : Jose Luis Chiva
+# Company     : Sanycces
+# Created date: 30/09/2026
+############################################################################
+
+Gosub INIT
+Gosub EXEC
+End
+
+$ACTION
+
+#If GUSER="SN070" Then : Infbox ACTION : Endif
+Case ACTION
+  When "INIT"       : Gosub INIT
+  When "EXEC"       : Gosub EXEC
+  When Default
+Endcase
+
+Return
+
+##############################################################
+######################    ACCIONES    ########################
+##############################################################
+##############################################################
+$INIT
+# STAGING
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+  Local Char    PORT(100)       : PORT      = '2221'
+  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
+  Local Char    FTPFOLDER(100)
+  Local Char    LINDEX1(100)
+  Local Char    LINDEX2(100)
+  Local Integer RESULT
+Return
+
+##############################################################
+$EXEC
+# STAGING
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+#  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+# PRODUCCIÓN
+  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+  Local Char    PORT(100)       : PORT      = '2221'
+  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
+  Local Char    FTPFOLDER(100)
+  Local Char    LINDEX(100)
+  Local Integer RESULT
+
+
+  If GSERVEUR
+    ############## ENVÍO DE FICHEROS
+    Call FICHERO_ARTICULOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+    Call FICHERO_STOCKS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT) From ZGENFILESB2B
+    ############## ENVÍO DE FICHEROS
+  Endif
+Return
+
+##############################################################
+######################    ETIQUETAS    #######################
+##############################################################

@@ -43,6 +43,8 @@ $INIT
   Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
   Local Char    FTPFOLDER(100)
   Local Char    LINDEX(100)
+  Local Char    LINDEX1(100)
+  Local Char    LINDEX2(100)
   Local Integer RESULT
 Return
 
@@ -52,7 +54,8 @@ $EXEC
 #  Call FICHERO_CLIENTES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_DIRECCIONES(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
 #  Call FICHERO_STOCKS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
-#  Call FICHERO_PRECIOS(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX,RESULT)
+#  Call FICHERO_PRECIOS_FILTRO(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,LINDEX2,RESULT)
+#  Call FICHERO_PRECIOS_GENERAL(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,LINDEX2,RESULT)
 Return
 
 ##############################################################
@@ -487,7 +490,7 @@ Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
 End
 
 ##############################################################
-Subprog FICHERO_PRECIOS(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,P_RESULT)
+Subprog FICHERO_PRECIOS_FILTRO(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEXBPC,P_LINDEXITM,P_RESULT)
 Value     Char    P_SERVER
 Value     Char    P_PORT
 Value     Char    P_USER
@@ -495,7 +498,8 @@ Value     Char    P_PWD
 Value     Char    P_FTPFOLDER
 Value     Char    P_LPATH
 Value     Char    P_LPATHDES
-Value     Char    P_LINDEX
+Value     Char    P_LINDEXBPC
+Value     Char    P_LINDEXITM
 Variable  Integer P_RESULT
 
 Local     Char    LDIRIMPORT(250)
@@ -585,9 +589,14 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
 [L]LBPCEND = 'NA000154'
 
 
-  If P_LINDEX <> "" Then
-    [L]LBPCSTR = P_LINDEX
-    [L]LBPCEND = P_LINDEX
+  If P_LINDEXBPC <> "" Then
+    [L]LBPCSTR = P_LINDEXBPC
+    [L]LBPCEND = P_LINDEXBPC
+  Endif
+
+  If P_LINDEXITM <> "" Then
+    [L]LITMSTR = P_LINDEXITM
+    [L]LITMEND = P_LINDEXITM
   Endif
 
   Gosub OUVRE       From SUBSPP
@@ -726,8 +735,7 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
     Openo Using [ZB2B]
 
     # envío al servidor FTP
-    P_LINDEX = [L]LINDEX
-    Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+    Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,[L]LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
     # identifico al cliente como que ya se le ha enviado su tarifa a Magento
     If P_RESULT > 0 Then
@@ -744,6 +752,254 @@ Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTIO
       Endif
     Endif
 $NEXT1
+  Next
+
+  Filter [F:ZVBG]
+
+  If GSERVEUR
+    Call ECR_TRACE("Fin del envío de precios al B2B ["+num$(datetime$)+"]",0) From GESECRAN
+  Endif
+
+  Close Local Mask [M:SPP1]
+  Close Local File [F:SPQ],[F:ZSPQ],[F:SPP],[F:ZSPP],[F:ZVBP],[F:ZVBG],[F:ZVPR],[F:ZBPC]
+End
+
+###############################################################
+#Subprog FICHERO_PRECIOS_GENERAL()
+## STAGING
+##  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.dev.ent.magento.cloud'
+##  Local Char    PORT(100)       : PORT      = '2221'
+##  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_stg_remote'
+##  Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
+## PRODUCCIÓN
+#  Local Char    SERVER(100)     : SERVER    = '1.f2m4u4davdwtw.ent.magento.cloud'
+#  Local Char    PORT(100)       : PORT      = '2221'
+#  Local Char    USER(100)       : USER      = 'f2m4u4davdwtw_remote'
+#  Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
+#  Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+#  Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
+#  Local Char    FTPFOLDER(100)
+#  Local Char    LINDEX1(100)
+#  Local Char    LINDEX2(100)
+#  Local Integer RESULT
+#
+#  If !clalev([F:ZVBG])  Then : Local File ZVBPCB2BGR  [F:ZVBG]  : Endif
+#  Filter [F:ZVBG] Order By BPCNUM Asc
+#  If rowcount([F:ZVBG]) = 0 Then : End : Endif
+#  For [F:ZVBG]
+#    [L]LINDEX1 = [F:ZVBG]BPCNUM
+#    Call FICHERO_PRECIOS_FILTRO(SERVER,PORT,USER,PWD,FTPFOLDER,LPATH,LPATHDES,LINDEX1,LINDEX2,RESULT) From ZGENFILESB2B
+#  Next
+#
+#  Filter [F:ZVBG]
+#End
+
+##############################################################
+Subprog FICHERO_PRECIOS_GENERAL(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_RESULT)
+Value     Char    P_SERVER
+Value     Char    P_PORT
+Value     Char    P_USER
+Value     Char    P_PWD
+Value     Char    P_FTPFOLDER
+Value     Char    P_LPATH
+Value     Char    P_LPATHDES
+Variable  Integer P_RESULT
+
+Local     Char    LDIRIMPORT(250)
+Local     Char    LDIRPROCESADOS(250)
+Local     Char    LFILE(250)
+Local     Char    LINDEX(250)
+Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
+Local     Char    LCRITPRI(250)
+Local     Char    LBPCSTR(250)
+Local     Char    LBPCEND(250)
+Local     Char    LITMSTR(250)
+Local     Char    LITMEND(250)
+Local     Char    LITMCRI(250)
+Local     Char    LITSCRI(250)
+Local     Integer LCONT
+
+Local     Char    LSEP(1) : [L]LSEP = ","
+Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTION(250)
+
+  If GSERVEUR
+    Call ECR_TRACE("Envío de precios al B2B ["+num$(datetime$)+"]",0) From GESECRAN
+  Endif
+
+  [L]LDIRIMPORT       = filpath("B2B\FTP","","")
+  [L]LDIRPROCESADOS   = filpath("B2B\FTP\ENVIADOS","","")
+  [L]LCRITPRI         = "1=1"
+  P_FTPFOLDER         = "customer_price_import/entrada"
+  P_LPATHDES         += "\PRECIOS"
+
+  If !clalev([M:SPP1])  Then : Local Mask SPPRT       [M:SPP1]  : Endif
+  If !clalev([F:SPQ])   Then : Local File SPRICPRTQ   [F:SPQ]   : Endif
+  If !clalev([F:ZSPQ])  Then : Local File SPRICPRTQ   [F:ZSPQ]  : Endif
+  If !clalev([F:SPP])   Then : Local File SPPRTCONF   [F:SPP]   : Endif
+  If !clalev([F:ZSPP])  Then : Local File SPPRTCONF   [F:ZSPP]  : Endif
+  If !clalev([F:ZVBP])  Then : Local File ZVBPCB2B    [F:ZVBP]  : Endif
+  If !clalev([F:ZVBG])  Then : Local File ZVBPCB2BGR  [F:ZVBG]  : Endif
+  If !clalev([F:ZVPR])  Then : Local File ZVPRIB2B    [F:ZVPR]  : Endif
+  If !clalev([F:ZBPC])  Then : Local File BPCUSTOMER  [F:ZBPC]  : Endif
+
+  Filter [F:ZVBG] Order By BPCNUM Asc
+  If rowcount([F:ZVBG]) = 0 Then : End : Endif
+
+  For [F:ZVBG]
+
+######### GENERACIÓN DEL CATÁLOGO DE TARIFAS - INICIO #########
+
+    If GSERVEUR
+      Call ECR_TRACE("Generación del catálogo de tarifas para el cliente B2B"-[F:ZVBG]BPCNUM-"["+num$(datetime$)+"]",0) From GESECRAN
+    Endif
+
+    [L]LBPCSTR        = [F:ZVBG]BPCNUM
+    [L]LBPCEND        = [F:ZVBG]BPCNUM
+
+    Gosub OUVRE       From SUBSPP
+    Gosub LIENS       From SUBSPP
+
+    Raz [M:SPP1]
+    Gosub RAZCRE      From SUBSPP
+
+    VALIDATION = "O"
+
+    [M:SPP1]COD       = "B2B"
+    [M:SPP1]DESAXX    = "B2B"
+    [M:SPP1]DAT       = date$
+    [M:SPP1]SALFCY    = "11"
+    [M:SPP1]STOFCY    = "11"
+    [M:SPP1]FLGCUR    = 2
+    [M:SPP1]FLGPRITYP = 2
+    [M:SPP1]FLGCHGTYP = 1
+    [M:SPP1]CHGTYP    = 1
+    [M:SPP1]BPCSTR    = [L]LBPCSTR
+    [M:SPP1]BPCEND    = [L]LBPCEND
+    [M:SPP1]ITMSTR    = [L]LITMSTR
+    [M:SPP1]ITMEND    = [L]LITMEND
+    [M:SPP1]ITMCRI    = [L]LITMCRI
+    [M:SPP1]ITSCRI    = [L]LITSCRI
+    [M:SPP1]ZB2B      = 2
+    Affzo [M:SPP1]
+
+    # limpia la tabla de configuración de catálogo
+    Call DEBTRANS From GLOCK
+    If !adxlog Then : Trbegin [F:ZSPP] : Endif
+    Delete  [F:ZSPP] Where COD = [M:SPP1]COD
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+
+    # limpia la tabla de impresión del catálogo
+    Gosub DEL_CAT     From SUBSPP
+
+    # rellena la tabla de configuración del catálogo
+    Raz [F:ZSPP]
+    [F:ZSPP]COD       = [M:SPP1]COD
+    [F:ZSPP]LANDESSHO = "SPA~"+[M:SPP1]COD
+    [F:ZSPP]DAT       = [M:SPP1]DAT
+    [F:ZSPP]BPCSTR    = [M:SPP1]BPCSTR
+    [F:ZSPP]BPCEND    = [M:SPP1]BPCEND
+    [F:ZSPP]ITMSTR    = [M:SPP1]ITMSTR
+    [F:ZSPP]ITMEND    = [M:SPP1]ITMEND
+    [F:ZSPP]FLGCUR    = [M:SPP1]FLGCUR
+    [F:ZSPP]FLGPRITYP = [M:SPP1]FLGPRITYP
+    [F:ZSPP]FLGCHGTYP = [M:SPP1]FLGCHGTYP
+    [F:ZSPP]CUR       = [M:SPP1]CUR
+    [F:ZSPP]PRITYP    = [M:SPP1]PRITYP
+    [F:ZSPP]CHGTYP    = [M:SPP1]CHGTYP
+    [F:ZSPP]SALFCY    = [M:SPP1]SALFCY
+    [F:ZSPP]STOFCY    = [M:SPP1]STOFCY
+    If !adxlog Then : Trbegin [F:ZSPP] : Endif
+    Write [F:ZSPP]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+
+    Gosub INICRE      From SUBSPP
+    Read [F:SPP]SPP0 = [M:SPP1]COD
+    Gosub GEN_CAT     From SUBSPP
+    Default File [SPP]
+######### GENERACIÓN DEL CATÁLOGO DE TARIFAS - FIN #########
+
+    Filter [F:ZVPR] Where BPCORD = [F:ZVBG]BPCNUM
+    If rowcount([F:ZVPR]) = 0 Then : Goto NEXT2 : Endif
+
+    [L]LINDEX = [F:ZVBG]EMAIL
+    [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'@','_AT_')
+    [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'.','_DOT_')
+    [L]LINDEX = func ZSANLIB01.REPLACE([L]LINDEX,'+','_PLUS_')
+#[L]LINDEX = "m_DOT_salvador_AT_sanycces_DOT_es"
+    [L]LFILE  = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
+
+    # borramos el fichero si existe...
+    If filinfo([L]LFILE, 7) > 0 Then
+      System "ae_rm " + [L]LFILE
+    Endif
+
+    # se abre el fichero
+    adxifs = ";"
+    adxirs = chr$(13)+chr$(10)
+    adxium = 0
+    Openo [L]LFILE Using [ZB2B]
+
+    Wrseq '"sku","price","discounttype","qty","description"'  Using [ZB2B]
+
+    For [F:ZVPR]
+      Raz [L]LDESCRIPTION
+      LSKU          = '"'+ctrans(vireblc([F:ZVPR]SKU,2),'""','')+'"'
+      If [F:ZVPR]PRICE > 0 Then
+        [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$([F:ZVPR]PRICE),2),'""',''),',','.')+'"'
+      Else
+        [L]LPRICE         = '"'+ctrans(ctrans(vireblc(num$(0.1),2),'""',''),',','.')+'"'
+      Endif
+      [L]LDISCOUNTTYPE    = '"'+ctrans(vireblc([F:ZVPR]DISCOUNTTYPE,2),'""','')+'"'
+      [L]LQTY             = '"'+ctrans(vireblc([F:ZVPR]QTY,2),'""','')+'"'
+      [L]LDESCRIPTION     = '"'+ctrans(ctrans(vireblc(num$([F:ZVPR]GROPRI),2),'""',''),',','.')+"€"
+      If [F:ZVPR]DTO1 <> 0 Then
+        [L]LDESCRIPTION  -= "-" - num$([F:ZVPR]DTO1) + '%'
+      Endif
+      If [F:ZVPR]DTO2 <> 0 Then
+        [L]LDESCRIPTION  -= '-' - num$([F:ZVPR]DTO2) + '%'
+      Endif
+      If [F:ZVPR]DTO3 <> 0 Then
+        [L]LDESCRIPTION  -= '+' - num$([F:ZVPR]DTO3) + '%'
+      Endif
+      [L]LDESCRIPTION += '"'
+
+      # escribe los datos de precios
+      Wrseq [L]LSKU + [L]LSEP + [L]LPRICE + [L]LSEP + [L]LDISCOUNTTYPE + [L]LSEP + [L]LQTY + [L]LSEP + [L]LDESCRIPTION
+&     Using [ZB2B]
+    Next
+
+    Filter [F:ZVPR]
+
+    # se cierra el fichero
+    Openo Using [ZB2B]
+
+    # envío al servidor FTP
+#    P_LINDEX = [L]LINDEX
+    Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,[L]LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+
+    # identifico al cliente como que ya se le ha enviado su tarifa a Magento
+    If P_RESULT > 0 Then
+      Read [F:ZBPC]BPC0 = [F:ZVBG]BPCNUM
+      If !fstat Then
+        [F:ZBPC]ZB2BPRICEDAT = num$(datetime$)
+        If !adxlog Then : Trbegin [F:ZBPC] : Endif
+        Rewrite [F:ZBPC]
+        If !fstat Then
+          Commit
+        Else
+          Rollback
+        Endif
+      Endif
+    Endif
+$NEXT2
   Next
 
   Filter [F:ZVBG]

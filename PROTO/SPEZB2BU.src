@@ -18,6 +18,7 @@ Case ACTION
   When "APRES_MOD"          : Gosub APRES_MOD
   When "SEL_TABLE"          : Gosub SEL_TABLE
   When "VERF_TABLE"         : Gosub VERF_TABLE
+  When "EXEBOUT"            : Gosub EXEBOUT
   When "FIN"                : Gosub FIN
   When Default
 Endcase
@@ -45,22 +46,25 @@ $OUVRE
 #  Local Char    LINDEX(100)
 #  Local Integer RESULT
 
-  Local Integer ASTATUS, NBPAR, REQUESTID
-  Local Char    TBPAR(30)(1..10), TBVAL(250)(1..10)
-  Local Char    TIM(8), MESSAGE(250)
-  Local Date    DAT
+  Local   Integer ASTATUS, NBPAR, REQUESTID
+  Local   Char    TBPAR(30)(1..10), TBVAL(250)(1..10)
+  Local   Char    TIM(8), MESSAGE(250)
+  Local   Date    DAT
+  Global  Char    GTAR
 
   If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER [F:ZBPC] : Endif
 Return
 
 ##############################################################
 $APRES_CRE
-  Gosub GENFILES
+  [V]GTAR = '1'
+  Gosub GENBATCH
 Return
 
 ##############################################################
 $APRES_MOD
-  Gosub GENFILES
+  [V]GTAR = '2'
+  Gosub GENBATCH
 Return
 
 ##############################################################
@@ -78,8 +82,16 @@ $VERF_TABLE
 Return
 
 ##############################################################
+$EXEBOUT
+  Case BOUT
+    When "a"  : Gosub UPDTAR
+  Endcase
+Return
+
+##############################################################
 $FIN
   Close Local File [F:ZBPC]
+  If dim([V]GTAR) > 0 Then : Kill [V]GTAR : Endif
 Return
 
 ##############################################################
@@ -117,7 +129,7 @@ $VERF_ZSELDIRBPC
 Return
 
 ##############################################################
-$GENFILES
+$GENBATCH
 Local Integer ASTATUS , NBPAR , REQUESTID
 Local Char    TBPAR(30)(1..10) , TBVAL(250)(1..10) , TIM(8) , MESSAGE(250) , TACHE(30) , DOSSIER(30) , USER(10)
 Local Date    DAT
@@ -138,8 +150,9 @@ Local Date    DAT
     If !clalev([F:ZBCF0]) : Local File ZB2BCTRLFILE [F:ZBCF0] : Endif
     [F:ZBCF0]ZNUMRQT    = REQUESTID
     [F:ZBCF0]ZNAMRQT    = "ZGENBPCB2B"
-    [F:ZBCF0]ZPARAM(0)  = [M:ZB2BU0]ZUSUARIOB2B
-    [F:ZBCF0]ZPARAM(1)  = [M:ZB2BU0]BPCNUM
+    [F:ZBCF0]ZPARAM(0)  = [M:ZB2BU0]ZUSUARIOB2B   # código de usuario en Magento
+    [F:ZBCF0]ZPARAM(1)  = [M:ZB2BU0]BPCNUM        # código de usuario en Sage
+    [F:ZBCF0]ZPARAM(2)  = [V]GTAR                 # 1 = genera ficheros con tarifa ; 2 = genera ficheros sin tarifa ; 3 = genera sólo tarifa
     [F:ZBCF0]ZESTADO    = 1 # 1 = Pendiente
     If !adxlog Then : Trbegin [F:ZBCF0] : Endif
     Write [F:ZBCF0]
@@ -157,9 +170,29 @@ Local Date    DAT
 Return
 
 ##############################################################
+$UPDTAR
+  [V]GTAR = '3'
+  Gosub GENBATCH
+Return
+
+##############################################################
 #################    ACCIONES DE CAMPO    ####################
 ##############################################################
 
 ##############################################################
 ##################    FUNCIONES PROPIAS    ###################
 ##############################################################
+##############################################################
+#**
+#* devuelve la fecha de la última actualización de la tarifa en el B2B
+#*
+#* @param PBPCNUM > cliente Sage
+#*!
+Funprog GET_TARDAT(PBPCNUM)
+Value Char PBPCNUM
+  If !clalev([F:ZBPC0]) Then : Local File BPCUSTOMER [F:ZBPC0] : Endif
+  Read [F:ZBPC0]BPC0 = PBPCNUM
+  If !fstat Then
+    End [F:ZBPC0]ZB2BPRICEDAT
+  Endif
+End ''
