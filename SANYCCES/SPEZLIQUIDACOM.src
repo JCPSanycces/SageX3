@@ -155,7 +155,7 @@ Local Char    LMES(50)
       GCORREOZLQ  = [M:ZLC0]WEB(I)
 
 # generar el fichero pdf
-      GFILEZLQ    = filpath("TMP","Comisiones_"+
+      GFILEZLQ    = filpath("IMPORT\COMISIONES\PDF","Comisiones_"+
 &                           num$(year([L]LPRIMERDIA))+"_"+
 &                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
 &                           [M:ZLC0]BPRNUM(I),"pdf")

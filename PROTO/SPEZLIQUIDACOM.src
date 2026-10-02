@@ -165,7 +165,7 @@ LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
       GCORREOZLQ  ="jl.chiva@sanycces.es"
 
 # generar el fichero pdf
-      GFILEZLQ    = filpath("TMP","Comisiones_"+
+      GFILEZLQ    = filpath("IMPORT\COMISIONES\PDF","Comisiones_"+
 &                           num$(year([L]LPRIMERDIA))+"_"+
 &                           ctrans(space$(2-len(num$(month([L]LPRIMERDIA))))+num$(month([L]LPRIMERDIA)),' ','0')+"_"+
 &                           [M:ZLC0]BPRNUM(I),"pdf")
