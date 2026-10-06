@@ -34,8 +34,8 @@ Return
 ##############################################################
 $INIT
 # variables locales
-Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '01/03/2026'
-Local   Char  LFECHALIMITEEND(10) : [L]LFECHALIMITEEND = '31/05/2026'
+Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '01/01/2026'
+Local   Char  LFECHALIMITEEND(10) : [L]LFECHALIMITEEND = '31/12/2026'
 Local   Char  LCRIT(250)
 Local   Date  LFECHAINI,LFECHAFIN
 Local   Char  TBPAR(20)(1..17)
@@ -57,8 +57,8 @@ Local Char    PWD(100)        : PWD       = 'P9tXf7h1ww1EtC9'
 #Local Char    PWD(100)        : PWD       = '0cR2x08GRkaeqbR'
 
 Local Char    FTPFOLDER(100)  : FTPFOLDER = 'TEST_IMPORT/PDF'
-Local Char    LPATH(100)      : LPATH     = filpath('FTP\B2B','','')
-Local Char    LPATHDES(100)   : LPATHDES  = filpath('FTP\B2B\ENVIADOS\ENTREGASPDF','','')
+Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
+Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS\ENTREGASPDF','','')
 Local Char    LINDEX(100)
 Local Char    LFORMATO(100)   : LFORMATO  = 'pdf'
 Local Integer RESULT
@@ -68,13 +68,11 @@ Local Char    LBASEURL(100)   : LBASEURL  = ''
 
   Raz TBPAR, TBVAL
 
-  [V]GPATHENTB2B = filpath("","","") + "\FTP\B2B\"
+  [V]GPATHENTB2B = filpath("","","") + "\B2B\FTP\"
 
   [L]LFECHAINI  = gdat$(val(mid$([L]LFECHALIMITESTR,1,2)),val(mid$([L]LFECHALIMITESTR,4,2)),val(mid$([L]LFECHALIMITESTR,7,4)))
   [L]LFECHAFIN  = gdat$(val(mid$([L]LFECHALIMITEEND,1,2)),val(mid$([L]LFECHALIMITEEND,4,2)),val(mid$([L]LFECHALIMITEEND,7,4)))
 
-#  [L]LCRIT =  "ZURLPDFB2B='' and CATEGORIA=1 and VALIDADA=2 and ZUSUARIOB2B <> '' and " +
-#&             "FECHA>=[" + format$(GFMD,[L]LFECHAINI) + "] and FECHA<=[" + format$(GFMD,[L]LFECHAFIN) + "]"
   [L]LCRIT =  "ZURLPDFB2B='' and CATEGORIA=1 and VALIDADA=2 and " +
 &             "FECHA>=[" + format$(GFMD,[L]LFECHAINI) + "] and FECHA<=[" + format$(GFMD,[L]LFECHAFIN) + "]"
 
@@ -104,7 +102,7 @@ Return
 ##############################################################
 ##############################################################
 $IMPRIME_ENTREGA
-  Filter [F:ZVEB] Where evalue([L]LCRIT)
+  Filter [F:ZVEB] Where evalue([L]LCRIT) Order By ENTREGA Asc
   For [F:ZVEB]
     [V]GNUMENTB2B = [F:ZVEB]ENTREGA
 

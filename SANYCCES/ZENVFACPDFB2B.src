@@ -34,8 +34,8 @@ Return
 ##############################################################
 $INIT
 # variables locales
-Local   Char  LFECHALIMITESTR(10)
-Local   Char  LFECHALIMITEEND(10)
+Local   Char  LFECHALIMITESTR(10) : [L]LFECHALIMITESTR = '01/01/2026'
+Local   Char  LFECHALIMITEEND(10) : [L]LFECHALIMITEEND = '31/12/2026'
 Local   Char  LCRIT(250)
 Local   Date  LFECHAINI,LFECHAFIN
 Local   Char  TBPAR(20)(1..13)
@@ -110,23 +110,26 @@ Return
 ##############################################################
 ##############################################################
 $IMPRIME_FACTURA
-  Filter [F:ZVFB] Where evalue([L]LCRIT)
+  Raz [F:ZVFB]
+  Filter [F:ZVFB] Where evalue([L]LCRIT) Order By FACTURA Asc
   For [F:ZVFB]
+    Raz TBPAR,TBVAL
+
     [V]GNUMFACB2B = [F:ZVFB]FACTURA
     # parámetros de la factura
-    TBPAR(1)  = "siteini"         : TBVAL(1)  = [F:ZVFB]PLANTA
-    TBPAR(2)  = "sitedeb"         : TBVAL(2)  = [F:ZVFB]PLANTA
-    TBPAR(3)  = "factureini"      : TBVAL(3)  = [F:ZVFB]FACTURA
-    TBPAR(4)  = "facturedeb"      : TBVAL(4)  = [F:ZVFB]FACTURA
-    TBPAR(5)  = "typeini"         : TBVAL(5)  = num$([F:ZVFB]TIPOFAC)
-    TBPAR(6)  = "typedeb"         : TBVAL(6)  = num$([F:ZVFB]TIPOFAC)
-    TBPAR(7)  = "clientini"       : TBVAL(7)  = [F:ZVFB]CLIENTE_SAGE
-    TBPAR(8)  = "clientdeb"       : TBVAL(8)  = [F:ZVFB]CLIENTE_SAGE
-    TBPAR(9)  = "dateini"         : TBVAL(9)  = [F:ZVFB]FECHA
-    TBPAR(10) = "datedeb"         : TBVAL(10) = [F:ZVFB]FECHA
+    TBPAR(1)  = "sitedeb"         : TBVAL(1)  = [F:ZVFB]PLANTA
+    TBPAR(2)  = "sitefin"         : TBVAL(2)  = [F:ZVFB]PLANTA
+    TBPAR(3)  = "facturedeb"      : TBVAL(3)  = [F:ZVFB]FACTURA
+    TBPAR(4)  = "facturefin"      : TBVAL(4)  = [F:ZVFB]FACTURA
+    TBPAR(5)  = "typedeb"         : TBVAL(5)  = num$([F:ZVFB]TIPOFAC)
+    TBPAR(6)  = "typefin"         : TBVAL(6)  = num$([F:ZVFB]TIPOFAC)
+    TBPAR(7)  = "clientdeb"       : TBVAL(7)  = [F:ZVFB]CLIENTE_SAGE
+    TBPAR(8)  = "clientfin"       : TBVAL(8)  = [F:ZVFB]CLIENTE_SAGE
+    TBPAR(9)  = "datedeb"         : TBVAL(9)  = [F:ZVFB]FECHA
+    TBPAR(10) = "datefin"         : TBVAL(10) = [F:ZVFB]FECHA
     TBPAR(11) = "codimp"          : TBVAL(11) = num$([F:ZVFB]IMPRESION)
     TBPAR(12) = "impselections"   : TBVAL(12) = "1"
-    TBPAR(13) = "duplicata"       : TBVAL(13) = "1"
+    TBPAR(13) = "duplicata"       : TBVAL(13) = "2"
 
     # lanza el informe
     Call ETAT("Z-FACVEN-B2B","FILE","SPA",0,"",TBPAR,TBVAL) From AIMP3
