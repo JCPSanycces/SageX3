@@ -3,6 +3,7 @@
 # @03@ - JLP - 05-03-2025 - Incidencia Presupuestos - (No afecte en presupuestos)
 # @04@ - JLP - 16-04-2025 - 16-04-2025 - Bloqueos asociados en PDV - INI
 # 2026-00066 - JCP.06072026.Acotar ediciones de líneas de pedido que están en contenedor
+# 2026-00738 - JCP.06102026.Error al cambiar la dirección de envío en los PRVs
 #####################################################################################################
 
 $ACTION
@@ -132,23 +133,25 @@ Return
 ##############################################################
 $INIT
 # 2026-00066.ini
-Local Integer ZSTOP_PROC
-  # Si la línea está en un contenedor...
-  If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
-  Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LINEA_PEDIDO = [M:SOH4]SOPLIN(nolign-1)
-  Read [F:ZVAP0] First
-  If !fstat Then
-    # mostramos el error
-    Call ERREUR("Línea en contenedor de prepicking.\No es posible saldar sin vaciar el contenedor.\Contactar con el responsable.") From GESECRAN
-    # activamos el flag de parada (Variable local que persiste durante el Traite)
-    [L]ZSTOP_PROC = 1
-    # señalizamos error al sistema
-    OK  = 0     # indica estado de error/fallo
-    GOK = 0     # aborta la transacción si estuviera abierta
-    GPE = 1     # inhibe el estándar de la etiqueta INIT actual
-    FIN = 1     # ordenamos finalizar el proceso (evita que se abra SCCLREN)
-  Endif
-  Filter [F:ZVAP0]
-  Close Local File [ZVAP0]
+  If GNAVIG(GPILNAV) = "GESSOH" Then        # 2026-00738
+    Local Integer ZSTOP_PROC
+    # Si la línea está en un contenedor...
+    If !clalev([F:ZVAP0]) Then : Local File YAPPLPNSTO4 [F:ZVAP0] : Endif
+    Filter [F:ZVAP0] Where ZSOHNUM = [M:SOH0]SOHNUM and LINEA_PEDIDO = [M:SOH4]SOPLIN(nolign-1)
+    Read [F:ZVAP0] First
+    If !fstat Then
+      # mostramos el error
+      Call ERREUR("Línea en contenedor de prepicking.\No es posible saldar sin vaciar el contenedor.\Contactar con el responsable.") From GESECRAN
+      # activamos el flag de parada (Variable local que persiste durante el Traite)
+      [L]ZSTOP_PROC = 1
+      # señalizamos error al sistema
+      OK  = 0     # indica estado de error/fallo
+      GOK = 0     # aborta la transacción si estuviera abierta
+      GPE = 1     # inhibe el estándar de la etiqueta INIT actual
+      FIN = 1     # ordenamos finalizar el proceso (evita que se abra SCCLREN)
+    Endif
+    Filter [F:ZVAP0]
+    Close Local File [ZVAP0]
+  Endif                                     # 2026-00738
 # 2026-00066.fin
 Return
