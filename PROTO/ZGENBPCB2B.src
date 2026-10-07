@@ -1,7 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 ############################################################################
 # Script name : ZGENBPCB2B
-# Description : Proceso de generación de clientes para el B2B
+# Description : Proceso batch de generación de clientes para el B2B
 # Module      :
 # Version     : 1
 # Created by  : Jose Luis Chiva
