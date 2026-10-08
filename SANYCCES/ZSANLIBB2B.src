@@ -3,6 +3,7 @@
 #**
 #* devuelve la información del pedido para el B2B
 #*
+#* @param PPEDIDOF        > número de pedido para filtrar
 #* @param PCLIMGT         > identificador de cliente B2B
 #* @param PBPCNUM         > identificador de cliente Sage
 #* @param PDATEINI        > fecha inicial para filtro
@@ -24,10 +25,11 @@
 #* @param PTOTALPEDIDOS   > número total de pedidos
 #* @param PMAXPAGINA      > número de pedidos por página
 #*!
-Subprog GET_SOHINFO(PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
+Subprog GET_SOHINFO(PPEDIDOF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
 &                   PNUMPAG,PPEDIDO,PFECHA,PESTADO,PFECHAULTENT,PFECHAPREVISTA,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PREFERENCIA,
 &                   PPEDIDOMAGENTO,PNUMLINEAS,PTOTALPAGS,PTOTALPEDIDOS,PMAXPAGINA)
 # parámetros de entrada
+Value     Char    PPEDIDOF()
 Value     Char    PCLIMGT()
 Value     Char    PBPCNUM()
 Value     Char    PDATEINI()
@@ -133,6 +135,10 @@ Local     Integer LREGINI,LREGFIN
   # si el usuario no existe en la tabla, no muestra ningún pedido
   Else
     [L]LCRIT += " and 1=2"
+  Endif
+
+  If PPEDIDOF <> "" Then
+    [L]LCRIT += " and PEDIDO = '" + PPEDIDOF + "'"
   Endif
 
   Filter [F:ZVSH0] Where evalue([L]LCRIT) Order By PEDIDO Desc
@@ -433,6 +439,7 @@ End
 #**
 #* devuelve la información de la entrega para el B2B
 #*
+#* @param PENTREGAF       > número de entrega para el filtro
 #* @param PCLIMGT         > identificador de cliente B2B
 #* @param PBPCNUM         > identificador de cliente Sage
 #* @param PDATEINI        > fecha inicial para filtro
@@ -453,10 +460,11 @@ End
 #* @param PNUMLINEAS      > número de líneas totales en la entrega
 #* @param PLINKPDF        > link de descarga
 #*!
-Subprog GET_SDHINFO(PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
+Subprog GET_SDHINFO(PENTREGAF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
 &                   PNUMPAG,PTOTALPAGS,PTOTALENTREGAS,PMAXPAGINA,
 &                   PENTREGA,PFECHA,PPEDIDO,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PDOCPREP,PTRACKING,PTRANSPORTISTA,PNUMLINEAS,PLINKPDF)
 # parámetros de entrada
+Value     Char    PENTREGAF()
 Value     Char    PCLIMGT()
 Value     Char    PBPCNUM()
 Value     Char    PDATEINI()
@@ -531,6 +539,10 @@ Local     Integer LREGINI,LREGFIN
     Endif
   Endif
 
+  If PENTREGAF <> "" Then
+    [L]LCRIT += " and ENTREGA = '" + PENTREGAF + "'"
+  Endif
+
   If PNUMPAG = 0 Then
     PNUMPAG = 1
   Endif
@@ -596,7 +608,7 @@ End
 #**
 #* devuelve la información de líneas de entrega para el B2B
 #*
-#* @param PENTREGA        > número de entrega
+#* @param PENTREGA        > número de entrega para el filtro
 #* @param PNUMPAG         > número de la página
 #* @param PFECHA          > fecha de entrega
 #* @param PTIMPORTEAI     > importe total antes de impuestos
@@ -766,6 +778,7 @@ End
 #**
 #* devuelve la información de las facturas para el B2B
 #*
+#* @param PFACTURAF       > número de factura para el filtro
 #* @param PCLIMGT         > identificador de cliente B2B
 #* @param PBPCNUM         > identificador de cliente Sage
 #* @param PDATEINI        > fecha inicial para filtro
@@ -782,10 +795,11 @@ End
 #* @param PCONDPAGO       > condición de pago
 #* @param PLINKPDF        > link de descarga
 #*!
-Subprog GET_SIHINFO(PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
+Subprog GET_SIHINFO(PFACTURAF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
 &                   PNUMPAG,PTOTALPAGS,PTOTALFACTURAS,PMAXPAGINA,
 &                   PFACTURA,PFECHA,PREFERENCIA,PDIVISA,PIMPORTE,PCONDPAGO,PLINKPDF)
 # parámetros de entrada
+Value     Char    PFACTURAF()
 Value     Char    PCLIMGT()
 Value     Char    PBPCNUM()
 Value     Char    PDATEINI()
@@ -854,6 +868,10 @@ Local     Integer LREGINI,LREGFIN
       [L]LFFIN  = gdat$(val(mid$(PDATEDEB,1,2)),val(mid$(PDATEDEB,4,2)),val(mid$(PDATEDEB,7,4)))
       [L]LCRIT += " and FECHA<=["  + format$(GFMD,[L]LFFIN) + "]"
     Endif
+  Endif
+
+  If PFACTURAF <> "" Then
+    [L]LCRIT += " and FACTURA = '" + PFACTURAF + "'"
   Endif
 
   If PNUMPAG = 0 Then
