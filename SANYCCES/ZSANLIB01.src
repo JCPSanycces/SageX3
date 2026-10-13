@@ -1035,3 +1035,21 @@ Local Decimal L_STOCK_DISP
   Close Local File [ZSTK]
 
 End L_STOCK_DISP
+
+##############################################################
+#**
+#* indica si existe configuración ZCLIALT para cliente/artículo/planta
+#*!
+Funprog TIENE_CONFIG(PBPCORD,PITM,PFCY)
+Value Char PBPCORD,PITM,PFCY
+
+Local Integer LRET, LOPEN
+
+  If !clalev([F:ZCAT]) : Local File ZCLIALT [ZCAT] : LOPEN = 1 : Endif
+  Filter [F:ZCAT] Where BPCNUM = PBPCORD and ITMREF = PITM and FCY = PFCY
+  Read [F:ZCAT] First
+  LRET = !fstat
+  Filter [F:ZCAT]
+  If LOPEN : Close Local File [ZCAT] : Endif
+
+End LRET

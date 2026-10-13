@@ -15,12 +15,18 @@ Return
 $EXEC
 
 # 2026-00391.ini
-      Global Char    GZMFGNUM(GLONVCR)
-      Global Integer GZMFMSEQ
-      Global Char    GZITMREF(GLONITM)
-      Global Char    GZSTOFCY(GLONFCY)
-      Global Char    GZBPCORD(GLONBPC) : [V]GZBPCORD = [M:SOH0]BPCORD
-      Global Char    GSUBESTADO(5)
+      Global Char     GZMFGNUM(GLONVCR)
+      Global Integer  GZMFMSEQ
+      Global Char     GZITMREF(GLONITM)
+      Global Char     GZSTOFCY(GLONFCY)
+      Global Char     GZBPCORD(GLONBPC) : [V]GZBPCORD = [M:SOH0]BPCORD
+      Global Char     GSUBESTADO(5)
+      Local Char      LTABOF(GLONVCR)(200)
+      Local Integer   LNBOF
+      Global Char     GZMIXMFG(GLONVCR)   # OF para la que se ha calculado si es mixta
+      Global Integer  GZMIXTA             # 1 = la OF tiene algún componente en ZCLIALT
+
+      Raz GZMIXMFG, GZMIXTA
 # 2026-00391.fin
 
 # Añado como componentes no creados a las OFs de contramarca, los artículos asociados añadidos en las líneas del pedido de venta
@@ -86,6 +92,16 @@ For  [F:ZORD]                                             # 0 - Recorro la tabla
     Read [SOQ]SOQ0=WVCRNUM;WVCRLIN;WVCRSEQ
     If !fstat
       If [F:SOQ]FMINUM<>""                                                        # 1 - Voy a las líneas del pedido vinculado a la OF
+
+        # 2026-00391.ini - guardar OF para recalcular estado de asignación
+        If LNBOF = 0 or !find([F:SOQ]FMINUM, LTABOF(0..LNBOF-1))
+          If LNBOF < dim(LTABOF)
+            LTABOF(LNBOF) = [F:SOQ]FMINUM
+            LNBOF += 1
+          Endif
+        Endif
+        # 2026-00391.fin - guardar OF para recalcular estado de asignación
+
         Local Integer W_NUMOPE(50), NUMASOC
         XX=0: Raz W_NUMOPE: NUMASOC=0
         Filter [F:ZSOQ] Where [F:ZSOQ]SOHNUM=[F:SOQ]SOHNUM and [F:ZSOQ]ZASOCIADO=2  & [F:ZSOQ]ZLINASOC=[F:SOQ]SOPLIN
@@ -452,37 +468,52 @@ For  [F:ZORD]                                             # 0 - Recorro la tabla
 # GPE=1
 
 # 2026-00391.ini
-  # cambiar el estado de la asignación en la orden
-  If GNAVIG(GPILNAV) = "GESSOH" Then
-    If !clalev([F:ZMFG]) Then : Local File MFGHEAD [F:ZMFG] : Endif
-    Read [F:ZMFG]MFG0 = [F:MFG]MFGNUM
-    If !fstat Then
+  # Recalcular el estado de asignación de las OF creadas
+  If GNAVIG(GPILNAV) = "GESSOH" and LNBOF > 0
 
-      Local Integer ASIGNA_LINEA,LCTRLTRB
-      ASIGNA_LINEA  = func SPEYPSA.ASIGNA_OF([F:MFG]MFGNUM)
-      Case [L]ASIGNA_LINEA
-        When 1,3 : [F:ZMFG]ALLSTA = [L]ASIGNA_LINEA
+    Local Integer ASIGNA_LINEA, LCTRLTRB, LERRTRB, LOPENMFG, LIDX
+    Raz LERRTRB, LOPENMFG
+
+    If !clalev([F:ZMFG]) : Local File MFGHEAD [ZMFG] : LOPENMFG = 1 : Endif
+
+    # Solo abrimos/cerramos transacción si no hay una en curso
+    If adxlog
+      LCTRLTRB = 1
+    Else
+      Trbegin [F:ZMFG]
+      LCTRLTRB = 0
+    Endif
+
+    For LIDX = 0 To LNBOF-1
+      Readlock [F:ZMFG]MFG0 = LTABOF(LIDX)
+      If fstat
+        Call ECR_TRACE("ERROR BLOQUEO MFGHEAD - MFGNUM="+LTABOF(LIDX),1) From GESECRAN
+        LERRTRB = 1
+        Break
+      Endif
+
+      ASIGNA_LINEA = func SPEYPSA.ASIGNA_OF(LTABOF(LIDX))
+      Case ASIGNA_LINEA
+        When 1,3 : [F:ZMFG]ALLSTA = ASIGNA_LINEA
         When 2   : [F:ZMFG]ALLSTA = 5
       Endcase
 
-      If !adxlog Then
-        Trbegin [F:ZMFG]
-        [L]LCTRLTRB = 0
-      Else
-        [L]LCTRLTRB = 1
-      Endif
       Rewrite [F:ZMFG]
-      If !fstat Then
-        Commit
-      Else
-        Rollback
+      If fstat
+        Call ECR_TRACE("ERROR REWRITE MFGHEAD - MFGNUM="+LTABOF(LIDX),1) From GESECRAN
+        LERRTRB = 1
+        Break
       Endif
-      If [L]LCTRLTRB Then
-        Trbegin [MFG]
-      Endif
+    Next
 
+    If LCTRLTRB = 0
+      If LERRTRB : Rollback : Else : Commit : Endif
+    Elsif LERRTRB
+      # La transacción es del llamante: le avisamos y él decide
+      GOK = 0
     Endif
-    Close Local File [ZMFG]
+
+    If LOPENMFG : Close Local File [ZMFG] : Endif
   Endif
 # 2026-00391.fin
 
@@ -513,6 +544,20 @@ Local Decimal  WLIKQTY  # X3-113884 - GH - 2018-10-22
 Gosub DEFLIG From SUBMFG2
 If GUSER = 'NUN05' Then : Infbox "MODIF - numero de líneas:"  + num$([M:MFG2]NBLIG-1) : Endif
 If [M:MFG2]NBLIG <= 0 Then : Return : Endif # NUN05.15032023.NEW
+
+# 2026-00391.ini - ¿OF mixta?
+  Local Integer LMIXTA, LX
+  If dim(GZBPCORD) > 0
+    For LX = 0 To [M:MFG2]NBLIG-1
+      If [M:MFG2]ITMREF(LX) <> "" and [M:MFG2]MATSTA(LX) <> 4
+        If func ZSANLIB01.TIENE_CONFIG(GZBPCORD,[M:MFG2]ITMREF(LX),[M:MFG0]MFGFCY)
+          LMIXTA = 1 : Break
+        Endif
+      Endif
+    Next LX
+  Endif
+# 2026-00391.fin
+
 For I=0 To [M:MFG2]NBLIG-1
     nolign = I + 1
     Case [M:MFG2]MFGLINK(I)                     # (correction llc 09.00)
@@ -669,7 +714,14 @@ For I=0 To [M:MFG2]NBLIG-1
            Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 0) From MFGLIBM
         Else
            Case [F:MTS]MODALL
-             When 2: Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 2) From MFGLIBM
+             When 2
+               # 2026-00391.ini - componente sin ZCLIALT en OF mixta -> detallada
+               If LMIXTA and !func ZSANLIB01.TIENE_CONFIG(GZBPCORD,[M:MFG2]ITMREF(I),[M:MFG0]MFGFCY)
+                 Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 3) From MFGLIBM
+               Else
+                 Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 2) From MFGLIBM
+               Endif
+               # 2026-00391.fin
              When 3: Call UPDATE_MFX("C", [M:MFG2]PJT(I), [M:MFG2]BOMALT(I), 3) From MFGLIBM
            Endcase
         Endif
