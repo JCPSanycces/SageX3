@@ -8,6 +8,7 @@
 #* @param PBPCNUM         > identificador de cliente Sage
 #* @param PDATEINI        > fecha inicial para filtro
 #* @param PDATEDEB        > fecha final para filtro
+#* @param PREFERENCIAF    > referencia para filtro
 #* @param PNUMPAG         > número de página
 #* @param PPEDIDO         > número de pedido
 #* @param PFECHA          > fecha de pedido
@@ -25,7 +26,7 @@
 #* @param PTOTALPEDIDOS   > número total de pedidos
 #* @param PMAXPAGINA      > número de pedidos por página
 #*!
-Subprog GET_SOHINFO(PPEDIDOF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
+Subprog GET_SOHINFO(PPEDIDOF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,PREFERENCIAF,
 &                   PNUMPAG,PPEDIDO,PFECHA,PESTADO,PFECHAULTENT,PFECHAPREVISTA,PIMPORTEAI,PIMPORTEII,PCONDPAGO,PELEMFACT,PREFERENCIA,
 &                   PPEDIDOMAGENTO,PNUMLINEAS,PTOTALPAGS,PTOTALPEDIDOS,PMAXPAGINA)
 # parámetros de entrada
@@ -34,6 +35,7 @@ Value     Char    PCLIMGT()
 Value     Char    PBPCNUM()
 Value     Char    PDATEINI()
 Value     Char    PDATEDEB()
+Value     Char    PREFERENCIAF()
 # parámetros de salida - cabecera
 Variable  Integer PNUMPAG()
 Variable  Char    PPEDIDO()(1..50)
@@ -139,6 +141,10 @@ Local     Integer LREGINI,LREGFIN
 
   If PPEDIDOF <> "" Then
     [L]LCRIT += " and PEDIDO = '" + PPEDIDOF + "'"
+  Endif
+
+  If PREFERENCIAF <> "" Then
+    [L]LCRIT += " and REFERENCIA = '" + PREFERENCIAF + "'"
   Endif
 
   Filter [F:ZVSH0] Where evalue([L]LCRIT) Order By PEDIDO Desc
@@ -783,6 +789,7 @@ End
 #* @param PBPCNUM         > identificador de cliente Sage
 #* @param PDATEINI        > fecha inicial para filtro
 #* @param PDATEDEB        > fecha final para filtro
+#* @param PREFERENCIA     > referencia en la factura para filtro
 #* @param PNUMPAG         > número de página
 #* @param PTOTALPAGS      > número total de páginas
 #* @param PTOTALFACTURAS  > número total de facturas
@@ -795,7 +802,7 @@ End
 #* @param PCONDPAGO       > condición de pago
 #* @param PLINKPDF        > link de descarga
 #*!
-Subprog GET_SIHINFO(PFACTURAF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,
+Subprog GET_SIHINFO(PFACTURAF,PCLIMGT,PBPCNUM,PDATEINI,PDATEDEB,PREFERENCIAF,
 &                   PNUMPAG,PTOTALPAGS,PTOTALFACTURAS,PMAXPAGINA,
 &                   PFACTURA,PFECHA,PREFERENCIA,PDIVISA,PIMPORTE,PCONDPAGO,PLINKPDF)
 # parámetros de entrada
@@ -804,6 +811,7 @@ Value     Char    PCLIMGT()
 Value     Char    PBPCNUM()
 Value     Char    PDATEINI()
 Value     Char    PDATEDEB()
+Value     Char    PREFERENCIAF()
 # parámetros de salida
 Variable  Integer PNUMPAG()
 Variable  Integer PTOTALPAGS()
@@ -872,6 +880,10 @@ Local     Integer LREGINI,LREGFIN
 
   If PFACTURAF <> "" Then
     [L]LCRIT += " and FACTURA = '" + PFACTURAF + "'"
+  Endif
+
+  If PREFERENCIAF <> "" Then
+    [L]LCRIT += " and REFERENCIA = '" + PREFERENCIAF + "'"
   Endif
 
   If PNUMPAG = 0 Then
