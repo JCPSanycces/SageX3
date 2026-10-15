@@ -140,11 +140,13 @@ Local     Integer LREGINI,LREGFIN
   Endif
 
   If PPEDIDOF <> "" Then
-    [L]LCRIT += " and PEDIDO = '" + PPEDIDOF + "'"
+    PPEDIDOF = toupper(PPEDIDOF)
+    [L]LCRIT += " and instr(1, toupper(PEDIDO), '" + PPEDIDOF + "') > 0"
   Endif
 
   If PREFERENCIAF <> "" Then
-    [L]LCRIT += " and REFERENCIA = '" + PREFERENCIAF + "'"
+    PREFERENCIAF = toupper(PREFERENCIAF)
+    [L]LCRIT += " and instr(1, toupper(REFERENCIA), '" + PREFERENCIAF + "') > 0"
   Endif
 
   Filter [F:ZVSH0] Where evalue([L]LCRIT) Order By PEDIDO Desc
@@ -546,7 +548,8 @@ Local     Integer LREGINI,LREGFIN
   Endif
 
   If PENTREGAF <> "" Then
-    [L]LCRIT += " and ENTREGA = '" + PENTREGAF + "'"
+    PENTREGAF = toupper(PENTREGAF)
+    [L]LCRIT += " and instr(1, toupper(ENTREGA), '" + PENTREGAF + "') > 0"
   Endif
 
   If PNUMPAG = 0 Then
@@ -879,11 +882,13 @@ Local     Integer LREGINI,LREGFIN
   Endif
 
   If PFACTURAF <> "" Then
-    [L]LCRIT += " and FACTURA = '" + PFACTURAF + "'"
+    PFACTURAF = toupper(PFACTURAF)
+    [L]LCRIT += " and instr(1, toupper(FACTURA), '" + PFACTURAF + "') > 0"
   Endif
 
   If PREFERENCIAF <> "" Then
-    [L]LCRIT += " and REFERENCIA = '" + PREFERENCIAF + "'"
+    PREFERENCIAF = toupper(PREFERENCIAF)
+    [L]LCRIT += " and instr(1, toupper(REFERENCIA), '" + PREFERENCIAF + "') > 0"
   Endif
 
   If PNUMPAG = 0 Then
