@@ -42,8 +42,7 @@ $INIT
   Local Char    LPATH(100)      : LPATH     = filpath('B2B\FTP','','')
   Local Char    LPATHDES(100)   : LPATHDES  = filpath('B2B\FTP\ENVIADOS','','')
   Local Char    FTPFOLDER(100)
-  Local Char    LINDEX1(100)
-  Local Char    LINDEX2(100)
+  Local Char    LINDEX(100)
   Local Integer RESULT
 Return
 

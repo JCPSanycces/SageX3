@@ -400,7 +400,7 @@ Value     Char    P_PWD
 Value     Char    P_FTPFOLDER
 Value     Char    P_LPATH
 Value     Char    P_LPATHDES
-Value     Char    P_LINDEX
+Value     Char    P_LINDEX()(1..)
 Variable  Integer P_RESULT
 
 Local     Char    LDIRIMPORT(250)
@@ -428,6 +428,16 @@ Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
   [L]LFILE            = [L]LDIRIMPORT + "\" + [L]LINDEX + "." + [L]LFORMATO
   P_FTPFOLDER         = "STOCKS"
   P_LPATHDES         += "\STOCKS"
+
+  For [L]LCONT = 1 To maxtab(P_LINDEX)
+    If [L]LCONT = 1 Then
+      [L]LCRITSTK += " and (SKU='" + P_LINDEX([L]LCONT) + "'"
+    Elsif [L]LCONT = maxtab(P_LINDEX) Then
+      [L]LCRITSTK += " or SKU='" + P_LINDEX([L]LCONT) + "')"
+    Else
+      [L]LCRITSTK += " or SKU='" + P_LINDEX([L]LCONT) + "'"
+    Endif
+  Next
 
   If GSERVEUR
     Call ECR_TRACE("Criterio de selección:"-[L]LCRITSTK,0) From GESECRAN
@@ -473,8 +483,7 @@ Local     Char    LSOURCECODE(250),LSKU(250),LQUANTITY(250),LESTADO(250)
   Openo Using [ZB2B]
 
   # envío al servidor FTP
-  P_LINDEX = [L]LINDEX
-  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,P_LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
+  Call SFTPPUTMOV_B2B(P_SERVER,P_PORT,P_USER,P_PWD,P_FTPFOLDER,P_LPATH,P_LPATHDES,[L]LINDEX,LFORMATO,P_RESULT) From ZSANYFTP
 
   If GSERVEUR
     Call ECR_TRACE("Fin del envío de stocks al B2B ["+num$(datetime$)+"]",0) From GESECRAN
