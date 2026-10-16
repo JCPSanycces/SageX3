@@ -209,7 +209,9 @@ Return
 $ALLCHOMAT
 # 2026-00391.ini
   If GNAVIG(GPILNAV) = "GESSOH" Then
+    Local Integer LZALLCHOMAT : LZALLCHOMAT = 1   # venimos de CRE_ALL (MFGAUTLIB)
     Gosub ASIGNAR_SUBESTADO
+    LZALLCHOMAT = 0
   Endif
 # 2026-00391.fin
 Return
@@ -494,6 +496,8 @@ Raz LERRASIG
     [F:MFM]SHTQTY = 0
     [F:MFM]ALLSTA = 5
 
+    Gosub ACTUALIZAR_CABECERA
+
     GPE = 1
 
     Call ECR_TRACE(
@@ -636,6 +640,8 @@ Raz LERRASIG
   Else
     [F:MFM]ALLSTA = 4
   Endif
+
+  Gosub ACTUALIZAR_CABECERA
 
   GPE = 1
 
@@ -818,6 +824,29 @@ Local Integer LI
     Call ECR_TRACE("OF MIXTA - ITMREF="+[F:MFM]ITMREF+
 &                  " SIN ZCLIALT -> DETALLADA ESTANDAR",0) From GESECRAN
   Endif
+
+Return
+
+##############################################################
+# ACTUALIZAR_CABECERA
+#
+# Con GPE=1, CRE_ALL (MFGAUTLIB) sale antes de MAJMFG y no
+# actualiza OVRALLNBR / DETALLNBR / SHTMATNBR de [F:MFG].
+# Lo hacemos aquí con la misma rutina estándar.
+# Solo cuando venimos del punto de entrada ALLCHOMAT.
+##############################################################
+$ACTUALIZAR_CABECERA
+
+  If dim(LZALLCHOMAT) < 0 : Return : Endif
+  If LZALLCHOMAT <> 1     : Return : Endif
+  If dim(MEMSTA) < 0      : Return : Endif
+
+  MEMSTA = 1                       # la línea no tenía asignación previa
+  Gosub MAJMFG From MFGAUTLIB
+
+  Call ECR_TRACE("CABECERA OF - DETALLNBR="+num$([F:MFG]DETALLNBR)+
+&                " OVRALLNBR="+num$([F:MFG]OVRALLNBR)+
+&                " SHTMATNBR="+num$([F:MFG]SHTMATNBR),0) From GESECRAN
 
 Return
 
