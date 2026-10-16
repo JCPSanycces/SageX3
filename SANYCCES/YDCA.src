@@ -1,0 +1,44 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+#############################################################################################
+#Call GESTIONA_DCA("OVPG22605-01655")
+#End
+
+##############################################################################################
+#
+#Subprog GESTIONA_DCA(PS_SDHNUM)
+#  Value Char PS_SDHNUM
+#  Local Integer YFLG : YFLG = 1
+#  Call CHECK_TRANSPORTISTA(PS_SDHNUM,YFLG) From YDCALIB
+#  If YFLG <> 2
+#    Call PRINT_CARTA(PS_SDHNUM) From YDCALIB
+#    Sleep 7
+#    Call CHECK_ESTADO(PS_SDHNUM) From YDCALIB
+#    Sleep 3
+#    Call EJECUTAR_BAT() From YDCALIB
+#
+#    If GFONCTION <> 'YDCA'
+#      Infbox "Envío finalizado, revisa el monitor para ver su estado."
+#    Endif
+#
+#  Endif
+#
+#End
+
+#############################################################################################
+
+Subprog GESTIONA_DCA_VCR(PS_VCRNUM, PI_VCRTYP)
+  Value Char PS_VCRNUM
+  Value Integer PI_VCRTYP
+  Call PRINT_CARTA_VCR(PS_VCRNUM, PI_VCRTYP) From YDCALIB
+  Sleep 7
+  Call CHECK_ESTADO(PS_VCRNUM) From YDCALIB
+  Sleep 3
+  If nomap = 'SANYCCES'
+    Call EJECUTAR_BAT() From YDCALIB
+  Endif
+  If GFONCTION <> 'YDCA'
+    Infbox "Envío finalizado, revisa el monitor para ver su estado."
+  Endif
+
+
+End

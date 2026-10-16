@@ -1,0 +1,343 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+$ACTION
+  Case ACTION
+   When "OUVRE" : Gosub OUVRE
+   When "DEBUT" : Gosub DEBUT
+   When "OK" : Gosub OK
+
+  Endcase
+Return
+
+#####################################################################################################
+
+$OUVRE
+  If clalev([F:YBPA2])  =0  : Local File BPADDRESS  [YBPA2]   : Endif
+  If clalev([F:YFCY2])  =0  : Local File FACILITY   [YFCY2]   : Endif
+  If clalev([F:YBPR2])  =0  : Local File BPARTNER   [YBPR2]   : Endif
+  If clalev([F:YBPR3])  =0  : Local File BPARTNER   [YBPR3]   : Endif
+  If clalev([F:YDVCR])  =0  : Local File YDCAVCR    [YDVCR]   : Endif
+  If clalev([F:YDVCR2]) =0  : Local File YDCAVCR    [YDVCR2]  : Endif
+  If clalev([F:CNT])    =0  : Local File CONTACT    [CNT]     : Endif
+  If clalev([F:YCNT])   =0  : Local File CONTACT    [YCNT]    : Endif
+
+  Local Integer FLG : FLG = 0
+Return
+
+#####################################################################################################
+
+$DEBUT
+  Raz [M:YDCAVCR]
+  Read [F:YDVCR2]YDVCR = PARAM(1)
+  If !fstat
+    [M:YDCAVCR] = [F:YDVCR2]
+  Else
+    Gosub LOAD_PEDIDO
+    Gosub LOAD_CARGADOR
+    Gosub LOAD_DESTINATARIO
+    Gosub LOAD_CONTRATISTA
+    Gosub LOAD_LUGARES
+    Gosub LOAD_EXTRA
+  Endif
+
+
+  Affzo [M:YDCAVCR]
+
+Return
+
+#####################################################################################################
+
+$OK
+  Local Integer CHECK_INFO : CHECK_INFO = 0
+  Gosub CHECK_INFO
+  If CHECK_INFO <> 2
+    Local Integer YFLG2: YFLG2 = 0
+
+    Read [F:YDVCR2]YDVCR = [M:YDCAVCR]VCRNUM
+    If !fstat
+      Gosub RELLENA
+      Rewrite [F:YDVCR2]
+      Infbox "Se actualizan los datos del DcA y se genera el documento."
+    Else
+      Gosub RELLENA
+      Write [F:YDVCR2]
+      Infbox "Se rellenan los datos del DcA y se genera el documento."
+    Endif
+
+    Read [F:YDVCR2]YDVCR = [M:YDCAVCR]VCRNUM
+    If !fstat
+      Read [F:YCNT]CNT0 = 1;[M:YDCAVCR]BPTNUM;[M:YDCAVCR]CONTACT
+      If !fstat
+        If [F:YCNT]TEL = '' or [F:YCNT]YTRANMATCAM = '' or [F:YCNT]YTRANMATREM = ''
+          [L]YFLG2 = 1
+        Endif
+        If [F:YCNT]TEL = ''           : [F:YCNT]TEL         = num$([F:YDVCR2]TELEFONO)      : Endif
+#        If [F:YCNT]YTRANDNI = ''      : [F:YCNT]YTRANDNI    = [F:YDVCR2]BPTCRN              : Endif
+        If [F:YCNT]YTRANMATCAM = ''   : [F:YCNT]YTRANMATCAM = [F:YDVCR2]TRACTORA            : Endif
+        If [F:YCNT]YTRANMATREM = ''   : [F:YCNT]YTRANMATREM = [F:YDVCR2]REMOLQUE            : Endif
+
+        If [L]YFLG2 = 1
+          Rewrite [F:YCNT]
+        Endif
+      Endif
+      Call GESTIONA_DCA_VCR([M:YDCAVCR]VCRNUM,[M:YDCAVCR]VCRTYP) From YDCA
+    Endif
+  Else
+    zonsui = "[YDCAVCR]FECHA" : FIN = 0 : Return
+  Endif
+Return
+
+#####################################################################################################
+
+$LOAD_PEDIDO
+  [M:YDCAVCR]VCRNUM     = PARAM(1)
+  [M:YDCAVCR]FECHA      = date$
+  [M:YDCAVCR]VCRTYP     = val(PARAM(10))
+Return
+
+#####################################################################################################
+
+$LOAD_CARGADOR
+
+If PARAM(10)='2'
+    Read  [F:YFCY2]FCY0 = PARAM(3)
+    If !fstat
+      [M:YDCAVCR]CNOMBRE   = [F:YFCY2]FCYNAM
+      [M:YDCAVCR]CCIF   = [F:YFCY2]CRN
+    Endif
+
+    Filter [F:YBPA2] Where [F:YBPA2]BPANUM = PARAM(3) and [F:YBPA2]BPATYP = 3 and [F:YBPA2]BPAADDFLG = 2
+
+    Read [F:YBPA2]BPA0 First
+    If !fstat
+      [M:YDCAVCR]CDIREC   = [F:YBPA2]BPAADDLIG(0)+" "+[F:YBPA2]BPAADDLIG(1)
+      [M:YDCAVCR]CPOSTAL  = val([F:YBPA2]POSCOD)
+      [M:YDCAVCR]CCTY     = [F:YBPA2]CTY
+      [M:YDCAVCR]CPROVIN  = [F:YBPA2]SAT
+#      [M:YDCAVCR]DESTINO   = [F:YBPA2]CTY
+      [M:YDCAVCR]ORIGEN  = [F:YBPA2]CTY
+    Endif
+    Filter [F:YBPA2]
+Else
+  Read [F:YBPR2]BPR0 = PARAM(4)
+  If !fstat
+    [M:YDCAVCR]CNOMBRE  = [F:YBPR2]BPRNAM
+    [M:YDCAVCR]CCIF  = [F:YBPR2]CRN
+  Endif
+  [M:YDCAVCR]CDIREC   = PARAM(6)
+  [M:YDCAVCR]CPOSTAL  = val(PARAM(7))
+  [M:YDCAVCR]CCTY     = PARAM(8)
+  [M:YDCAVCR]CPROVIN  = PARAM(9)
+Endif
+
+Return
+
+#####################################################################################################
+
+$LOAD_CONTRATISTA
+ If PARAM(10)='2'
+    [M:YDCAVCR]CCNOMBRE   =  [M:YDCAVCR]CNOMBRE
+    [M:YDCAVCR]CCCIF      =  [M:YDCAVCR]CCIF
+    [M:YDCAVCR]CCDIR      =  [M:YDCAVCR]CDIREC
+ Else
+    [M:YDCAVCR]CCNOMBRE   =  [M:YDCAVCR]DNOMBRE
+    [M:YDCAVCR]CCCIF      =  [M:YDCAVCR]DCIF
+    [M:YDCAVCR]CCDIR      =  [M:YDCAVCR]DDIREC
+ Endif
+Return
+
+#####################################################################################################
+
+$LOAD_DESTINATARIO
+ If PARAM(10)='2'
+    Read [F:YBPR2]BPR0 = PARAM(4)
+    If !fstat
+      [M:YDCAVCR]DNOMBRE  = [F:YBPR2]BPRNAM
+      [M:YDCAVCR]DCIF  = [F:YBPR2]CRN
+    Endif
+    [M:YDCAVCR]DDIREC   = PARAM(6)
+    [M:YDCAVCR]DPOSTAL  = val(PARAM(7))
+    [M:YDCAVCR]DCTY     = PARAM(8)
+    [M:YDCAVCR]DPROVIN  = PARAM(9)
+    [M:YDCAVCR]DESTINO   = PARAM(8)
+ Else
+    Read  [F:YFCY2]FCY0 = PARAM(3)
+    If !fstat
+      [M:YDCAVCR]DNOMBRE   = [F:YFCY2]FCYNAM
+      [M:YDCAVCR]DCIF   = [F:YFCY2]CRN
+    Endif
+
+  Read  [F:YFCY2]FCY0 = PARAM(3)
+  If !fstat
+    [M:YDCAVCR]DNOMBRE   = [F:YFCY2]FCYNAM
+    [M:YDCAVCR]DCIF   = [F:YFCY2]CRN
+  Endif
+
+#  If PARAM(3) = 'HUGU1'
+#    Filter [F:YBPA2] Where [F:YBPA2]BPANUM = PARAM(3) and [F:YBPA2]BPATYP = 3 and [F:YBPA2]BPAADD = "002"
+#  Else
+    Filter [F:YBPA2] Where [F:YBPA2]BPANUM = PARAM(3) and [F:YBPA2]BPATYP = 3 and [F:YBPA2]BPAADDFLG = 2
+#  Endif
+  Read [F:YBPA2]BPA0 First
+  If !fstat
+    [M:YDCAVCR]DDIREC   = [F:YBPA2]BPAADDLIG(0)+" "+[F:YBPA2]BPAADDLIG(1)
+    [M:YDCAVCR]DPOSTAL  = val([F:YBPA2]POSCOD)
+    [M:YDCAVCR]DCTY     = [F:YBPA2]CTY
+    [M:YDCAVCR]DPROVIN  = [F:YBPA2]SAT
+    [M:YDCAVCR]DESTINO   = [F:YBPA2]CTY
+  Endif
+  Filter [F:YBPA2]
+Endif
+Return
+
+#####################################################################################################
+
+$LOAD_LUGARES
+  If PARAM(10)<>'2'
+     [M:YDCAVCR]ORIGEN  = PARAM(8)
+  Endif
+Return
+
+#####################################################################################################
+
+$LOAD_EXTRA
+  [M:YDCAVCR]BPTNUM = PARAM(11)
+  [M:YDCAVCR]PESO   = val(PARAM(12))
+  [M:YDCAVCR]BULTOS = val(PARAM(13))
+  Call AM_BPTNUM([M:YDCAVCR]BPTNUM)
+Return
+
+#------------------------------------------------------------------------------------
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YDCAVCR) 24/09/2026 08:21:54 (ADMIN)
+######################################################################################
+Subprog C_CONTACT(VALEUR)
+  Variable Char    VALEUR()
+  If VALEUR<>""
+    Read [F:CNT]CNT0 = 1;[M:YDCAVCR]BPTNUM;VALEUR
+    If fstat
+      mkstat = 2
+      GERR = 1 : GMESSAGE = VALEUR + ":" - mess(26,199,1)
+    Endif
+  Endif
+End
+
+Subprog AM_CONTACT(VALEUR)
+  Variable Char    VALEUR()
+  [M:YDCAVCR]CONTACT = VALEUR
+  Gosub LOAD_MSK_CNT_SPE
+End
+
+######################################################################################
+
+$LOAD_MSK_CNT_SPE
+    If clalev([F:CNT])=0 : Local File CONTACT [CNT] : Endif
+
+    If [M:YDCAVCR]BPTNUM=""
+
+    Elsif [M:YDCAVCR]CONTACT=""
+      Raz [F:CNT]
+    Elsif [F:CNT]BPATYP<>1 | [F:CNT]BPANUM<>[M:YDCAVCR]BPTNUM | [F:CNT]CCNCRM<>[M:YDCAVCR]CONTACT
+      Read [F:CNT]CNT0 = 1;[M:YDCAVCR]BPTNUM;[M:YDCAVCR]CONTACT
+      If fstat : Raz [F:CNT] : Endif
+    Endif
+
+    [M:YDCAVCR]BPTCRN     = func YDCALIB.GET_BPTCRN([M:YDCAVCR]BPTNUM)
+    [M:YDCAVCR]TRACTORA   = [F:CNT]YTRANMATCAM
+    [M:YDCAVCR]REMOLQUE   = [F:CNT]YTRANMATREM
+    [M:YDCAVCR]TELEFONO   = val([F:CNT]TEL)
+
+    Affzo [M:YDCAVCR]BPTCRN, TRACTORA, REMOLQUE, TELEFONO
+Return
+
+
+######################################################################################
+
+$RELLENA
+  [F:YDVCR2]VCRNUM    = [M:YDCAVCR]VCRNUM
+  [F:YDVCR2]FECHA     = [M:YDCAVCR]FECHA
+  [F:YDVCR2]VCRTYP    = [M:YDCAVCR]VCRTYP
+  [F:YDVCR2]CNOMBRE   = [M:YDCAVCR]CNOMBRE
+  [F:YDVCR2]CDIREC    = [M:YDCAVCR]CDIREC
+  [F:YDVCR2]CPOSTAL   = [M:YDCAVCR]CPOSTAL
+  [F:YDVCR2]CPROVIN   = [M:YDCAVCR]CPROVIN
+  [F:YDVCR2]CCTY      = [M:YDCAVCR]CCTY
+  [F:YDVCR2]CCIF      = [M:YDCAVCR]CCIF
+  [F:YDVCR2]DNOMBRE   = [M:YDCAVCR]DNOMBRE
+  [F:YDVCR2]DDIREC    = [M:YDCAVCR]DDIREC
+  [F:YDVCR2]DPOSTAL   = [M:YDCAVCR]DPOSTAL
+  [F:YDVCR2]DPROVIN   = [M:YDCAVCR]DPROVIN
+  [F:YDVCR2]DCTY      = [M:YDCAVCR]DCTY
+  [F:YDVCR2]DCIF      = [M:YDCAVCR]DCIF
+  [F:YDVCR2]ORIGEN    = [M:YDCAVCR]ORIGEN
+  [F:YDVCR2]DESTINO   = [M:YDCAVCR]DESTINO
+  [F:YDVCR2]CONTENIDO = [M:YDCAVCR]CONTENIDO
+  [F:YDVCR2]BULTOS    = [M:YDCAVCR]BULTOS
+  [F:YDVCR2]PESO      = [M:YDCAVCR]PESO
+  [F:YDVCR2]TELEFONO  = [M:YDCAVCR]TELEFONO
+  [F:YDVCR2]BPTNUM    = [M:YDCAVCR]BPTNUM
+  [F:YDVCR2]BPRNAM    = [M:YDCAVCR]BPRNAM
+  [F:YDVCR2]BPTCRN    = [M:YDCAVCR]BPTCRN
+  [F:YDVCR2]TRACTORA  = [M:YDCAVCR]TRACTORA
+  [F:YDVCR2]REMOLQUE  = [M:YDCAVCR]REMOLQUE
+  [F:YDVCR2]CONTACT   = [M:YDCAVCR]CONTACT
+
+  [F:YDVCR2]CCNOMBRE  = [M:YDCAVCR]CCNOMBRE
+  [F:YDVCR2]CCCIF     = [M:YDCAVCR]CCCIF
+  [F:YDVCR2]CCDIR     = [M:YDCAVCR]CCDIR
+Return
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YDCAYDCAVCR) 24/09/2026 15:56:35 (SOT08)
+######################################################################################
+Subprog IB_VCRNUM
+End
+
+
+######################################################################################
+######################################################################################
+## Etiqueta añadida por el supervisor (pantalla YDCAVCR) 25/09/2026 12:50:36 (SOT08)
+######################################################################################
+Subprog AM_BPTNUM(VALEUR)
+  Variable Char    VALEUR()
+  Raz [M:YDCAVCR]BPTCRN, CONTACT, TRACTORA, REMOLQUE, TELEFONO
+
+  Read [F:YBPR3]BPR0 = VALEUR
+  If !fstat
+    [M:YDCAVCR]BPTCRN = [F:YBPR3]CRN
+    [M:YDCAVCR]BPRNAM = [F:YBPR3]BPRNAM
+  Endif
+
+  If VALEUR<>""
+    [M:YDCAVCR]BPTNUM      = VALEUR
+    [M:YDCAVCR]CONTACT = func YDCALIB.GET_BPTCNT_DEF([M:YDCAVCR]BPTNUM)
+    Gosub LOAD_MSK_CNT_SPE
+    Grizo [M:YDCAVCR]BPRNAM
+    Affzo [M:YDCAVCR]CONTACT
+  Else
+    Actzo [M:YDCAVCR]BPRNAM
+    Raz [M:YDCAVCR]CONTACT, BPRNAM, BPTCRN
+    Affzo [M:YDCAVCR]CONTACT, BPRNAM, BPTCRN
+  Endif
+
+  Affzo [M:YDCAVCR]CONTACT, BPTCRN, TRACTORA, REMOLQUE, TELEFONO, BPRNAM
+End
+
+
+######################################################################################
+$CHECK_INFO
+If  [M:YDCAVCR]FECHA = '00/00/00' or
+&   [M:YDCAVCR]CONTENIDO = "" or
+&   [M:YDCAVCR]BULTOS = 0 or
+&   [M:YDCAVCR]PESO = 0 or
+&   [M:YDCAVCR]TELEFONO = 0 or
+&   [M:YDCAVCR]BPRNAM = "" or
+&   [M:YDCAVCR]BPTCRN = "" or
+&   [M:YDCAVCR]TRACTORA = "" or
+&   [M:YDCAVCR]REMOLQUE = "" or
+&   [M:YDCAVCR]CCNOMBRE = "" or
+&   [M:YDCAVCR]CCCIF = "" or
+&   [M:YDCAVCR]CCDIR = ""
+  Call ERREURT ("Revise que esten todos los datos rellenos.",1) From GESECRAN
+  CHECK_INFO = 2
+Endif
+Return

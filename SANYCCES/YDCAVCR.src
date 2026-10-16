@@ -1,0 +1,113 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+Subprog DCA_VCR(PS_VCRNUM, PI_VCRTYP)
+  Value Char PS_VCRNUM
+  Value Integer PI_VCRTYP
+
+  Local Char VALBOUT : VALBOUT = ''
+  Local Char PARMSK(250)(1..20)
+
+  Case PI_VCRTYP
+    When 2 : Gosub RELLENA_CITA
+    When 3 : Gosub RELLENA_PEDIDO
+    When 4 : Gosub RELLENA_DEV_COMPRA
+    When 5 : Gosub RELLENA_DEV_VENTA
+  Endcase
+
+  Call SAISIE_CHAR(VALBOUT, PARMSK, "YDCAVCR", "","SPEYDCAVCR") From GSAISIE
+
+End
+
+#####################################################################################################
+
+$RELLENA_CITA
+
+  If !clalev([F:YPRH]) Then: Local File STOPREH   [YPRH]    : Endif
+  If !clalev([F:YBPD]) Then: Local File BPDLVCUST [YBPD]    : Endif
+  If !clalev([F:YBPA]) Then: Local File BPADDRESS [YBPA]    : Endif
+
+  PARMSK(1)   = PS_VCRNUM
+  PARMSK(2)   = [F:ZCITH]ZCITAFEC
+  PARMSK(3)   = [F:ZCITH]STOFCY
+  Read [F:YPRH]PRH0=[M:ZCIT1]PRHNUM(0)
+  If !fstat
+      PARMSK(4)   = [F:YPRH]BPCORD
+      Read [F:YBPD]BPD0=[F:YPRH]BPCORD;[F:YPRH]BPAADD
+      If !fstat
+      Read [F:YBPA]BPA0=1;[F:YBPD]BPCNUM;[F:YBPD]BPAADD
+          PARMSK(5)   = [F:YBPD]BPDNAM
+          PARMSK(6)   = [F:YBPA]BPAADDLIG(0)+' '+[F:YBPA]BPAADDLIG(1)
+          PARMSK(7)   = [F:YBPA]POSCOD
+          PARMSK(8)   = [F:YBPA]CTY
+          PARMSK(9)   = [F:YBPA]SAT
+          Close Local File [F:YBPA]
+      Endif
+      Close Local File [F:YBPD]
+  Endif
+  PARMSK(10)  = num$(PI_VCRTYP)
+  PARMSK(11)  = [F:ZCITH]ZCITATRA
+  PARMSK(12)  = num$([F:ZCITH]ZPESO)
+  PARMSK(13)  = num$([F:ZCITH]ZNPALL+[F:ZCITH]ZNBUL) #sumamos palets y bultos
+
+  Close Local File [YPRH]
+
+Return
+
+#####################################################################################################
+
+$RELLENA_PEDIDO
+
+  PARMSK(1)   = PS_VCRNUM
+  PARMSK(2)   = [F:POH]ORDDAT
+  PARMSK(3)   = [F:POH]POHFCY
+  PARMSK(4)   = [F:POH]BPSNUM
+  PARMSK(5)   = [F:POH]BPRNAM
+  PARMSK(6)   = [F:POH]BPAADDLIG(0)+' '+[F:POH]BPAADDLIG(1)
+  PARMSK(7)   = [F:POH]POSCOD
+  PARMSK(8)   = [F:POH]CTY
+  PARMSK(9)   = [F:POH]SAT
+  PARMSK(10)  = num$(PI_VCRTYP)
+  PARMSK(11)  = [F:POH]BPTNUM
+  PARMSK(12)  = ''
+  PARMSK(13)  = ''
+Return
+
+#####################################################################################################
+
+$RELLENA_DEV_COMPRA
+
+
+  PARMSK(1)   = PS_VCRNUM
+  PARMSK(2)   = [F:PNH]RTNDAT
+  PARMSK(3)   = [F:PNH]PNHFCY
+  PARMSK(4)   = [F:PNH]BPSNUM
+  PARMSK(5)   = [F:PNH]BPRNAM
+  PARMSK(6)   = [F:PNH]BPAADDLIG(0)+' '+[F:PNH]BPAADDLIG(1)
+  PARMSK(7)   = [F:PNH]POSCOD
+  PARMSK(8)   = [F:PNH]CTY
+  PARMSK(9)   = [F:PNH]SAT
+  PARMSK(10)  = num$(PI_VCRTYP)
+  PARMSK(11)  = ''
+  PARMSK(12)  = ''
+  PARMSK(13)  = ''
+Return
+
+#####################################################################################################
+
+$RELLENA_DEV_VENTA
+
+  PARMSK(1)   = PS_VCRNUM
+  PARMSK(2)   = [F:SRH]RTNDAT
+  PARMSK(3)   = [F:SRH]STOFCY
+  PARMSK(4)   = [F:SRH]BPCORD
+  PARMSK(5)   = [F:SRH]BPDNAM
+  PARMSK(6)   = [F:SRH]BPDADDLIG(0)+' '+[F:SRH]BPDADDLIG(1)
+  PARMSK(7)   = [F:SRH]BPDPOSCOD
+  PARMSK(8)   = [F:SRH]BPDCTY
+  PARMSK(9)   = [F:SRH]BPDSAT
+  PARMSK(10)  = num$(PI_VCRTYP)
+  PARMSK(11)  = ''
+  PARMSK(12)  = ''
+  PARMSK(13)  = ''
+Return
+
+#####################################################################################################

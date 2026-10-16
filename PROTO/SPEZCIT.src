@@ -23,6 +23,7 @@
 #@07@: JLP    26-11-2024 (Y119) DESADV LM-IT Componentes KIT
 #@08@: EQM    02-10-2025  Modificación importe cita
 #@09@: JLP    17-06-2026 Cambios para EDI - DESADV SALTOKI
+#@10@  EQM    01-10-2026 : Envío DcA - Docuten
 
 CURSOR
 $ACTION
@@ -276,7 +277,6 @@ Return
 
 ######################################################
 $EXEBOUT
-  #--
   Case BOUT
     When "1"
            #@07@: JLP    26-11-2024 (Y119) DESADV LM-IT Componentes KIT - INI
@@ -291,6 +291,7 @@ $EXEBOUT
 
     When '3'
       Call FICHERO_BCM([F:ZCITH]ZCITANUM) From YBCMFICHERO #@04@: NUN14  31-07-2024 (Y119) Cambios para EDI . Nuevo fichero excel BCM
+    When '4' : Call DCA_VCR([M:ZCIT0]ZCITANUM,2) From YDCAVCR #@10@  EQM    01-10-2026 : Envío DcA - Docuten
   Endcase
 Return
 

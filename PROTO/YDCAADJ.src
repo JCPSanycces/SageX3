@@ -1,0 +1,39 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+############################################################################################
+Call GESTIONA_DCAADJ()
+End
+
+#############################################################################################
+
+Subprog GESTIONA_DCAADJ()
+  Call RECOGER_BAT() From YDCALIB
+  Sleep 10
+  Gosub PROCESAR_FICHEROS
+
+End
+
+$PROCESAR_FICHEROS
+  Local Integer J
+  Local Char    ORDSYS(250), FILES(250)(1000)
+  Local Integer NF, WSTA : WSTA = 1
+  Local Char    WDIR(250), WORI(250),WDEST(250)
+  Local Char    A(250)(23)
+
+  WDIR    = "YDCA\Procesados\"
+  ORDSYS  = "dir /b "+filpath(WDIR,"","")+"*.pdf"
+
+  Call SYSTEME2 (adxmac(0),ORDSYS,"",NF,FILES) From ORDSYS
+  For J = 0 To NF
+    If FILES(J)= "" or FILES(J) = "No se encuentra el archivo" : Break  : Endif
+    FILES(J)=vireblc(FILES(J),4)
+    WORI = filpath(WDIR,"","")+FILES(J)
+    WDEST = filpath(WDIR,"","")+"Adjuntados\"+FILES(J)
+
+    Call MOVE(WORI,WDEST,WSTA) From ORDSYS
+    If WSTA = 0
+      Call GESTIONA_ADJUNTOS(FILES(J)) From YDCALIB
+    Else
+      Call ERREURT("No se ha podido gestionar el documento " -FILES(J)- " contacte con soporte", 1) From GESECRAN
+    Endif
+  Next
+Return

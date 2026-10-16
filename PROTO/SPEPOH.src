@@ -1,4 +1,9 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+#######################################################################
+#
+# @01@ SCD 21/09/26 : Envío DcA - Docuten
+#
+#######################################################################
 # Gestión de la máscara POH1 (Especifico)
 
 ######################################################################################
@@ -8,10 +13,19 @@ $ACTION
 Case ACTION
   When "OUVRE"        : Gosub OUVRE
   When "STYLE"        : Gosub STYLE
+  When "EXEBOUT"      : Gosub EXEBOUT  # @08@ SCD 21/09/26 : Envío DcA - Docuten
   When Default
 Endcase
 Return
 
+#################################################
+
+$EXEBOUT
+    Case BOUT
+      When "8" : Call DCA_VCR([M:POH0]POHNUM,3) From YDCAVCR # @08@ SCD 21/09/26 : Envío DcA - Docuten
+    Endcase
+
+Return
 
 #################################################
 $STYLE

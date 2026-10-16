@@ -1,0 +1,174 @@
+#<AdxTL>@(#)0.0.0.0 $Revision$
+
+#############################################################################################
+Subprog PRINT_CARTA_VCR(PS_VCRNUM, PI_VCRTYP)
+  Value Char PS_VCRNUM
+  Value Integer PI_VCRTYP
+
+  Local Char TBPAR(150)(150)
+  Local Char TBVAL(150)(150)
+  TBPAR(1) = "documento"        : TBVAL(1) = PS_VCRNUM
+  TBPAR(2) = "tipo"             : TBVAL(2) = num$(PI_VCRTYP)
+
+
+  ETAT = "YDCA" #Nombre del report
+
+  Call ETAT(ETAT,"YDCA","",0,"",TBPAR,TBVAL) From AIMP3 # "FILE" es el destino creado.
+
+End
+#############################################################################################
+
+Subprog GUARDAR_TABLA(PS_VCRNUM, PS_NUMPDF, PI_YTIP)
+  Value Char PS_VCRNUM, PS_NUMPDF
+  Value Integer PI_YTIP
+
+  If clalev([F:YDCA])=0 : Local File YDCA [YDCA] : Endif
+  If clalev([F:YDCAVCR])=0 : Local File YDCAVCR [YDCAVCR] : Endif
+  If clalev([F:YSDH])=0 : Local File SDELIVERY [YSDH] : Endif
+
+  [F:YDCA]VCRNUM = PS_VCRNUM
+  [F:YDCA]NUMDOC = PS_NUMPDF
+  [F:YDCA]FECHA = date$
+  [F:YDCA]ESTADO=2
+  [F:YDCA]TIPO=PI_YTIP
+
+  Read [F:YDCAVCR]YDVCR = PS_VCRNUM
+  If !fstat
+    [F:YDCA]TELEFONO = [F:YDCAVCR]TELEFONO
+    [F:YDCA]BPTNUM = [F:YDCAVCR]BPTNUM
+  Endif
+
+  Write [F:YDCA]
+
+End
+#############################################################################################
+
+Subprog CHECK_ESTADO(PS_YVCRNUM)
+  Value Char PS_YVCRNUM
+
+  Local Char PATH(250): PATH= ""
+
+  If clalev([F:YDCA])=0 : Local File YDCA [YDCA] : Endif
+  Filter [F:YDCA] Where [F:YDCA]VCRNUM = PS_YVCRNUM and [F:YDCA]ESTADO = 2
+
+  Read [F:YDCA]YDCA0 First
+  If !fstat
+    PATH = filpath("","","")+"\YDCA\"+[F:YDCA]NUMDOC
+    If filinfo(PATH,7) > 0
+      [F:YDCA]ESTADO = 3
+    Else
+      [F:YDCA]ESTADO = 4
+    Endif
+    Rewrite [F:YDCA]
+  Endif
+  Filter [F:YDCA]
+
+End
+
+#############################################################################################
+
+Funprog CHECK_USER(PS_USER)
+  Value Char PS_USER
+  Local Char USUARIO : USUARIO = ''
+
+  If clalev([F:YAUT])=0 : Local File AUTILIS [YAUT] : Endif
+  Read  [F:YAUT]CODUSR = PS_USER
+  If !fstat
+    USUARIO = [F:YAUT]NOMUSR
+  Endif
+End USUARIO
+
+#############################################################################################
+Funprog GET_BPTCNT_DEF(WBPTNUM)
+Value Char WBPTNUM
+Local Char BPTCNT
+
+    If clalev([F:BPT])=0 : Local File BPCARRIER  [BPT] : Endif
+
+    Raz BPTCNT
+    If [F:BPT]BPTNUM<>WBPTNUM
+        Read [F:BPT]BPT0=WBPTNUM
+        If fstat : Raz [F:BPT] : Endif
+    Endif
+    BPTCNT = [F:BPT]CNTNAM
+End BPTCNT
+
+#############################################################################################
+Funprog GET_BPTCRN(PS_BPTNUM)
+  Value Char PS_BPTNUM
+  Local Char BPTCRN
+
+  If clalev([F:YBPR])=0 : Local File BPARTNER  [YBPR] : Endif
+
+  Read [F:YBPR]BPR0=PS_BPTNUM
+  If !fstat
+    BPTCRN = [F:YBPR]CRN
+  Endif
+
+End BPTCRN
+
+#############################################################################################
+
+Subprog EJECUTAR_BAT()
+  System CHAINE=filpath("","","")+"\YDCA\BAT\Envio_DCA.bat"
+End
+
+#############################################################################################
+
+Subprog RECOGER_BAT()
+  System CHAINE=filpath("","","")+"\YDCA\BAT\Recoger_DCA.bat"
+End
+
+#############################################################################################
+
+Subprog GESTIONA_ADJUNTOS (PS_FILE)
+  Value Char PS_FILE
+  Local Integer VCRTYP
+  Local Char S_ABREV
+
+  If clalev([F:YDCAVCR2])=0 : Local File YDCAVCR  [YDCAVCR2] : Endif
+
+  PS_FILE = left$(PS_FILE,instr(0,PS_FILE,".pdf")-1)
+  Filter [F:YDCAVCR2] Where [F:YDCAVCR2]VCRNUM = PS_FILE
+    Read [F:YDCAVCR2]YDVCR First
+    If !fstat
+      VCRTYP = [F:YDCAVCR2]VCRTYP
+    Endif
+  Filter [F:YDCAVCR2]
+
+  Case VCRTYP
+    When 2 : S_ABREV = 'ZCIT'
+    When 3 : S_ABREV = 'POH'
+    When 4 : S_ABREV = ''
+    When 5 : S_ABREV = ''
+  Endcase
+  Call INSERTA_FILE(PS_FILE, S_ABREV)
+End
+
+#############################################################################################
+
+Subprog INSERTA_FILE(PS_FILE, PS_ABREV)
+  Value Char PS_FILE
+  Value Char PS_ABREV
+  Local Char I_IDENT3
+  Local Char PS_URL
+
+  PS_URL = "[YDCA]/Procesados/Adjuntados/"+PS_FILE+".pdf"
+
+  If clalev([F:YAOB])=0  : Local File AOBJTXT   [YAOB]  : Endif
+  Filter [F:YAOB] Where [F:YAOB]IDENT1 = PS_FILE and  [F:YAOB]ABREV = PS_ABREV
+    Case num$(len(num$(rowcount([F:YAOB]))))
+      When "1" : I_IDENT3 = "00"+num$((rowcount([F:YAOB])+1))
+      When "2" : I_IDENT3 = "0"+num$((rowcount([F:YAOB])+1))
+      When "3" : I_IDENT3 = ""+num$((rowcount([F:YAOB])+1))
+    Endcase
+  Filter [F:YAOB]
+
+  [F:YAOB]ABREV   = PS_ABREV
+  [F:YAOB]IDENT1  = PS_FILE
+  [F:YAOB]IDENT3  = I_IDENT3
+  [F:YAOB]NAM     = PS_URL
+  [F:YAOB]ORINAM  = PS_URL
+  Write [F:YAOB]
+
+End
