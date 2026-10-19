@@ -71,6 +71,7 @@ Return
 
 #############################################
 $SETBOUT
+If GUSER="SN070" Return Endif
 If clalev([F:AOX])=0 : Local File AOBJTXT [AOX]  : Endif
 Local Integer W_PLANO: W_PLANO=0
 Filter [F:AOX] Where ABREV="MFG" and (IDENT1=[M:MFG0]MFGNUM or IDENT1=[M:MFG1]VCRNUMORI(0)) and find("PLANO",MOTCLE())
