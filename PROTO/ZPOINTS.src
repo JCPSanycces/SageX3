@@ -837,6 +837,9 @@ Return
 ##############################################################
 $ACTUALIZAR_CABECERA
 
+  Call ECR_TRACE("LZALLCHOMAT="+num$(LZALLCHOMAT)+
+&                " MEMSTA="+num$(MEMSTA),0) From GESECRAN
+
   If dim(LZALLCHOMAT) < 0 : Return : Endif
   If LZALLCHOMAT <> 1     : Return : Endif
   If dim(MEMSTA) < 0      : Return : Endif
