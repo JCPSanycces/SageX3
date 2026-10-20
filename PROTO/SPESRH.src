@@ -201,15 +201,3 @@ If !clalev([YITM]) : Local File ITMMASTER [YITM] : Endif
 End
 # @01@ - JLP - 11-11-2025 - Añadir el campo categoria articulo en las lineas. - FIN
 ######################################################################################
-
-######################################################################################
-## Antes del campo DPR asociado (pantalla SRH0) 14/10/2026 11:03:26 (SN070)
-######################################################################################
-Subprog AS_ZPRHNUM(VALEUR)
-Variable Char    VALEUR()
-# 2026-000714.ini
-  If [M:SRH0]BPCORD <> 'NA000008' Then
-    mkstat=2
-  Endif
-# 2026-000714.fin
-End
