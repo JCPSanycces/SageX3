@@ -1,4 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# 2026-00816 - JCP.19102026.Ajustes_Mejoras DeCA
+#####################################################################################################
+
 $ACTION
   Case ACTION
    When "OUVRE" : Gosub OUVRE
@@ -149,6 +152,9 @@ Return
 
 $LOAD_DESTINATARIO
  If PARAM(10)='2'
+ # 2026-00816.ini
+    [M:YDCAVCR]DCODIGO = PARAM(14)
+ # 2026-00816.fin
     Read [F:YBPR2]BPR0 = PARAM(4)
     If !fstat
       [M:YDCAVCR]DNOMBRE  = [F:YBPR2]BPRNAM
@@ -272,6 +278,7 @@ $RELLENA
   [F:YDVCR2]ORIGEN    = [M:YDCAVCR]ORIGEN
   [F:YDVCR2]DESTINO   = [M:YDCAVCR]DESTINO
   [F:YDVCR2]CONTENIDO = [M:YDCAVCR]CONTENIDO
+  [F:YDVCR2]CONTENIDOID = [M:YDCAVCR]CONTENIDOID    #2026-00816.new
   [F:YDVCR2]BULTOS    = [M:YDCAVCR]BULTOS
   [F:YDVCR2]PESO      = [M:YDCAVCR]PESO
   [F:YDVCR2]TELEFONO  = [M:YDCAVCR]TELEFONO
@@ -322,6 +329,44 @@ Subprog AM_BPTNUM(VALEUR)
   Affzo [M:YDCAVCR]CONTACT, BPTCRN, TRACTORA, REMOLQUE, TELEFONO, BPRNAM
 End
 
+######################################################################################
+## Después del campo Contenido Id. (pantalla YDCAVCR) 19/10/2026 13:20:37 (SN070)
+######################################################################################
+Subprog AP_CONTENIDOID(VALEUR)
+Variable Integer VALEUR
+# 2026-00816.ini
+  If !clalev([F:ZAP0]) Then : Local File APLSTD [F:ZAP0] : Endif
+  Read [F:ZAP0]CLE = 6669;VALEUR;GLANGUE
+  If !fstat Then
+    [M:YDCAVCR]CONTENIDO = [F:ZAP0]LANMES
+    Affzo [M:YDCAVCR]CONTENIDO
+  Endif
+  Close Local File [ZAP0]
+# 2026-00816.fin
+End
+
+######################################################################################
+## Después de modificar el campo 'Código Destino' (pantalla YDCAVCR) 19/10/2026 16:02:16 (SN070)
+######################################################################################
+Subprog AM_DCODIGO(VALEUR)
+Variable Char    VALEUR()
+# 2026-00816.ini
+  If !clalev([F:ZBPR]) Then : Local File BPARTNER   [F:ZBPR] : Endif
+  If !clalev([F:ZBPA]) Then : Local File BPADDRESS  [F:ZBPA] : Endif
+  Read [F:ZBPR]BPR0 = VALEUR
+  If !fstat Then
+    Read [F:ZBPA]BPA0 = 1;VALEUR;[F:ZBPR]BPAADD
+    [M:YDCAVCR]DNOMBRE  = [F:ZBPR]BPRNAM
+    [M:YDCAVCR]DDIREC   = [F:ZBPA]BPAADDLIG(0) - [F:ZBPA]BPAADDLIG(1)
+    [M:YDCAVCR]DPOSTAL  = val([F:ZBPA]POSCOD)
+    [M:YDCAVCR]DCTY     = [F:ZBPA]CTY
+    [M:YDCAVCR]DPROVIN  = [F:ZBPA]SAT
+    [M:YDCAVCR]DCIF     = [F:ZBPR]CRN
+    Affzo [M:YDCAVCR]15
+  Endif
+  Close Local File [ZBPR],[ZBPA]
+# 2026-00816.fin
+End
 
 ######################################################################################
 $CHECK_INFO

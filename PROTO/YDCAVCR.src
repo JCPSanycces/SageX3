@@ -1,4 +1,7 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
+# 2026-00816 - JCP.19102026.Ajustes_Mejoras DeCA
+#####################################################################################################
+
 Subprog DCA_VCR(PS_VCRNUM, PI_VCRTYP)
   Value Char PS_VCRNUM
   Value Integer PI_VCRTYP
@@ -28,21 +31,53 @@ $RELLENA_CITA
   PARMSK(1)   = PS_VCRNUM
   PARMSK(2)   = [F:ZCITH]ZCITAFEC
   PARMSK(3)   = [F:ZCITH]STOFCY
-  Read [F:YPRH]PRH0=[M:ZCIT1]PRHNUM(0)
-  If !fstat
-      PARMSK(4)   = [F:YPRH]BPCORD
-      Read [F:YBPD]BPD0=[F:YPRH]BPCORD;[F:YPRH]BPAADD
-      If !fstat
-      Read [F:YBPA]BPA0=1;[F:YBPD]BPCNUM;[F:YBPD]BPAADD
-          PARMSK(5)   = [F:YBPD]BPDNAM
-          PARMSK(6)   = [F:YBPA]BPAADDLIG(0)+' '+[F:YBPA]BPAADDLIG(1)
-          PARMSK(7)   = [F:YBPA]POSCOD
-          PARMSK(8)   = [F:YBPA]CTY
-          PARMSK(9)   = [F:YBPA]SAT
-          Close Local File [F:YBPA]
-      Endif
-      Close Local File [F:YBPD]
+# 2026-00816.ini
+#  Read [F:YPRH]PRH0=[M:ZCIT1]PRHNUM(0)
+#  If !fstat
+#      PARMSK(4)   = [F:YPRH]BPCORD
+#      Read [F:YBPD]BPD0=[F:YPRH]BPCORD;[F:YPRH]BPAADD
+#      If !fstat
+#      Read [F:YBPA]BPA0=1;[F:YBPD]BPCNUM;[F:YBPD]BPAADD
+#          PARMSK(5)   = [F:YBPD]BPDNAM
+#          PARMSK(6)   = [F:YBPA]BPAADDLIG(0)+' '+[F:YBPA]BPAADDLIG(1)
+#          PARMSK(7)   = [F:YBPA]POSCOD
+#          PARMSK(8)   = [F:YBPA]CTY
+#          PARMSK(9)   = [F:YBPA]SAT
+#          Close Local File [F:YBPA]
+#      Endif
+#      Close Local File [F:YBPD]
+#  Endif
+  If [M:ZCIT0]ZDESTINOCL = 2 Then
+    PARMSK(4)   = [M:ZCIT0]ZCITATRA
+    PARMSK(14)  = [M:ZCIT0]ZCITATRA
+    Read [F:YBPA]BPA0=1;[M:ZCIT0]ZCITATRA;'DCA'
+    If !fstat Then
+      PARMSK(5)   = [F:YBPA]BPAADDLIG(0)
+      PARMSK(6)   = [F:YBPA]BPAADDLIG(1)+' '+[F:YBPA]BPAADDLIG(2)
+      PARMSK(7)   = [F:YBPA]POSCOD
+      PARMSK(8)   = [F:YBPA]CTY
+      PARMSK(9)   = [F:YBPA]SAT
+    Endif
+    Close Local File [F:YBPA]
+  Else
+    Read [F:YPRH]PRH0=[M:ZCIT1]PRHNUM(0)
+    If !fstat
+        PARMSK(4)   = [F:YPRH]BPCORD
+        PARMSK(14)  = [F:YPRH]BPCORD
+        Read [F:YBPD]BPD0=[F:YPRH]BPCORD;[F:YPRH]BPAADD
+        If !fstat
+        Read [F:YBPA]BPA0=1;[F:YBPD]BPCNUM;[F:YBPD]BPAADD
+            PARMSK(5)   = [F:YBPD]BPDNAM
+            PARMSK(6)   = [F:YBPA]BPAADDLIG(0)+' '+[F:YBPA]BPAADDLIG(1)
+            PARMSK(7)   = [F:YBPA]POSCOD
+            PARMSK(8)   = [F:YBPA]CTY
+            PARMSK(9)   = [F:YBPA]SAT
+            Close Local File [F:YBPA]
+        Endif
+        Close Local File [F:YBPD]
+    Endif
   Endif
+# 2026-00816.fin
   PARMSK(10)  = num$(PI_VCRTYP)
   PARMSK(11)  = [F:ZCITH]ZCITATRA
   PARMSK(12)  = num$([F:ZCITH]ZPESO)
