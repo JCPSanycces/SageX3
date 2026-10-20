@@ -387,6 +387,8 @@ Local     Integer LREGINI,LREGFIN
     PNUMPAG = 1
   Endif
 
+  [L]LCRIT += " and left$(ARTICULO,3) <> 'EC_'"
+
   [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
   [L]LREGFIN = PNUMPAG * [L]LMAX
 
@@ -730,6 +732,8 @@ Local     Integer LREGINI,LREGFIN
     End
   Endif
 
+  [L]LCRIT += " and left$(ARTICULO,3) <> 'EC_'"
+
   If PNUMPAG = 0 Then
     PNUMPAG = 1
   Endif
@@ -1014,7 +1018,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
   If !fstat Then
     GSTATUS = 0
     [L]LERRORB2B = "El pedido"-PZSOHNUMB2B-"ya existe en el sistema"
-#    Gosub SEND_WORKFLOW_ERROR
+    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("El pedido"-PZSOHNUMB2B-"ya existe en el sistema") From GESECRAN
     End
   Endif
@@ -1024,7 +1028,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
   If PBPCORD = "" Then
     GSTATUS = 0
     [L]LERRORB2B = "Error en el cliente"-PBPCORD
-#    Gosub SEND_WORKFLOW_ERROR
+    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("Error en el cliente"-PBPCORD) From GESECRAN
     End
   Else
@@ -1032,7 +1036,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
     If fstat Then
       GSTATUS = 0
       [L]LERRORB2B = "Error en el cliente"-PBPCORD
-#      Gosub SEND_WORKFLOW_ERROR
+      Gosub SEND_WORKFLOW_ERROR
       Call ERREUR("Error en el cliente"-PBPCORD) From GESECRAN
       End
     Else
@@ -1046,7 +1050,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
   If PBPAADD = "" Then
     GSTATUS = 0
     [L]LERRORB2B = "Error en la dirección de entrega"
-#    Gosub SEND_WORKFLOW_ERROR
+    Gosub SEND_WORKFLOW_ERROR
     Call ERREUR("Error en la dirección de entrega") From GESECRAN
     End
   Else
@@ -1054,7 +1058,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
     If fstat Then
       GSTATUS = 0
       [L]LERRORB2B = "Error en la dirección de entrega"
-#      Gosub SEND_WORKFLOW_ERROR
+      Gosub SEND_WORKFLOW_ERROR
       Call ERREUR("Error en la dirección de entrega") From GESECRAN
       End
     Endif
@@ -1087,7 +1091,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
       Else
         GSTATUS = 0
         [L]LERRORB2B = "El artículo"-PITMREF-"no existe en el sistema"
-#        Gosub SEND_WORKFLOW_ERROR
+        Gosub SEND_WORKFLOW_ERROR
         Call ERREUR("El artículo"-PITMREF-"no existe en el sistema") From GESECRAN
         End
       Endif
@@ -1289,7 +1293,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
     Else
       GSTATUS       = 0
       [L]LERRORB2B  = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
-#      Gosub SEND_WORKFLOW_ERROR
+      Gosub SEND_WORKFLOW_ERROR
       GMESSAGE      = "Error"-num$([L]LNER)-"al generar el pedido. Revisar la traza"-[L]LCTR
     Endif
 
@@ -1319,7 +1323,7 @@ Global Clbfile  GTEXTOZES(1)
   [V]GCORREOZES = "itsoporte@sanycces.es"
   [V]GASUNTOZES = "B2B: Error en la generación del pedido" - PZSOHNUMB2B
   [V]GTEXTOZES  = "Hola,"+chr$(10)+chr$(13)+chr$(10)+chr$(13)
-  [V]GTEXTOZES += "Se ha producido un error durante la creación del pedido de Magento número"-PZSOHNUMB2B+"."+chr$(10)+chr$(13)+chr$(10)+chr$(13)
+  [V]GTEXTOZES += "Se ha producido un error durante la creación del pedido de Magento número"-PZSOHNUMB2B+" ("+PBPCORD-"-"-PCLIMGT+")."+chr$(10)+chr$(13)+chr$(10)+chr$(13)
   [V]GTEXTOZES += [L]LERRORB2B+"."
   Call WORKFLOW(1,"ZES","","INFO1") From AWRK
 Return

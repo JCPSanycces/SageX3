@@ -387,6 +387,8 @@ Local     Integer LREGINI,LREGFIN
     PNUMPAG = 1
   Endif
 
+  [L]LCRIT += " and left$(ARTICULO,3) <> 'EC_'"
+
   [L]LREGINI = ((PNUMPAG - 1) * [L]LMAX) + 1
   [L]LREGFIN = PNUMPAG * [L]LMAX
 
@@ -729,6 +731,8 @@ Local     Integer LREGINI,LREGFIN
     Call ERREUR("Error en la entrega") From GESECRAN
     End
   Endif
+
+  [L]LCRIT += " and left$(ARTICULO,3) <> 'EC_'"
 
   If PNUMPAG = 0 Then
     PNUMPAG = 1
