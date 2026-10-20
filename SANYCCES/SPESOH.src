@@ -148,7 +148,18 @@ YUSUARIOS = 'SN007,SN010,SN011,SN013,SN014,SN015,SN016,SN028,SN029,SN031,NUN28'
 # 2026-00066.fin
 
 # 2026-00713.ini
-  If !find(GUSER,"SN007","SN031","SN070","SN006","SN069","SN071") Then
+# Diego Pons (SN006)
+# Maria Tarancon (SN007)
+# Anais Güal (SN010)
+# Natalia Navarro (SN012)
+# Inma Aymerich (SN013)
+# Javier Argente (SN014)
+# Anaïs Vernaz (SN016)
+# Javier Gual (SN031)
+# Carmen Borillo (SN032)
+# Noelia Beltran (SN047)
+# Marina Gonzalez (SN062)
+  If !find(GUSER,"SN006","SN007","SN010","SN012","SN013","SN014","SN016","SN031","SN032","SN047","SN062","SN070") Then
     Grizo [M:SOH0]SOHNUM
   Endif
 # 2026-00713.fin
