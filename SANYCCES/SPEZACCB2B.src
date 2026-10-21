@@ -1,6 +1,6 @@
 #<AdxTL>@(#)0.0.0.0 $Revision$
 ############################################################################
-# Script name : ZACCB2B
+# Script name : SPEZACCB2B
 # Description : Específico Accesorios B2B
 # Module      : Producción
 # Version     : 1
@@ -18,6 +18,7 @@ Case ACTION
   When "VERF_TABLE"           : Gosub VERF_TABLE
   When "APRES_CRE"            : Gosub APRES_CRE
   When "APRES_MOD"            : Gosub APRES_MOD
+  When "ANNULE"               : Gosub ANNULE
   When Default
 Endcase
 
@@ -34,7 +35,6 @@ $LIENS
   Gosub SHOW_VTAMEJORADA
   Gosub SHOW_VTACRUZADA
   Gosub SHOW_ADJUNTOS
-  Affzo [M:ZCB0]
 Return
 
 ##############################################################
@@ -75,6 +75,11 @@ $APRES_MOD
   Gosub UPD_VTAMEJORADA
   Gosub UPD_VTACRUZADA
   Gosub UPD_ADJUNTOS
+Return
+
+##############################################################
+$ANNULE
+  Gosub DEL_REGISTROS
 Return
 
 ##############################################################
@@ -130,7 +135,7 @@ $VERF_ZSELACCABB
   [M:ZCB1]ZITMCODACCA(nolign-1) = [F:ZVA0]ZITM
   [M:ZCB1]ZITMDESACCA(nolign-1) = [F:ZVA0]ZITMDES
   [M:ZCB1]ZITMORDACCA(nolign-1) = nolign
-  Affzo [M:ZCB1]5
+#  Affzo [M:ZCB1]5
 Return
 
 ##############################################################
@@ -179,6 +184,27 @@ $VERF_ZSELADJUBB
 Return
 
 ##############################################################
+# muestra los datos de la cabecera
+$SHOW_VINCULA
+
+  Effzo [M:ZCB0]
+  If !clalev([F:ZAV0]) Then : Local File ZB2BVINCULA  [F:ZAV0] : Endif
+  Read [F:ZAV0] First
+  If !fstat Then
+    [M:ZCB0]ZITM        = [F:ZAV0]ZITM
+    [M:ZCB0]ZITMDES     = [F:ZAV0]ZITMDES
+    [M:ZCB0]FAM_EST1    = [F:ZAV0]FAM_EST1
+    [M:ZCB0]FAM_EST1_D  = [F:ZAV0]FAM_EST1_D
+    [M:ZCB0]FAM_EST2    = [F:ZAV0]FAM_EST2
+    [M:ZCB0]FAM_EST2_D  = [F:ZAV0]FAM_EST2_D
+    [M:ZCB0]SERIE       = [F:ZAV0]SERIE
+    [M:ZCB0]PADRE       = [F:ZAV0]PADRE
+  Endif
+  Close Local File [ZAV0]
+  Affzo [M:ZCB0]
+Return
+
+##############################################################
 # muestra la tabla de accesorios A
 $SHOW_ACCESORIOSA
 Local Integer LCONAA
@@ -196,6 +222,7 @@ Local Integer LCONAA
   Filter [F:ZAC1]
   [M:ZCB1]NBACCA = [L]LCONAA
   Close Local File [ZAC1]
+  Affzo [M:ZCB1]
 Return
 
 ##############################################################
@@ -216,6 +243,7 @@ Local Integer LCONAB
   Filter [F:ZAC2]
   [M:ZCB2]NBACCB = [L]LCONAB
   Close Local File [ZAC2]
+  Affzo [M:ZCB2]
 Return
 
 ##############################################################
@@ -236,6 +264,7 @@ Local Integer LCONRE
   Filter [F:ZAC3]
   [M:ZCB3]NBREL = [L]LCONRE
   Close Local File [ZAC3]
+  Affzo [M:ZCB3]
 Return
 
 ##############################################################
@@ -256,6 +285,7 @@ Local Integer LCONVM
   Filter [F:ZAC4]
   [M:ZCB4]NBVMEJ = [L]LCONVM
   Close Local File [ZAC4]
+  Affzo [M:ZCB4]
 Return
 
 ##############################################################
@@ -276,6 +306,7 @@ Local Integer LCONVC
   Filter [F:ZAC5]
   [M:ZCB5]NBVCRU = [L]LCONVC
   Close Local File [ZAC5]
+  Affzo [M:ZCB5]
 Return
 
 ##############################################################
@@ -296,12 +327,13 @@ Local Integer LCONAD
   Filter [F:ZAC6]
   [M:ZCB6]NBADJ = [L]LCONAD
   Close Local File [ZAC6]
+  Affzo [M:ZCB6]
 Return
 
 ##############################################################
 # rellena la tabla de accesorios A
 $UPD_ACCESORIOSA
-Local Integer LCONA
+Local Integer LCONAA
 
   If !clalev([F:ZAC1]) Then : Local File ZB2BITMACC01 [F:ZAC1] : Endif
   If !adxlog Then : Trbegin [F:ZAC1] : Endif
@@ -485,8 +517,78 @@ Local Integer LCONAD
 Return
 
 ##############################################################
+$DEL_REGISTROS
+  If !clalev([F:ZAW1]) Then : Local File ZB2BITMACC01 [F:ZAW1] : Endif
+  If !clalev([F:ZAW2]) Then : Local File ZB2BITMACC02 [F:ZAW2] : Endif
+  If !clalev([F:ZAW3]) Then : Local File ZB2BITMACC03 [F:ZAW3] : Endif
+  If !clalev([F:ZAW4]) Then : Local File ZB2BITMACC04 [F:ZAW4] : Endif
+  If !clalev([F:ZAW5]) Then : Local File ZB2BITMACC05 [F:ZAW5] : Endif
+  If !clalev([F:ZAW6]) Then : Local File ZB2BITMACC06 [F:ZAW6] : Endif
+
+  # fstat=0 borrado OK, fstat=1 no había registros (no es error)
+  Delete [F:ZAW1] Where ZITM = [M:ZCB0]ZITM : If fstat>1 : GOK=0 : Endif
+  Delete [F:ZAW2] Where ZITM = [M:ZCB0]ZITM : If fstat>1 : GOK=0 : Endif
+  Delete [F:ZAW3] Where ZITM = [M:ZCB0]ZITM : If fstat>1 : GOK=0 : Endif
+  Delete [F:ZAW4] Where ZITM = [M:ZCB0]ZITM : If fstat>1 : GOK=0 : Endif
+  Delete [F:ZAW5] Where ZITM = [M:ZCB0]ZITM : If fstat>1 : GOK=0 : Endif
+  Delete [F:ZAW6] Where ZITM = [M:ZCB0]ZITM : If fstat>1 : GOK=0 : Endif
+
+  If GOK<>1
+    Call ERREUR("Error al borrar los datos B2B del artículo "-[M:ZCB0]ZITM) From GESECRAN
+  Endif
+Return
+
+##############################################################
 #################    ACCIONES DE CAMPO    ####################
 ##############################################################
+######################################################################################
+## Control en el campo Accesorio del bloque Accesorios A (pantalla ZACCB2B2) 21/10/2026 15:33:10 (SN070)
+######################################################################################
+Subprog C_ZITMCODACCA(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCB1]ZITMCODACCA(0..[M:ZCB1]NBACCA-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Accesorio del bloque Accesorios B (pantalla ZACCB2B1) 21/10/2026 15:33:21 (SN070)
+######################################################################################
+Subprog C_ZITMCODACCB(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCB2]ZITMCODACCB(0..[M:ZCB2]NBACCB-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Accesorio del bloque Relacionados (pantalla ZACCB2B3) 21/10/2026 15:33:44 (SN070)
+######################################################################################
+Subprog C_ZITMCODREL(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCB3]ZITMCODREL(0..[M:ZCB3]NBREL-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Accesorio del bloque Venta mejorada (pantalla ZACCB2B4) 21/10/2026 15:33:55 (SN070)
+######################################################################################
+Subprog C_ZITMCODVMEJ(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCB4]ZITMCODVMEJ(0..[M:ZCB4]NBVMEJ-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Accesorio del bloque Venta cruzada (pantalla ZACCB2B5) 21/10/2026 15:34:03 (SN070)
+######################################################################################
+Subprog C_ZITMCODVCRU(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCB5]ZITMCODVCRU(0..[M:ZCB5]NBVCRU-1)) From OBJDIV
+End
+
+######################################################################################
+## Control en el campo Accesorio del bloque Adjuntos (pantalla ZACCB2B6) 21/10/2026 15:34:11 (SN070)
+######################################################################################
+Subprog C_ZITMCODADJ(VALEUR)
+Variable Char    VALEUR()
+  Call UNICITE(VALEUR,[M:ZCB6]ZITMCODADJ(0..[M:ZCB6]NBADJ-1)) From OBJDIV
+End
+
 ######################################################################################
 ## Control en el campo Orden del bloque Accesorios A (pantalla ZACCB2B1) 28/04/2026 14:25:51 (SN070)
 ######################################################################################
@@ -570,15 +672,15 @@ Variable Char    VALEUR()
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     If VALEUR = [M:ZCB0]ZITM
       Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
       mkstat=2
     Else
-      [M:ZCB1]ZITMDESACCA = [F:ZVA0]ZITMDES
-      [M:ZCB1]ZITMORDACCA = nolign
+      [M:ZCB1]ZITMDESACCA(nolign-1) = [F:ZVA0]ZITMDES
+      [M:ZCB1]ZITMORDACCA(nolign-1) = nolign
       Affzo [M:ZCB1]
     Endif
   Endif
@@ -602,8 +704,8 @@ Variable Char    VALEUR()
       Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
       mkstat=2
     Else
-      [M:ZCB2]ZITMDESACCA = [F:ZVA0]ZITMDES
-      [M:ZCB2]ZITMORDACCA = nolign
+      [M:ZCB2]ZITMDESACCB(nolign-1) = [F:ZVA0]ZITMDES
+      [M:ZCB2]ZITMORDACCB(nolign-1) = nolign
       Affzo [M:ZCB2]
     Endif
   Endif
@@ -613,23 +715,23 @@ End
 ######################################################################################
 ## Después de modificar el campo 'Artículo' (pantalla ZACCB2B3) 29/04/2026 14:06:02 (SN070)
 ######################################################################################
-Subprog AM_ZITMORDACCB(VALEUR)
-Variable Decimal VALEUR
+Subprog AM_ZITMCODREL(VALEUR)
+Variable Char VALEUR()
   VALEUR = toupper(VALEUR)
   If !clalev([F:ZVA0]) Then : Local File ZVITMACB2B [F:ZVA0] : Endif
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     If VALEUR = [M:ZCB0]ZITM
       Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
       mkstat=2
     Else
-      [M:ZCB3]ZITMDESACCA = [F:ZVA0]ZITMDES
-      [M:ZCB3]ZITMORDACCA = nolign
-      Affzo [M:ZCB1]
+      [M:ZCB3]ZITMDESREL(nolign-1) = [F:ZVA0]ZITMDES
+      [M:ZCB3]ZITMORDREL(nolign-1) = nolign
+      Affzo [M:ZCB3]
     Endif
   Endif
   Close Local File [ZVA0]
@@ -645,16 +747,16 @@ Variable Char    VALEUR()
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     If VALEUR = [M:ZCB0]ZITM
       Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
       mkstat=2
     Else
-      [M:ZCB4]ZITMDESACCA = [F:ZVA0]ZITMDES
-      [M:ZCB4]ZITMORDACCA = nolign
-      Affzo [M:ZCB1]
+      [M:ZCB4]ZITMDESVMEJ(nolign-1) = [F:ZVA0]ZITMDES
+      [M:ZCB4]ZITMORDVMEJ(nolign-1) = nolign
+      Affzo [M:ZCB4]
     Endif
   Endif
   Close Local File [ZVA0]
@@ -670,16 +772,16 @@ Variable Char    VALEUR()
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     If VALEUR = [M:ZCB0]ZITM
       Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
       mkstat=2
     Else
-      [M:ZCB5]ZITMDESACCA = [F:ZVA0]ZITMDES
-      [M:ZCB5]ZITMORDACCA = nolign
-      Affzo [M:ZCB1]
+      [M:ZCB5]ZITMDESVCRU(nolign-1) = [F:ZVA0]ZITMDES
+      [M:ZCB5]ZITMORDVCRU(nolign-1) = nolign
+      Affzo [M:ZCB5]
     Endif
   Endif
   Close Local File [ZVA0]
@@ -695,16 +797,16 @@ Variable Char    VALEUR()
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     If VALEUR = [M:ZCB0]ZITM
       Call ERREUR("El accesorio no puede ser el artículo") From GESECRAN
       mkstat=2
     Else
-      [M:ZCB6]ZITMDESACCA = [F:ZVA0]ZITMDES
-      [M:ZCB6]ZITMORDACCA = nolign
-      Affzo [M:ZCB1]
+      [M:ZCB6]ZITMDESADJ(nolign-1) = [F:ZVA0]ZITMDES
+      [M:ZCB6]ZITMORDADJ(nolign-1) = nolign
+      Affzo [M:ZCB6]
     Endif
   Endif
   Close Local File [ZVA0]
