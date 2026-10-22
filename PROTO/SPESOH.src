@@ -26,6 +26,7 @@
 # 2026-00214 - JCP.27082026.Necesidades duplicación pedidos
 # 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
 # 2026-00713 - JCP.30092026.Permitir duplicar pedidos de venta
+# 2026-00833 - JCP.19102026.Asignación TTA a pedidos B2B
 #####################################################################################################
 
 $ACTION
@@ -320,6 +321,12 @@ $APRES_CRE
 # 2026-00006.fin
 
   Gosub EMISION_ANTICIPO #XVT28052026.n
+
+# 2026-00833.ini
+  If GIMPORT and [M:SOH0]ZSOHNUMB2B <> "" Then
+    Gosub ASIGNA_BPTNUM
+  Endif
+# 2026-00833.fin
 Return
 #  @09@ - SCD - 23/04/2025 - FIN
 #######################################################
@@ -1913,6 +1920,26 @@ $UPD_CANTIDAD_CONT
     Filter [F:ZVAP0]
     Close Local File [ZVAP0]
   Endif
+Return
+
+##############################################################
+# 2026-00833
+$ASIGNA_BPTNUM
+  If !clalev([F:ZSOH0]) Then : Local File SORDER [F:ZSOH0] : Endif
+  Read [F:ZSOH0]SOH0 = [M:SOH0]SOHNUM
+  If !fstat Then
+    [F:ZSOH0]BPTNUM = func ZSANLIB01.GET_BPTNUMB2B([M:SOH0]SOHNUM)
+    If !adxlog Then : Trbegin [F:ZSOH0] : Endif
+    Rewrite [F:ZSOH0]
+    If !fstat Then
+      Commit
+    Else
+      Rollback
+    Endif
+  Endif
+  Close Local File [F:ZSOH0]
+
+  Call AM_BPTNUM([F:ZSOH0]BPTNUM)
 Return
 
 # --------------------------------------------------------------------------------

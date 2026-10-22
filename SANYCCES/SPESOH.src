@@ -1938,6 +1938,8 @@ $ASIGNA_BPTNUM
     Endif
   Endif
   Close Local File [F:ZSOH0]
+
+  Call AM_BPTNUM([F:ZSOH0]BPTNUM)
 Return
 
 # --------------------------------------------------------------------------------

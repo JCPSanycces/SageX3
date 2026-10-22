@@ -1056,3 +1056,35 @@ Local Integer LRET, LOPEN
   If LOPEN : Close Local File [ZCAT] : Endif
 
 End LRET
+
+##############################################################
+#**
+#* devuelve el transportista para los pedidos B2B
+#*!
+Funprog GET_BPTNUMB2B(PSOHNUM)
+Value Char PSOHNUM
+
+Local Char LRET(25)
+
+  If !clalev([F:ZSOH]) : Local File SORDER  [F:ZSOH] : Endif
+  If !clalev([F:ZSOP]) : Local File SORDERP [F:ZSOP] : Endif
+  Read [F:ZSOH]SOH0 = PSOHNUM
+  If !fstat Then
+    If [F:ZSOH]DSPTOTWEI <= 40 Then
+      Filter [F:ZSOP] Where SOHNUM = PSOHNUM
+      For [F:ZSOP]
+        If find([F:ZSOP]TSICOD(1),'0030010','0030011','0030012','0030050','0030051') Then
+          LRET = 'NA000008'
+          Break
+        Else
+          [L]LRET = 'NA002854'
+        Endif
+      Next
+      Filter [F:ZSOP]
+    Else
+      [L]LRET = 'NA000008'
+    Endif
+  Endif
+  Close Local File [ZSOH],[ZSOP]
+
+End LRET
