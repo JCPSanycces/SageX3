@@ -212,12 +212,17 @@ Local Integer LCONAA
   Effzo [M:ZCB1]
   Raz [M:ZCB1]NBACCA
   If !clalev([F:ZAC1]) Then : Local File ZB2BITMACC01 [F:ZAC1] : Endif
+  If !clalev([F:ZVA1]) Then : Local File ZVITMACB2B   [F:ZVA1] : Endif
+  Raz [F:ZAC1]
   Filter [F:ZAC1] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
   For [F:ZAC1]
+    Raz [F:ZVA1]
+    Filter [F:ZVA1] Where ZITM = [F:ZAC1]ZITMACCESORI : Read [F:ZVA1] First
     [M:ZCB1]ZITMCODACCA([L]LCONAA)  = [F:ZAC1]ZITMACCESORI
-    [M:ZCB1]ZITMDESACCA([L]LCONAA)  = [F:ZAC1]ZITMACCDES
+    [M:ZCB1]ZITMDESACCA([L]LCONAA)  = [F:ZVA1]ZITMDES
     [M:ZCB1]ZITMORDACCA([L]LCONAA)  = [F:ZAC1]ZITMACCESORO
     [L]LCONAA += 1
+    Filter [F:ZVA1]
   Next
   Filter [F:ZAC1]
   [M:ZCB1]NBACCA = [L]LCONAA
@@ -233,12 +238,17 @@ Local Integer LCONAB
   Effzo [M:ZCB2]
   Raz [M:ZCB2]NBACCB
   If !clalev([F:ZAC2]) Then : Local File ZB2BITMACC02 [F:ZAC2] : Endif
+  If !clalev([F:ZVA2]) Then : Local File ZVITMACB2B   [F:ZVA2] : Endif
+  Raz [F:ZAC2]
   Filter [F:ZAC2] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
   For [F:ZAC2]
+    Raz [F:ZVA2]
+    Filter [F:ZVA2] Where ZITM = [F:ZAC2]ZITMACCESORI : Read [F:ZVA2] First
     [M:ZCB2]ZITMCODACCB([L]LCONAB)  = [F:ZAC2]ZITMACCESORI
-    [M:ZCB2]ZITMDESACCB([L]LCONAB)  = [F:ZAC2]ZITMACCDES
+    [M:ZCB2]ZITMDESACCB([L]LCONAB)  = [F:ZVA2]ZITMDES
     [M:ZCB2]ZITMORDACCB([L]LCONAB)  = [F:ZAC2]ZITMACCESORO
     [L]LCONAB += 1
+    Filter [F:ZVA2]
   Next
   Filter [F:ZAC2]
   [M:ZCB2]NBACCB = [L]LCONAB
@@ -254,12 +264,17 @@ Local Integer LCONRE
   Effzo [M:ZCB3]
   Raz [M:ZCB3]NBREL
   If !clalev([F:ZAC3]) Then : Local File ZB2BITMACC03 [F:ZAC3] : Endif
+  If !clalev([F:ZVA3]) Then : Local File ZVITMACB2B   [F:ZVA3] : Endif
+  Raz [F:ZAC3]
   Filter [F:ZAC3] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
   For [F:ZAC3]
+    Raz [F:ZVA3]
+    Filter [F:ZVA3] Where ZITM = [F:ZAC3]ZITMACCESORI : Read [F:ZVA3] First
     [M:ZCB3]ZITMCODREL([L]LCONRE)   = [F:ZAC3]ZITMACCESORI
-    [M:ZCB3]ZITMDESREL([L]LCONRE)   = [F:ZAC3]ZITMACCDES
+    [M:ZCB3]ZITMDESREL([L]LCONRE)   = [F:ZVA3]ZITMDES
     [M:ZCB3]ZITMORDREL([L]LCONRE)   = [F:ZAC3]ZITMACCESORO
     [L]LCONRE += 1
+    Filter [F:ZVA3]
   Next
   Filter [F:ZAC3]
   [M:ZCB3]NBREL = [L]LCONRE
@@ -275,12 +290,17 @@ Local Integer LCONVM
   Effzo [M:ZCB4]
   Raz [M:ZCB4]NBVMEJ
   If !clalev([F:ZAC4]) Then : Local File ZB2BITMACC04 [F:ZAC4] : Endif
+  If !clalev([F:ZVA4]) Then : Local File ZVITMACB2B   [F:ZVA4] : Endif
+  Raz [F:ZAC4]
   Filter [F:ZAC4] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
   For [F:ZAC4]
+    Raz [F:ZVA4]
+    Filter [F:ZVA4] Where ZITM = [F:ZAC4]ZITMACCESORI : Read [F:ZVA4] First
     [M:ZCB4]ZITMCODVMEJ([L]LCONVM)  = [F:ZAC4]ZITMACCESORI
-    [M:ZCB4]ZITMDESVMEJ([L]LCONVM)  = [F:ZAC4]ZITMACCDES
+    [M:ZCB4]ZITMDESVMEJ([L]LCONVM)  = [F:ZVA4]ZITMDES
     [M:ZCB4]ZITMORDVMEJ([L]LCONVM)  = [F:ZAC4]ZITMACCESORO
     [L]LCONVM += 1
+    Filter [F:ZVA4]
   Next
   Filter [F:ZAC4]
   [M:ZCB4]NBVMEJ = [L]LCONVM
@@ -296,12 +316,17 @@ Local Integer LCONVC
   Effzo [M:ZCB5]
   Raz [M:ZCB5]NBVCRU
   If !clalev([F:ZAC5]) Then : Local File ZB2BITMACC05 [F:ZAC5] : Endif
+  If !clalev([F:ZVA5]) Then : Local File ZVITMACB2B   [F:ZVA5] : Endif
+  Raz [F:ZAC5]
   Filter [F:ZAC5] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
   For [F:ZAC5]
+    Raz [F:ZVA5]
+    Filter [F:ZVA5] Where ZITM = [F:ZAC5]ZITMACCESORI : Read [F:ZVA5] First
     [M:ZCB5]ZITMCODVCRU([L]LCONVC)  = [F:ZAC5]ZITMACCESORI
-    [M:ZCB5]ZITMDESVCRU([L]LCONVC)  = [F:ZAC5]ZITMACCDES
+    [M:ZCB5]ZITMDESVCRU([L]LCONVC)  = [F:ZVA5]ZITMDES
     [M:ZCB5]ZITMORDVCRU([L]LCONVC)  = [F:ZAC5]ZITMACCESORO
     [L]LCONVC += 1
+    Filter [F:ZVA5]
   Next
   Filter [F:ZAC5]
   [M:ZCB5]NBVCRU = [L]LCONVC
@@ -317,12 +342,17 @@ Local Integer LCONAD
   Effzo [M:ZCB6]
   Raz [M:ZCB6]NBADJ
   If !clalev([F:ZAC6]) Then : Local File ZB2BITMACC06 [F:ZAC6] : Endif
+  If !clalev([F:ZVA6]) Then : Local File ZVITMACB2B   [F:ZVA6] : Endif
+  Raz [F:ZAC6]
   Filter [F:ZAC6] Where ZITM = [M:ZCB0]ZITM Order By ZITMACCESORO
   For [F:ZAC6]
+    Raz [F:ZVA6]
+    Filter [F:ZVA6] Where ZITM = [F:ZAC6]ZITMACCESORI : Read [F:ZVA6] First
     [M:ZCB6]ZITMCODADJ([L]LCONAD)   = [F:ZAC6]ZITMACCESORI
-    [M:ZCB6]ZITMDESADJ([L]LCONAD)   = [F:ZAC6]ZITMACCDES
+    [M:ZCB6]ZITMDESADJ([L]LCONAD)   = [F:ZVA6]ZITMDES
     [M:ZCB6]ZITMORDADJ([L]LCONAD)   = [F:ZAC6]ZITMACCESORO
     [L]LCONAD += 1
+    Filter [F:ZVA6]
   Next
   Filter [F:ZAC6]
   [M:ZCB6]NBADJ = [L]LCONAD
@@ -347,7 +377,6 @@ Local Integer LCONAA
   For [L]LCONAA = 0 To [M:ZCB1]NBACCA - 1
     [F:ZAC1]ZITM          = [M:ZCB0]ZITM
     [F:ZAC1]ZITMACCESORI  = [M:ZCB1]ZITMCODACCA([L]LCONAA)
-    [F:ZAC1]ZITMACCDES    = [M:ZCB1]ZITMDESACCA([L]LCONAA)
     [F:ZAC1]ZITMACCESORO  = [M:ZCB1]ZITMORDACCA([L]LCONAA)
     If !adxlog Then : Trbegin [F:ZAC1] : Endif
     Write [F:ZAC1]
@@ -378,7 +407,6 @@ Local Integer LCONAB
   For [L]LCONAB = 0 To [M:ZCB2]NBACCB - 1
     [F:ZAC2]ZITM          = [M:ZCB0]ZITM
     [F:ZAC2]ZITMACCESORI  = [M:ZCB2]ZITMCODACCB([L]LCONAB)
-    [F:ZAC2]ZITMACCDES    = [M:ZCB2]ZITMDESACCB([L]LCONAB)
     [F:ZAC2]ZITMACCESORO  = [M:ZCB2]ZITMORDACCB([L]LCONAB)
     If !adxlog Then : Trbegin [F:ZAC2] : Endif
     Write [F:ZAC2]
@@ -409,7 +437,6 @@ Local Integer LCONRE
   For [L]LCONRE = 0 To [M:ZCB3]NBREL - 1
     [F:ZAC3]ZITM          = [M:ZCB0]ZITM
     [F:ZAC3]ZITMACCESORI  = [M:ZCB3]ZITMCODREL([L]LCONRE)
-    [F:ZAC3]ZITMACCDES    = [M:ZCB3]ZITMDESREL([L]LCONRE)
     [F:ZAC3]ZITMACCESORO  = [M:ZCB3]ZITMORDREL([L]LCONRE)
     If !adxlog Then : Trbegin [F:ZAC3] : Endif
     Write [F:ZAC3]
@@ -440,7 +467,6 @@ Local Integer LCONVM
   For [L]LCONVM = 0 To [M:ZCB4]NBVMEJ - 1
     [F:ZAC4]ZITM          = [M:ZCB0]ZITM
     [F:ZAC4]ZITMACCESORI  = [M:ZCB4]ZITMCODVMEJ([L]LCONVM)
-    [F:ZAC4]ZITMACCDES    = [M:ZCB4]ZITMDESVMEJ([L]LCONVM)
     [F:ZAC4]ZITMACCESORO  = [M:ZCB4]ZITMORDVMEJ([L]LCONVM)
     If !adxlog Then : Trbegin [F:ZAC4] : Endif
     Write [F:ZAC4]
@@ -471,7 +497,6 @@ Local Integer LCONVC
   For [L]LCONVC = 0 To [M:ZCB5]NBVCRU - 1
     [F:ZAC5]ZITM          = [M:ZCB0]ZITM
     [F:ZAC5]ZITMACCESORI  = [M:ZCB5]ZITMCODVCRU([L]LCONVC)
-    [F:ZAC5]ZITMACCDES    = [M:ZCB5]ZITMDESVCRU([L]LCONVC)
     [F:ZAC5]ZITMACCESORO  = [M:ZCB5]ZITMORDVCRU([L]LCONVC)
     If !adxlog Then : Trbegin [F:ZAC5] : Endif
     Write [F:ZAC5]
@@ -502,7 +527,6 @@ Local Integer LCONAD
   For [L]LCONAD = 0 To [M:ZCB6]NBADJ - 1
     [F:ZAC6]ZITM          = [M:ZCB0]ZITM
     [F:ZAC6]ZITMACCESORI  = [M:ZCB6]ZITMCODADJ([L]LCONAD)
-    [F:ZAC6]ZITMACCDES    = [M:ZCB6]ZITMDESADJ([L]LCONAD)
     [F:ZAC6]ZITMACCESORO  = [M:ZCB6]ZITMORDADJ([L]LCONAD)
     If !adxlog Then : Trbegin [F:ZAC6] : Endif
     Write [F:ZAC6]
