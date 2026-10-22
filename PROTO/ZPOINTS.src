@@ -206,6 +206,12 @@ Return
 ######################    ACCIONES    ########################
 ##############################################################
 ##############################################################
+# ALLCHOMAT
+# Punto de entrada de CRE_ALL (MFGAUTLIB), antes de que el
+# estándar llame a ALLOCATION From MFGALL.
+#   GPE=0 -> el estándar asigna según WALLTYP (1 global, 2 detallada)
+#   GPE=1 -> el estándar no asigna (lo hace el específico)
+##############################################################
 $ALLCHOMAT
 # 2026-00391.ini
   If GNAVIG(GPILNAV) = "GESSOH" Then
@@ -222,15 +228,18 @@ Return
 ##############################################################
 #######################################################################
 # ASIGNAR_SUBESTADO
-# Tratamiento de asignación de componentes de OF.
-# Lógica:
-#   1. Si no existe stock en ningún subestado A* -> estándar.
-#   2. Si existe:
-#     - si hay configuración ZCLIALT: usar el primer subestado con stock suficiente
-#     - si no: A1
-#   3. Si ningún subestado configurado tiene stock suficiente: usar A1
-#   4. Si A1 tampoco tiene stock suficiente: asignar lo disponible en A1 y crear ruptura
-# #######################################################################
+# Tratamiento de asignación de componentes de OF (según diagrama).
+#
+#   1. ¿Stock en algún subestado A1, A2, A3... (A no cuenta)?
+#        NO -> estándar
+#              (en OF mixta, el estándar hace asignación DETALLADA)
+#   2. SÍ -> ¿cliente/artículo/planta en ZCLIALT?
+#        SÍ -> primer subestado por prioridad con stock suficiente
+#              si ninguno tiene suficiente -> A1
+#        NO -> A1
+#   3. A1: si hay suficiente -> detallada A1
+#          si no             -> detallada de lo disponible + ruptura
+#######################################################################
 # 2026-00391.ini
 $ASIGNAR_SUBESTADO
 Local Decimal LSTO_SUB
@@ -238,7 +247,6 @@ Local Decimal LQTADEL
 Local Decimal LSHTDEL
 Local Integer LRETDEL
 Local Integer LCONFIG
-Local Integer LOPENCA
 
   #------------------------------------------------------------
   # Por defecto no intervenimos.
@@ -248,7 +256,7 @@ Local Integer LOPENCA
 
   #------------------------------------------------------------
   # Las globales solo existen si venimos de XYFUNMAUTF.
-  # Si no existen, dejamos actuar al estándar.
+  # Sin ellas, dejamos actuar al estándar.
   #------------------------------------------------------------
   If dim(GZMFGNUM) < 0 or dim(GZBPCORD) < 0 or dim(GSUBESTADO) < 0
     Return
@@ -257,7 +265,7 @@ Local Integer LOPENCA
   Call ECR_TRACE("ALLCHOMAT - ITMREF="+[F:MFM]ITMREF+" BOMSEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
 
   #------------------------------------------------------------
-  # Limpiar variables de trabajo.
+  # Limpiar variables de trabajo (GZBPCORD NO: es el cliente).
   #------------------------------------------------------------
   Raz GZMFGNUM
   Raz GZMFMSEQ
@@ -267,162 +275,179 @@ Local Integer LOPENCA
   Raz LQTADEL
   Raz LSHTDEL
   Raz LRETDEL
+  Raz LCONFIG
 
   #------------------------------------------------------------
   # Solo intervenimos en creación de OF desde pedido de venta.
   #------------------------------------------------------------
-  # buscar si el componente contiene subestados
-  If !GSERVEUR
-    If GNAVIG(GPILNAV-1) = "GESSOH"  and [F:MFG]MFGNUM <> "" Then
+  If GSERVEUR : Return : Endif
+  If GNAVIG(GPILNAV-1) <> "GESSOH" or [F:MFG]MFGNUM = "" : Return : Endif
 
-      #----------------------------------------------------------
-      # 0. ¿Configuración ZCLIALT para cliente/artículo/planta?
-      #    No -> estándar (detallada si la OF es mixta).
-      #----------------------------------------------------------
-      If !func ZSANLIB01.TIENE_CONFIG(GZBPCORD,[F:MFM]ITMREF,[F:MFM]MFGFCY)
-        Gosub FORZAR_DETALLADA
-        Call ECR_TRACE("SIN CONFIGURACION ZCLIALT - BPC="+GZBPCORD+
-&                      " ITMREF="+[F:MFM]ITMREF+
-&                      " FCY="+[F:MFM]MFGFCY+" -> ESTANDAR",0) From GESECRAN
-        Return
-      Endif
+  #------------------------------------------------------------
+  # 0. ¿OF mixta? Se calcula una sola vez por OF, en su primer
+  #    componente, antes de que el específico consuma stock.
+  #------------------------------------------------------------
+  Gosub CALCULAR_OF_MIXTA
 
-      #----------------------------------------------------------
-      # 1. ¿Existe stock en algún SUBESTADO de A?
-      #
-      # Importante:
-      # A NO cuenta.
-      # Solo A1, A2, A3...
-      #----------------------------------------------------------
-      Local Decimal LSTO_SUB
+  #------------------------------------------------------------
+  # 1. ¿Existe stock en algún SUBESTADO de A? (A no cuenta)
+  #    NO -> estándar (detallada si la OF es mixta).
+  #------------------------------------------------------------
+  LSTO_SUB = func ZSANLIB01.OBTENER_STOCK_SUBESTADOS_A(
+&                [F:MFM]ITMREF,
+&                [F:MFM]MFGFCY)
 
-      LSTO_SUB = func ZSANLIB01.OBTENER_STOCK_SUBESTADOS_A(
-&                    [F:MFM]ITMREF,
-&                    [F:MFM]MFGFCY)
-
-      If LSTO_SUB <= 0
-        # No existe stock en ningún subestado.
-        # Dejamos actuar al estándar.
-        Return
-      Endif
-
-      #----------------------------------------------------------
-      # 2. Guardamos identificación del componente.
-      #----------------------------------------------------------
-      GZMFGNUM = [F:MFM]MFGNUM
-      GZMFMSEQ = [F:MFM]BOMSEQ
-      GZITMREF = [F:MFM]ITMREF
-      GZSTOFCY = [F:MFM]MFGFCY
-
-      #----------------------------------------------------------
-      # 3. Buscar subestado configurado para cliente/artículo
-      #    con cantidad suficiente.
-      #----------------------------------------------------------
-      GSUBESTADO = func ZSANLIB01.GET_SUBESTADO(
-&                         [F:MFM]ITMREF,
-&                         GZBPCORD,
-&                         [F:MFM]MFGFCY,
-&                         [F:MFM]RETQTY)
-
-      #----------------------------------------------------------
-      # Si no hay ninguno:
-      #   -> fallback a A1
-      #
-      # Si GET_SUBESTADO devuelve A2/A3/...:
-      #   -> usamos ese subestado.
-      #----------------------------------------------------------
-      If GSUBESTADO = ""
-        GSUBESTADO = "A1"
-      Endif
-
-      Call ECR_TRACE(
-&       "SUBESTADO SELECCIONADO - ITMREF="+GZITMREF+
-&       " STA="+GSUBESTADO+
-&       " QTY="+num$([F:MFM]RETQTY),0) From GESECRAN
-
-
-      #----------------------------------------------------------
-      # 4. El estándar puede haber creado ya una asignación
-      #    global para esta línea de OF.
-      #
-      #    Antes de crear nuestra asignación detallada,
-      #    eliminamos las asignaciones existentes mediante
-      #    DELALL de STKALL.
-      #
-      #    LOPT = 1 -> solamente asignaciones.
-      #----------------------------------------------------------
-      Raz LQTADEL
-      Raz LSHTDEL
-      Raz LRETDEL
-
-      Call ECR_TRACE(
-&       "ANTES DELALL - MFGNUM="+[F:MFM]MFGNUM+
-&       " ITMREF="+[F:MFM]ITMREF+
-&       " MFGLIN="+num$([F:MFM]MFGLIN)+
-&       " SEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
-
-      Call DELALL(
-&                   10,
-&                   [F:MFM]MFGNUM,
-&                   [F:MFM]MFGLIN,
-&                   [F:MFM]BOMSEQ,
-&                   [F:MFM]ITMREF,
-&                   1,
-&                   LQTADEL,
-&                   LSHTDEL,
-&                   LRETDEL) From STKALL
-
-      Call ECR_TRACE(
-&       "DESPUES DELALL - LQTA="+num$(LQTADEL)+
-&       " LSHT="+num$(LSHTDEL)+
-&       " RET="+num$(LRETDEL),0) From GESECRAN
-
-
-      #----------------------------------------------------------
-      # 5. Control del resultado de DELALL.
-      #----------------------------------------------------------
-      If LRETDEL <> 0
-
-        Call ECR_TRACE(
-&         "ERROR DELALL - MFGNUM="+[F:MFM]MFGNUM+
-&         " ITMREF="+[F:MFM]ITMREF+
-&         " RET="+num$(LRETDEL),1) From GESECRAN
-
-        GPE = 1
-        GOK = 0
-        Return
-
-      Endif
-
-
-      #----------------------------------------------------------
-      # 6. Informar si realmente se ha eliminado una asignación.
-      #----------------------------------------------------------
-      If LQTADEL = 0
-
-        Call ECR_TRACE(
-&         "DELALL - NO SE HA ENCONTRADO ASIGNACION PARA "+
-&         "MFGNUM="+[F:MFM]MFGNUM+
-&         " ITMREF="+[F:MFM]ITMREF+
-&         " MFGLIN="+num$([F:MFM]MFGLIN)+
-&         " SEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
-
-      Else
-
-        Call ECR_TRACE(
-&         "DELALL - ASIGNACION ELIMINADA QTY="+
-&         num$(LQTADEL),0) From GESECRAN
-
-      Endif
-
-
-      #----------------------------------------------------------
-      # 7. Realizar la asignación.
-      #----------------------------------------------------------
-      Gosub REALIZAR_ASIGNACION
-
-    Endif
+  If LSTO_SUB <= 0
+    Gosub FORZAR_DETALLADA
+    Call ECR_TRACE("SIN STOCK EN SUBESTADOS A* - ITMREF="+[F:MFM]ITMREF+
+&                  " -> ESTANDAR",0) From GESECRAN
+    Return
   Endif
+
+  #------------------------------------------------------------
+  # 2. Guardamos identificación del componente.
+  #------------------------------------------------------------
+  GZMFGNUM = [F:MFM]MFGNUM
+  GZMFMSEQ = [F:MFM]BOMSEQ
+  GZITMREF = [F:MFM]ITMREF
+  GZSTOFCY = [F:MFM]MFGFCY
+
+  #------------------------------------------------------------
+  # 3. ¿Cliente/artículo/planta en ZCLIALT?
+  #    SÍ -> primer subestado por prioridad con stock suficiente
+  #          (si ninguno -> A1)
+  #    NO -> A1
+  #------------------------------------------------------------
+  LCONFIG = func ZSANLIB01.TIENE_CONFIG(GZBPCORD,[F:MFM]ITMREF,[F:MFM]MFGFCY)
+
+  If LCONFIG
+    GSUBESTADO = func ZSANLIB01.GET_SUBESTADO(
+&                     [F:MFM]ITMREF,
+&                     GZBPCORD,
+&                     [F:MFM]MFGFCY,
+&                     [F:MFM]RETQTY)
+    If GSUBESTADO = ""
+      Call ECR_TRACE("ZCLIALT SIN SUBESTADO CON STOCK SUFICIENTE - ITMREF="+
+&                    [F:MFM]ITMREF+" -> A1",0) From GESECRAN
+      GSUBESTADO = "A1"
+    Endif
+  Else
+    Call ECR_TRACE("SIN CONFIGURACION ZCLIALT - BPC="+GZBPCORD+
+&                  " ITMREF="+[F:MFM]ITMREF+
+&                  " FCY="+[F:MFM]MFGFCY+" -> A1",0) From GESECRAN
+    GSUBESTADO = "A1"
+  Endif
+
+  Call ECR_TRACE(
+&   "SUBESTADO SELECCIONADO - ITMREF="+GZITMREF+
+&   " STA="+GSUBESTADO+
+&   " QTY="+num$([F:MFM]RETQTY),0) From GESECRAN
+
+  #------------------------------------------------------------
+  # 4. Eliminar asignaciones previas de la línea
+  #    (LOPT = 1 -> solamente asignaciones).
+  #------------------------------------------------------------
+  Call ECR_TRACE(
+&   "ANTES DELALL - MFGNUM="+[F:MFM]MFGNUM+
+&   " ITMREF="+[F:MFM]ITMREF+
+&   " MFGLIN="+num$([F:MFM]MFGLIN)+
+&   " SEQ="+num$([F:MFM]BOMSEQ),0) From GESECRAN
+
+  Call DELALL(
+&               10,
+&               [F:MFM]MFGNUM,
+&               [F:MFM]MFGLIN,
+&               [F:MFM]BOMSEQ,
+&               [F:MFM]ITMREF,
+&               1,
+&               LQTADEL,
+&               LSHTDEL,
+&               LRETDEL) From STKALL
+
+  Call ECR_TRACE(
+&   "DESPUES DELALL - LQTA="+num$(LQTADEL)+
+&   " LSHT="+num$(LSHTDEL)+
+&   " RET="+num$(LRETDEL),0) From GESECRAN
+
+  #------------------------------------------------------------
+  # 5. Control del resultado de DELALL.
+  #------------------------------------------------------------
+  If LRETDEL <> 0
+    Call ECR_TRACE(
+&     "ERROR DELALL - MFGNUM="+[F:MFM]MFGNUM+
+&     " ITMREF="+[F:MFM]ITMREF+
+&     " RET="+num$(LRETDEL),1) From GESECRAN
+    GPE = 1
+    GOK = 0
+    Return
+  Endif
+
+  #------------------------------------------------------------
+  # 6. Realizar la asignación.
+  #------------------------------------------------------------
+  Gosub REALIZAR_ASIGNACION
+
+Return
+
+##############################################################
+# CALCULAR_OF_MIXTA
+#
+# Una OF es MIXTA si alguno de sus componentes tiene stock en
+# algún subestado A1, A2, A3... (es decir, si el específico va a
+# intervenir en alguno de sus componentes).
+#
+# Se calcula UNA sola vez por OF, en la llamada del primer
+# componente: en ese momento todavía no se ha asignado nada de
+# esa OF, así que el stock de los subestados no está alterado
+# por las propias asignaciones del específico.
+#
+# Solo en CRE_ALL (MFGAUTLIB), donde existe [M:MFGX] con todos
+# los componentes de la OF.
+##############################################################
+$CALCULAR_OF_MIXTA
+Local Integer LI
+
+  If dim(LZALLCHOMAT) < 0 or dim(GZMIXTA) < 0 : Return : Endif
+  If LZALLCHOMAT <> 1                         : Return : Endif
+  If !clalev([M:MFGX])                        : Return : Endif
+  If GZMIXMFG = [F:MFM]MFGNUM                 : Return : Endif   # ya calculado
+
+  GZMIXMFG = [F:MFM]MFGNUM
+  GZMIXTA  = 0
+
+  For LI = 0 To [M:MFGX]NBLIG - 1
+    If [M:MFGX]CPNTYP(LI) <> 5 and [M:MFGX]MATSTA(LI) <> 4 and [M:MFGX]ITMREF(LI) <> ""
+      If func ZSANLIB01.OBTENER_STOCK_SUBESTADOS_A([M:MFGX]ITMREF(LI),[F:MFM]MFGFCY) > 0
+        GZMIXTA = 1
+        Break
+      Endif
+    Endif
+  Next LI
+
+  Call ECR_TRACE("OF "+GZMIXMFG+" MIXTA="+num$(GZMIXTA),0) From GESECRAN
+
+Return
+
+##############################################################
+# FORZAR_DETALLADA
+#
+# Componente que va al estándar (sin stock en subestados A*)
+# en una OF mixta:
+#   -> se fuerza WALLTYP=2 para que CRE_ALL (MFGAUTLIB) haga
+#      la asignación detallada estándar en vez de la global.
+##############################################################
+$FORZAR_DETALLADA
+
+  If dim(WALLTYP) < 0 or dim(GZMIXTA) < 0     : Return : Endif
+  If dim(LZALLCHOMAT) < 0                     : Return : Endif
+  If LZALLCHOMAT <> 1                         : Return : Endif
+  If WALLTYP <> 1                             : Return : Endif   # ya es detallada
+  If GZMIXMFG <> [F:MFM]MFGNUM or !GZMIXTA    : Return : Endif   # OF no mixta
+
+  WALLTYP = 2
+  Call ECR_TRACE("OF MIXTA - ITMREF="+[F:MFM]ITMREF+
+&                " -> DETALLADA ESTANDAR",0) From GESECRAN
+
 Return
 
 ##############################################################
@@ -433,25 +458,19 @@ Return
 # Si existe stock suficiente:
 #   -> asignación detallada completa
 #
-# Si GSUBESTADO=A1 y no hay suficiente:
-#   -> asignación detallada de lo disponible
+# Si no hay suficiente:
+#   -> fallback a A1 (si no era A1)
+#   -> asignación detallada de lo disponible en A1
 #   -> resto en ruptura
-#
 ##############################################################
 $REALIZAR_ASIGNACION
 
 Local Decimal LDISP
 Local Decimal LRESTO
-Local Decimal LASIG
-Local Decimal LSTOCOU
-Local Integer LRET
 Local Integer LERRASIG
 
 Raz LDISP
 Raz LRESTO
-Raz LASIG
-Raz LSTOCOU
-Raz LRET
 Raz LERRASIG
 
   #--------------------------------------------------------------
@@ -468,9 +487,7 @@ Raz LERRASIG
 &   " NEC="+num$([F:MFM]RETQTY),0) From GESECRAN
 
   #--------------------------------------------------------------
-  # CASO 1
-  #
-  # Hay suficiente stock para cubrir toda la necesidad.
+  # CASO 1: hay suficiente stock para cubrir toda la necesidad.
   #--------------------------------------------------------------
   If LDISP >= [F:MFM]RETQTY
 
@@ -483,15 +500,11 @@ Raz LERRASIG
       Call ECR_TRACE(
 &       "ERROR: NO SE HA PODIDO ASIGNAR TODA LA CANTIDAD. RESTO="+
 &       num$(LRESTO),1) From GESECRAN
-
       GPE = 1
       GOK = 0
       Return
     Endif
 
-    #------------------------------------------------------------
-    # MFGMAT: asignación detallada completa.
-    #------------------------------------------------------------
     [F:MFM]ALLQTY = [F:MFM]RETQTY
     [F:MFM]SHTQTY = 0
     [F:MFM]ALLSTA = 5
@@ -508,21 +521,11 @@ Raz LERRASIG
   Endif
 
   #--------------------------------------------------------------
-  # CASO 2
-  #
-  # No hay suficiente stock en el estado seleccionado.
-  #
-  # Solo permitimos esta situación como asignación parcial
-  # cuando el estado seleccionado es A1.
-  #
-  # Para A2/A3/...:
-  #   no hacemos una asignación parcial del subestado;
-  #   el diagrama indica fallback a A1.
-  #
+  # CASO 2: no hay suficiente stock en el estado seleccionado.
+  # Para A2/A3/... no hay asignación parcial: fallback a A1.
   #--------------------------------------------------------------
   If GSUBESTADO <> "A1"
 
-    # Volvemos a A1.
     Call ECR_TRACE(
 &     "NO HAY STOCK SUFICIENTE EN "+GSUBESTADO+
 &     " -> FALLBACK A1",0) From GESECRAN
@@ -539,17 +542,11 @@ Raz LERRASIG
   #--------------------------------------------------------------
   # Disponibilidad A1.
   #--------------------------------------------------------------
+  LRESTO = [F:MFM]RETQTY
+
   If LDISP > 0
-
-    LRESTO = [F:MFM]RETQTY
-
     Gosub ASIGNAR_STOCK_ESTADO
     If LERRASIG : Return : Endif
-
-  Else
-
-    LRESTO = [F:MFM]RETQTY
-
   Endif
 
   #--------------------------------------------------------------
@@ -561,33 +558,9 @@ Raz LERRASIG
 
     Raz LRET_RUP
 
-    # LALL = ruptura
-    # LFCY
-    # LITM
-    # LCHR
-    # LDAT
-    # LQTY
-    # LQTA
-    # LTYP = OF
-    # LNUM
-    # LLIN
-    # LSEQ
-    # LPRE
-    # LDTE
-    # LLOT
-    # LSLO
-    # LSTA
-    # LLOC
-    # LSER
-    # LWRH
-    # LALLQTY
-    # LALLQTA
-    # LDEFLOC
-    # LDEFLOCTYP
-    # LBPR
-    # LADD
-    # LSCO
-    # LECC
+    # LALL=4 ruptura | LFCY | LITM | LCHR | LDAT | LQTY | LQTA | LTYP=10 OF
+    # LNUM | LLIN | LSEQ | LPRE | LDTE | LLOT | LSLO | LSTA | LLOC | LSER | LWRH
+    # LALLQTY | LALLQTA | LDEFLOC | LDEFLOCTYP | LBPR | LADD | LSCO | LECC | LRET
     Call CREALL(
 &                 4,
 &                 GZSTOFCY,
@@ -624,7 +597,6 @@ Raz LERRASIG
       GPE = 1
       GOK = 0
       Return
-
     Endif
 
   Endif
@@ -666,20 +638,17 @@ $ASIGNAR_STOCK_ESTADO
 
 Local Decimal LDISPLINEA
 Local Decimal LCANTASIG
-#Local Integer LRET
 Local Integer LRETALL
 Local Integer LOPENSTO
-Local Integer LERRASIG
 
   LERRASIG = 0
   Raz LOPENSTO
 
-  If !clalev([F:ZSTO]) Then : Local File STOCK [ZSTO] : LOPENSTO = 1 : Endif
+  If !clalev([F:ZSTO]) : Local File STOCK [ZSTO] : LOPENSTO = 1 : Endif
 
   #------------------------------------------------------------
-  # Exclusiones: si se añaden aquí (bloqueo por inventario,
-  # caducidad, tipo de ubicación no asignable...), hay que
-  # añadir las mismas en ZSANLIB01.OBTENER_STOCK_DISP.
+  # Si se añaden exclusiones aquí, hay que añadir las mismas
+  # en ZSANLIB01.OBTENER_STOCK_DISP.
   #------------------------------------------------------------
   Filter [F:ZSTO] Where STOFCY = GZSTOFCY
 &                   and ITMREF = GZITMREF
@@ -690,44 +659,16 @@ Local Integer LERRASIG
 
     If LRESTO <= 0 : Break : Endif
 
-    #------------------------------------------------------------
-    # Disponibilidad de esta línea STOCK.
-    #------------------------------------------------------------
     LDISPLINEA = [F:ZSTO]QTYSTU - [F:ZSTO]CUMALLQTY
 
     If LDISPLINEA > 0
 
       LCANTASIG = min(LRESTO,LDISPLINEA)
-
       Raz LRETALL
 
-      # LALL = 2 -> detallada
-      # LFCY
-      # LITM
-      # LCHR
-      # LDAT
-      # LQTY
-      # LQTA
-      # LTYP = OF
-      # LNUM
-      # LLIN
-      # LSEQ
-      # LPRE
-      # LDTE
-      # LLOT
-      # LSLO
-      # LSTA
-      # LLOC
-      # LSER
-      # LWRH
-      # LALLQTY
-      # LALLQTA
-      # LDEFLOC
-      # LDEFLOCTYP
-      # LBPR
-      # LADD
-      # LSCO
-      # LECC
+      # LALL=2 detallada | LFCY | LITM | LCHR | LDAT | LQTY | LQTA | LTYP=10 OF
+      # LNUM | LLIN | LSEQ | LPRE | LDTE | LLOT | LSLO | LSTA | LLOC | LSER | LWRH
+      # LALLQTY | LALLQTA | LDEFLOC | LDEFLOCTYP | LBPR | LADD | LSCO | LECC | LRET
       Call CREALL(
 &                   2,
 &                   GZSTOFCY,
@@ -742,10 +683,10 @@ Local Integer LERRASIG
 &                   [F:MFM]BOMSEQ,
 &                   "",
 &                   [F:MFM]RETDAT,
-&                   [F:ZSTO]LOT,
-&                   [F:ZSTO]SLO,
+&                   "",
+&                   "",
 &                   GSUBESTADO,
-&                   [F:ZSTO]LOC,
+&                   "",
 &                   "",
 &                   "",
 &                   0,
@@ -759,12 +700,10 @@ Local Integer LERRASIG
 &                   LRETALL) From STKALL
 
       If LRETALL <> 0
-
         Call ECR_TRACE(
 &         "ERROR CREALL - STOCOU="+num$([F:ZSTO]STOCOU)+
 &         " STA="+GSUBESTADO+
-&         " RET="+num$(LRET),1) From GESECRAN
-
+&         " RET="+num$(LRETALL),1) From GESECRAN
         LERRASIG = 1
         GPE = 1
         GOK = 0
@@ -788,46 +727,6 @@ Local Integer LERRASIG
 Return
 
 ##############################################################
-# FORZAR_DETALLADA
-#
-# Componente SIN configuración ZCLIALT en una OF que tiene
-# algún componente CON configuración (OF mixta):
-#   -> se fuerza WALLTYP=2 para que CRE_ALL (MFGAUTLIB) haga
-#      la asignación detallada estándar en vez de la global.
-#
-# Solo actúa dentro de CRE_ALL, que es donde existen WALLTYP
-# y la máscara [M:MFGX] con todos los componentes de la OF.
-##############################################################
-$FORZAR_DETALLADA
-Local Integer LI
-
-  If dim(WALLTYP) < 0 or dim(GZMIXTA) < 0 : Return : Endif
-  If !clalev([M:MFGX])                    : Return : Endif
-  If WALLTYP <> 1                         : Return : Endif   # ya es detallada
-
-  # Se calcula una vez por OF
-  If GZMIXMFG <> [F:MFM]MFGNUM
-    GZMIXMFG = [F:MFM]MFGNUM
-    GZMIXTA  = 0
-    For LI = 0 To [M:MFGX]NBLIG - 1
-      If [M:MFGX]CPNTYP(LI) <> 5 and [M:MFGX]MATSTA(LI) <> 4 and [M:MFGX]ITMREF(LI) <> ""
-        If func ZSANLIB01.TIENE_CONFIG(GZBPCORD,[M:MFGX]ITMREF(LI),[F:MFM]MFGFCY)
-          GZMIXTA = 1
-          Break
-        Endif
-      Endif
-    Next LI
-  Endif
-
-  If GZMIXTA
-    WALLTYP = 2
-    Call ECR_TRACE("OF MIXTA - ITMREF="+[F:MFM]ITMREF+
-&                  " SIN ZCLIALT -> DETALLADA ESTANDAR",0) From GESECRAN
-  Endif
-
-Return
-
-##############################################################
 # ACTUALIZAR_CABECERA
 #
 # Con GPE=1, CRE_ALL (MFGAUTLIB) sale antes de MAJMFG y no
@@ -836,9 +735,6 @@ Return
 # Solo cuando venimos del punto de entrada ALLCHOMAT.
 ##############################################################
 $ACTUALIZAR_CABECERA
-
-  Call ECR_TRACE("LZALLCHOMAT="+num$(LZALLCHOMAT)+
-&                " MEMSTA="+num$(MEMSTA),0) From GESECRAN
 
   If dim(LZALLCHOMAT) < 0 : Return : Endif
   If LZALLCHOMAT <> 1     : Return : Endif
@@ -852,6 +748,7 @@ $ACTUALIZAR_CABECERA
 &                " SHTMATNBR="+num$([F:MFG]SHTMATNBR),0) From GESECRAN
 
 Return
+# 2026-00391.fin
 
 ##############################################################
 #################    ACCIONES DE CAMPO    ####################
