@@ -175,7 +175,6 @@ Local     Char    LINDEX(250)
 Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITBPC(250)
-Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LERPID(50),LEMAIL(250),LWEBSITE(250),LSTORE(250),LWEBSITE_ID(250),LSTORE_ID(250),LCREATED_IN(250),LFIRSTNAME(250),LLASTNAME(250)
@@ -220,8 +219,6 @@ Local     Char    LGROUP_ID(250),LALLOW_LOGIN(250),LAPPROVE_ACC(250),LPUEDE_REBO
   adxirs = chr$(13)+chr$(10)
   adxium = 0
   Openo LFILE Using [ZB2B]
-
-  Raz [L]LCONT
 
   Wrseq '"email","_website","_store","website_id","store_id","created_in","firstname","lastname","group_id","allow_login","approve_account",' +
 &       '"puede_rebotar_presupuestos","phonecomercial","whatsappcomercial","razonsocial","erpid"'
@@ -296,7 +293,6 @@ Local     Char    LINDEX(250)
 Local     Char    LFORMATO(10) : [L]LFORMATO = "csv"
 Local     Char    LFECHA(100),LHORA(100)
 Local     Char    LCRITBPA(250)
-Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LWEBSITE(250),LENTITYID(250),LEMAIL(250),LCITY(250),LCOMPANY(250),LCOUNTRYID(250),LFIRSTNAME(250),LLASTNAME(250)
@@ -340,8 +336,6 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
   adxium = 0
   Openo LFILE Using [ZB2B]
 
-  Raz [L]LCONT
-
   Wrseq '"_website","_entity_id","_email","city","company","country_id","firstname","lastname","postcode","region","region_id",' +
 &       '"street","telephone","_address_default_billing_","_address_default_shipping_","erpid"'
 & Using [ZB2B]
@@ -370,9 +364,6 @@ Local     Char    LPOSTCODE(250),LREGION(250),LREGIONID(250),LSTREET(250),LTELEP
 &         [L]LFIRSTNAME + [L]LSEP + [L]LLASTNAME + [L]LSEP + [L]LPOSTCODE + [L]LSEP + [L]LREGION + [L]LSEP + [L]LREGIONID + [L]LSEP +
 &         [L]LSTREET + [L]LSEP + [L]LTELEPHONE + [L]LSEP + [L]LADDRESSBILL + [L]LSEP + [L]LADDRESSSHIP + [L]LSEP + [L]LIDBPADDRESS
 &   Using [ZB2B]
-
-    [L]LCONT += 1
-    If [L]LCONT > 2 Then Break Endif      ##################################SÓLO PARA PRUEBAS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   Next
   Filter [F:ZVBA]
@@ -516,7 +507,6 @@ Local     Char    LITMSTR(250)
 Local     Char    LITMEND(250)
 Local     Char    LITMCRI(250)
 Local     Char    LITSCRI(250)
-Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTION(250)
@@ -789,7 +779,6 @@ Local     Char    LITMSTR(250)
 Local     Char    LITMEND(250)
 Local     Char    LITMCRI(250)
 Local     Char    LITSCRI(250)
-Local     Integer LCONT
 
 Local     Char    LSEP(1) : [L]LSEP = ","
 Local     Char    LSKU(250),LPRICE(250),LDISCOUNTTYPE(250),LQTY(250),LDESCRIPTION(250)
