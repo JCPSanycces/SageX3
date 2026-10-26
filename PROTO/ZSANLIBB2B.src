@@ -999,6 +999,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
   If !clalev([F:ZBPA5]) Then : Local File BPADDRESS   [F:ZBPA5] : Endif
   If !clalev([F:ZSOH5]) Then : Local File SORDER      [F:ZSOH5] : Endif
   If !clalev([F:ZITM5]) Then : Local File ITMMASTER   [F:ZITM5] : Endif
+  If !clalev([F:ZITS5]) Then : Local File ITMSALES    [F:ZITS5] : Endif
   If !clalev([F:ZBOD5]) Then : Local File BOMD        [F:ZBOD5] : Endif
   If !clalev([F:ZBOD6]) Then : Local File BOMD        [F:ZBOD6] : Endif
   If !clalev([F:ZBOM5]) Then : Local File BOM         [F:ZBOM5] : Endif
@@ -1010,7 +1011,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
   GSTATUS  = 1
   GMESSAGE = ""
 
-  Raz [F:ZBPC5],[F:ZBPA5],[F:ZSOH5],[F:ZITM5],[F:ZBOD5],[F:ZBOD6],[F:ZBOM5],[F:ZSB20],[F:ZSB21]
+  Raz [F:ZBPC5],[F:ZBPA5],[F:ZSOH5],[F:ZITM5],[F:ZITS5],[F:ZBOD5],[F:ZBOD6],[F:ZBOM5],[F:ZSB20],[F:ZSB21]
 
   # verifica el número de pedido Magento
   Filter [F:ZSOH5] Where ZSOHNUMB2B = PZSOHNUMB2B
@@ -1258,6 +1259,12 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
         [L]K += 1
         [L]N += 1
         Filter [F:ZBOM5]
+        # hay artículos que son estructuras de producción, pero que deben tratarse como Origen artículo = Normal en la línea del pedido de venta (NO -> Origen artículo = Contramarca)
+        Read [F:ZITS5]ITS0 = [F:ZSB21]ZITMREF
+        If !fstat and [F:ZITS5]CTMFLG <> 2 Then
+          [L]WFMI     = 1
+          [L]WALLTYP  = 1
+        Endif
         Wrseq "L" + ";" + vireblc([F:ZSB21]ZITMREF,2) + ";" + num$([F:ZSB21]ZQTY) + ";" + num$(1) + ";" +
 &             num$(0) + ";" + num$(0) + ";" + vireblc([F:ZSB21]ZATTFILEB2B,2) + ";" + num$([L]WFMI) + ";" + [F:ZSB21]YRAL + ";" + num$([F:ZSB21]ZALTO) + ";" +
 &             num$([F:ZSB21]ZANCHO) + ";" + num$([F:ZSB21]ZLARGO) + ";" + [F:ZSB21]YCOMENCLI
