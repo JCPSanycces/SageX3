@@ -1937,9 +1937,10 @@ $ASIGNA_BPTNUM
       Rollback
     Endif
   Endif
-  Close Local File [F:ZSOH0]
 
   Call AM_BPTNUM([F:ZSOH0]BPTNUM)
+
+  Close Local File [F:ZSOH0]
 Return
 
 # --------------------------------------------------------------------------------
