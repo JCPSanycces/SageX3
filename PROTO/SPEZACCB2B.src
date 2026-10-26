@@ -671,7 +671,7 @@ Variable Char    VALEUR()
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     [M:ZCB0]ZITMDES     = [F:ZVA0]ZITMDES
@@ -721,7 +721,7 @@ Variable Char    VALEUR()
   Filter [F:ZVA0] Where ZITM = VALEUR
   Read [F:ZVA0] First
   If fstat Then
-    Call ERREUR("El artículo lo existe") From GESECRAN
+    Call ERREUR("El artículo no existe") From GESECRAN
     mkstat=2
   Else
     If VALEUR = [M:ZCB0]ZITM
