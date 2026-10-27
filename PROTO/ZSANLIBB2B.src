@@ -169,19 +169,19 @@ Local     Integer LREGINI,LREGFIN
           PFECHA(I)         = ""
         Endif
         If [F:ZVSH0]DLVSTA = 3 Then
-          PESTADO(I) = 'Entregado'
+          PESTADO(I) = 'Expedido'
         Endif
         If [F:ZVSH0]DLVSTA = 2 and [F:ZVSH0]ALLSTA = 1 and [F:ZVSH0]ORDSTA = 2 Then
-          PESTADO(I) = 'Entregado'
+          PESTADO(I) = 'Expedido'
         Endif
         If [F:ZVSH0]DLVSTA = 2 and [F:ZVSH0]ALLSTA = 1 and [F:ZVSH0]ORDSTA = 1 Then
-          PESTADO(I) = 'Entregado parcialmente / sin stock resto'
+          PESTADO(I) = 'Expedido parcialmente / sin stock resto'
         Endif
         If [F:ZVSH0]DLVSTA = 2 and [F:ZVSH0]ALLSTA = 3 Then
-          PESTADO(I) = 'Entregado parcialmente / con stock resto'
+          PESTADO(I) = 'Expedido parcialmente / con stock resto'
         Endif
         If [F:ZVSH0]DLVSTA = 2 and [F:ZVSH0]ALLSTA = 2 Then
-          PESTADO(I) = 'Entregado parcialmente / con stock parcial'
+          PESTADO(I) = 'Expedido parcialmente / con stock parcial'
         Endif
         If [F:ZVSH0]DLVSTA = 1 and [F:ZVSH0]ALLSTA = 1 and [F:ZVSH0]ORDSTA = 1 Then
           PESTADO(I) = 'En curso'
@@ -330,19 +330,19 @@ Local     Integer LREGINI,LREGFIN
       [L]LCRIT += " and PEDIDO='" + vireblc([F:ZVSH1]PEDIDO,2) + "'"
       PFECHA      = num$(format$(GFMD,[F:ZVSH1]FECHAPEDIDO))
       If [F:ZVSH1]DLVSTA = 3 Then
-        PESTADO(I) = 'Entregado'
+        PESTADO(I) = 'Expedido'
       Endif
       If [F:ZVSH1]DLVSTA = 2 and [F:ZVSH1]ALLSTA = 1 and [F:ZVSH1]ORDSTA = 2 Then
-        PESTADO(I) = 'Entregado'
+        PESTADO(I) = 'Expedido'
       Endif
       If [F:ZVSH1]DLVSTA = 2 and [F:ZVSH1]ALLSTA = 1 and [F:ZVSH1]ORDSTA = 1 Then
-        PESTADO(I) = 'Entregado parcialmente / sin stock resto'
+        PESTADO(I) = 'Expedido parcialmente / sin stock resto'
       Endif
       If [F:ZVSH1]DLVSTA = 2 and [F:ZVSH1]ALLSTA = 3 Then
-        PESTADO(I) = 'Entregado parcialmente / con stock resto'
+        PESTADO(I) = 'Expedido parcialmente / con stock resto'
       Endif
       If [F:ZVSH1]DLVSTA = 2 and [F:ZVSH1]ALLSTA = 2 Then
-        PESTADO(I) = 'Entregado parcialmente / con stock parcial'
+        PESTADO(I) = 'Expedido parcialmente / con stock parcial'
       Endif
       If [F:ZVSH1]DLVSTA = 1 and [F:ZVSH1]ALLSTA = 1 and [F:ZVSH1]ORDSTA = 1 Then
         PESTADO(I) = 'En curso'
