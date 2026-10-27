@@ -106,26 +106,28 @@ $SEL_ZSELACCB2B
   CRITERE = "1=1"
   GSELFAC = 1
   NBCOL = 0
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]ZITM"       : TIT(NBCOL) = "Artículo"
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]ZITMDES"    : TIT(NBCOL) = "Descripción"
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST1"   : TIT(NBCOL) = "Fam. sup."
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST1_D" : TIT(NBCOL) = "Fam. sup. desc."
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST2"   : TIT(NBCOL) = "Familia"
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST2_D" : TIT(NBCOL) = "Familia desc."
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]SERIE"      : TIT(NBCOL) = "Serie"
-  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]PADRE"      : TIT(NBCOL) = "Padre"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]ZITM"         : TIT(NBCOL) = "Artículo"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]ZITMDES"      : TIT(NBCOL) = "Descripción"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]CATEGORIAB2B" : TIT(NBCOL) = "Categoría"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST1"     : TIT(NBCOL) = "Fam. sup."
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST1_D"   : TIT(NBCOL) = "Fam. sup. desc."
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST2"     : TIT(NBCOL) = "Familia"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]FAM_EST2_D"   : TIT(NBCOL) = "Familia desc."
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]SERIE"        : TIT(NBCOL) = "Serie"
+  NBCOL +=1 : COL(NBCOL) = "[F:ZVA0]PADRE"        : TIT(NBCOL) = "Padre"
 Return
 
 ##############################################################
 # selección artículo en la cabecera
 $VERF_ZSELACCB2B
-  [M:ZCB0]ZITMDES     = [F:ZVA0]ZITMDES
-  [M:ZCB0]FAM_EST1    = [F:ZVA0]FAM_EST1
-  [M:ZCB0]FAM_EST1_D  = [F:ZVA0]FAM_EST1_D
-  [M:ZCB0]FAM_EST2    = [F:ZVA0]FAM_EST2
-  [M:ZCB0]FAM_EST2_D  = [F:ZVA0]FAM_EST2_D
-  [M:ZCB0]SERIE       = [F:ZVA0]SERIE
-  [M:ZCB0]PADRE       = [F:ZVA0]PADRE
+  [M:ZCB0]ZITMDES       = [F:ZVA0]ZITMDES
+  [M:ZCB0]FAM_EST1      = [F:ZVA0]FAM_EST1
+  [M:ZCB0]FAM_EST1_D    = [F:ZVA0]FAM_EST1_D
+  [M:ZCB0]FAM_EST2      = [F:ZVA0]FAM_EST2
+  [M:ZCB0]FAM_EST2_D    = [F:ZVA0]FAM_EST2_D
+  [M:ZCB0]SERIE         = [F:ZVA0]SERIE
+  [M:ZCB0]PADRE         = [F:ZVA0]PADRE
+  [M:ZCB0]CATEGORIAB2B  = [F:ZVA0]CATEGORIAB2B
   Affzo [M:ZCB0]5
 Return
 
@@ -134,6 +136,7 @@ Return
 $VERF_ZSELACCABB
   [M:ZCB1]ZITMCODACCA(nolign-1) = [F:ZVA0]ZITM
   [M:ZCB1]ZITMDESACCA(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB1]ZITMCATB2B(nolign-1)  = [F:ZVA0]CATEGORIAB2B
   [M:ZCB1]ZITMORDACCA(nolign-1) = nolign
 #  Affzo [M:ZCB1]5
 Return
@@ -143,6 +146,7 @@ Return
 $VERF_ZSELACCBBB
   [M:ZCB2]ZITMCODACCB(nolign-1) = [F:ZVA0]ZITM
   [M:ZCB2]ZITMDESACCB(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB2]ZITMCATB2B(nolign-1)  = [F:ZVA0]CATEGORIAB2B
   [M:ZCB2]ZITMORDACCB(nolign-1) = nolign
   Affzo [M:ZCB2]5
 Return
@@ -152,6 +156,7 @@ Return
 $VERF_ZSELRELABB
   [M:ZCB3]ZITMCODREL(nolign-1)  = [F:ZVA0]ZITM
   [M:ZCB3]ZITMDESREL(nolign-1)  = [F:ZVA0]ZITMDES
+  [M:ZCB3]ZITMCATB2B(nolign-1)  = [F:ZVA0]CATEGORIAB2B
   [M:ZCB3]ZITMORDREL(nolign-1)  = nolign
   Affzo [M:ZCB3]5
 Return
@@ -161,6 +166,7 @@ Return
 $VERF_ZSELVMEJBB
   [M:ZCB4]ZITMCODVMEJ(nolign-1) = [F:ZVA0]ZITM
   [M:ZCB4]ZITMDESVMEJ(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB4]ZITMCATB2B(nolign-1)  = [F:ZVA0]CATEGORIAB2B
   [M:ZCB4]ZITMORDVMEJ(nolign-1) = nolign
   Affzo [M:ZCB4]5
 Return
@@ -170,6 +176,7 @@ Return
 $VERF_ZSELVCRUBB
   [M:ZCB5]ZITMCODVCRU(nolign-1) = [F:ZVA0]ZITM
   [M:ZCB5]ZITMDESVCRU(nolign-1) = [F:ZVA0]ZITMDES
+  [M:ZCB5]ZITMCATB2B(nolign-1)  = [F:ZVA0]CATEGORIAB2B
   [M:ZCB5]ZITMORDVCRU(nolign-1) = nolign
   Affzo [M:ZCB5]5
 Return
@@ -179,6 +186,7 @@ Return
 $VERF_ZSELADJUBB
   [M:ZCB6]ZITMCODADJ(nolign-1)  = [F:ZVA0]ZITM
   [M:ZCB6]ZITMDESADJ(nolign-1)  = [F:ZVA0]ZITMDES
+  [M:ZCB6]ZITMCATB2B(nolign-1)  = [F:ZVA0]CATEGORIAB2B
   [M:ZCB6]ZITMORDADJ(nolign-1)  = nolign
   Affzo [M:ZCB6]5
 Return
