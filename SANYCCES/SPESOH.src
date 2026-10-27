@@ -27,6 +27,7 @@
 # 2026-00391 - JCP.20082026.Asignación de rutas de fabricación por cliente
 # 2026-00713 - JCP.30092026.Permitir duplicar pedidos de venta
 # 2026-00833 - JCP.19102026.Asignación TTA a pedidos B2B
+# 2026-00913 - JCP.27102026.Correcciones en la asignación del transportista
 #####################################################################################################
 
 $ACTION
@@ -1925,10 +1926,34 @@ Return
 ##############################################################
 # 2026-00833
 $ASIGNA_BPTNUM
-  If !clalev([F:ZSOH0]) Then : Local File SORDER [F:ZSOH0] : Endif
+  If !clalev([F:ZSOH0]) Then : Local File SORDER    [F:ZSOH0] : Endif
+  If !clalev([F:ZSOQ0]) Then : Local File SORDERQ   [F:ZSOQ0] : Endif
+  If !clalev([F:YTRA])  Then : Local File YTRAN     [F:YTRA]  : Endif
+  If !clalev([F:YBPD])  Then : Local File BPDLVCUST [F:YBPD]  : Endif
+  If !clalev([F:YSER])  Then : Local File YTRASERV  [F:YSER]  : Endif
+
   Read [F:ZSOH0]SOH0 = [M:SOH0]SOHNUM
   If !fstat Then
-    [F:ZSOH0]BPTNUM = func ZSANLIB01.GET_BPTNUMB2B([M:SOH0]SOHNUM)
+
+    # actualiza el transportista en la cabecera
+    [F:ZSOH0]BPTNUM = func ZSANLIB01.GET_BPTNUMB2B([F:ZSOH0]SOHNUM)
+
+    # actualiza los campo de servicio y término
+    Read [F:YBPD]BPD0 = [F:ZSOH0]BPCORD;[F:ZSOH0]BPAADD
+    If !fstat and [F:YBPD]YCONCERTA = 2 and [F:ZSOH0]BPTNUM = 'NA000008'
+      [F:ZSOH0]YSERVDEF   = 'A'
+      [F:ZSOH0]YTERMDEF   = '031'
+    Else
+      Read [F:YTRA]YTRAN0 = [F:ZSOH0]BPTNUM
+      If !fstat
+        [F:ZSOH0]YSERVDEF = [F:YTRA]YSERVDEF
+        [F:ZSOH0]YTERMDEF = [F:YTRA]YTERMDEF
+      Else
+        [F:ZSOH0]YSERVDEF = ''
+        [F:ZSOH0]YTERMDEF = ''
+      Endif
+    Endif
+
     If !adxlog Then : Trbegin [F:ZSOH0] : Endif
     Rewrite [F:ZSOH0]
     If !fstat Then
@@ -1936,11 +1961,24 @@ $ASIGNA_BPTNUM
     Else
       Rollback
     Endif
+
+    # actualiza el transportista en las líneas
+    Filter [F:ZSOQ0] Where SOHNUM = [F:ZSOH0]SOHNUM
+    For [F:ZSOQ0]
+      [F:ZSOQ0]BPTNUM = [F:ZSOH0]BPTNUM
+      If !adxlog Then : Trbegin [F:ZSOQ0] : Endif
+      Rewrite [F:ZSOQ0]
+      If !fstat Then
+        Commit
+      Else
+        Rollback
+      Endif
+    Next
+    Filter [F:ZSOQ0]
   Endif
 
-  Call AM_BPTNUM([F:ZSOH0]BPTNUM)
 
-  Close Local File [F:ZSOH0]
+  Close Local File [ZSOH0],[ZSOQ0],[YTRA],[YBPD],[YSER]
 Return
 
 # --------------------------------------------------------------------------------
