@@ -1073,7 +1073,7 @@ Local Char LRET(25)
   If !fstat Then
 
     # si el modo de entrega no es 3-DAP se aplica el estándar
-    If [F:ZSOH]MDL <> "3-DAP" Then : End LRET : Endif
+    If [F:ZSOH]EECICT <> "DAP" Then : End LRET : Endif
 
     Read [F:ZBPR]BPR0 = [F:ZSOH]BPCORD
     If !fstat Then
