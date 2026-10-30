@@ -1187,7 +1187,7 @@ Local     Char    LBPCNAM0(250),LBPINAM0(250),LBPAINV(25)
 &         [L]LBPCNAM0 + ";" + [L]LBPAORD + ";" + [L]LBPCADDLIG0 + ";" + [L]LBPCADDLIG1 + ";" + [L]LBPCADDLIG2 + ";" + [L]LBPCPOSCOD + ";" +
 &         [L]LBPCCTY + ";" + [L]LBPCSAT + ";" + [L]LBPCCRY + ";" + [L]LBPCCRYNAM + ";" +
 &         [L]LBPINAM0 + ";" + [L]LBPAINV + ";" + [L]LBPIADDLIG0 + ";" + [L]LBPIADDLIG1 + ";" + [L]LBPIADDLIG2 + ";" + [L]LBPIPOSCOD + ";" +
-&         [L]LBPICTY + ";" + [L]LBPISAT + ";" + [L]LBPICRY + ";" + [L]LBPICRYNAM + ";" + [L]LBPIEECNUM
+&         [L]LBPICTY + ";" + [L]LBPISAT + ";" + [L]LBPICRY + ";" + [L]LBPICRYNAM + ";" + [L]LBPIEECNUM + ";" + vireblc([F:ZSB21]ZTEXTO1B2B,2)
 &         Using [ZIMP_W]
 
     [L]K        = 0
