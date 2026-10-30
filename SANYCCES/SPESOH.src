@@ -1926,6 +1926,11 @@ Return
 ##############################################################
 # 2026-00833
 $ASIGNA_BPTNUM
+Local Char LBPTNUM(50)
+
+  [L]LBPTNUM = func ZSANLIB01.GET_BPTNUMB2B([M:SOH0]SOHNUM)
+  If [L]LBPTNUM = "" Then : Return Endif
+
   If !clalev([F:ZSOH0]) Then : Local File SORDER    [F:ZSOH0] : Endif
   If !clalev([F:ZSOQ0]) Then : Local File SORDERQ   [F:ZSOQ0] : Endif
   If !clalev([F:YTRA])  Then : Local File YTRAN     [F:YTRA]  : Endif
@@ -1936,7 +1941,7 @@ $ASIGNA_BPTNUM
   If !fstat Then
 
     # actualiza el transportista en la cabecera
-    [F:ZSOH0]BPTNUM = func ZSANLIB01.GET_BPTNUMB2B([F:ZSOH0]SOHNUM)
+    [F:ZSOH0]BPTNUM = [L]LBPTNUM
 
     # actualiza los campo de servicio y término
     Read [F:YBPD]BPD0 = [F:ZSOH0]BPCORD;[F:ZSOH0]BPAADD

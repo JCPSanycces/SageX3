@@ -1066,51 +1066,64 @@ Value Char PSOHNUM
 
 Local Char LRET(25)
 
-  If !clalev([F:ZSOH]) : Local File SORDER  [F:ZSOH] : Endif
-  If !clalev([F:ZSOP]) : Local File SORDERP [F:ZSOP] : Endif
+  If !clalev([F:ZSOH]) : Local File SORDER    [F:ZSOH] : Endif
+  If !clalev([F:ZSOP]) : Local File SORDERP   [F:ZSOP] : Endif
+  If !clalev([F:ZBPR]) : Local File BPARTNER  [F:ZBPR] : Endif
   Read [F:ZSOH]SOH0 = PSOHNUM
   If !fstat Then
 
-    # Cuando se trata de envíos a las Islas Baleares (código postal empieza por 07), el criterio es el siguiente:
-    #   - Por GENERAL COURIER LOGISTICA SLU (NA000012) pedidos <= 10 kg y sin artículos de tipo lavabo
-    #   - Por Dachser: el resto
-    If right$([F:ZSOH]BPDPOSCOD,2) = "07" Then
-      If [F:ZSOH]DSPTOTWEI <= 10 Then
-        Filter [F:ZSOP] Where SOHNUM = PSOHNUM
-        For [F:ZSOP]
-          If find([F:ZSOP]TSICOD(1),'0030010','0030011','0030012','0030050','0030051') Then
-            LRET = 'NA000008'
-            Break
-          Else
-            [L]LRET = 'NA000012'
-          Endif
-        Next
-        Filter [F:ZSOP]
-      Else
-        [L]LRET = 'NA000008'
-      Endif
-      Close Local File [ZSOH],[ZSOP]
-      Return
-    Endif
+    # si el modo de entrega no es 3-DAP se aplica el estándar
+    If [F:ZSOH]MDL <> "3-DAP" Then : End LRET : Endif
 
-    # Para todos aquellos pedidos que entren por el b2b debemos seguir estos criterios para asignar TTA:
-    #   - Por MRW: pedidos de menos de 40 kg y sin artículos de tipo lavabo (revisar por familia estadística o subfamilia)
-    #   - Por Dachser: el resto
-    If [F:ZSOH]DSPTOTWEI <= 40 Then
-      Filter [F:ZSOP] Where SOHNUM = PSOHNUM
-      For [F:ZSOP]
-        If find([F:ZSOP]TSICOD(1),'0030010','0030011','0030012','0030050','0030051') Then
-          LRET = 'NA000008'
-          Break
-        Else
-          [L]LRET = 'NA002854'
+    Read [F:ZBPR]BPR0 = [F:ZSOH]BPCORD
+    If !fstat Then
+      # clientes de España
+      If [F:ZBPR]CRY = "SPA" Then
+        # Cuando se trata de envíos a las Islas Baleares (código postal empieza por 07), el criterio es el siguiente:
+        #   - Por GENERAL COURIER LOGISTICA SLU (NA000012) pedidos <= 10 kg y sin artículos de tipo lavabo
+        #   - Por Dachser: el resto
+        If right$([F:ZSOH]BPDPOSCOD,2) = "07" Then
+          If [F:ZSOH]DSPTOTWEI <= 10 Then
+            Filter [F:ZSOP] Where SOHNUM = PSOHNUM
+            For [F:ZSOP]
+              If find([F:ZSOP]TSICOD(1),'0030010','0030011','0030012','0030050','0030051') Then
+                LRET = 'NA000008'
+                Break
+              Else
+                [L]LRET = 'NA000012'
+              Endif
+            Next
+            Filter [F:ZSOP]
+          Else
+            [L]LRET = 'NA000008'
+          Endif
+          Close Local File [ZSOH],[ZSOP]
+          Return
         Endif
-      Next
-      Filter [F:ZSOP]
-    Else
-      [L]LRET = 'NA000008'
+
+        # Para todos aquellos pedidos que entren por el B2B debemos seguir estos criterios para asignar TTA:
+        #   - Por MRW: pedidos de menos de 40 kg y sin artículos de tipo lavabo (revisar por familia estadística o subfamilia)
+        #   - Por Dachser: el resto
+        If [F:ZSOH]DSPTOTWEI <= 40 Then
+          Filter [F:ZSOP] Where SOHNUM = PSOHNUM
+          For [F:ZSOP]
+            If find([F:ZSOP]TSICOD(1),'0030010','0030011','0030012','0030050','0030051') Then
+              LRET = 'NA000008'
+              Break
+            Else
+              [L]LRET = 'NA002854'
+            Endif
+          Next
+          Filter [F:ZSOP]
+        Else
+          [L]LRET = 'NA000008'
+        Endif
+      Else
+      # clientes de fuera de España
+      Endif
     Endif
   Endif
-  Close Local File [ZSOH],[ZSOP]
+
+  Close Local File [ZSOH],[ZSOP],[ZBPR]
 
 End LRET
