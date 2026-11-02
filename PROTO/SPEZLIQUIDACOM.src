@@ -38,18 +38,20 @@ $DEBUT
 
 Global Char     GCORREOZLQ(250),GFILEZLQ(250),GASUNTOZLQ(250)
 Global Clbfile  GTEXTOZLQ(2)
+Global Integer  GCGARVI
 Local Char      TBPAR(20)(1..20),TBVAL(50)(1..20)
 Local Integer   I
 
   If !clalev([F:ZBPR]) Then : Local File BPARTNER     [F:ZBPR] : Endif
   If !clalev([F:ZBPA]) Then : Local File BPADDRESS    [F:ZBPA] : Endif
+  If !clalev([F:ZBPC]) Then : Local File BPCUSTOMER   [F:ZBPC] : Endif
   If !clalev([M:ZLC0]) Then : Local Mask ZLIQUIDACOM0 [M:ZLC0] : Endif
 
   Default Mask  [M:ZLC0]
   Raz           [M:ZLC0]
 
-  Link [F:ZBPR] With [F:ZBPA]BPA0 = 1;[F:ZBPR]BPRNUM;[F:ZBPR]BPAADD As [LNK]
-  Columns [LNK] ([F:ZBPR]BPRNUM,[F:ZBPR]BPRNAM,[F:ZBPR]CRN,[F:ZBPA]WEB(0),[F:ZBPR]LAN)
+  Link [F:ZBPR] With [F:ZBPA]BPA0 = 1;[F:ZBPR]BPRNUM;[F:ZBPR]BPAADD , [F:ZBPC]BPC0 = [F:ZBPR]BPRNUM As [LNK]
+  Columns [LNK] ([F:ZBPR]BPRNUM,[F:ZBPR]BPRNAM,[F:ZBPR]CRN,[F:ZBPA]WEB(0),[F:ZBPR]LAN,[F:ZBPC]REP(1))
   Filter [LNK] Where ENAFLG = 2 and REPFLG = 2 and ZLIQUIDACOM = 2
   For    [LNK]
     [M:ZLC0]BPRNUM(I) = [F:ZBPR]BPRNUM
@@ -57,9 +59,7 @@ Local Integer   I
     [M:ZLC0]CRN(I)    = [F:ZBPR]CRN
     [M:ZLC0]WEB(I)    = [F:ZBPA]WEB(0)
     [M:ZLC0]LAN(I)    = [F:ZBPR]LAN(0)
-If [F:ZBPR]BPRNUM="NA000046" or [F:ZBPR]BPRNUM="NA000047"
-[M:ZLC0]ZSEL(I)=2
-Endif
+    [M:ZLC0]REP1(I)   = [F:ZBPC]REP(1)
     I += 1
   Next
   [M:ZLC0]NBLIG = I
@@ -77,13 +77,16 @@ Local Char    LMES(50)
   Call GET_FECHAS([L]LPRIMERDIA,[L]LULTIMODIA)
 
 Local Char L1,L2
-L1="06/04/2026"
-L2="30/06/2026"
-LPRIMERDIA = gdat$(val(mid$(L1,1,2)),val(mid$(L1,4,2)),val(mid$(L1,7,4)))
-LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
+#L1="06/04/2026"
+#L2="30/06/2026"
+#LPRIMERDIA = gdat$(val(mid$(L1,1,2)),val(mid$(L1,4,2)),val(mid$(L1,7,4)))
+#LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
 
   For I=0 To [M:ZLC0]NBLIG-1
     If [M:ZLC0]ZSEL(I) = 2 Then
+
+      Raz GCORREOZLQ,GFILEZLQ,GASUNTOZLQ,GTEXTOZLQ,GCGARVI
+
       # parámetros de impresión de comisiones en PDF
       NBPAR = 0
       NBPAR += 1 : TBPAR(NBPAR) = "repdeb"        : TBVAL(NBPAR) = [M:ZLC0]BPRNUM(I)
@@ -163,6 +166,7 @@ LULTIMODIA = gdat$(val(mid$(L2,1,2)),val(mid$(L2,4,2)),val(mid$(L2,7,4)))
 
       GCORREOZLQ  = [M:ZLC0]WEB(I)
       GCORREOZLQ  ="jl.chiva@sanycces.es"
+      If [M:ZLC0]REP1(I) = "NA000056" : GCGARVI = 1 : Endif
 
 # generar el fichero pdf
       GFILEZLQ    = filpath("IMPORT\COMISIONES\PDF","Comisiones_"+
@@ -223,6 +227,11 @@ Return
 $FIN
   Close Local File [ZBPR],[ZBPA]
   Close Local Mask [ZLC0]
+  If dim(GCORREOZLQ)  > 0 Then : Kill GCORREOZLQ  : Endif
+  If dim(GFILEZLQ)    > 0 Then : Kill GFILEZLQ    : Endif
+  If dim(GASUNTOZLQ)  > 0 Then : Kill GASUNTOZLQ  : Endif
+  If dim(GTEXTOZLQ)   > 0 Then : Kill GTEXTOZLQ   : Endif
+  If dim(GCGARVI)     > 0 Then : Kill GCGARVI     : Endif
 Return
 
 ##############################################################
