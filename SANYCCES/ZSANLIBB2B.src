@@ -430,6 +430,9 @@ Local     Integer LREGINI,LREGFIN
         Else
           PFECHAPREVISTA(I) = ""
         Endif
+        If [F:ZVSD1]SALDADA = 3 and ([F:ZVSD1]CTDEXPEDIDA = 0 or ([F:ZVSD1]CANTIDAD - [F:ZVSD1]CTDEXPEDIDA > 0)) Then
+          PFECHAPREVISTA(I) = "Anulada"
+        Endif
         [L]LREGINI += 1
         [L]I       += 1
       Else
