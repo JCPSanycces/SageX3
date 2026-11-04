@@ -1078,7 +1078,7 @@ Local Char LRET(25)
     Read [F:ZBPR]BPR0 = [F:ZSOH]BPCORD
     If !fstat Then
       # clientes de España
-      If [F:ZBPR]CRY = "SPA" Then
+      If [F:ZBPR]CRY = "ES" Then
         # Cuando se trata de envíos a las Islas Baleares (código postal empieza por 07), el criterio es el siguiente:
         #   - Por GENERAL COURIER LOGISTICA SLU (NA000012) pedidos <= 10 kg y sin artículos de tipo lavabo
         #   - Por Dachser: el resto
@@ -1098,7 +1098,7 @@ Local Char LRET(25)
             [L]LRET = 'NA000008'
           Endif
           Close Local File [ZSOH],[ZSOP]
-          Return
+          End LRET
         Endif
 
         # Para todos aquellos pedidos que entren por el B2B debemos seguir estos criterios para asignar TTA:
