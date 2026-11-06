@@ -1079,7 +1079,7 @@ Local Char LRET(25)
         # Cuando se trata de envíos a las Islas Baleares (código postal empieza por 07), el criterio es el siguiente:
         #   - Por GENERAL COURIER LOGISTICA SLU (NA000012) pedidos <= 10 kg y sin artículos de tipo lavabo
         #   - Por Dachser: el resto
-        If right$([F:ZSOH]BPDPOSCOD,2) = "07" Then
+        If left$([F:ZSOH]BPDPOSCOD,2) = "07" Then
           If [F:ZSOH]DSPTOTWEI <= 10 Then
             Filter [F:ZSOP] Where SOHNUM = PSOHNUM
             For [F:ZSOP]
