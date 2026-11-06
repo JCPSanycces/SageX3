@@ -15,6 +15,7 @@
 #  @11@ - JMF - 20-02-2026 - Controlar cambio concertación
 #  @12@ - JMF - 23-02-2026 - Inicializar campo YMAILTRACK (envío mail tracking Sí/No)
 #  @13@ - JMF - 26-02-2026 - Si el pedido tiene marcada 'Concertación = Sí', los campos teléfono, contacto y mail son obligatorios
+#  @14@ - EQM - 05-11-2026 - Modificamos para que la suma de días en SHIDAT sea de dias laborables
 # 26002 - JCP.05032026 - Imprimir la descripción modificada para el artículo VTAMUESTRAS
 # 2026-00006 - JCP.25032026.Mamparas - Reports Ventas - Variantes Estructuras
 # 2026-00007 - JCP.27032026.Servicio de trasportista
@@ -703,6 +704,7 @@ If [M:SOH4]ZASOCIADO(nolign-1) = 2 and [M:SOH4]STOMGTCOD(nolign-1) = 1
   If WSTKTXTMESS(1)<>""
     [M:SOH4]WSTKTXT -= "-"-WSTKTXTMESS(1)
   Endif
+
   Affzo [M:SOH4]WSTKTXT
   Affzo [M:SOH4]WALLTXT
 
@@ -1053,6 +1055,7 @@ If [M:SOH4]ITMREF(nolign-1) <> "" and GREP=""
   Affzo [M:SOH4]WSTKTXT
   Affzo [M:SOH4]WALLTXT
 Endif
+
 End
 
 
@@ -1101,14 +1104,18 @@ If !clalev([YZOC1C]) : Local File ZOCERE1C [YZOC1C] : Endif
 #                Affzo [M:SOH4]EXTDLVDAT(nolign-1)
 #            Endif
 #          Endif
-#           @03@ - EQM - FIN
+#           @03@ - EQM - FI
+
           Read [PP1]ITF0 = VALEUR;[M:SOH0]SALFCY
           If fstat = 0
             Read [PP2]FCY0 = [M:SOH0]SALFCY
               If fstat = 0
               #  @03@ - EQM - INI
               #   YDSTDAT = [M:SOH0]ORDDAT + [PP1]PRPLTI
-                  YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+                  #  @14@ - EQM INI
+#                  YDSTDAT = [M:SOH0]ORDDAT + [PP1]YPRPLTI
+                   YDSTDAT= func ZSUMALAB([M:SOH0]ORDDAT,[PP1]YPRPLTI)
+                  #  @14@ - EQM FIN
               #  @03@ - EQM
 
                 If dayn(YDSTDAT) = 6
@@ -1121,8 +1128,8 @@ If !clalev([YZOC1C]) : Local File ZOCERE1C [YZOC1C] : Endif
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - INI
 #              [M:SOH4]DSHIDAT(nolign-1)   = YDSTDAT
 #              [M:SOH4]EXTDLVDAT(nolign-1) = YDSTDAT
-              [M:SOH4]DSHIDAT(nolign-1)   = func COMPROBAR_FECHA([M:SOH0]SALFCY,VALEUR,YDSTDAT)
-              [M:SOH4]EXTDLVDAT(nolign-1) = func COMPROBAR_FECHA([M:SOH0]SALFCY,VALEUR,YDSTDAT)
+              [M:SOH4]DSHIDAT(nolign-1)   = func COMPROBAR_FECHA([M:SOH0]SALFCY,VALEUR,YDSTDAT) #COMENTO
+              [M:SOH4]EXTDLVDAT(nolign-1) = func COMPROBAR_FECHA([M:SOH0]SALFCY,VALEUR,YDSTDAT) #COMENTO
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
               Affzo [M:SOH4]DSHIDAT(nolign-1)
               Affzo [M:SOH4]EXTDLVDAT(nolign-1)
@@ -1155,6 +1162,7 @@ If !clalev([YZOC1C]) : Local File ZOCERE1C [YZOC1C] : Endif
 #Endif
 #
 #Close Local File [PP1],[PP2]
+
 End
 
 Subprog C_ZLINASOC(VALEUR)
@@ -1248,7 +1256,10 @@ $CALCULO_SHIDAT
                 If !fstat
                     Read [YFCY]FCY0 = [M:SOH0]SALFCY
                     If fstat = 0
-                        DSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                        #  @14@ - EQM INI
+#                        DSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                         DSTDAT= func ZSUMALAB([M:SOH0]ORDDAT,[YITF]YPRPLTI)
+                        #  @14@ - EQM FIN
                         Call CTL_JOU(DSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                        [M:SOH4]DSHIDAT(I) = DSTDAT
@@ -1266,7 +1277,10 @@ $CALCULO_SHIDAT
                 If fstat = 0
                     Read [YFCY]FCY0 = [M:SOH0]SALFCY
                     If fstat = 0
-                        YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                        #  @14@ - EQM INI
+#                        YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                          YDSTDAT= func ZSUMALAB([M:SOH0]ORDDAT,[YITF]YPRPLTI)
+                        #  @14@ - EQM FIN
                         Call CTL_JOU(YDSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                        [M:SOH4]DSHIDAT(I)   = YDSTDAT
@@ -1284,7 +1298,10 @@ $CALCULO_SHIDAT
                         If fstat = 0
                             Read [YFCY]FCY0 = [M:SOH0]SALFCY
                             If fstat = 0
-                                YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                                #  @14@ - EQM INI
+#                                YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                                YDSTDAT= func ZSUMALAB([M:SOH0]ORDDAT,[YITF]YPRPLTI)
+                                #  @14@ - EQM FIN
                                 Call CTL_JOU(YDSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                                [M:SOH4]DSHIDAT(I)   = YDSTDAT
@@ -1304,7 +1321,10 @@ $CALCULO_SHIDAT
                  If fstat = 0
                      Read [YFCY]FCY0 = [M:SOH0]SALFCY
                      If fstat = 0
-                         YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                         #  @14@ - EQM INI
+#                         YDSTDAT = [M:SOH0]ORDDAT + [YITF]YPRPLTI
+                          YDSTDAT= func ZSUMALAB([M:SOH0]ORDDAT,[YITF]YPRPLTI)
+                         #  @14@ - EQM FIN
                          Call CTL_JOU(YDSTDAT, [YFCY]UVYDAY, [YFCY]UVYCOD, 1) From CONTX3
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada
 #                         [M:SOH4]DSHIDAT(I)   = YDSTDAT
@@ -1350,6 +1370,36 @@ Local Date YDSTAT
 
 End YDSTAT
 #  @06@ - JLP - 24-10-2024 - Bloqueo de modificación de fechas de expedicion la familia la tiene bloqueada - FIN
+#  @14@ - EQM - INI
+Funprog ZSUMALAB(ZFECHAINI, ZDIAS)
+
+Value Date ZFECHAINI
+Value Integer ZDIAS
+
+Local Date ZFECHAFIN
+Local Integer ZCONTADOR
+Local Integer ZDIASEM
+
+ZFECHAFIN = ZFECHAINI
+ZCONTADOR = 0
+
+If ZDIAS <= 0
+    End ZFECHAINI
+Endif
+
+While ZCONTADOR < ZDIAS
+
+    ZFECHAFIN += 1
+    ZDIASEM = dayn(ZFECHAFIN)
+
+    If ZDIASEM <> 6 & ZDIASEM <> 7
+        ZCONTADOR += 1
+    Endif
+
+Wend
+
+End ZFECHAFIN
+#  @14@ - EQM FIN
 ######################################################################################
 ######################################################################################
 ## Etiqueta añadida por el supervisor (pantalla SOH1) 20/09/2024 10:52:08 (NUN11)
